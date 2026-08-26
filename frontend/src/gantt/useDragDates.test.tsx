@@ -286,6 +286,55 @@ describe("перетаскивание дат", () => {
     expect(bar.style.left).toBe(before);
   });
 
+  it("дроп за горизонтом коммитит показанный день, а не край окна", async () => {
+    const sent = captureMutations();
+    renderProject();
+    const bar = await screen.findByRole("button", { name: /Логотип/ });
+
+    // Окно заглушки кончается 30 июня (последняя дата — project_end,
+    // округлённая до конца месяца). Сто тридцать дней вправо — далеко за его
+    // краем; прежде такой бросок прижимался к 30 июня, и тост называл день, в
+    // который никто не целился.
+    dragDays(bar, 130);
+
+    await waitFor(() =>
+      expect(sent[0].op).toMatchObject({ type: "move_task", start_date: "2026-07-12" }),
+    );
+  });
+
+  it("окно дотягивается за жестом и не дёргается на броске", async () => {
+    renderProject();
+    const bar = await screen.findByRole("button", { name: /Логотип/ });
+    const days = () => document.querySelectorAll(".gantt__grid-day").length;
+    expect(days()).toBe(122); // март — июнь: окно заглушки кончается 30 июня
+
+    fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
+    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
+    // Конец полоски пришёлся на 18 июля — окно доросло до конца июля тем же
+    // округлением, каким лента строит его сама. Сетка существует всюду, куда
+    // доехала полоска, а не обрывается на прежнем краю.
+    expect(days()).toBe(153);
+
+    fireEvent.pointerUp(bar, { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
+    fireEvent.click(bar, { clientX: 100 + 130 * DAY_WIDTH.day });
+    // Бросок снял достройку, но догадка тем же событием положила новые даты в
+    // состояние — окно пересчиталось от них и не изменилось ни на день.
+    expect(days()).toBe(153);
+  });
+
+  it("Esc возвращает и достроенное окно", async () => {
+    renderProject();
+    const bar = await screen.findByRole("button", { name: /Логотип/ });
+    const days = () => document.querySelectorAll(".gantt__grid-day").length;
+
+    fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
+    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
+    expect(days()).toBe(153);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(days()).toBe(122);
+  });
+
   it("гасит отмену в тосте, если верх журнала уехал", async () => {
     // Шесть секунд тоста — достаточный срок, чтобы сосед по проекту применил
     // свою правку. Отмена «последнего» сняла бы её, поэтому кнопка, обещавшая

@@ -6,6 +6,7 @@ import {
   dateOfProjectDay,
   projectDayNumber,
   relativeMonths,
+  relativeWeekEnd,
   relativeWeeks,
   relativeWindow,
 } from "./relative";
@@ -76,5 +77,13 @@ describe("относительная ось", () => {
     // Обрезанный последний «месяц» — две недели: окно круглится до недель,
     // а не до месяцев, как в макете, где месяц 2 начат пятой неделей.
     expect(months[1]).toEqual({ number: 2, x: 280, width: 140 });
+  });
+});
+
+describe("relativeWeekEnd", () => {
+  it("округляет вверх до конца недели — тем же правилом, что и окно", () => {
+    expect(relativeWeekEnd("2001-01-01")).toBe("2001-01-07"); // День 1 → конец недели 1
+    expect(relativeWeekEnd("2001-01-07")).toBe("2001-01-07"); // День 7 — уже конец
+    expect(relativeWeekEnd("2001-01-08")).toBe("2001-01-14"); // День 8 → конец недели 2
   });
 });

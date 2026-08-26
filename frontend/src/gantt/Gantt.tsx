@@ -20,7 +20,7 @@ import { AddCategoryRow, AddTaskRow, NewCategoryRow, PendingCategoryRow } from "
 import { HeadCells } from "./Cells";
 import { Grid } from "./Grid";
 import { Header, RelativeHeader } from "./Header";
-import { RELATIVE_EPOCH, relativeDayLabel, relativeWindow } from "./relative";
+import { RELATIVE_EPOCH, relativeDayLabel, relativeWeekEnd, relativeWindow } from "./relative";
 import { Arrows } from "./Arrows";
 import { NewTaskRow, PendingRow } from "./NewTaskRow";
 import { CategoryRow, TaskRow } from "./Row";
@@ -41,7 +41,7 @@ import {
 } from "./columns";
 import type { ColumnKey, ColumnLayout } from "./columns";
 import { rememberLayout, storedLayout } from "./columns";
-import { DAY_WIDTH, ROW_HEIGHT, projectWindow } from "./scale";
+import { DAY_WIDTH, ROW_HEIGHT, lastOfMonth, projectWindow } from "./scale";
 import type { Zoom } from "./scale";
 import { rememberZoom, storedZoom } from "./scalePreference";
 import { addDays, buildScale, daysBetween } from "./timescale";
@@ -340,13 +340,51 @@ export function Gantt({
   // стоять там, где у читателя сегодня, и в поясе восточнее Гринвича по UTC
   // она каждую ночь до утра стояла на вчерашнем числе.
   const today = useToday(state.settings?.timezone);
+  // Докуда дотянул начатый жест: полоску задачи или полосу категории держат за
+  // правым краем окна. Пока жест идёт, окно дотягивается до этой даты — тем же
+  // округлением, каким лента строит его сама, — и сетка существует всюду, куда
+  // доехала полоска. Без этого последнюю задачу нельзя утащить дальше пары
+  // дней: окно кончается почти сразу за ней, полоска выезжает в белую пустоту
+  // без единой даты, а прокрутиться туда лента позволяет — вынесенная
+  // транслейтом полоска расширяет прокручиваемую область.
+  //
+  // Пока жест идёт, окно не убывает: жест зовёт сюда только даты за нынешним
+  // краем (см. track в useDragDates), поэтому сетка, отросшая за полоской, не
+  // отрастает назад при движении обратно — иначе она дёргала бы прокрутку под
+  // рукой. Бросок передаёт закоммиченный конец, отменённый жест — `null`.
+  // Цена достройки — один пересчёт шкалы на каждый пересечённый день, а не на
+  // каждый пиксель: одинаковая дата повторную отрисовку не будит.
+  const [reach, setReach] = useState<string | null>(null);
+  const onReach = useCallback((endISO: string | null) => setReach(endISO), []);
+
   // Зависимость — границы окна, а не само состояние: после каждого изменения
   // сервер присылает новый объект состояния, и шкала, привязанная к его
   // тождеству, пересобиралась бы всякий раз — вместе со всеми делениями и
   // месяцами, которые от правки одной задачи не изменились.
-  const { from, to } = relativeAxis ? relativeWindow(state, anchor) : projectWindow(state, today);
+  const base = relativeAxis ? relativeWindow(state, anchor) : projectWindow(state, today);
+  const from = base.from;
+  // Достройка меняет только правый край: `from` и ширина дня стоят на месте,
+  // поэтому `Scale.key` не меняется и координаты всех полосок остаются теми
+  // же — жест посреди достройки не сбивается (см. `Scale.key`).
+  const to =
+    reach === null || reach <= base.to
+      ? base.to
+      : relativeAxis
+        ? relativeWeekEnd(reach, anchor)
+        : lastOfMonth(reach);
   const dayWidth = DAY_WIDTH[zoom];
   const scale = useMemo(() => buildScale({ from, to, dayWidth }), [dayWidth, from, to]);
+
+  // Подтверждённый перенос накрыл достройку своим окном — её можно снять, не
+  // меняя геометрии ленты. Снимать прямо на броске нельзя: догадка ложится в
+  // кэш, но её уведомление React Query шлёт микрозадачей, и между сбросом и
+  // догадкой холст на мгновение сжался бы до прежнего окна. Слой высоты в тот
+  // же момент меряет ленту (см. useViewportFit) и этим заставляет браузер
+  // пересчитать раскладку — прокрутка, стоявшая в достроенной части, прижалась
+  // бы к прежнему краю, и вид прыгнул бы под рукой ровно в момент броска.
+  useEffect(() => {
+    if (reach !== null && reach <= base.to) setReach(null);
+  }, [reach, base.to]);
 
   // В относительном представлении вместо дат — дни проекта: настоящей даты у
   // плана без назначенного старта ещё нет.
@@ -804,6 +842,7 @@ export function Gantt({
                         category={category}
                         tasks={tasks}
                         scale={scale}
+                        onReach={onReach}
                         layout={layout}
                         format={format}
                         canWrite={canWrite}
@@ -840,6 +879,7 @@ export function Gantt({
                               projectId={projectId}
                               task={task}
                               scale={scale}
+                              onReach={onReach}
                               calendar={state.calendar}
                               layout={layout}
                               cellLabels={cellLabels}
