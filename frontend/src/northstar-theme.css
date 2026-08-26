@@ -56,7 +56,13 @@
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-pill: 20px;
-  --sidebar: 232px;
+  /* Ширина отмерена по самой длинной подписи, а не на глаз: «Админ-панель» —
+     101px при 14px/600, и вместе с полем колонки, полем строки, значком и
+     просветом ей нужно 181px. Остальное достаётся названию организации,
+     которое приходит с сервера какой угодно длины и обрезается многоточием.
+     Прежние 232px держали лишние шестнадцать пикселей, и брала их колонка у
+     диаграммы — ради которой это приложение и открывают. */
+  --sidebar: 216px;
   --control: 36px;
   /* Рост кнопки. Меньше `--control` намеренно — см. styles.css, где токен
      заведён: одна высота на все кнопки приложения, взятая у ряда действий в
@@ -117,8 +123,13 @@ a:focus-visible,
    должна весить на вид больше страницы, которой служит. */
 .sidebar { padding: 16px 10px 12px; gap: 10px; background: var(--surface); border-right: 1px solid var(--border); --sidebar-gutter: 10px; --sidebar-mark: 30px; --sidebar-gap: 10px; }
 .sidebar__workspace { padding: 0 var(--sidebar-gutter); }
-.sidebar__avatar { width: 30px; height: 30px; border-radius: 8px; font-size: 0; position: relative; background: linear-gradient(145deg, #7182ff, #4256d8); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%); }
-.sidebar__avatar::after { content: "P"; color: #fff; font-size: 18px; line-height: 1; font-weight: 800; }
+/* Буква в квадрате — первая буква организации, и берётся она из разметки, а не
+   рисуется темой. Тема ставила сюда `content: "P"` поверх погашенного
+   `font-size: 0`: у организации «Marsa» квадрат показывал «P», то есть
+   опознавал продукт вместо рабочего пространства — ровно наоборот тому, зачем
+   он заведён (см. Header.tsx). В свёрнутой колонке этот квадрат вдобавок
+   единственное, что от неё остаётся. */
+.sidebar__avatar { width: 30px; height: 30px; border-radius: 8px; color: #fff; font-size: 15px; line-height: 1; font-weight: 800; background: linear-gradient(145deg, #7182ff, #4256d8); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%); }
 .sidebar__brand { font-size: 15px; font-weight: 700; color: var(--text); }
 .sidebar__section { display: none; }
 .sidebar__nav { gap: 3px; }
