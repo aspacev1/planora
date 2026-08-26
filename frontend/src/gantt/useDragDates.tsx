@@ -135,6 +135,15 @@ export function useDragDates({
   // Было ли движение. Живёт в ref, а не в состоянии: значение читается в
   // обработчике клика сразу после отпускания, и перерисовка тут не нужна.
   const dragged = useRef(false);
+  // Двигался ли указатель за этот жест вообще — отдельно от порога в пару
+  // пикселей выше.
+  //
+  // Сдвиг жеста считает и ход самой ленты (см. `edgeScroll.scrolled`), а лента
+  // умеет ехать под неподвижным пальцем: инерция прокрутки, начатой перед
+  // самым нажатием, доезжает уже после него. Без этого признака такое нажатие
+  // выходило бы переносом сроков на всё докатившееся — вместо того, чтобы
+  // открыть карточку, за чем на полоску и нажимали.
+  const pointerMoved = useRef(false);
   // Два состояния, потому что вопроса два, и отвечают на них в разное время.
   //
   // `started` — палец на полоске: с этого мгновения жест можно передумать, и
@@ -411,6 +420,10 @@ export function useDragDates({
         event.preventDefault();
       }
       const bar = event.currentTarget.closest<HTMLElement>(".gantt__bar") ?? event.currentTarget;
+      // Прошлый жест, если он почему-то не закончился (второй палец на
+      // планшете, отпускание, не дошедшее до полоски), снимается здесь:
+      // иначе за ним остались бы кадр и подписка на прокрутку ленты.
+      from.current?.scroll.stop();
       from.current = {
         pointerId: event.pointerId,
         x: event.clientX,
@@ -420,6 +433,7 @@ export function useDragDates({
       };
       lastX.current = event.clientX;
       dragged.current = false;
+      pointerMoved.current = false;
       // Жест начат — с этого мгновения его можно передумать по Esc. Вид
       // полоски при этом не меняется: щелчок начинается точно так же, и
       // подъём над соседями мигал бы на каждом открытии карточки.
@@ -433,6 +447,7 @@ export function useDragDates({
       const start = from.current;
       if (start === null || start.pointerId !== event.pointerId) return;
       lastX.current = event.clientX;
+      pointerMoved.current = true;
       start.scroll.track(event.clientX);
       track(event.clientX);
     },
@@ -444,7 +459,13 @@ export function useDragDates({
       start.scroll.stop();
       setStarted(false);
       setDragging(null);
-      const dx = clampGrip(start.grip, event.clientX - start.x + start.scroll.scrolled());
+      // Нажатие, за которое указатель не сдвинулся ни разу, — щелчок по
+      // полоске, и сдвига у него нет никакого. Считать его по общей формуле
+      // нельзя: в неё входит ход ленты, а он бывает и без участия пальца
+      // (см. `pointerMoved`).
+      const dx = pointerMoved.current
+        ? clampGrip(start.grip, event.clientX - start.x + start.scroll.scrolled())
+        : 0;
 
       if (start.grip === "progress") {
         // Заливка ответа не ждёт: догадка о проценте — это и есть будущий

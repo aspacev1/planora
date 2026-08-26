@@ -49,6 +49,11 @@ export function useDragCategory({
     scroll: ReturnType<typeof edgeScroll>;
   } | null>(null);
   const lastX = useRef(0);
+  // Двигался ли указатель за жест. Сдвиг полосы считает и ход самой ленты
+  // (см. `edgeScroll.scrolled`), а она умеет ехать под неподвижным пальцем —
+  // инерцией прокрутки, начатой перед самым нажатием. Без этого признака
+  // нажатие на полосу переносило бы этап целиком на всё докатившееся.
+  const pointerMoved = useRef(false);
   const [dragging, setDragging] = useState(false);
 
   /** Сдвиг полосы под пальцем — свойством прямо в узел, мимо состояния React. */
@@ -134,12 +139,16 @@ export function useDragCategory({
             // нажатие на полосу начинало бы заодно и её.
             event.stopPropagation();
             event.preventDefault();
+            // Прошлый жест, если он почему-то не закончился, снимается здесь:
+            // иначе за ним остались бы кадр и подписка на прокрутку ленты.
+            from.current?.scroll.stop();
             from.current = {
               pointerId: event.pointerId,
               x: event.clientX,
               scroll: edgeScroll(event.currentTarget, () => track(lastX.current)),
             };
             lastX.current = event.clientX;
+            pointerMoved.current = false;
             setDragging(true);
             event.currentTarget.setPointerCapture?.(event.pointerId);
           },
@@ -149,6 +158,7 @@ export function useDragCategory({
             if (start === null || start.pointerId !== event.pointerId) return;
             event.stopPropagation();
             lastX.current = event.clientX;
+            pointerMoved.current = true;
             start.scroll.track(event.clientX);
             track(event.clientX);
           },
@@ -157,7 +167,9 @@ export function useDragCategory({
             const start = from.current;
             if (start === null || start.pointerId !== event.pointerId) return;
             event.stopPropagation();
-            const dx = event.clientX - start.x + start.scroll.scrolled();
+            // Нажатие без единого движения указателя — щелчок по полосе, а не
+            // перенос этапа: ход ленты в его сдвиг не входит (см. выше).
+            const dx = pointerMoved.current ? event.clientX - start.x + start.scroll.scrolled() : 0;
             stop();
             move(dx);
           },

@@ -30,6 +30,7 @@ import { useLinkDrag } from "./useLinkDrag";
 import { useQuickCategory } from "./useQuickCategory";
 import { useQuickTask } from "./useQuickTask";
 import { useReorder } from "./useReorder";
+import { useViewportFit } from "./useViewportFit";
 import {
   COLUMN_KEYS,
   OPTIONAL_COLUMNS,
@@ -192,6 +193,9 @@ export function Gantt({
 }) {
   const { t } = useLocale();
   const scroller = useRef<HTMLDivElement>(null);
+  // Лента прокручивается сама — и по вертикали тоже. Без этого закреплённая
+  // шапка шкалы уезжает вместе со страницей (см. `useViewportFit`).
+  useViewportFit(scroller);
   const reorder = useReorder({ projectId, state, canWrite });
   const link = useLinkDrag({ projectId, state, canWrite });
   const quick = useQuickTask({ projectId, state });
