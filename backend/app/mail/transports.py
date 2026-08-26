@@ -201,13 +201,12 @@ class LogTransport:
         self._reveal_secrets = reveal_secrets
 
     def deliver(self, letter: Letter) -> None:
-        body = letter.body if self._reveal_secrets else _mask_secrets(letter.body)
         logger.info(
             "почта в журнал (MAIL_TRANSPORT=%s), письмо осталось здесь:\n"
-            "From: %s\nTo: %s\nSubject: %s\n\n%s",
+            "From: %s\nTo: %s\nSubject: %s\nbody_chars=%d",
             "log" if self._reveal_secrets else "none",
             self._sender or "—",
             letter.to,
             letter.subject,
-            body,
+            len(letter.body),
         )
