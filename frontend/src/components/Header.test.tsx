@@ -137,7 +137,7 @@ describe("шапка", () => {
 
     // Сворачивает сам логотип: отдельной кнопки со стрелкой в колонке нет.
     const logo = await screen.findByRole("button", { name: "Скрыть меню" });
-    expect(await screen.findByText("Şəhər Studiyası")).toBe(logo.lastElementChild);
+    expect(logo).toContainElement(await screen.findByText("Şəhər Studiyası"));
 
     await userEvent.click(logo);
 
@@ -149,5 +149,72 @@ describe("шапка", () => {
 
     expect(screen.getByRole("button", { name: "Скрыть меню" })).toBeInTheDocument();
     expect(localStorage.getItem("planora.sidebar_collapsed")).toBeNull();
+  });
+
+  it("держит подпись каждого пункта отдельным узлом", async () => {
+    renderApp({ route: "/projects", locale: "ru" });
+
+    // Свёрнутая колонка прячет подписи, оставляя значки. Спрятать подпись
+    // можно только тогда, когда она — свой узел: голым текстом внутри ссылки
+    // она гасится вместе со значком, и от рейки остаётся пустая полоса. Ровно
+    // так колонка и выглядела — один логотип, без единого пункта.
+    for (const name of ["Проекты", "Мои задачи"]) {
+      const link = await screen.findByRole("link", { name });
+      expect(link.querySelector(".sidebar__label")).toHaveTextContent(name);
+      expect(link.querySelector("svg.sidebar__icon")).not.toBeNull();
+    }
+  });
+
+  it("называет каждый пункт помимо видимой подписи", async () => {
+    renderApp({ route: "/projects", locale: "ru" });
+
+    // Свёрнутая колонка прячет подпись — и с экрана, и из дерева доступности:
+    // значок рядом `aria-hidden`, и пункт остался бы вовсе безымянным. Имя
+    // поэтому задано отдельно, и задано у всех пунктов, а не только у нижних.
+    await screen.findByRole("link", { name: "Проекты" });
+    for (const item of document.querySelectorAll(".sidebar__nav .sidebar__link")) {
+      expect(item).toHaveAttribute("aria-label", item.textContent);
+    }
+  });
+
+  it("объясняет свёрнутую колонку своей подсказкой, а не атрибутом `title`", async () => {
+    renderApp({ route: "/projects", locale: "ru" });
+
+    // Нативную подсказку рисует система: приложение не знает ни где она
+    // встанет, ни когда погаснет. Эта вставала поверх пункта «Проекты» и
+    // висела ещё пару секунд после ухода курсора — своя знает про колонку.
+    const logo = await screen.findByRole("button", { name: "Скрыть меню" });
+    expect(logo).not.toHaveAttribute("title");
+    expect(logo.querySelector(".sidebar__tip")).toHaveTextContent("Скрыть меню");
+
+    await userEvent.click(logo);
+
+    // Подсказка говорит про действие, а не про состояние, и меняется вместе с
+    // именем кнопки: в рейке она — единственное, что объясняет квадрат.
+    const rail = screen.getByRole("button", { name: "Показать меню" });
+    expect(rail.querySelector(".sidebar__tip")).toHaveTextContent("Показать меню");
+  });
+
+  it("называет `aria-expanded` то, что сворачивает", async () => {
+    renderApp({ route: "/projects", locale: "ru" });
+
+    // Без `aria-controls` читалка сообщает «свёрнуто», не говоря чего. Обе
+    // области перечислены: подписи пропадают и у разделов, и у нижнего блока.
+    const logo = await screen.findByRole("button", { name: "Скрыть меню" });
+    const controls = logo.getAttribute("aria-controls")?.split(" ") ?? [];
+
+    expect(controls).toHaveLength(2);
+    for (const id of controls) expect(document.getElementById(id)).not.toBeNull();
+  });
+
+  it("ставит в квадрат первую букву организации, а не продукта", async () => {
+    renderApp({ route: "/projects", locale: "ru" });
+
+    // Тема рисовала здесь `content: "P"` поверх погашенной разметки, и у
+    // организации «Şəhər Studiyası» квадрат опознавал Planora. В свёрнутой
+    // колонке этот квадрат — единственное, что от неё остаётся, и говорить он
+    // обязан про место работы.
+    await screen.findByText("Şəhər Studiyası");
+    expect(document.querySelector(".sidebar__avatar")).toHaveTextContent("Ş");
   });
 });

@@ -5,7 +5,7 @@ import { NavLink } from "react-router-dom";
 import { ORG_QUERY_KEY, organization } from "../api/org";
 import { useAuth } from "../auth/AuthProvider";
 import { useLocale } from "../i18n/LocaleProvider";
-import { IconBoard, IconCheck, IconExit, IconSettings, IconShield } from "./icons";
+import { IconBoard, IconCheck, IconCollapse, IconExit, IconSettings, IconShield } from "./icons";
 import { LocaleSwitch } from "./LocaleSwitch";
 import { OrgSwitch } from "./OrgSwitch";
 
@@ -25,6 +25,13 @@ import { OrgSwitch } from "./OrgSwitch";
  * целятся чаще всего.
  */
 const COLLAPSED_KEY = "planora.sidebar_collapsed";
+
+/* Логотип объявляет `aria-expanded`, и оно обязано говорить про что-то
+   названное: без `aria-controls` читалка сообщает «свёрнуто», не говоря чего.
+   Обе области перечислены, а не одна: сворачивание убирает подписи и у
+   разделов, и у нижнего блока. */
+const NAV_ID = "sidebar-nav";
+const FOOT_ID = "sidebar-foot";
 
 function storedCollapsed(): boolean {
   try {
@@ -67,8 +74,14 @@ export function Header() {
   // Название организации — содержимое пользователя: оно приходит с сервера
   // как есть и не переводится ни при каком языке интерфейса. Пока оно не
   // пришло, подпись держит название продукта, а не пустота, которая дёргала
-  // бы колонку по ширине.
-  const title = org.data?.name ?? t("app.title");
+  // бы колонку по ширине. Пустое название с сервера — тоже пустота: `||`, а не
+  // `??`, иначе квадрат слева остался бы без буквы.
+  const title = org.data?.name?.trim() || t("app.title");
+
+  // Подпись переключателя нужна дважды — читалке и подсказке в свёрнутой
+  // колонке, — и обязана быть одной строкой: разъехавшись, они назвали бы одну
+  // кнопку двумя разными именами.
+  const toggleLabel = collapsed ? t("nav.sidebar_expand") : t("nav.sidebar_collapse");
 
   return (
     <header className={`sidebar${collapsed ? " sidebar--collapsed" : ""}`}>
@@ -76,13 +89,19 @@ export function Header() {
           стрелкой занимала место в самой узкой строке приложения и требовала
           прицела в 24 пикселя, а логотип — крупная мишень, которая остаётся
           видимой в обоих состояниях. */}
+      {/* Подсказка — своя, а не атрибут `title`. Нативную рисует система, и
+          приложение не управляет ни её местом, ни временем жизни: она вставала
+          поверх пункта «Проекты», закрывая ему значок и половину подписи, и
+          висела ещё пару секунд после того, как курсор ушёл. Своя знает про
+          колонку: встаёт справа от рейки, гаснет сразу и видна только там, где
+          подписей нет. */}
       <button
         type="button"
         className="sidebar__workspace"
         onClick={toggleCollapsed}
         aria-expanded={!collapsed}
-        aria-label={collapsed ? t("nav.sidebar_expand") : t("nav.sidebar_collapse")}
-        title={collapsed ? t("nav.sidebar_expand") : t("nav.sidebar_collapse")}
+        aria-controls={`${NAV_ID} ${FOOT_ID}`}
+        aria-label={toggleLabel}
       >
         {/* Квадрат с первой буквой — не украшение: в колонке одинаковых строк
             цветное пятно находится глазом быстрее, чем читается слово. В
@@ -90,9 +109,21 @@ export function Header() {
             нему видно, что это за приложение и чья это организация, и по нему
             же колонка разворачивается обратно. */}
         <span className="sidebar__avatar" aria-hidden="true">
-          {[...title][0] ?? "F"}
+          {[...title][0]}
         </span>
         <span className="sidebar__brand">{title}</span>
+        {/* Стрелка вместо надписи: в развёрнутой колонке название организации
+            стоит рядом, и подсказка «Скрыть меню» пересказывала бы словами то,
+            что рисунок говорит короче. Появляется под курсором и по фокусу —
+            постоянная, она читалась бы как часть логотипа. */}
+        <IconCollapse className="sidebar__fold" />
+        {/* А в рейке наоборот: рисовать стрелку негде, и единственное, что
+            объясняет одинокий квадрат, — слово. `aria-hidden`, потому что имя
+            кнопке уже дано `aria-label`, и без этого читалка произнесла бы его
+            дважды. */}
+        <span className="sidebar__tip" aria-hidden="true">
+          {toggleLabel}
+        </span>
       </button>
 
       {/* Приветствия здесь больше нет: имя вошедшего человек знает и без
@@ -107,7 +138,7 @@ export function Header() {
           часть маршрутов отвечает отказом, но ссылки остаются видимыми —
           прятать их значило бы решать про доступ на клиенте, а решает про него
           сервер. */}
-      <nav className="sidebar__nav">
+      <nav className="sidebar__nav" id={NAV_ID}>
         {/* «Проекты» ведут туда же, куда приводит вход, — на `/projects`.
             Раньше пункт указывал на «/», где жил другой экран с тем же
             заголовком: щелчок по единственному пункту про проекты уводил не
@@ -123,17 +154,26 @@ export function Header() {
             готовностью и сроками. Раздел один, и сводка живёт в его таблице —
             выбирать, на котором из трёх смотреть, больше не нужно. Значок тот
             же, что раньше отличал именно «Проекты» от чисел «Отчётов». */}
-        <NavLink to="/projects" className={navClass}>
+        {/* Подпись — отдельным узлом, как и в нижнем блоке: свёрнутая колонка
+            прячет подписи, а голым текстом внутри ссылки спрятать нечего —
+            пришлось бы гасить всю строку целиком, вместе со значком, чем
+            рейка и оказывалась пустой.
+
+            Имя задано и отдельно, `aria-label`: спрятанная подпись пропадает
+            не только с экрана, но и из дерева доступности, а значок рядом
+            `aria-hidden` — свёрнутый пункт остался бы вовсе безымянным.
+            Строка та же самая, так что разойтись именам не с чем. */}
+        <NavLink to="/projects" className={navClass} aria-label={t("nav.projects")}>
           <IconBoard className="sidebar__icon" />
-          {t("nav.projects")}
+          <span className="sidebar__label">{t("nav.projects")}</span>
         </NavLink>
-        <NavLink to="/my-tasks" className={navClass}>
+        <NavLink to="/my-tasks" className={navClass} aria-label={t("nav.my_tasks")}>
           <IconCheck className="sidebar__icon" />
-          {t("nav.my_tasks")}
+          <span className="sidebar__label">{t("nav.my_tasks")}</span>
         </NavLink>
       </nav>
 
-      <div className="sidebar__foot">
+      <div className="sidebar__foot" id={FOOT_ID}>
         {/* Одна шестерёнка вместо трёх пунктов подряд. Раньше здесь стояли
             «Организация», «Настройки» (проекта) и «Профиль» — два первых с
             одинаковым значком и подписями, по которым нельзя было угадать,
@@ -165,11 +205,12 @@ export function Header() {
             <span className="sidebar__label">{t("nav.admin")}</span>
           </NavLink>
         )}
-        {/* Подпись — отдельным узлом, потому что на узком экране нижний блок
-            переезжает в верхнюю строку и подписи в нём скрываются: места на
-            них там нет, а сами пункты обязаны остаться. Имя для чтения вслух
-            при этом задано явно — значок `aria-hidden`, и без aria-label
-            свёрнутый пункт остался бы безымянным. */}
+        {/* Подпись — отдельным узлом, потому что прячут её в двух местах: на
+            узком экране нижний блок переезжает в верхнюю строку, а на широком
+            колонка сворачивается в рейку. В обоих случаях места на подписи
+            нет, а сами пункты обязаны остаться. Имя для чтения вслух при этом
+            задано явно — значок `aria-hidden`, и без aria-label свёрнутый
+            пункт остался бы безымянным. */}
         <NavLink to="/settings" className={navClass} aria-label={t("nav.settings")}>
           <IconSettings className="sidebar__icon" />
           <span className="sidebar__label">{t("nav.settings")}</span>
