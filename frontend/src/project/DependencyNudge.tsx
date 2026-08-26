@@ -55,8 +55,16 @@ export function useNoteMovedTask(): Notice | null {
   return useContext(MovedTaskContext)?.note ?? null;
 }
 
-/** Насколько подвинуть последователя, чтобы он начинался после предшественника. */
-function overlapDays(predecessor: Task, successor: Task): number {
+/**
+ * Насколько подвинуть последователя, чтобы он начинался после предшественника.
+ * Больше нуля — связь нарушена; ноль и меньше — запас.
+ *
+ * Правило одно на всех, кто смотрит на связи: предложение здесь, знак на
+ * стрелке ленты (см. Arrows) и пометка в карточке задачи. Написанное в каждом
+ * месте заново, оно разошлось бы на включительном конце отрезка — совпадение
+ * дат тоже нахлёст, и «+1» здесь ровно об этом.
+ */
+export function overlapDays(predecessor: Task, successor: Task): number {
   // Начинается раньше окончания предшественника — значит, работа встала бы
   // раньше, чем закончилось то, от чего она зависит. Ровно на следующий день
   // после окончания — уже нормально.
@@ -80,15 +88,30 @@ export function DependencyNudge({
   // «Подвинуть», ничего не происходит, и виноватой выглядит кнопка.
   if (state.auto_schedule === true) return null;
 
-  const predecessor = state.tasks.find((task) => task.id === moved);
-  if (!predecessor) return null;
+  const shifted = state.tasks.find((task) => task.id === moved);
+  if (!shifted) return null;
 
-  const affected = state.dependencies
-    .filter((edge) => edge.from_task_id === predecessor.id)
+  // По обе стороны связей подвинутой задачи. Она предшественник — наехать
+  // могла на своих последователей, и подвинуть предлагается их. Она
+  // последователь — её саму поставили раньше конца предшественника, и
+  // предложение касается её же: прежде эта половина молчала, человек ставил
+  // задачу поперёк связи и узнавал об этом только по косой стрелке.
+  const followers = state.dependencies
+    .filter((edge) => edge.from_task_id === shifted.id)
     .map((edge) => state.tasks.find((task) => task.id === edge.to_task_id))
     .filter((task): task is Task => task !== undefined)
-    .map((task) => ({ task, days: overlapDays(predecessor, task) }))
+    .map((task) => ({ task, days: overlapDays(shifted, task) }))
     .filter((item) => item.days > 0);
+
+  // Наибольшее из перекрытий: предшественников может быть несколько, а кнопка
+  // одна — сдвиг, после которого задача выходит за всех разом.
+  const behind = state.dependencies
+    .filter((edge) => edge.to_task_id === shifted.id)
+    .map((edge) => state.tasks.find((task) => task.id === edge.from_task_id))
+    .filter((task): task is Task => task !== undefined)
+    .reduce((worst, pred) => Math.max(worst, overlapDays(pred, shifted)), 0);
+
+  const affected = behind > 0 ? [...followers, { task: shifted, days: behind }] : followers;
 
   if (affected.length === 0) return null;
 

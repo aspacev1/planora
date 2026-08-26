@@ -92,6 +92,28 @@ describe("предложение подвинуть связанную зада�
     });
   });
 
+  it("появляется и когда последователя поставили раньше конца предшественника", async () => {
+    const sent = movingServer(WITH_DEPENDENCY);
+    renderProject(WITH_DEPENDENCY);
+    const bar = await screen.findByRole("button", { name: /Макет/ });
+
+    // «Логотип» кончается 10 марта, «Макет» начинался 11-го. Сдвиг «Макета» на
+    // пять дней влево ставит его на 6-е — поперёк собственной связи. Прежде
+    // эта половина молчала: предложение знало только сдвиг предшественника.
+    dragDays(bar, -5);
+
+    // Предлагается подвинуть самого сдвинутого — на следующий день после
+    // конца предшественника.
+    await userEvent.click(await screen.findByRole("button", { name: /Подвинуть «Макет» на 5 дней/ }));
+
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toMatchObject({
+      type: "move_task",
+      task_id: "t2",
+      start_date: "2026-03-11",
+    });
+  });
+
   it("закрывается и больше не мешает", async () => {
     movingServer(WITH_DEPENDENCY);
     renderProject(WITH_DEPENDENCY);

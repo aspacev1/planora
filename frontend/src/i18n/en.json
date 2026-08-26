@@ -393,6 +393,7 @@
       "add_link": "Add a link…",
       "add_link_to": "Add to “{label}”",
       "unlink": "Remove the link with “{name}”",
+      "link_violated": "“{to}” starts before “{from}” ends",
       "internal_note": "Internal note",
       "history": "History",
       "comments": "Comments",

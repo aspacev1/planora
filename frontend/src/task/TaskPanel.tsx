@@ -21,9 +21,11 @@ import {
   removeDependency,
   reorderTask,
 } from "../project/optimistic";
+import { overlapDays } from "../project/DependencyNudge";
 import { isShiftCancelled } from "../project/ShiftReason";
 import { useProjectMutation } from "../project/useProjectMutation";
 import { dateOfProjectDay, projectDayNumber, relativeDayLabel } from "../gantt/relative";
+import { addDays } from "../gantt/timescale";
 import { formatShortDate } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
 import { Comments } from "./Comments";
@@ -628,6 +630,7 @@ function Dependencies({
 }) {
   const { t } = useLocale();
   const nameOf = new Map(state.tasks.map((row) => [row.id, row.name]));
+  const byId = new Map(state.tasks.map((row) => [row.id, row]));
 
   const predecessors = state.dependencies
     .filter((link) => link.to_task_id === task.id)
@@ -635,6 +638,39 @@ function Dependencies({
   const successors = state.dependencies
     .filter((link) => link.from_task_id === task.id)
     .map((link) => link.to_task_id);
+
+  /**
+   * Нарушена ли связь с этой задачей — и как её починить.
+   *
+   * Стрелка на ленте показывает нарушение молча, и её знак «!» отправляет
+   * человека сюда — значит, здесь оно обязано быть и названо, и поправимо.
+   * Предложение под лентой (см. DependencyNudge) живёт только вокруг
+   * последнего сдвига; нарушение, оставшееся с прежних правок, без этой
+   * пометки не имело ни одного места, где его можно взять и снять.
+   *
+   * Двигается всегда последователь — тем же правилом и на тот же день, что и
+   * в предложении под лентой: два способа починить одну связь обязаны чинить
+   * её одинаково.
+   */
+  const trouble = (link: { from: string; to: string }) => {
+    const from = byId.get(link.from);
+    const to = byId.get(link.to);
+    if (from === undefined || to === undefined) return null;
+    const days = overlapDays(from, to);
+    if (days <= 0) return null;
+    const start_date = addDays(to.start_date, days);
+    return {
+      label: t("task.panel.link_violated", {
+        from: from.name,
+        to: to.name,
+      }),
+      fix: t("gantt.nudge", { name: to.name, days: t("common.days", { count: days }) }),
+      move: () =>
+        send({ type: "move_task", task_id: to.id, start_date }, (current) =>
+          patchTask(current, to.id, { start_date }),
+        ),
+    };
+  };
 
   const candidates = (taken: string[], opposite: string[]) =>
     state.tasks.filter(
@@ -660,26 +696,54 @@ function Dependencies({
       <span className="panel__key">{label}</span>
       <span className="panel__dep-list">
         {ids.length === 0 && !canWrite && <span className="muted">—</span>}
-        {ids.map((id) => (
-          <span key={id} className="panel__dep">
-            {/* Название задачи — содержимое пользователя: не переводится. */}
-            {nameOf.get(id) ?? id}
-            {canWrite && (
+        {ids.map((id) => {
+          const broken = trouble(link(id));
+          return (
+            <span key={id} className={`panel__dep${broken ? " is-violated" : ""}`}>
+              {broken && (
+                // Тот же знак, что на стрелке ленты: человек пришёл сюда с
+                // «!» на связи и должен узнать его, а не искать заново.
+                <span className="panel__dep-warn" role="img" aria-label={broken.label} title={broken.label}>
+                  !
+                </span>
+              )}
+              {/* Название задачи — содержимое пользователя: не переводится. */}
+              {nameOf.get(id) ?? id}
+              {canWrite && (
+                <button
+                  type="button"
+                  className="panel__dep-remove"
+                  aria-label={t("task.panel.unlink", { name: nameOf.get(id) ?? id })}
+                  title={t("task.panel.unlink", { name: nameOf.get(id) ?? id })}
+                  onClick={() => {
+                    const { from, to } = link(id);
+                    remove(from, to);
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          );
+        })}
+        {canWrite &&
+          ids.map((id) => {
+            const broken = trouble(link(id));
+            if (broken === null) return null;
+            // Кнопка стоит рядом с пилюлями, а не внутри пилюли: внутри она
+            // читалась бы как часть имени задачи, и целиться в неё среди
+            // текста пришлось бы точнее, чем стоит просить ради починки.
+            return (
               <button
+                key={`fix-${id}`}
                 type="button"
-                className="panel__dep-remove"
-                aria-label={t("task.panel.unlink", { name: nameOf.get(id) ?? id })}
-                title={t("task.panel.unlink", { name: nameOf.get(id) ?? id })}
-                onClick={() => {
-                  const { from, to } = link(id);
-                  remove(from, to);
-                }}
+                className="button--quiet panel__dep-fix"
+                onClick={broken.move}
               >
-                ×
+                {broken.fix}
               </button>
-            )}
-          </span>
-        ))}
+            );
+          })}
         {canWrite && options.length > 0 && (
           // Значение всегда пустое: это не выбор состояния, а команда
           // «добавить связь», и после неё список обязан вернуться к подсказке.

@@ -393,6 +393,7 @@
       "add_link": "Əlaqə əlavə et…",
       "add_link_to": "«{label}» siyahısına əlavə et",
       "unlink": "«{name}» ilə əlaqəni sil",
+      "link_violated": "«{to}» «{from}» bitmədən başlayır",
       "internal_note": "Daxili qeyd",
       "history": "Tarixçə",
       "comments": "Şərhlər",
