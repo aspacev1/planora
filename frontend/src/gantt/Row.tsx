@@ -102,6 +102,7 @@ export function CategoryRow({
   category,
   tasks,
   scale,
+  onReach,
   layout,
   format,
   addLabel,
@@ -122,6 +123,8 @@ export function CategoryRow({
   category: Category;
   tasks: Task[];
   scale: Scale;
+  /** Полосу держат за краем окна — лента достраивает его (см. reach в Gantt). */
+  onReach?: (endISO: string | null) => void;
   layout: ColumnLayout;
   /** Строка категории — сводка, а не правка: её ячейки только показывают. */
   format: DayFormat;
@@ -156,6 +159,10 @@ export function CategoryRow({
     projectId,
     category,
     scale,
+    // Конец сводной полосы: от него жест считает, докуда дотянул весь этап,
+    // когда полосу держат за краем окна (см. `onReach`).
+    spanEnd: span?.end ?? null,
+    onReach,
     // Пустую категорию двигать нечем: сервер откажет, полосы на ленте и так нет.
     enabled: canWrite && tasks.length > 0,
   });
@@ -432,6 +439,7 @@ export function TaskRow({
   projectId,
   task,
   scale,
+  onReach,
   calendar,
   layout,
   cellLabels,
@@ -461,6 +469,8 @@ export function TaskRow({
   projectId: string;
   task: Task;
   scale: Scale;
+  /** Полоску держат за краем окна — лента достраивает его (см. reach в Gantt). */
+  onReach?: (endISO: string | null) => void;
   /** Рабочий календарь: им правая грань переводит день в длительность. */
   calendar: Calendar;
   layout: ColumnLayout;
@@ -533,6 +543,7 @@ export function TaskRow({
     calendar,
     enabled: canWrite,
     motion,
+    onReach,
   });
   const tip = useBarTip(task, canWrite);
   const baseline = baselineOf(task);

@@ -288,6 +288,21 @@ describe("перенос категории", () => {
     expect(sent[0].op).toMatchObject({ type: "move_category", category_id: "c1", days: 4 });
   });
 
+  it("окно дотягивается и за полосой категории", async () => {
+    renderProject(TWO_TASKS);
+    await bar(/Логотип/);
+    const days = () => document.querySelectorAll(".gantt__grid-day").length;
+    expect(days()).toBe(122); // март — июнь: окно заглушки кончается 30 июня
+
+    fireEvent.pointerDown(span(), { pointerId: 1, button: 0, clientX: 100 });
+    fireEvent.pointerMove(span(), { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
+    // Конец этапа пришёлся на 25 июля — окно доросло до его конца: этап, как
+    // и полоска, не должен выезжать за сетку в пустоту без дат.
+    expect(days()).toBe(153);
+
+    fireEvent.pointerUp(span(), { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
+  });
+
   it("не отправляет ничего на сдвиг меньше половины деления", async () => {
     const sent = captureMutations();
     renderProject(TWO_TASKS);

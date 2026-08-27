@@ -40,6 +40,21 @@ export function dateOfProjectDay(day: number, anchor: string = RELATIVE_EPOCH): 
 }
 
 /**
+ * Конец недели, в которую попала координата.
+ *
+ * Этим округлением окно относительной ленты дотягивает свой правый край — и
+ * при построении от последней задачи (см. relativeWindow), и когда лента
+ * достраивается под жест: полоску держат за краем окна, и сетка обязана
+ * дорасти до её недели тем же правилом, каким выросла бы после переноса (см.
+ * reach в Gantt). Второе округление, написанное там заново, разошлось бы с
+ * этим на первой правке — и окно под жестом кончалось бы не там, где после
+ * него.
+ */
+export function relativeWeekEnd(iso: string, anchor: string = RELATIVE_EPOCH): string {
+  return addDays(anchor, Math.ceil(projectDayNumber(iso, anchor) / WEEK_DAYS) * WEEK_DAYS - 1);
+}
+
+/**
  * Окно относительной ленты.
  *
  * От якоря до конца последней занятой недели — и не короче четырёх недель:
@@ -58,8 +73,9 @@ export function relativeWindow(
   ].filter((date) => date >= anchor);
 
   const latest = dates.length === 0 ? anchor : dates.reduce((a, b) => (a > b ? a : b));
-  const weeks = Math.max(MONTH_WEEKS, Math.ceil(projectDayNumber(latest, anchor) / WEEK_DAYS));
-  return { from: anchor, to: addDays(anchor, weeks * WEEK_DAYS - 1) };
+  const monthEnd = addDays(anchor, MONTH_WEEKS * WEEK_DAYS - 1);
+  const weekEnd = relativeWeekEnd(latest, anchor);
+  return { from: anchor, to: weekEnd > monthEnd ? weekEnd : monthEnd };
 }
 
 export type RelativeSpan = {

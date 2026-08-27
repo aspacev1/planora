@@ -640,6 +640,36 @@
   color: var(--danger);
 }
 
+/* Нарушенная связь: пилюля берёт тревожную рамку, а знак — тот же красный
+   кружок с «!», что стоит на стрелке ленты (см. .arrows__warn). Человек
+   приходит сюда со знака на стрелке и должен узнать его, а не искать новый. */
+.panel__dep.is-violated {
+  border-color: var(--danger);
+}
+
+.panel__dep-warn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: var(--surface);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Кнопка починки — среди пилюль, тем же кеглем: это действие той же строки,
+   а не отдельный орган управления, которому положено своё место. */
+.panel__dep-fix {
+  height: auto;
+  padding: 3px 8px;
+  font-size: 13px;
+}
+
 /* «Добавить связь…» — узкий список среди пилюль, а не поле во всю строку. */
 .panel__dep-add {
   max-width: 100%;

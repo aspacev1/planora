@@ -15,6 +15,8 @@
  * едва ползёт (можно точно встать на нужный день), у внутренней идёт быстро
  * (можно уехать на квартал). Постоянная скорость не годится ни для того, ни
  * для другого — она либо мучительно медленная, либо неуправляемая.
+ *
+ * Он же отвечает за всякий другой ход ленты во время жеста — см. `scrolled`.
  */
 
 /** Ширина полосы у края, внутри которой лента начинает ехать. */
@@ -54,8 +56,36 @@ export function edgeScroll(node: HTMLElement | null, onScroll: () => void): Edge
   if (box === null || box.clientWidth === 0) return IDLE;
 
   let pointerX: number | null = null;
-  let travelled = 0;
   let frame = 0;
+
+  /**
+   * Прокрутка на начало жеста: от неё и считается ответ `scrolled()`.
+   *
+   * Разница с нынешней, а не сумма того, что накачал этот слой. Лента едет не
+   * только от него: её двигают колесо, трекпад, полоса прокрутки и стрелки, и
+   * день под неподвижным пальцем меняется от них ровно так же. Не попадая в
+   * сдвиг, такой ход уводил бы полоску от пальца на всё прокрученное — и
+   * задача ложилась бы не на тот день, который человек видел под рукой.
+   *
+   * Разница заодно считает и упор в конец ленты: заказанные восемнадцать
+   * пикселей там, где уехали три, в неё не попадут.
+   */
+  const from = box.scrollLeft;
+
+  /**
+   * Лента уехала — жест пересчитывает себя.
+   *
+   * До первого движения указателя не пересчитывает ничего: нажатие, под
+   * которым лента ещё доезжает по инерции, — это щелчок по полоске, а не
+   * перенос, и докатившаяся лента не должна превращать его в перенос. Сдвиг
+   * такого жеста гасят сами жесты (см. `pointerMoved` в `useDragDates`);
+   * здесь снимается лишний пересчёт.
+   */
+  const onBoxScroll = () => {
+    if (pointerX === null) return;
+    onScroll();
+  };
+  box.addEventListener("scroll", onBoxScroll, { passive: true });
 
   const step = () => {
     frame = 0;
@@ -72,14 +102,11 @@ export function edgeScroll(node: HTMLElement | null, onScroll: () => void): Edge
     if (depth !== 0) {
       const was = box.scrollLeft;
       box.scrollLeft = was + depth * MAX_SPEED_PX;
-      // Настоящее приращение, а не заказанное: у краёв ленты прокрутка
-      // упирается, и записанное «уехали на 18» там, где уехали на 3, увело бы
-      // полоску от пальца.
-      const moved = box.scrollLeft - was;
-      if (moved !== 0) {
-        travelled += moved;
-        onScroll();
-      }
+      // Пересчёт прямо здесь, а не только по событию `scroll`: оно придёт
+      // отдельной задачей, и полоска отстала бы от ленты на кадр — ровно там,
+      // где за ней и следят. Повторный вызов из слушателя ничего не портит:
+      // жест считает себя заново от тех же двух чисел.
+      if (box.scrollLeft !== was) onScroll();
     }
 
     frame = requestAnimationFrame(step);
@@ -90,11 +117,14 @@ export function edgeScroll(node: HTMLElement | null, onScroll: () => void): Edge
       pointerX = clientX;
       if (frame === 0) frame = requestAnimationFrame(step);
     },
-    scrolled: () => travelled,
+    scrolled: () => box.scrollLeft - from,
     stop() {
       pointerX = null;
       cancelAnimationFrame(frame);
       frame = 0;
+      // Слушатель снимается здесь, а не в размонтировании: жестов за жизнь
+      // строки много, и каждый оставил бы за собой по подписке на ленту.
+      box.removeEventListener("scroll", onBoxScroll);
     },
   };
 }

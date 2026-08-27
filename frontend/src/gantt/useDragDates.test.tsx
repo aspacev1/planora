@@ -11,6 +11,37 @@ import { DAY_WIDTH } from "./scale";
 
 beforeEach(projectFixtures);
 
+/**
+ * Настоящая прокрутка у ленты: в jsdom ширины и прокрутки у элементов нет, а
+ * без ширины слой подкачки сознательно вырождается в пустышку — и ход ленты в
+ * жест не попадал бы вовсе, то есть проверять было бы нечего.
+ */
+function scrollableTape(): (left: number) => void {
+  const box = document.querySelector<HTMLElement>(".gantt__scroll");
+  if (box === null) throw new Error("ленты нет");
+
+  Object.defineProperty(box, "clientWidth", { value: 800, configurable: true });
+  // Прямоугольник настоящий, а не нулевой: с нулевым любая точка указателя
+  // оказывается за правым краем, и подкачка поехала бы сама.
+  box.getBoundingClientRect = () =>
+    ({ left: 0, right: 800, top: 0, bottom: 400, width: 800, height: 400, x: 0, y: 0 }) as DOMRect;
+
+  let scrollLeft = 0;
+  Object.defineProperty(box, "scrollLeft", {
+    configurable: true,
+    get: () => scrollLeft,
+    set(next: number) {
+      scrollLeft = next;
+      box.dispatchEvent(new Event("scroll"));
+    },
+  });
+
+  return (left: number) => {
+    box.scrollLeft = left;
+  };
+}
+
+
 describe("перетаскивание дат", () => {
   it("двигает полоску с шагом в целый день", async () => {
     const sent = captureMutations();
@@ -212,6 +243,96 @@ describe("перетаскивание дат", () => {
     await waitFor(() => expect(undos).toEqual([{ expected_seq: 1 }]));
     // Нажатая отмена прячет тост: предлагать отменить отменённое нечестно.
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("считает ленту, уехавшую во время жеста, — а не только пальцем пройденное", async () => {
+    const sent = captureMutations();
+    renderProject();
+    const bar = await screen.findByRole("button", { name: /Логотип/ });
+    const scrollTo = scrollableTape();
+
+    fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
+    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 100 + DAY_WIDTH.day });
+    // Палец стоит, лента едет: два дня приезжают из прокрутки, один пройден
+    // рукой. Без учёта прокрутки задача легла бы на день, а не на три.
+    scrollTo(2 * DAY_WIDTH.day);
+    fireEvent.pointerUp(bar, { pointerId: 1, clientX: 100 + DAY_WIDTH.day });
+    fireEvent.click(bar, { clientX: 100 + DAY_WIDTH.day });
+
+    await waitFor(() =>
+      expect(sent[0].op).toMatchObject({ type: "move_task", start_date: "2026-03-07" }),
+    );
+  });
+
+  it("не двигает задачу, если под неподвижным пальцем доехала лента", async () => {
+    renderProject();
+    const bar = await screen.findByRole("button", { name: /Логотип/ });
+    const scrollTo = scrollableTape();
+    const before = bar.style.left;
+
+    // Нажали на полоску, чтобы открыть карточку, а лента в этот момент ещё
+    // доезжала по инерции прокрутки, начатой до нажатия. Указатель не сдвинулся
+    // ни разу — значит это щелчок, и сроков он не трогает.
+    fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
+    scrollTo(5 * DAY_WIDTH.day);
+    fireEvent.pointerUp(bar, { pointerId: 1, clientX: 100 });
+    fireEvent.click(bar, { clientX: 100 });
+
+    // По месту полоски, а не по пустоте отправленного: догадка ложится в кэш
+    // синхронно, а до сервера операция доходит позже проверки — пустой список
+    // не отличил бы «не отправляли» от «ещё не дошло». Полоска же стоит ровно
+    // тогда, когда операции не случилось вовсе: догадку и отправку `commit`
+    // делает одним вызовом.
+    expect(bar.style.left).toBe(before);
+  });
+
+  it("дроп за горизонтом коммитит показанный день, а не край окна", async () => {
+    const sent = captureMutations();
+    renderProject();
+    const bar = await screen.findByRole("button", { name: /Логотип/ });
+
+    // Окно заглушки кончается 30 июня (последняя дата — project_end,
+    // округлённая до конца месяца). Сто тридцать дней вправо — далеко за его
+    // краем; прежде такой бросок прижимался к 30 июня, и тост называл день, в
+    // который никто не целился.
+    dragDays(bar, 130);
+
+    await waitFor(() =>
+      expect(sent[0].op).toMatchObject({ type: "move_task", start_date: "2026-07-12" }),
+    );
+  });
+
+  it("окно дотягивается за жестом и не дёргается на броске", async () => {
+    renderProject();
+    const bar = await screen.findByRole("button", { name: /Логотип/ });
+    const days = () => document.querySelectorAll(".gantt__grid-day").length;
+    expect(days()).toBe(122); // март — июнь: окно заглушки кончается 30 июня
+
+    fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
+    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
+    // Конец полоски пришёлся на 18 июля — окно доросло до конца июля тем же
+    // округлением, каким лента строит его сама. Сетка существует всюду, куда
+    // доехала полоска, а не обрывается на прежнем краю.
+    expect(days()).toBe(153);
+
+    fireEvent.pointerUp(bar, { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
+    fireEvent.click(bar, { clientX: 100 + 130 * DAY_WIDTH.day });
+    // Бросок снял достройку, но догадка тем же событием положила новые даты в
+    // состояние — окно пересчиталось от них и не изменилось ни на день.
+    expect(days()).toBe(153);
+  });
+
+  it("Esc возвращает и достроенное окно", async () => {
+    renderProject();
+    const bar = await screen.findByRole("button", { name: /Логотип/ });
+    const days = () => document.querySelectorAll(".gantt__grid-day").length;
+
+    fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
+    fireEvent.pointerMove(bar, { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
+    expect(days()).toBe(153);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(days()).toBe(122);
   });
 
   it("гасит отмену в тосте, если верх журнала уехал", async () => {

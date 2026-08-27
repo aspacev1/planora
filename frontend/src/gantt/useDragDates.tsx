@@ -17,7 +17,7 @@ import { UndoMove } from "./UndoMove";
 import { edgeScroll } from "./edgeScroll";
 import { relativeDayLabel } from "./relative";
 import { workingDaysBetween } from "./scale";
-import { addDays } from "./timescale";
+import { addDays, daysBetween } from "./timescale";
 import type { BarMotion } from "./useBarMotion";
 import type { Scale } from "./timescale";
 
@@ -94,6 +94,7 @@ export function useDragDates({
   calendar,
   enabled,
   motion,
+  onReach,
 }: {
   projectId: string;
   task: Task;
@@ -109,6 +110,13 @@ export function useDragDates({
   /** Гость полоски не двигает. */
   enabled: boolean;
   motion: BarMotion;
+  /**
+   * Жест держит полоску так, что её конец пришёлся на эту дату за правым
+   * краем окна, — лента в ответ достраивает окно до этой даты (см. reach в
+   * Gantt). Бросок передаёт сюда закоммиченный конец, отменённый жест —
+   * `null`; жест, не выходивший за окно, не зовёт вовсе.
+   */
+  onReach?: (endISO: string | null) => void;
 }) {
   const { apply } = useProjectMutation(projectId);
   const { t } = useLocale();
@@ -135,6 +143,19 @@ export function useDragDates({
   // Было ли движение. Живёт в ref, а не в состоянии: значение читается в
   // обработчике клика сразу после отпускания, и перерисовка тут не нужна.
   const dragged = useRef(false);
+  // Двигался ли указатель за этот жест вообще — отдельно от порога в пару
+  // пикселей выше.
+  //
+  // Сдвиг жеста считает и ход самой ленты (см. `edgeScroll.scrolled`), а лента
+  // умеет ехать под неподвижным пальцем: инерция прокрутки, начатой перед
+  // самым нажатием, доезжает уже после него. Без этого признака такое нажатие
+  // выходило бы переносом сроков на всё докатившееся — вместо того, чтобы
+  // открыть карточку, за чем на полоску и нажимали.
+  const pointerMoved = useRef(false);
+  // Дотягивался ли этот жест за край окна. Обычный бросок внутри окна не
+  // должен трогать достройку вовсе — даже пустым сбросом: это чужое ему
+  // состояние, и каждое лишнее обращение к нему — лишняя отрисовка ленты.
+  const reached = useRef(false);
   // Два состояния, потому что вопроса два, и отвечают на них в разное время.
   //
   // `started` — палец на полоске: с этого мгновения жест можно передумать, и
@@ -168,6 +189,35 @@ export function useDragDates({
   };
 
   /**
+   * День, в который попала координата ленты.
+   *
+   * Не `scale.dateAt`: тот прижимает координату к правому краю окна, а полоску
+   * под пальцем правый край не ограничивает — окно дотягивается за ней (см.
+   * `onReach`). Прижатый бросок коммитил бы последний день окна вместо дня,
+   * который человек видел под полоской: окно кончается сразу за последней
+   * задачей, и тост называл бы конец недели, в который никто не целился.
+   * Левый край прижат по-прежнему — левее начала оси дней нет.
+   */
+  const dayAt = (x: number): string =>
+    addDays(scale.from, Math.max(0, Math.floor(x / scale.dayWidth)));
+
+  /**
+   * Конец полоски при сдвиге `dx` — тем же округлением, что и будущий бросок,
+   * поэтому окно, достроенное по этой дате, всегда накрывает день, который
+   * бросок закоммитит. `null` — у этой ручки конца нет: левая грань упёрта в
+   * конец задачи (см. `clampGrip`), а заливка из полоски не выходит.
+   */
+  const heldEndOf = (grip: BarGrip, dx: number): string | null => {
+    if (grip === "move")
+      return addDays(
+        dayAt(scale.xOf(task.start_date) + dx + scale.dayWidth / 2),
+        daysBetween(task.start_date, task.end_date),
+      );
+    if (grip === "end") return dayAt(scale.xOf(task.end_date) + dx + scale.dayWidth / 2);
+    return null;
+  };
+
+  /**
    * Что уйдёт на сервер, если жест закончить здесь.
    *
    * `null` — жест ничего не изменил: полоску вернули на тот же день, грань — в
@@ -191,7 +241,7 @@ export function useDragDates({
       // Половина дня прибавляется, чтобы день менялся посередине ячейки, а не
       // на её краю: иначе полоска перескакивает на новый день от дрожания руки
       // в один пиксель.
-      const start = scale.dateAt(scale.xOf(task.start_date) + dx + scale.dayWidth / 2);
+      const start = dayAt(scale.xOf(task.start_date) + dx + scale.dayWidth / 2);
       if (start === task.start_date) return null;
       return {
         op: { type: "move_task", task_id: task.id, start_date: start },
@@ -203,7 +253,7 @@ export function useDragDates({
     }
 
     if (grip === "start") {
-      const start = scale.dateAt(scale.xOf(task.start_date) + dx + scale.dayWidth / 2);
+      const start = dayAt(scale.xOf(task.start_date) + dx + scale.dayWidth / 2);
       if (start === task.start_date) return null;
       // Конец стоит на месте — это и есть смысл левой грани, — поэтому
       // длительность считается до него. Рабочими днями, потому что в них она и
@@ -217,7 +267,7 @@ export function useDragDates({
       };
     }
 
-    const end = scale.dateAt(scale.xOf(task.end_date) + dx + scale.dayWidth / 2);
+    const end = dayAt(scale.xOf(task.end_date) + dx + scale.dayWidth / 2);
     if (end === task.end_date) return null;
     const duration = Math.max(1, workingDaysBetween(task.start_date, end, calendar));
     if (duration === task.duration_days) return null;
@@ -280,6 +330,13 @@ export function useDragDates({
     motion.release();
     setStarted(false);
     setDragging(null);
+    // Достройка окна снимается вместе с жестом: Esc возвращает и полоску, и
+    // сетку, доросшую под неё. Возврат мгновенный по той же причине, что и у
+    // полоски выше.
+    if (reached.current) {
+      reached.current = false;
+      onReach?.(null);
+    }
     // Захват снимается руками: иначе полоска до конца жеста продолжает
     // получать события указателя, и отпускание прилетело бы уже прерванному
     // перетаскиванию.
@@ -290,10 +347,11 @@ export function useDragDates({
     // признаком, что и после обычного перетаскивания: Esc означает «ничего не
     // делать», а не «открыть карточку».
     dragged.current = true;
-    // Кроме слоя движения, живых зависимостей нет: внутри только ref-ы да
-    // функции состояния, а сам слой ссылку не меняет. Постоянная ссылка нужна
-    // эффекту ниже — иначе он переподписывался бы на каждой отрисовке.
-  }, [motion]);
+    // Кроме слоя движения и `onReach`, живых зависимостей нет: внутри только
+    // ref-ы да функции состояния. Обе ссылки постоянные (слой движения свою не
+    // меняет, `onReach` мемоизирован в Gantt), и это важно эффекту ниже —
+    // иначе он переподписывался бы на каждой отрисовке.
+  }, [motion, onReach]);
 
   // Esc прерывает начатое перетаскивание — как везде, где жест можно начать и
   // передумать. Слушатель на окне, а не на полоске: захват указателя держит
@@ -313,8 +371,18 @@ export function useDragDates({
 
   // Качалка ленты живёт ровно на время жеста, но остановить её нужно и тогда,
   // когда строка исчезла посреди него: сосед удалил задачу, лента свернула
-  // категорию. Кадр, оставшийся без узла, крутился бы вечно.
-  useEffect(() => () => from.current?.scroll.stop(), []);
+  // категорию. Кадр, оставшийся без узла, крутился бы вечно — а достройка
+  // окна, оставшаяся без жеста, держала бы ленту растянутой навсегда.
+  useEffect(
+    () => () => {
+      if (from.current === null) return;
+      from.current.scroll.stop();
+      if (reached.current) onReach?.(null);
+    },
+    // `onReach` мемоизирован в Gantt — эффект остаётся эффектом одного
+    // размонтирования, а не переподписки.
+    [onReach],
+  );
 
   /**
    * @param hold Держать ли полоску там, куда её бросили, пока изменение идёт.
@@ -393,6 +461,21 @@ export function useDragDates({
     }
     const shape = heldShape(start.grip, dx);
     motion.hold(shape.dx, shape.dw);
+    // Конец полоски под пальцем уехал за окно — лента дотянет сетку до него.
+    // Считается тем же округлением, что и будущий бросок, поэтому достроенное
+    // окно всегда накрывает день, который бросок закоммитит. Двигаться за
+    // окно умеют только тело и правая грань: левая упёрта в конец (см.
+    // clampGrip), а заливка не выходит из полоски вовсе.
+    if (onReach) {
+      const end = heldEndOf(start.grip, dx);
+      // Только даты за нынешним краем: отчёт о дне внутри окна ничего не
+      // достроил бы, а отчёт о дне за краем всегда растит окно — поэтому
+      // сетка под жестом не отрастает назад, пока полоску возят туда-сюда.
+      if (end !== null && end > scale.to) {
+        reached.current = true;
+        onReach(end);
+      }
+    }
   };
 
   /** Обработчики любой из ручек: тела полоски, её граней и заливки. */
@@ -411,6 +494,10 @@ export function useDragDates({
         event.preventDefault();
       }
       const bar = event.currentTarget.closest<HTMLElement>(".gantt__bar") ?? event.currentTarget;
+      // Прошлый жест, если он почему-то не закончился (второй палец на
+      // планшете, отпускание, не дошедшее до полоски), снимается здесь:
+      // иначе за ним остались бы кадр и подписка на прокрутку ленты.
+      from.current?.scroll.stop();
       from.current = {
         pointerId: event.pointerId,
         x: event.clientX,
@@ -420,6 +507,8 @@ export function useDragDates({
       };
       lastX.current = event.clientX;
       dragged.current = false;
+      pointerMoved.current = false;
+      reached.current = false;
       // Жест начат — с этого мгновения его можно передумать по Esc. Вид
       // полоски при этом не меняется: щелчок начинается точно так же, и
       // подъём над соседями мигал бы на каждом открытии карточки.
@@ -433,6 +522,7 @@ export function useDragDates({
       const start = from.current;
       if (start === null || start.pointerId !== event.pointerId) return;
       lastX.current = event.clientX;
+      pointerMoved.current = true;
       start.scroll.track(event.clientX);
       track(event.clientX);
     },
@@ -444,7 +534,13 @@ export function useDragDates({
       start.scroll.stop();
       setStarted(false);
       setDragging(null);
-      const dx = clampGrip(start.grip, event.clientX - start.x + start.scroll.scrolled());
+      // Нажатие, за которое указатель не сдвинулся ни разу, — щелчок по
+      // полоске, и сдвига у него нет никакого. Считать его по общей формуле
+      // нельзя: в неё входит ход ленты, а он бывает и без участия пальца
+      // (см. `pointerMoved`).
+      const dx = pointerMoved.current
+        ? clampGrip(start.grip, event.clientX - start.x + start.scroll.scrolled())
+        : 0;
 
       if (start.grip === "progress") {
         // Заливка ответа не ждёт: догадка о проценте — это и есть будущий
@@ -462,7 +558,18 @@ export function useDragDates({
       // Снятый прямо сейчас, он вернул бы её на место ещё до вопроса о
       // причине — то есть ответил бы «не получилось» раньше, чем спросили.
       motion.release(true);
-      commit(planFor(start.grip, dx), true);
+      const plan = planFor(start.grip, dx);
+      // Жест, дотягивавший окно, кончился — теперь оно держится ровно на том,
+      // что бросок закоммитил. Не `null`: сброс в ноль сжал бы холст на
+      // мгновение раньше, чем догадка доедет до кэша (её уведомление React
+      // Query шлёт микрозадачей), и прокрутка прыгнула бы под рукой. Дату,
+      // которую догадка накрыла, снимает уже лента (см. эффект у reach в
+      // Gantt); жест, вернувший полоску внутрь окна, отпускает достройку сам.
+      if (reached.current) {
+        reached.current = false;
+        onReach?.(heldEndOf(start.grip, dx) ?? null);
+      }
+      commit(plan, true);
     },
 
     onPointerCancel() {

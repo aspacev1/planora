@@ -183,6 +183,9 @@ export function useLinkDrag({
           event.preventDefault();
           event.stopPropagation();
           const node = event.currentTarget as unknown as HTMLElement;
+          // Прошлый жест, если он почему-то не закончился, снимается здесь:
+          // иначе за ним остались бы кадр и подписка на прокрутку ленты.
+          from.current?.scroll.stop();
           from.current = {
             pointerId: event.pointerId,
             taskId,

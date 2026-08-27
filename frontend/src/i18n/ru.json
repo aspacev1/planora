@@ -397,6 +397,7 @@
       "add_link": "Добавить связь…",
       "add_link_to": "Добавить в «{label}»",
       "unlink": "Убрать связь с «{name}»",
+      "link_violated": "«{to}» начинается до конца «{from}»",
       "internal_note": "Внутренняя заметка",
       "history": "История",
       "comments": "Комментарии",
