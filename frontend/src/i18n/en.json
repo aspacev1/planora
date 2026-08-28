@@ -524,7 +524,9 @@
       "week": "Week",
       "month": "Month",
       "view": "View",
-      "columns": "Columns"
+      "columns": "Columns",
+      "focus": "Full screen",
+      "focus_exit": "Exit full screen"
     },
     "view": {
       "baseline": "Baseline plan",

@@ -91,6 +91,18 @@ function byPosition<T extends { position: number; id: string }>(rows: T[]): T[] 
  */
 export type NewTaskAt = { categoryId: string; before: string | null };
 
+/**
+ * Пороги признака «лента прокручена вглубь» — с зазором, а не одной чертой.
+ *
+ * По этому признаку экран сжимает шапку проекта, а сжатие меняет высоту самой
+ * ленты (см. useViewportFit). Одна черта на границе давала бы дребезг: сжатие
+ * у порога чуть сдвигает прокрутку, признак снимается, шапка разворачивается —
+ * и так по кругу под рукой. С зазором сжатое состояние держится до самого
+ * верха, а верхнее — до заметного погружения.
+ */
+const CONDENSE_AFTER = 32;
+const EXPAND_BEFORE = 4;
+
 export function Gantt({
   projectId,
   state,
@@ -108,6 +120,8 @@ export function Gantt({
   commentCounts,
   toolbarAction,
   scheduleAction,
+  focusAction,
+  onCondense,
   assigneeNames,
 }: {
   projectId: string;
@@ -180,6 +194,21 @@ export function Gantt({
    * прав у ленты для него нет.
    */
   scheduleAction?: ReactNode;
+  /**
+   * Кнопка полноэкранной ленты. Приходит с экрана готовым узлом, как и
+   * scheduleAction: разворачивается не лента, а экран — прячутся его шапка,
+   * вкладки и колонка приложения, и состояние этого живёт там же.
+   */
+  focusAction?: ReactNode;
+  /**
+   * Лента ушла прокруткой вглубь плана — или вернулась к его верху.
+   *
+   * По этому признаку экран сжимает шапку проекта: пока человек наверху,
+   * шапка полная, а прокрутка вниз означает «сейчас читают план», и место
+   * над лентой дороже сводки. Зовётся только на смене признака, не на каждом
+   * обороте колеса (см. CONDENSE_AFTER/EXPAND_BEFORE).
+   */
+  onCondense?: (condensed: boolean) => void;
   /**
    * Состав организации: имена по идентификаторам. Ими подписаны исполнители в
    * карточке наведения и в колонке — из них же выбирают новых прямо со строки.
@@ -429,6 +458,28 @@ export function Gantt({
     focus.current = { date: addDays(scale.from, index), fraction: center - index };
   }, [scale]);
 
+  // Последнее сообщённое экрану значение признака «прокручено вглубь».
+  // Ссылка, а не состояние: сама лента от него не перерисовывается — оно
+  // нужно только чтобы не звать onCondense на каждом обороте колеса.
+  const condensed = useRef(false);
+
+  const handleScroll = () => {
+    rememberFocus();
+    const element = scroller.current;
+    if (onCondense === undefined || element === null) return;
+    // Между порогами признак держит прежнее значение — это и есть зазор,
+    // ради которого порогов два (см. CONDENSE_AFTER).
+    const next =
+      element.scrollTop > CONDENSE_AFTER
+        ? true
+        : element.scrollTop < EXPAND_BEFORE
+          ? false
+          : condensed.current;
+    if (next === condensed.current) return;
+    condensed.current = next;
+    onCondense(next);
+  };
+
   // Слой ниже — единственное место, где лента прокручивается сама.
   //
   // Раскладка уже посчитана, но кадр ещё не показан: `useEffect` здесь дал бы
@@ -671,6 +722,10 @@ export function Gantt({
               </label>
             ))}
           </Menu>
+
+          {/* Полноэкранная лента — последней в ряду настроек показа: это тоже
+              способ смотреть, самый широкий из них. */}
+          {focusAction}
       </div>
 
       {/* Подсказка вместо сводки по дедлайну: у относительного плана
@@ -704,7 +759,7 @@ export function Gantt({
         </div>
       ) : (
         <>
-        <div className="gantt__scroll" ref={scroller} onScroll={rememberFocus}>
+        <div className="gantt__scroll" ref={scroller} onScroll={handleScroll}>
           <div className="gantt__canvas">
             <div className="gantt__head-row">
               <div className="gantt__label gantt__corner">

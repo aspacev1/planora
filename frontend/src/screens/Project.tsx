@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useNavigate, useParams } from "react-router-dom";
 
 import { commentCounts, commentCountsQueryKey } from "../api/comments";
@@ -9,6 +9,7 @@ import { getProject, projectQueryKey } from "../api/projects";
 import type { Category } from "../api/projects";
 import { useCanWrite, useOrgRole } from "../auth/permissions";
 import { IconInvite, IconSettings, IconShare } from "../components/icons";
+import { useEscape } from "../components/useEscape";
 import { InviteDialog } from "../components/InviteDialog";
 import { Modal } from "../components/Modal";
 import { Gantt } from "../gantt/Gantt";
@@ -23,7 +24,7 @@ import { deleteCategory } from "../project/optimistic";
 import { useProjectMutation } from "../project/useProjectMutation";
 import { PlanApproval } from "../project/PlanApproval";
 import { PlanChangesPanel } from "../project/PlanChangesPanel";
-import { ProjectHead } from "../project/ProjectHead";
+import { ProjectHead, ProjectHeadCompact } from "../project/ProjectHead";
 import { Proposal } from "../proposal/Proposal";
 import { ProjectHistory } from "../project/ProjectHistory";
 import { Scorecard } from "../scorecard/Scorecard";
@@ -107,6 +108,15 @@ export function Project({
     );
   };
 
+  // Шапка сжата: лента прокручена вглубь плана. Признак присылает сама лента
+  // (см. onCondense у Gantt) — только у неё есть прокрутка, по которой он
+  // считается. Живёт же он здесь, потому что сжимается не лента, а шапка.
+  const [condensed, setCondensed] = useState(false);
+  // Лента развёрнута на весь экран. Между визитами не запоминается: полный
+  // экран включают осознанно, и открывшийся без шапки и колонки проект читался
+  // бы как сломанный, а не как удобно настроенный.
+  const [focusMode, setFocusMode] = useState(false);
+
   const query = useQuery({
     queryKey: projectQueryKey(projectId),
     queryFn: () => getProject(projectId),
@@ -116,6 +126,29 @@ export function Project({
   // Живая связь открывается вместе с экраном и живёт, пока он открыт: ревизии
   // соседей приезжают сами, а обрыв — единственное, что запирает редактирование.
   const live = useProjectLive(projectId);
+
+  const offline = live.status === "offline";
+
+  // Обрыв связи возвращает обычный вид: полоска офлайна стоит над лентой, а
+  // полноэкранная лента накрыла бы её — человек видел бы, что полоски перестали
+  // двигаться, и не видел бы почему.
+  useEffect(() => {
+    if (offline) setFocusMode(false);
+  }, [offline]);
+
+  // На других вкладках лента не прокручивается и разворачивать нечего: сжатая
+  // шапка, унесённая со вкладки на вкладку, осталась бы сжатой навсегда — снять
+  // признак некому, прокрутки, которая его ставила, там нет.
+  useEffect(() => {
+    if (tab !== "gantt") {
+      setCondensed(false);
+      setFocusMode(false);
+    }
+  }, [tab]);
+
+  // Esc сворачивает полный экран — тем же слоем, что закрывает окна и меню:
+  // полноэкранная лента и есть верхний слой, пока она развёрнута.
+  useEscape(() => setFocusMode(false), focusMode);
 
   const { apply } = useProjectMutation(projectId);
   // Отказ молчит — тем же образом, что у перестановки строк (useReorder):
@@ -185,12 +218,16 @@ export function Project({
   const deletingCategory =
     query.data.categories.find((category) => category.id === deletingCategoryId) ?? null;
 
-  const offline = live.status === "offline";
   // Пока связи нет, показанное устарело неизвестно насколько, и любое изменение
   // легло бы поверх чужих правок вслепую. Право при этом никуда не делось —
   // поэтому признаки разные: `canWrite` отвечает на «кому можно», а этот — на
   // «можно ли сейчас».
   const editable = canWrite && !offline;
+
+  // Сжатие живёт только на ленте. Признак снимает эффект выше, но эффект
+  // приходит кадром позже перехода на другую вкладку, и без этой поправки
+  // шапка на один кадр открывалась бы там сжатой.
+  const headCondensed = condensed && tab === "gantt";
 
   return (
     <ShiftReasonProvider>
@@ -202,103 +239,129 @@ export function Project({
                 какая вкладка открыта, оно не зависит. */}
             <UndoHotkey projectId={projectId} state={query.data} enabled={editable} />
 
-            <ProjectHead
-              state={query.data}
-              showPlan
-              onShowChanges={() => setShowingChanges(true)}
-              planAction={
-                <PlanApproval
-                  projectId={projectId}
+            {/* Шапка складывается, когда лента прокручена вглубь плана, и
+                прячется целиком в полноэкранном режиме. Сложенная остаётся в
+                разметке ради анимации высоты, но помечается inert: свёрнутое
+                не должно ловить табуляцию и читаться вслух вторым экземпляром
+                рядом со сжатой строкой, которая говорит то же самое. */}
+            {!focusMode && (
+              <div
+                className={`project-fold${headCondensed ? " is-condensed" : ""}`}
+                inert={headCondensed}
+              >
+                <div className="project-fold__inner">
+                <ProjectHead
                   state={query.data}
-                  canApprove={editable}
-                  // Пересогласование — право владельца: оно сдвигает базу, от
-                  // которой считаются все объяснённые сдвиги.
-                  canReapprove={role === "owner" && !offline}
-                  confirming={reapproving}
-                  onConfirmingChange={setReapproving}
+                  showPlan
                   onShowChanges={() => setShowingChanges(true)}
+                  planAction={
+                    <PlanApproval
+                      projectId={projectId}
+                      state={query.data}
+                      canApprove={editable}
+                      // Пересогласование — право владельца: оно сдвигает базу, от
+                      // которой считаются все объяснённые сдвиги.
+                      canReapprove={role === "owner" && !offline}
+                      confirming={reapproving}
+                      onConfirmingChange={setReapproving}
+                      onShowChanges={() => setShowingChanges(true)}
+                    />
+                  }
+                  // Гостю кнопки не передаются вовсе: они обещали бы действие,
+                  // которое сервер отклонит.
+                  //
+                  // Каждое действие — со значком слева от подписи: ряд одинаковых
+                  // плашек различался только словом, и найти в нём нужную можно
+                  // было, лишь прочитав все подряд, а рисунок находится глазом
+                  // раньше, чем читается слово. Значки `aria-hidden`: вслух они
+                  // повторили бы стоящую рядом подпись.
+                  actions={
+                    <>
+                      {/* Публикация — действие над проектом, и стоит она в общем
+                          ряду действий, а не вплотную к названию: у названия теперь
+                          живёт состояние плана, а действия собраны в одном месте.
+                          Гостю и читателю не показывается: сервер такую попытку
+                          отклонит. */}
+                      {canWrite && (
+                        <button
+                          type="button"
+                          className="button--quiet"
+                          disabled={offline}
+                          onClick={() => setSharing(true)}
+                        >
+                          <IconShare />
+                          {t("share.open")}
+                        </button>
+                      )}
+                      {/* Приглашение стоит рядом с публикацией: обе кнопки отвечают
+                          на «дать посмотреть», и разница между ними — кому. Ссылка
+                          открывает проект на чтение кому угодно, приглашение зовёт
+                          человека в организацию с ролью и правами.
+
+                          Право здесь строже соседей — владелец, а не всякий, кто
+                          может писать: приглашение раздаёт доступ ко всей
+                          организации, и сервер (invitations.py) отвечает на чужую
+                          попытку отказом. Обрыв живой связи кнопку не гасит, в
+                          отличие от публикации: приглашение не пишет в проект и
+                          устаревшего состояния перед собой не имеет. */}
+                      {role === "owner" && (
+                        <button
+                          type="button"
+                          className="button--quiet"
+                          onClick={() => setInviting(true)}
+                        >
+                          <IconInvite />
+                          {t("invite.open")}
+                        </button>
+                      )}
+                      {/* Настройки — здесь, а не в боковом меню, куда они на время
+                          уезжали: колонка одна на всё приложение, а настройки —
+                          этого проекта.
+
+                          Подпись — одно слово, а полное имя действия отдано
+                          `aria-label`: в колонке рядом стоит вход в настройки
+                          рабочего пространства с тем же словом, и различает их
+                          место — ряд действий проекта под его названием — вместе со
+                          значком. Тому, кто слушает экран, места не видно, и ему
+                          по-прежнему называется подлежащее. Видимая подпись входит
+                          в озвученную целиком, поэтому голосовое управление
+                          («нажми настройки») попадает по кнопке.
+
+                          Право то же, что и у остальных действий: читателю ссылка
+                          обещала бы отказ сервера. */}
+                      {canWrite && (
+                        <Link
+                          to={`/projects/${projectId}/settings`}
+                          className="button-link"
+                          aria-label={t("settings.project.link_aria")}
+                        >
+                          <IconSettings />
+                          {t("settings.project.link")}
+                        </Link>
+                      )}
+                    </>
+                  }
                 />
-              }
-              // Гостю кнопки не передаются вовсе: они обещали бы действие,
-              // которое сервер отклонит.
-              //
-              // Каждое действие — со значком слева от подписи: ряд одинаковых
-              // плашек различался только словом, и найти в нём нужную можно
-              // было, лишь прочитав все подряд, а рисунок находится глазом
-              // раньше, чем читается слово. Значки `aria-hidden`: вслух они
-              // повторили бы стоящую рядом подпись.
-              actions={
-                <>
-                  {/* Публикация — действие над проектом, и стоит она в общем
-                      ряду действий, а не вплотную к названию: у названия теперь
-                      живёт состояние плана, а действия собраны в одном месте.
-                      Гостю и читателю не показывается: сервер такую попытку
-                      отклонит. */}
-                  {canWrite && (
-                    <button
-                      type="button"
-                      className="button--quiet"
-                      disabled={offline}
-                      onClick={() => setSharing(true)}
-                    >
-                      <IconShare />
-                      {t("share.open")}
-                    </button>
-                  )}
-                  {/* Приглашение стоит рядом с публикацией: обе кнопки отвечают
-                      на «дать посмотреть», и разница между ними — кому. Ссылка
-                      открывает проект на чтение кому угодно, приглашение зовёт
-                      человека в организацию с ролью и правами.
+                </div>
+              </div>
+            )}
 
-                      Право здесь строже соседей — владелец, а не всякий, кто
-                      может писать: приглашение раздаёт доступ ко всей
-                      организации, и сервер (invitations.py) отвечает на чужую
-                      попытку отказом. Обрыв живой связи кнопку не гасит, в
-                      отличие от публикации: приглашение не пишет в проект и
-                      устаревшего состояния перед собой не имеет. */}
-                  {role === "owner" && (
-                    <button
-                      type="button"
-                      className="button--quiet"
-                      onClick={() => setInviting(true)}
-                    >
-                      <IconInvite />
-                      {t("invite.open")}
-                    </button>
-                  )}
-                  {/* Настройки — здесь, а не в боковом меню, куда они на время
-                      уезжали: колонка одна на всё приложение, а настройки —
-                      этого проекта.
-
-                      Подпись — одно слово, а полное имя действия отдано
-                      `aria-label`: в колонке рядом стоит вход в настройки
-                      рабочего пространства с тем же словом, и различает их
-                      место — ряд действий проекта под его названием — вместе со
-                      значком. Тому, кто слушает экран, места не видно, и ему
-                      по-прежнему называется подлежащее. Видимая подпись входит
-                      в озвученную целиком, поэтому голосовое управление
-                      («нажми настройки») попадает по кнопке.
-
-                      Право то же, что и у остальных действий: читателю ссылка
-                      обещала бы отказ сервера. */}
-                  {canWrite && (
-                    <Link
-                      to={`/projects/${projectId}/settings`}
-                      className="button-link"
-                      aria-label={t("settings.project.link_aria")}
-                    >
-                      <IconSettings />
-                      {t("settings.project.link")}
-                    </Link>
-                  )}
-                </>
-              }
-            />
+            {/* Сжатая шапка — та же сводка одной строкой (см. ProjectHeadCompact). */}
+            {!focusMode && headCondensed && (
+              <ProjectHeadCompact
+                state={query.data}
+                onShowChanges={() => setShowingChanges(true)}
+              />
+            )}
 
             {offline && <OfflineBar syncedAt={query.dataUpdatedAt || null} />}
 
             {/* Вкладки — в адресе, а не в состоянии экрана: на историю
-                ссылаются в переписке, и ссылка обязана открывать её сразу. */}
+                ссылаются в переписке, и ссылка обязана открывать её сразу.
+                Полноэкранная лента их прячет: под непрозрачным слоем они не
+                видны, а видимая табуляция в невидимые ссылки хуже их
+                отсутствия. */}
+            {!focusMode && (
             <nav className="tabs" aria-label={t("history.tabs_label")}>
               <NavLink to={`/projects/${projectId}`} end className={tabClass}>
                 {t("history.tab_gantt")}
@@ -318,6 +381,7 @@ export function Project({
                 {t("history.tab_history")}
               </NavLink>
             </nav>
+            )}
 
             {tab === "history" && (
               <ProjectHistory projectId={projectId} state={query.data} canUndo={editable} />
@@ -342,15 +406,20 @@ export function Project({
 
             {/* Предложение подвинуть связанную задачу — над лентой, а не поверх
                 неё: оно ненавязчивое и не должно закрывать то, что человек только
-                что подвинул. */}
-            {tab === "gantt" && editable && (
+                что подвинул. В полноэкранном режиме его нет: над лентой там
+                ничего не стоит, а слой поверх неё закрыл бы задачи. */}
+            {tab === "gantt" && editable && !focusMode && (
               <DependencyNudge projectId={projectId} state={query.data} />
             )}
 
             {/* Диаграмма занимает всю ширину, пока карточка закрыта: пустая колонка
                 справа отнимает у ленты треть экрана ради ничего. */}
             {tab === "gantt" && (
-            <div className={`project__body${reducedMotion ? " motion-off" : ""}`}>
+            <div
+              className={`project__body${reducedMotion ? " motion-off" : ""}${
+                focusMode ? " project__body--focus" : ""
+              }`}
+            >
               <Gantt
                 projectId={projectId}
                 state={query.data}
@@ -415,6 +484,24 @@ export function Project({
                     </button>
                   ) : undefined
                 }
+                focusAction={
+                  <button
+                    type="button"
+                    className="button--quiet"
+                    aria-pressed={focusMode}
+                    onClick={() => {
+                      // Прокрутка страницы обнуляется до разворота: высоту
+                      // ленты меряют от окна (useViewportFit), и слой,
+                      // раскрытый на прокрученной странице, отмерил бы её от
+                      // уехавшего края.
+                      if (!focusMode) window.scrollTo(0, 0);
+                      setFocusMode((current) => !current);
+                    }}
+                  >
+                    {t(focusMode ? "gantt.toolbar.focus_exit" : "gantt.toolbar.focus")}
+                  </button>
+                }
+                onCondense={setCondensed}
                 onAddTask={editable ? setAddingTaskAt : undefined}
                 newTaskAt={addingTaskAt}
                 onCloseNewTask={() => setAddingTaskAt(null)}

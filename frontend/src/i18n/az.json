@@ -524,7 +524,9 @@
       "week": "Həftə",
       "month": "Ay",
       "view": "Görünüş",
-      "columns": "Sütunlar"
+      "columns": "Sütunlar",
+      "focus": "Tam ekran",
+      "focus_exit": "Tam ekrandan çıx"
     },
     "view": {
       "baseline": "Baza planı",

@@ -153,6 +153,68 @@ export function ProjectHead({
 }
 
 /**
+ * Сжатая шапка: то же содержимое одной строкой.
+ *
+ * Показывается вместо полной, когда лента прокручена вглубь плана: человек
+ * читает задачи, и сводка о проекте нужна ему одной строкой у верха, а не
+ * четырьмя ярусами, съедающими треть экрана. Ничего своего не считает — имя,
+ * состояние плана и метрики те же и тем же счётом, что в полной шапке, иначе
+ * два вида шапки однажды назвали бы одному проекту разные числа.
+ *
+ * Живёт только на ленте закрытого экрана, поэтому строка плана здесь не
+ * спрашивает `showPlan`: публичная страница ленту не прокручивает этим путём
+ * и сжатой шапки не видит вовсе.
+ */
+export function ProjectHeadCompact({
+  state,
+  onShowChanges,
+}: {
+  state: ProjectState;
+  /** Открыть список расхождений — той же пометкой, что и в полной шапке. */
+  onShowChanges?: () => void;
+}) {
+  const { t } = useLocale();
+  const changed = planChanges(state).taskCount;
+  const metrics = projectMetrics(state, true);
+
+  return (
+    <div className="project-head-compact">
+      {/* Имя — не второй h1: заголовок экрана остаётся в полной шапке, а эта
+          строка лишь напоминает его, пока тот свёрнут. */}
+      <strong className="project-head-compact__name">{state.name}</strong>
+      <span
+        className="project-head__plan-label"
+        data-state={state.plan_approved_at ? "approved" : "draft"}
+      >
+        {state.plan_approved_at
+          ? t("plan.line", { version: state.plan_version })
+          : t("plan.line_draft")}
+      </span>
+      {changed > 0 &&
+        (onShowChanges ? (
+          <button type="button" className="project-head__plan-note" onClick={onShowChanges}>
+            {t("plan.changed_count", { count: changed, version: state.plan_version })}
+            <span className="project-head__plan-chevron" aria-hidden="true">
+              ▾
+            </span>
+          </button>
+        ) : (
+          <span className="project-head__plan-note">
+            {t("plan.changed_count", { count: changed, version: state.plan_version })}
+          </span>
+        ))}
+      <ul className="project-head-compact__metrics" aria-label={t("project.metrics.label")}>
+        {metrics.map((metric) => (
+          <li key={metric.key} className={metric.warn ? "is-warn" : undefined}>
+            <strong>{metric.value}</strong> {t(`project.metrics.${metric.key}`)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * Полоса метрик под названием проекта.
  *
  * Отвечает на «сколько тут работы и что с ней не так» цифрами, а не цветом
