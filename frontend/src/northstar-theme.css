@@ -290,6 +290,109 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
 .project-toolbar__mode { display: inline-flex; align-items: center; height: 29px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; white-space: nowrap; }
 
 .project__body { gap: 0; align-items: stretch; }
+
+/* --- сжатие шапки при прокрутке ленты --- */
+
+/* Шапка складывается, когда лента прокручена вглубь плана (см. onCondense у
+   Gantt). Анимируется решёткой, а не max-height: высота шапки «по
+   содержимому» — у неё нет числа, до которого можно ехать, а max-height с
+   запасом дал бы паузу в начале движения, пока невидимый запас съедается.
+   Строка решётки из 1fr в 0fr едет ровно от настоящей высоты до нуля.
+   Общее правило «меньше движения» (styles.css) гасит переход вместе со всеми
+   остальными. Конец переезда заодно повод перемерить ленту — см.
+   useViewportFit про transitionend. */
+.project-fold {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--motion-base) var(--motion-ease);
+}
+
+/* min-height обязателен: без него содержимое строки решётки не сжимается ниже
+   своей высоты, и 0fr ничего не сворачивает. */
+.project-fold__inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.project-fold.is-condensed {
+  grid-template-rows: 0fr;
+}
+
+/* Сжатая шапка — та же сводка одной строкой: имя, состояние плана, метрики.
+   Метрики уходят вправо, как действия в полной шапке: слева то, что это за
+   проект, справа — что с ним. Появляется тем же проявлением, что всплывающие
+   слои: она и есть слой, вставший на место уехавшей шапки. */
+.project-head-compact {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 8px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  animation: layer-fade var(--motion-layer) var(--motion-layer-ease);
+}
+
+.project-head-compact__name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.project-head-compact__metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Число ярче подписи — тем же соотношением, что в полной полосе метрик:
+   первой читается цифра, подпись объясняет её. */
+.project-head-compact__metrics strong {
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.project-head-compact__metrics .is-warn strong {
+  color: var(--danger-strong);
+}
+
+/* --- полноэкранная лента --- */
+
+/* Слой поверх всего экрана, а не перестройка рамы приложения: колонка и шапка
+   остаются на своих местах под ним, и выход из режима ничего не пересобирает.
+   z-index ниже всплывающих слоёв ленты и окон (меню — 30, окна и тосты —
+   1000+): всё, что открывается из развёрнутой ленты, обязано открываться
+   поверх неё. */
+.project__body--focus {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: var(--bg);
+}
+
+/* Страница под развёрнутой лентой не прокручивается: её полоса прокрутки
+   двигала бы невидимое содержимое, а высота ленты отмерена от окна
+   (useViewportFit) в предположении, что страница стоит на нуле. */
+body:has(.project__body--focus) {
+  overflow: hidden;
+}
+
+/* Колонка приложения и полоска почты прячутся видимостью, а не display: их не
+   должно быть и в порядке табуляции — за непрозрачным слоем фокус уходил бы в
+   невидимые кнопки. Дотянуться до них сверху больше нечем — режим живёт в
+   экране проекта, а они в раме приложения, — поэтому :has, а не класс. */
+.app:has(.project__body--focus) .sidebar,
+.app:has(.project__body--focus) .verify-bar {
+  visibility: hidden;
+}
 /* Лента обсуждения на публичной странице — колонкой для чтения, с полями от
    краёв. В карточке задачи она же стоит внутри 404 пикселей, и поля с
    ограничением ширины там рисуют вторую, вложенную страницу. */

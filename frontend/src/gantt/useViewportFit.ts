@@ -69,7 +69,23 @@ export function useViewportFit(box: RefObject<HTMLElement | null>): void {
   useLayoutEffect(fit);
 
   useEffect(() => {
+    // Шапка проекта над лентой сжимается и разворачивается анимацией высоты
+    // (grid-template-rows, см. .project-fold): пока она едет, верхний край
+    // ленты движется без единой перерисовки React, и высота, отмеренная в
+    // начале движения, к его концу устаревает. Конец переезда — момент, когда
+    // мерить снова. Слушается именно это свойство, а не всякий transitionend:
+    // подсветка строки под курсором — тоже переход, и мерить ленту на каждое
+    // наведение значило бы принудительный пересчёт раскладки от любого
+    // движения мыши.
+    const onTransitionEnd = (event: TransitionEvent) => {
+      if (event.propertyName === "grid-template-rows") fit();
+    };
+
     window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    document.addEventListener("transitionend", onTransitionEnd);
+    return () => {
+      window.removeEventListener("resize", fit);
+      document.removeEventListener("transitionend", onTransitionEnd);
+    };
   }, [fit]);
 }
