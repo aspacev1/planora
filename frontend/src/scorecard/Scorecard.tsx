@@ -30,15 +30,14 @@ import "./scorecard.css";
 /**
  * Вкладка «Scorecard»: недельная панель здоровья проекта.
  *
- * Таблица метрик слева, «Требует внимания» и качество данных справа — как в
- * макете. Значения приходят с сервера посчитанными, экран их только рисует:
+ * Прогноз финиша и таблица метрик слева, «Требует внимания» и качество данных
+ * справа. Значения приходят с сервера посчитанными, экран их только рисует:
  * формулы метрик живут в одном месте (backend/app/scorecard.py), и клиент,
  * пересчитывающий их, был бы вторым местом с той же арифметикой.
  *
- * Метрика `daily_health` в таблице не показывается, пока отвечает `no_data`:
- * модуля дейли ещё нет, и строка с вечным прочерком обещала бы данные,
- * которых неоткуда взять. Карточка дейли справа свёрстана по контракту и
- * появится сама, когда сервер начнёт присылать `daily`.
+ * События одной метрики склеиваются в одну карточку: риск и правило «красная
+ * 2 недели подряд» — это два взгляда на одну беду, и две карточки о ней
+ * дублировали бы сигнал.
  */
 export function Scorecard({
   projectId,
@@ -119,12 +118,10 @@ export function Scorecard({
   }
 
   const state = query.data;
-  // daily_health прячется, пока у неё нет источника (см. комментарий выше).
-  const visible = state.metrics.filter(
-    (metric) => metric.key !== "daily_health" || metric.status !== "no_data",
-  );
   const currentWeek = state.week.start;
-  const activeAlerts = state.alerts;
+  // Одна карточка на метрику: риск и правило склеиваются, порядок — по первому
+  // событию метрики (сервер отдаёт события новыми сверху).
+  const alertGroups = groupAlerts(state.alerts);
 
   const toggleDrill = (metric: string, week: string) =>
     setDrill((current) =>
@@ -181,7 +178,7 @@ export function Scorecard({
               </tr>
             </thead>
             <tbody>
-              {visible.map((metric) => (
+              {state.metrics.map((metric) => (
                 <MetricRow
                   key={metric.key}
                   projectId={projectId}
@@ -201,56 +198,31 @@ export function Scorecard({
       </div>
 
       <aside className="scorecard-side">
+        <OutlookCard outlook={state.outlook} onOpenTask={onOpenTask} />
+
         <section className="scorecard-card">
           <h3 className="scorecard-card__title">
             {t("scorecard.attention.title")}
-            {activeAlerts.length > 0 && (
-              <span className="scorecard-card__count">{activeAlerts.length}</span>
+            {alertGroups.length > 0 && (
+              <span className="scorecard-card__count">{alertGroups.length}</span>
             )}
           </h3>
-          {activeAlerts.length === 0 ? (
+          {alertGroups.length === 0 ? (
             <p className="scorecard-card__empty">{t("scorecard.attention.empty")}</p>
           ) : (
-            activeAlerts.map((alert) => (
+            alertGroups.map((group) => (
               <AlertCard
-                key={alert.id}
-                alert={alert}
+                key={group.metricKey}
+                group={group}
                 onOpenTask={onOpenTask}
-                onOpenMetric={() => setDrill({ metric: alert.metric_key, week: currentWeek })}
+                onOpenMetric={() => setDrill({ metric: group.metricKey, week: currentWeek })}
               />
             ))
           )}
         </section>
 
-        {/* Дейли в MVP нет: сервер присылает null, и карточка не рисуется.
-            Вёрстка по контракту готова к появлению источника. */}
-        {state.daily && <DailyCard daily={state.daily} />}
-
         {state.data_quality && (
-          <section className="scorecard-card">
-            <h3 className="scorecard-card__title">{t("scorecard.quality.title")}</h3>
-            <p
-              className="scorecard-quality__value"
-              data-status={qualityStatus(state)}
-            >
-              {t("scorecard.quality.percent", {
-                value: formatAmount(locale, state.data_quality.value),
-              })}
-            </p>
-            <div className="scorecard-quality__bar" role="presentation">
-              <div
-                className="scorecard-quality__fill"
-                data-status={qualityStatus(state)}
-                style={{ width: `${Math.max(0, Math.min(100, state.data_quality.value))}%` }}
-              />
-            </div>
-            <p className="scorecard-card__hint">
-              {t("scorecard.quality.summary", {
-                unreal: state.data_quality.unreal_deadline,
-                unassigned: state.data_quality.unassigned,
-              })}
-            </p>
-          </section>
+          <QualityCard quality={state.data_quality} status={qualityStatus(state)} />
         )}
       </aside>
     </div>
@@ -322,7 +294,8 @@ function MetricRow({
   const name = t(`scorecard.metric.${metric.key}`);
   const sign = metric.direction === "lte" ? "≤" : "≥";
   const value =
-    metric.value === null ? "—" : formatMetricValue(locale, metric.key, metric.value);
+    metric.value === null ? "—" : formatMetricValue(locale, metric.key, metric.value, true);
+  const secondary = metricSecondary(t, locale, metric);
   const badge = t(`scorecard.status.${metric.status}`);
 
   return (
@@ -392,6 +365,7 @@ function MetricRow({
               formatMetricValue(locale, metric.key, metric.target)
             )}
           </span>
+          {secondary && <span className="scorecard-row__extra">{secondary}</span>}
         </td>
         <td className="scorecard-row__spark">
           <Sparkline metric={metric} onPick={(week) => onToggle(week)} />
@@ -421,10 +395,48 @@ function MetricRow({
   );
 }
 
-/** Десятичные — через словарь чисел: в ru запятая приходит от Intl. */
-function formatMetricValue(locale: string, key: string, value: number): string {
+/**
+ * Десятичные — через словарь чисел: в ru запятая приходит от Intl. Дрейф и
+ * объём — величины со знаком: у положительных явно ставим «+», чтобы «уехало
+ * вправо» и «подтянули» читались с одного взгляда (минус даёт Intl сам). Знак
+ * ставится только у значения, не у цели: цель — порог, а не изменение.
+ */
+function formatMetricValue(
+  locale: string,
+  key: string,
+  value: number,
+  signed = false,
+): string {
   const amount = formatAmount(locale, value);
-  return key === "data_quality" ? `${amount}%` : amount;
+  if (key === "data_quality") return `${amount}%`;
+  if (signed && value > 0 && (key === "finish_drift" || key === "scope_growth")) {
+    return `+${amount}`;
+  }
+  return amount;
+}
+
+/** Второй ракурс метрики под значением: средняя просрочка, разбивка объёма. */
+function metricSecondary(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  locale: string,
+  metric: ScorecardMetric,
+): string | null {
+  if (metric.key === "overdue_tasks" && metric.avg_days != null) {
+    // Дробное — через словарь чисел: в ru запятая приходит от Intl, а t()
+    // подставляет строку как есть.
+    return t("scorecard.row.avg_overdue", { count: formatAmount(locale, metric.avg_days) });
+  }
+  if (
+    metric.key === "scope_growth" &&
+    metric.added_count != null &&
+    metric.closed_count != null
+  ) {
+    return t("scorecard.row.scope_breakdown", {
+      added: metric.added_count,
+      closed: metric.closed_count,
+    });
+  }
+  return null;
 }
 
 /**
@@ -448,7 +460,7 @@ function Sparkline({
         const label = `${formatShortDate(t, point.week_start)} · ${
           point.value === null
             ? t("scorecard.status.no_data")
-            : formatMetricValue(locale, metric.key, point.value)
+            : formatMetricValue(locale, metric.key, point.value, true)
         } · ${t(`scorecard.status.${point.status}`)}`;
         return (
           <button
@@ -569,6 +581,9 @@ function entryNote(
   if (entry.delta_days !== undefined) {
     return t("scorecard.drill.delta_days", { count: entry.delta_days });
   }
+  if (entry.added_in_week) {
+    return t("scorecard.drill.added");
+  }
   if (entry.closed_in_week !== undefined) {
     return t(
       entry.closed_in_week ? "scorecard.drill.closed" : "scorecard.drill.not_closed",
@@ -582,40 +597,82 @@ function entryNote(
   return null;
 }
 
-/** Карточка события: след правила — со ссылкой на задачу, риск — с топом задач. */
+/** События одной метрики под одной крышей: риск и след правила вместе. */
+type AlertGroup = {
+  metricKey: string;
+  risk?: ScorecardAlert;
+  rule?: ScorecardAlert;
+};
+
+/**
+ * Склейка событий по метрике с сохранением порядка появления. У метрики
+ * бывает и риск, и правило одновременно — это одна беда, и карточка одна.
+ */
+function groupAlerts(alerts: ScorecardAlert[]): AlertGroup[] {
+  const groups = new Map<string, AlertGroup>();
+  for (const alert of alerts) {
+    let group = groups.get(alert.metric_key);
+    if (!group) {
+      group = { metricKey: alert.metric_key };
+      groups.set(alert.metric_key, group);
+    }
+    if (alert.kind === "rule_triggered") group.rule = alert;
+    else group.risk = alert;
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Карточка события метрики: фраза риска, дельта к прошлой неделе, кто тянет
+ * вниз и топ-3 задачи, плюс — если правило сработало — ссылка на созданную
+ * задачу «Разобрать». Когда риска нет, а правило есть, остаётся только ссылка.
+ */
 function AlertCard({
-  alert,
+  group,
   onOpenTask,
   onOpenMetric,
 }: {
-  alert: ScorecardAlert;
+  group: AlertGroup;
   onOpenTask: (taskId: string) => void;
   onOpenMetric: () => void;
 }) {
-  const { t } = useLocale();
-  const metricName = t(`scorecard.metric.${alert.metric_key}`);
+  const { t, locale } = useLocale();
+  const metricName = t(`scorecard.metric.${group.metricKey}`);
+  const risk = group.risk;
+  const rule = group.rule;
+  const top = risk?.payload.tasks ?? [];
+  const delta = risk?.payload.delta;
+  const topAssignee = risk?.payload.top_assignee;
 
-  if (alert.kind === "rule_triggered") {
-    return (
-      <article className="scorecard-alert" data-kind="rule">
-        <p>{t("scorecard.attention.rule", { metric: metricName })}</p>
-        {alert.payload.task_id && (
-          <button
-            type="button"
-            className="scorecard-alert__link"
-            onClick={() => onOpenTask(alert.payload.task_id!)}
-          >
-            {alert.payload.task_name ?? t("scorecard.attention.open_task")}
-          </button>
-        )}
-      </article>
-    );
-  }
-
-  const top = alert.payload.tasks ?? [];
   return (
-    <article className="scorecard-alert" data-kind="risk">
-      <p>{t("scorecard.attention.risk", { metric: metricName })}</p>
+    <article className="scorecard-alert" data-kind={risk ? "risk" : "rule"}>
+      {risk ? (
+        <p className="scorecard-alert__head">
+          {t("scorecard.attention.risk", { metric: metricName })}
+        </p>
+      ) : (
+        <p className="scorecard-alert__head">
+          {t("scorecard.attention.rule", { metric: metricName })}
+        </p>
+      )}
+
+      {risk && delta != null && delta !== 0 && (
+        <p className="scorecard-alert__delta">
+          {t(delta > 0 ? "scorecard.attention.delta_up" : "scorecard.attention.delta_down", {
+            count: formatAmount(locale, Math.abs(delta)),
+          })}
+        </p>
+      )}
+
+      {risk && topAssignee && (
+        <p className="scorecard-alert__by">
+          {t("scorecard.attention.top_assignee", {
+            name: topAssignee.name,
+            count: topAssignee.count,
+          })}
+        </p>
+      )}
+
       {top.length > 0 && (
         <ul className="scorecard-alert__tasks">
           {top.map((task) => (
@@ -628,16 +685,28 @@ function AlertCard({
                 {task.name}
               </button>
               <span className="scorecard-alert__meta">
-                {task.assignee ?? t("scorecard.owner_none")} ·{" "}
-                {t("scorecard.drill.days_overdue", { count: task.days_overdue })}
+                {task.assignee ?? t("scorecard.owner_none")}
+                {task.days_overdue !== undefined &&
+                  ` · ${t("scorecard.drill.days_overdue", { count: task.days_overdue })}`}
               </span>
             </li>
           ))}
         </ul>
       )}
-      {(alert.payload.total ?? 0) > 0 && (
+
+      {risk && (risk.payload.total ?? 0) > 0 && (
         <button type="button" className="scorecard-alert__all" onClick={onOpenMetric}>
-          {t("scorecard.attention.open_all", { count: alert.payload.total ?? 0 })}
+          {t("scorecard.attention.open_all", { count: risk.payload.total ?? 0 })}
+        </button>
+      )}
+
+      {rule && rule.payload.task_id && (
+        <button
+          type="button"
+          className="scorecard-alert__link scorecard-alert__rule"
+          onClick={() => onOpenTask(rule.payload.task_id!)}
+        >
+          {rule.payload.task_name ?? t("scorecard.attention.open_task")}
         </button>
       )}
     </article>
@@ -645,48 +714,101 @@ function AlertCard({
 }
 
 /**
- * Карточка дейли — контракт вёрстки под будущий модуль. Сегодня сервер шлёт
- * `daily: null`, и карточка не рисуется нигде, кроме тестов с фикстурой.
+ * Прогноз финиша и ближайшая веха — то, ради чего открывают экран. Не
+ * рисуется у относительного плана: там настоящих дат нет, и сервер шлёт
+ * пустой outlook.
  */
-function DailyCard({
-  daily,
+function OutlookCard({
+  outlook,
+  onOpenTask,
 }: {
-  daily: NonNullable<ScorecardState["daily"]>;
+  outlook: ScorecardState["outlook"];
+  onOpenTask: (taskId: string) => void;
 }) {
-  const { t, locale } = useLocale();
-  const stalled = daily.blockers.some((blocker) => blocker.stalled);
-  const peak = Math.max(...daily.by_day.map((day) => day.score ?? 0), 10);
+  const { t } = useLocale();
+  if (!outlook.projected_finish && !outlook.milestone) return null;
+  const milestone = outlook.milestone;
   return (
-    <section className="scorecard-card">
-      <h3 className="scorecard-card__title">
-        {t("scorecard.daily.title")}
-        <span className="scorecard-card__count">
-          {t("scorecard.daily.held", { held: daily.held, planned: daily.planned })}
-        </span>
-      </h3>
-      <p className="scorecard-daily__score">
-        {daily.avg_score === null ? "—" : formatAmount(locale, daily.avg_score)}
-      </p>
-      <div className="scorecard-daily__bars" role="presentation">
-        {daily.by_day.map((day) => (
-          <span
-            key={day.date}
-            className="scorecard-daily__bar"
-            style={{ height: `${((day.score ?? 0) / peak) * 100}%` }}
-            title={`${formatShortDate(t, day.date)}: ${day.score ?? "—"}`}
-          />
-        ))}
-      </div>
-      {daily.blockers.length > 0 && (
-        <p className="scorecard-daily__blockers">
-          {t("scorecard.daily.blockers", { count: daily.blockers.length })}
-          {stalled && (
-            <span className="scorecard-daily__stalled">
-              {t("scorecard.daily.stalled")}
-            </span>
-          )}
+    <section className="scorecard-card scorecard-outlook">
+      <h3 className="scorecard-card__title">{t("scorecard.outlook.title")}</h3>
+      {outlook.projected_finish && (
+        <p className="scorecard-outlook__finish">
+          <span className="scorecard-outlook__label">{t("scorecard.outlook.finish")}</span>
+          <span className="scorecard-outlook__value">
+            {formatShortDate(t, outlook.projected_finish)}
+          </span>
         </p>
       )}
+      {milestone && (
+        <button
+          type="button"
+          className="scorecard-outlook__milestone"
+          data-status={milestone.status}
+          onClick={() => onOpenTask(milestone.id)}
+        >
+          <span className="scorecard-outlook__label">
+            {t(
+              milestone.status === "overdue"
+                ? "scorecard.outlook.milestone_overdue"
+                : "scorecard.outlook.milestone",
+            )}
+          </span>
+          <span className="scorecard-outlook__value">
+            {milestone.name} · {formatShortDate(t, milestone.date)}
+          </span>
+        </button>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Качество данных как чек-лист причин, а не один процент: цифры сходятся по
+ * построению (нет исполнителя + нереальный срок − обе = затронуто), и сразу
+ * видно, что чинить.
+ */
+function QualityCard({
+  quality,
+  status,
+}: {
+  quality: NonNullable<ScorecardState["data_quality"]>;
+  status: string;
+}) {
+  const { t, locale } = useLocale();
+  const causes: { key: string; count: number }[] = [
+    { key: "scorecard.quality.cause_unassigned", count: quality.unassigned },
+    { key: "scorecard.quality.cause_unreal", count: quality.unreal_deadline },
+  ];
+  if (quality.both > 0) {
+    causes.push({ key: "scorecard.quality.cause_both", count: quality.both });
+  }
+  return (
+    <section className="scorecard-card">
+      <h3 className="scorecard-card__title">{t("scorecard.quality.title")}</h3>
+      <p className="scorecard-quality__value" data-status={status}>
+        {t("scorecard.quality.percent", { value: formatAmount(locale, quality.value) })}
+      </p>
+      <div className="scorecard-quality__bar" role="presentation">
+        <div
+          className="scorecard-quality__fill"
+          data-status={status}
+          style={{ width: `${Math.max(0, Math.min(100, quality.value))}%` }}
+        />
+      </div>
+      <p className="scorecard-quality__affected">
+        {t("scorecard.quality.affected", {
+          affected: quality.affected,
+          total: quality.total,
+        })}
+      </p>
+      <ul className="scorecard-quality__causes">
+        {causes.map((cause) => (
+          <li key={cause.key} data-empty={cause.count === 0}>
+            <span>{t(cause.key)}</span>
+            <span className="scorecard-quality__count">{cause.count}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

@@ -1054,12 +1054,11 @@
     },
     "metric": {
       "overdue_tasks": "Overdue tasks",
-      "avg_overdue_days": "Average overdue, wd",
+      "finish_drift": "Finish drift, wd",
+      "scope_growth": "Scope growth",
       "date_shifts": "Date shifts this week",
       "close_rate": "Weekly close rate",
       "stale_in_progress": "Stale in progress",
-      "unassigned_tasks": "Unassigned tasks",
-      "daily_health": "Daily health",
       "data_quality": "Data quality"
     },
     "status": {
@@ -1069,6 +1068,10 @@
       "no_data": "No data"
     },
     "streak": "· {count} wk",
+    "row": {
+      "avg_overdue": "avg {count} wd",
+      "scope_breakdown": "added {added}, closed {closed}"
+    },
     "owner_label": "Owner of “{metric}”",
     "owner_none": "unassigned",
     "target_label": "Target for “{metric}”",
@@ -1078,7 +1081,16 @@
       "rule": "“{metric}” has been at risk for two weeks in a row, a task was created",
       "open_task": "Open the task",
       "risk": "“{metric}” is at risk this week",
+      "delta_up": "+{count} vs last week",
+      "delta_down": "−{count} vs last week",
+      "top_assignee": "most affected: {name} ({count})",
       "open_all": "Open all tasks ({count}) →"
+    },
+    "outlook": {
+      "title": "Forecast",
+      "finish": "Projected finish",
+      "milestone": "Next milestone",
+      "milestone_overdue": "Milestone overdue"
     },
     "drill": {
       "empty": "No tasks for this week",
@@ -1088,6 +1100,7 @@
       "delta_days": "shifted {count} d",
       "closed": "closed this week",
       "not_closed": "not closed",
+      "added": "added this week",
       "reason": {
         "unassigned": "no assignee",
         "unreal_deadline": "unrealistic deadline"
@@ -1096,13 +1109,10 @@
     "quality": {
       "title": "Project data quality",
       "percent": "{value}%",
-      "summary": "{unreal} tasks have no realistic deadline, {unassigned} have no assignee"
-    },
-    "daily": {
-      "title": "Dailies this week",
-      "held": "{held} of {planned}",
-      "blockers": "Blockers: {count}",
-      "stalled": "A blocker is stalled"
+      "affected": "{affected} of {total} tasks need fixing",
+      "cause_unassigned": "No assignee",
+      "cause_unreal": "Unrealistic deadline",
+      "cause_both": "Both problems"
     }
   },
   "export": {

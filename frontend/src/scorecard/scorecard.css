@@ -208,6 +208,15 @@
   color: inherit;
 }
 
+/* Второй ракурс под значением: средняя просрочка, разбивка объёма. */
+.scorecard-row__extra {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 /* Спарклайн: по столбику на неделю, без библиотек. Кнопки — чтобы неделя
    открывалась и с клавиатуры. */
 .scorecard-spark {
@@ -355,8 +364,7 @@
   font-weight: 500;
 }
 
-.scorecard-card__empty,
-.scorecard-card__hint {
+.scorecard-card__empty {
   margin: 0;
   color: var(--text-muted);
   font-size: 13px;
@@ -377,6 +385,29 @@
 
 .scorecard-alert p {
   margin: 0 0 6px;
+}
+
+.scorecard-alert__head {
+  font-weight: 600;
+}
+
+/* Дельта к прошлой неделе — сигнал направления, поэтому в цвете тревоги. */
+.scorecard-alert__delta {
+  color: var(--danger-strong, var(--danger));
+  font-weight: 600;
+}
+
+.scorecard-alert__by {
+  color: var(--text-muted);
+}
+
+/* Ссылка на созданную правилом задачу — отбита фоном от фразы риска. */
+.scorecard-alert__rule {
+  display: inline-block;
+  margin-top: 4px;
+  background: var(--accent-soft);
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 
 .scorecard-alert__tasks {
@@ -462,40 +493,82 @@
   background: var(--danger);
 }
 
-/* Дейли: контракт вёрстки под будущий модуль. */
-.scorecard-daily__score {
+/* Чек-лист причин под процентом: что именно чинить. */
+.scorecard-quality__affected {
   margin: 0 0 8px;
-  font-size: 28px;
-  font-weight: 600;
-}
-
-.scorecard-daily__bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  height: 48px;
-  margin-bottom: 8px;
-}
-
-.scorecard-daily__bar {
-  flex: 1;
-  background: var(--accent-soft);
-  border-radius: 3px 3px 0 0;
-  min-height: 2px;
-}
-
-.scorecard-daily__blockers {
-  margin: 0;
   font-size: 13px;
   color: var(--text-muted);
 }
 
-.scorecard-daily__stalled {
-  display: inline-block;
-  margin-left: 8px;
-  background: var(--danger-soft);
+.scorecard-quality__causes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.scorecard-quality__causes li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Причина с нулём — не тревога: приглушается, чтобы взгляд шёл к ненулевым. */
+.scorecard-quality__causes li[data-empty="true"] {
+  color: var(--text-faint);
+}
+
+.scorecard-quality__count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.scorecard-quality__causes li[data-empty="false"] .scorecard-quality__count {
   color: var(--danger-strong, var(--danger));
-  border-radius: 4px;
-  padding: 1px 6px;
-  font-size: 12px;
+}
+
+/* Прогноз финиша и ближайшая веха — шапка правой колонки. */
+.scorecard-outlook__finish,
+.scorecard-outlook__milestone {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 10px;
+  text-align: left;
+}
+
+.scorecard-outlook__milestone {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.scorecard-outlook__milestone:last-child {
+  margin-bottom: 0;
+}
+
+.scorecard-outlook__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.scorecard-outlook__value {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.scorecard-outlook__milestone[data-status="overdue"] .scorecard-outlook__value {
+  color: var(--danger);
+}
+
+.scorecard-outlook__milestone:hover .scorecard-outlook__value {
+  text-decoration: underline;
 }

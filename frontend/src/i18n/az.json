@@ -1054,12 +1054,11 @@
     },
     "metric": {
       "overdue_tasks": "Gecikmiş tapşırıqlar",
-      "avg_overdue_days": "Orta gecikmə, iş günü",
+      "finish_drift": "Finiş sürüşməsi, iş g.",
+      "scope_growth": "Həcm artımı",
       "date_shifts": "Həftə ərzində tarix sürüşmələri",
       "close_rate": "Həftənin bağlanma nisbəti",
       "stale_in_progress": "İşdə ilişib qalanlar",
-      "unassigned_tasks": "İcraçısız tapşırıqlar",
-      "daily_health": "Deyli sağlamlığı",
       "data_quality": "Məlumat keyfiyyəti"
     },
     "status": {
@@ -1069,6 +1068,10 @@
       "no_data": "Məlumat yoxdur"
     },
     "streak": "· {count} həft.",
+    "row": {
+      "avg_overdue": "orta {count} iş g.",
+      "scope_breakdown": "{added} yaradıldı, {closed} bağlandı"
+    },
     "owner_label": "«{metric}» metrikasının sahibi",
     "owner_none": "təyin edilməyib",
     "target_label": "«{metric}» metrikasının hədəfi",
@@ -1078,7 +1081,16 @@
       "rule": "«{metric}» ikinci həftədir riskdədir, tapşırıq yaradılıb",
       "open_task": "Tapşırığı aç",
       "risk": "«{metric}» bu həftə riskdədir",
+      "delta_up": "həftə ərzində +{count}",
+      "delta_down": "həftə ərzində −{count}",
+      "top_assignee": "ən çox {name} ({count})",
       "open_all": "Bütün tapşırıqları aç ({count}) →"
+    },
+    "outlook": {
+      "title": "Proqnoz",
+      "finish": "Proqnoz finişi",
+      "milestone": "Növbəti mərhələ",
+      "milestone_overdue": "Mərhələ gecikib"
     },
     "drill": {
       "empty": "Bu həftə üçün tapşırıq yoxdur",
@@ -1088,6 +1100,7 @@
       "delta_days": "{count} gün sürüşmə",
       "closed": "bu həftə bağlanıb",
       "not_closed": "bağlanmayıb",
+      "added": "bu həftə yaradıldı",
       "reason": {
         "unassigned": "icraçı yoxdur",
         "unreal_deadline": "qeyri-real müddət"
@@ -1096,13 +1109,10 @@
     "quality": {
       "title": "Layihə məlumatlarının keyfiyyəti",
       "percent": "{value}%",
-      "summary": "{unreal} tapşırığın real müddəti yoxdur, {unassigned} tapşırığın icraçısı yoxdur"
-    },
-    "daily": {
-      "title": "Həftənin deyliləri",
-      "held": "{planned} plandan {held}",
-      "blockers": "Blokerlər: {count}",
-      "stalled": "İlişib qalmış bloker var"
+      "affected": "{total} tapşırıqdan {affected} düzəliş tələb edir",
+      "cause_unassigned": "İcraçı yoxdur",
+      "cause_unreal": "Qeyri-real son tarix",
+      "cause_both": "Hər iki problem"
     }
   },
   "export": {

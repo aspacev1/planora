@@ -1074,12 +1074,11 @@
     },
     "metric": {
       "overdue_tasks": "Просроченные задачи",
-      "avg_overdue_days": "Средняя просрочка, раб. дн.",
+      "finish_drift": "Сдвиг финиша, р.д.",
+      "scope_growth": "Рост объёма",
       "date_shifts": "Сдвиги дат за неделю",
       "close_rate": "Закрываемость недели",
       "stale_in_progress": "Зависшие в работе",
-      "unassigned_tasks": "Задачи без исполнителя",
-      "daily_health": "Здоровье дейли",
       "data_quality": "Качество данных"
     },
     "status": {
@@ -1089,6 +1088,10 @@
       "no_data": "Нет данных"
     },
     "streak": "· {count} нед.",
+    "row": {
+      "avg_overdue": "в среднем {count} р.д.",
+      "scope_breakdown": "создано {added}, закрыто {closed}"
+    },
     "owner_label": "Владелец метрики «{metric}»",
     "owner_none": "не назначен",
     "target_label": "Цель метрики «{metric}»",
@@ -1098,7 +1101,16 @@
       "rule": "«{metric}» — в риске вторую неделю подряд, создана задача",
       "open_task": "Открыть задачу",
       "risk": "«{metric}» — в риске на этой неделе",
+      "delta_up": "+{count} за неделю",
+      "delta_down": "−{count} за неделю",
+      "top_assignee": "больше всех у {name} ({count})",
       "open_all": "Открыть все задачи ({count}) →"
+    },
+    "outlook": {
+      "title": "Прогноз",
+      "finish": "Прогноз финиша",
+      "milestone": "Ближайшая веха",
+      "milestone_overdue": "Веха просрочена"
     },
     "drill": {
       "empty": "За эту неделю задач нет",
@@ -1108,6 +1120,7 @@
       "delta_days": "сдвиг {count} дн.",
       "closed": "закрыта на этой неделе",
       "not_closed": "не закрыта",
+      "added": "создана на этой неделе",
       "reason": {
         "unassigned": "нет исполнителя",
         "unreal_deadline": "нереальный срок"
@@ -1116,13 +1129,10 @@
     "quality": {
       "title": "Качество данных проекта",
       "percent": "{value}%",
-      "summary": "у {unreal} задач нет реальных сроков, у {unassigned} — нет исполнителя"
-    },
-    "daily": {
-      "title": "Дейли за неделю",
-      "held": "{held} из {planned}",
-      "blockers": "Блокеров: {count}",
-      "stalled": "Есть зависший блокер"
+      "affected": "нужно поправить {affected} из {total} задач",
+      "cause_unassigned": "Нет исполнителя",
+      "cause_unreal": "Нереальный срок",
+      "cause_both": "Обе причины"
     }
   },
   "export": {

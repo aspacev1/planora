@@ -75,12 +75,11 @@
   },
   "metric": {
     "overdue_tasks": "Просроченные задачи",
-    "avg_overdue_days": "Средняя просрочка",
+    "finish_drift": "Сдвиг финиша",
+    "scope_growth": "Рост объёма",
     "date_shifts": "Сдвиги дат",
     "close_rate": "Закрываемость",
     "stale_in_progress": "Зависшие в работе",
-    "unassigned_tasks": "Задачи без исполнителя",
-    "daily_health": "Здоровье дейли",
     "data_quality": "Качество данных"
   },
   "legend": {
