@@ -17,3 +17,12 @@ argon2-cffi==25.1.0
 email-validator==2.3.0
 cryptography==50.0.0
 pyyaml==6.0.3
+# Выгрузка проекта в Excel и PDF. Транзитивные зависимости выписаны поимённо:
+# сборщик Python на Vercel ставит ровно то, что перечислено здесь, и сам их не
+# доберёт (et-xmlfile — для openpyxl; pillow и charset-normalizer — для
+# reportlab).
+openpyxl==3.1.5
+et-xmlfile==2.0.0
+reportlab==5.0.1
+pillow==12.3.0
+charset-normalizer==3.5.1

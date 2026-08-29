@@ -1104,5 +1104,86 @@
       "blockers": "Blokerlər: {count}",
       "stalled": "İlişib qalmış bloker var"
     }
+  },
+  "export": {
+    "title": "Layihəni ixrac et",
+    "hint": "Format və fayla nəyin düşəcəyini seçin — sağda nəticə görünür.",
+    "open": "İxrac",
+    "download": "Yüklə",
+    "working": "Yığılır…",
+    "preview": "Öncədən baxış",
+    "label": {
+      "format": "Format",
+      "sections": "Nə daxil edilsin",
+      "period": "Diaqram dövrü",
+      "zoom": "Diaqram miqyası",
+      "orientation": "İstiqamət"
+    },
+    "format": {
+      "xlsx": {
+        "name": "Excel",
+        "note": "Vərəqlərdən ibarət kitab. Tarixlər, rəqəmlər və düsturlar canlıdır — süzgəcdən keçirin və hesablayın."
+      },
+      "pdf": {
+        "name": "PDF",
+        "note": "Qant diaqramı ilə çapa hazır sənəd. Hamıda eynidir."
+      }
+    },
+    "section": {
+      "overview": {
+        "name": "İcmal",
+        "note": "Layihə göstəriciləri və kateqoriya izahı"
+      },
+      "tasks": {
+        "name": "Tapşırıqlar",
+        "note": "Tapşırıq: {n}"
+      },
+      "gantt": {
+        "name": "Qant diaqramı",
+        "note": "Zolaqlar, mərhələlər, əlaqələr, baza planı"
+      },
+      "links": {
+        "name": "Tapşırıq əlaqələri",
+        "note": "Əlaqə: {n}"
+      },
+      "proposal": {
+        "name": "Qiymət təklifi",
+        "note": "Sətir: {n}"
+      },
+      "scorecard": {
+        "name": "Skorkart",
+        "note": "Metrika: {n}"
+      },
+      "comments": {
+        "name": "Müzakirə",
+        "note": "Rəy: {n}"
+      },
+      "history": {
+        "name": "Dəyişikliklər tarixçəsi",
+        "note": "Qeyd: {n}"
+      },
+      "empty": "Layihədə yoxdur"
+    },
+    "period": {
+      "all": "Bütün layihə",
+      "next_4w": "Növbəti 4 həftə",
+      "next_3m": "Növbəti 3 ay",
+      "from_today": "Bu gündən sona qədər",
+      "undated": "Planın tarixi yoxdur: başlanğıc tarixi hələ təyin edilməyib"
+    },
+    "zoom": {
+      "day": "Gün",
+      "week": "Həftə",
+      "month": "Ay",
+      "too_wide": "{count} diaqram səhifəsi alınacaq — daha iri miqyas seçin və ya dövrü daraldın"
+    },
+    "orientation": {
+      "landscape": "Albom",
+      "portrait": "Kitab"
+    },
+    "pages": {
+      "one": "{count} səhifə",
+      "other": "{count} səhifə"
+    }
   }
 }

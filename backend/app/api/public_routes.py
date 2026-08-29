@@ -15,16 +15,19 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
 from app.access import Action, can
+from app.api import export_routes
 from app.api.serialization import comments_out, project_state
 from app.calendar import CalendarError
 from app.comments import CommentRejected, add_comment, comment_counts, list_comments
 from app.config import get_settings
 from app.db import get_db
+from app.export.budget import Orientation, Period, Zoom
+from app.export.errors import ExportError
 from app.models import Organization, Project, ShareLink
 from app.rate_limit import SlidingWindow, client_key
 from app.sharing import TOKEN_PARAM, resolve
@@ -185,3 +188,80 @@ def add_public_comment(
         status = 404 if error.code == "task_not_found" else 422
         raise HTTPException(status_code=status, detail=error.code)
     return comments_out(db, [comment])[0]
+
+
+# --- выгрузка по публичной ссылке ---------------------------------------------
+#
+# Гость получает клиентский экземпляр: без внутренних заметок, исполнителей,
+# базового плана и журнала правок. Ровно тот же урез, что и на странице выше, —
+# и он не повторён здесь руками, а выведен из матрицы прав теми же двумя
+# флагами, что передаются в project_state.
+
+
+def _export_shared(request: Request, shared: SharedProject, db: DbSession, fmt: str):
+    if not can(None, Action.PROJECT_EXPORT, project_granted=True):
+        raise HTTPException(status_code=404, detail="link_not_found")
+
+    show_notes = can(None, Action.READ_INTERNAL_NOTE, project_granted=True)
+    try:
+        document = export_routes.build(
+            db,
+            shared.project,
+            shared.org,
+            request=request,
+            sections_raw=request.query_params.getlist("include") or None,
+            zoom=_enum_param(request, "zoom", Zoom),
+            period=_enum_param(request, "period", Period) or Period.ALL,
+            orientation=_enum_param(request, "orientation", Orientation)
+            or Orientation.LANDSCAPE,
+            locale=request.query_params.get("locale"),
+            show_notes=show_notes,
+            show_people=False,
+            client_copy=not show_notes,
+        )
+    except ExportError as error:
+        raise export_routes.refuse(error) from error
+    return export_routes.as_response(document, fmt)
+
+
+def _enum_param(request: Request, name: str, enum):
+    """Значение перечислимого из строки запроса — или отказ 422.
+
+    Разбирается вручную, потому что оба публичных маршрута объявлены одной
+    функцией: подписи FastAPI, из которых он строит проверку, здесь нет.
+    """
+    raw = request.query_params.get(name)
+    if raw is None:
+        return None
+    try:
+        return enum(raw)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="validation_error") from None
+
+
+@router.get(
+    "/{org_slug}/{project_slug}/export.xlsx",
+    summary="Выгрузить проект по публичной ссылке книгой Excel",
+    responses=export_routes.FILE_RESPONSES["xlsx"],
+    response_class=Response,
+)
+def public_export_xlsx(
+    request: Request,
+    shared: SharedProject = Depends(shared_project),
+    db: DbSession = Depends(get_db),
+) -> Response:
+    return _export_shared(request, shared, db, "xlsx")
+
+
+@router.get(
+    "/{org_slug}/{project_slug}/export.pdf",
+    summary="Выгрузить проект по публичной ссылке документом PDF",
+    responses=export_routes.FILE_RESPONSES["pdf"],
+    response_class=Response,
+)
+def public_export_pdf(
+    request: Request,
+    shared: SharedProject = Depends(shared_project),
+    db: DbSession = Depends(get_db),
+) -> Response:
+    return _export_shared(request, shared, db, "pdf")

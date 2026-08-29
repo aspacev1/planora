@@ -97,3 +97,81 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
+
+/** Файл, скачанный с сервера: содержимое и имя, под которым его сохранять. */
+export type DownloadedFile = { blob: Blob; filename: string };
+
+/**
+ * Запрос, ответ на который — файл, а не JSON.
+ *
+ * Отдельная функция, а не флаг у `request`: та всегда разбирает тело как JSON
+ * и обязана такой остаться — иначе каждый её вызов начнёт возвращать
+ * объединение двух типов. Общее у них — разбор отказа: код ошибки приходит
+ * тем же телом и переводится тем же словарём.
+ */
+export async function requestFile(
+  path: string,
+  init?: RequestInit,
+): Promise<DownloadedFile> {
+  let response: Response;
+  try {
+    response = await fetch(path, { credentials: "include", ...init });
+  } catch {
+    throw new ApiError(NETWORK_ERROR_CODE, 0);
+  }
+
+  if (!response.ok) {
+    // Отказ приходит JSON'ом даже у маршрута, отдающего файл: сервер меняет
+    // тип ответа вместе со статусом.
+    const body = await response.json().catch(() => null);
+    throw new ApiError(codeFromBody(body), response.status, hintsFrom(response.headers));
+  }
+
+  return {
+    blob: await response.blob(),
+    filename: filenameFrom(response.headers.get("content-disposition")),
+  };
+}
+
+/**
+ * Имя файла из `Content-Disposition`.
+ *
+ * Читается `filename*` (RFC 5987), а не `filename`: второй по стандарту
+ * ограничен ASCII, и сервер кладёт в него заглушку с подчёркиваниями — имя
+ * проекта на русском или азербайджанском живёт только в первом. Пустая
+ * строка — не поломка: вызывающий подставит своё имя, а не сохранит файл под
+ * «undefined».
+ */
+export function filenameFrom(header: string | null): string {
+  if (header === null) return "";
+
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim());
+    } catch {
+      // Испорченная процентная кодировка — не повод ронять скачивание.
+    }
+  }
+
+  const plain = /filename="([^"]*)"/i.exec(header);
+  return plain ? plain[1] : "";
+}
+
+/**
+ * Сохранить полученный файл под его именем.
+ *
+ * Ссылка создаётся и убирается тут же: узел, оставленный в документе, копился
+ * бы на каждое скачивание. `revokeObjectURL` — в следующем кадре, а не сразу:
+ * часть браузеров не успевает начать загрузку по уже отозванному адресу.
+ */
+export function saveFile(file: DownloadedFile, fallbackName: string): void {
+  const url = URL.createObjectURL(file.blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.filename || fallbackName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}

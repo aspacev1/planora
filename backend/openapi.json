@@ -345,6 +345,21 @@
         "title": "DraftIn",
         "type": "object"
       },
+      "ExportSection": {
+        "description": "Что человек попросил положить в файл.",
+        "enum": [
+          "overview",
+          "tasks",
+          "gantt",
+          "links",
+          "proposal",
+          "scorecard",
+          "comments",
+          "history"
+        ],
+        "title": "ExportSection",
+        "type": "string"
+      },
       "ForgotPasswordIn": {
         "additionalProperties": false,
         "properties": {
@@ -1204,6 +1219,14 @@
         "title": "OrganizationSettingsOut",
         "type": "object"
       },
+      "Orientation": {
+        "enum": [
+          "landscape",
+          "portrait"
+        ],
+        "title": "Orientation",
+        "type": "string"
+      },
       "PasswordIn": {
         "additionalProperties": false,
         "properties": {
@@ -1224,6 +1247,17 @@
         ],
         "title": "PasswordIn",
         "type": "object"
+      },
+      "Period": {
+        "description": "Окно ленты. Три последних привязаны к «сегодня».",
+        "enum": [
+          "all",
+          "next_4w",
+          "next_3m",
+          "from_today"
+        ],
+        "title": "Period",
+        "type": "string"
       },
       "PreviewOut": {
         "properties": {
@@ -2797,6 +2831,16 @@
         ],
         "title": "VerifyEmailOut",
         "type": "object"
+      },
+      "Zoom": {
+        "description": "Единица колонки шкалы. Те же три значения, что у ленты на экране.",
+        "enum": [
+          "day",
+          "week",
+          "month"
+        ],
+        "title": "Zoom",
+        "type": "string"
       }
     }
   },
@@ -5815,6 +5859,312 @@
         ]
       }
     },
+    "/api/projects/{project_id}/export.pdf": {
+      "get": {
+        "operationId": "export_project_pdf_api_projects__project_id__export_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/ExportSection"
+              },
+              "title": "Include",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "zoom",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Zoom"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Zoom"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Period",
+              "default": "all"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orientation",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Orientation",
+              "default": "landscape"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locale"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Выгрузить проект документом PDF",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/export.xlsx": {
+      "get": {
+        "operationId": "export_project_xlsx_api_projects__project_id__export_xlsx_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/ExportSection"
+              },
+              "title": "Include",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "zoom",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Zoom"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Zoom"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Period",
+              "default": "all"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orientation",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Orientation",
+              "default": "landscape"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locale"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Выгрузить проект книгой Excel",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/export/facts": {
+      "get": {
+        "description": "Чем наполнены разделы — чтобы окно не предлагало пустых.\n\nОтдельный маршрут, а не поля в состоянии проекта: эти числа нужны раз в\nжизни экрана, при открытии окна, а состояние проекта читается на каждый\nкадр ленты. Заодно отсюда приходят границы плана и «сегодня» по таймзоне\nпроекта — те самые, от которых сервер считает страницы, так что число на\nкнопке масштаба не может разойтись с числом в файле.",
+        "operationId": "export_facts_api_projects__project_id__export_facts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Export Facts Api Projects  Project Id  Export Facts Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Что в проекте есть для выгрузки",
+        "tags": [
+          "export"
+        ]
+      }
+    },
     "/api/projects/{project_id}/jira": {
       "get": {
         "operationId": "read_jira_link_api_projects__project_id__jira_get",
@@ -8295,6 +8645,130 @@
           }
         },
         "summary": "Public Comment Counts",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/public/{org_slug}/{project_slug}/export.pdf": {
+      "get": {
+        "operationId": "public_export_pdf_api_public__org_slug___project_slug__export_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_slug",
+            "required": true,
+            "schema": {
+              "title": "Org Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_slug",
+            "required": true,
+            "schema": {
+              "title": "Project Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "s",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "S",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Выгрузить проект по публичной ссылке документом PDF",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/public/{org_slug}/{project_slug}/export.xlsx": {
+      "get": {
+        "operationId": "public_export_xlsx_api_public__org_slug___project_slug__export_xlsx_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_slug",
+            "required": true,
+            "schema": {
+              "title": "Org Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_slug",
+            "required": true,
+            "schema": {
+              "title": "Project Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "s",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "S",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Выгрузить проект по публичной ссылке книгой Excel",
         "tags": [
           "public"
         ]

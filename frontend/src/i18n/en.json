@@ -1104,5 +1104,86 @@
       "blockers": "Blockers: {count}",
       "stalled": "A blocker is stalled"
     }
+  },
+  "export": {
+    "title": "Export project",
+    "hint": "Pick a format and what goes into the file — the preview shows the result.",
+    "open": "Export",
+    "download": "Download",
+    "working": "Building…",
+    "preview": "Preview",
+    "label": {
+      "format": "Format",
+      "sections": "What to include",
+      "period": "Chart period",
+      "zoom": "Chart scale",
+      "orientation": "Orientation"
+    },
+    "format": {
+      "xlsx": {
+        "name": "Excel",
+        "note": "A workbook of sheets. Dates, numbers and formulas stay live — filter and recalculate."
+      },
+      "pdf": {
+        "name": "PDF",
+        "note": "A print-ready document with the Gantt chart. The same for everyone."
+      }
+    },
+    "section": {
+      "overview": {
+        "name": "Overview",
+        "note": "Project metrics and the category legend"
+      },
+      "tasks": {
+        "name": "Tasks",
+        "note": "Tasks: {n}"
+      },
+      "gantt": {
+        "name": "Gantt chart",
+        "note": "Bars, milestones, dependencies, baseline"
+      },
+      "links": {
+        "name": "Dependencies",
+        "note": "Dependencies: {n}"
+      },
+      "proposal": {
+        "name": "Proposal",
+        "note": "Line items: {n}"
+      },
+      "scorecard": {
+        "name": "Scorecard",
+        "note": "Metrics: {n}"
+      },
+      "comments": {
+        "name": "Discussion",
+        "note": "Comments: {n}"
+      },
+      "history": {
+        "name": "Change history",
+        "note": "Entries: {n}"
+      },
+      "empty": "The project has none"
+    },
+    "period": {
+      "all": "Whole project",
+      "next_4w": "Next 4 weeks",
+      "next_3m": "Next 3 months",
+      "from_today": "From today to the end",
+      "undated": "The plan has no dates: the start date is not set yet"
+    },
+    "zoom": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "too_wide": "That would be {count} chart pages — pick a coarser scale or narrow the period"
+    },
+    "orientation": {
+      "landscape": "Landscape",
+      "portrait": "Portrait"
+    },
+    "pages": {
+      "one": "{count} page",
+      "other": "{count} pages"
+    }
   }
 }

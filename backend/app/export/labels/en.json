@@ -1,0 +1,181 @@
+{
+  "doc": {
+    "plan": "Project plan",
+    "approved": "Approved · version {v}",
+    "draft": "Draft",
+    "period": "Period",
+    "deadline": "Deadline",
+    "generated": "Exported",
+    "page": "page {n} of {total}",
+    "org": "Organization",
+    "client_copy": "Client copy"
+  },
+  "kpi": {
+    "total": "Tasks total",
+    "done": "Done",
+    "in_progress": "In progress",
+    "blocked": "Blocked",
+    "late": "Overdue",
+    "progress": "Completion"
+  },
+  "section": {
+    "overview": "Overview",
+    "tasks": "Tasks",
+    "gantt": "Gantt chart",
+    "links": "Dependencies",
+    "proposal": "Proposal",
+    "scorecard": "Scorecard",
+    "comments": "Discussion",
+    "history": "Change history"
+  },
+  "col": {
+    "n": "#",
+    "category": "Category",
+    "task": "Task",
+    "status": "Status",
+    "criticality": "Crit.",
+    "progress": "Progress",
+    "start": "Start",
+    "end": "End",
+    "days": "Days",
+    "milestone": "Milestone",
+    "critical": "CP",
+    "assignees": "Assignees",
+    "baseline_start": "Baseline start",
+    "baseline_end": "Baseline end",
+    "deviation": "Dev.",
+    "note": "Note",
+    "from": "From task",
+    "to": "To task",
+    "role": "Role",
+    "effort": "Effort",
+    "rate": "Rate",
+    "sum": "Amount",
+    "metric": "Metric",
+    "owner": "Owner",
+    "target": "Target",
+    "week": "Week",
+    "author": "Author",
+    "date": "Date",
+    "text": "Text",
+    "event": "Event",
+    "visibility": "Visibility"
+  },
+  "status": {
+    "planned": "Planned",
+    "in_progress": "In progress",
+    "done": "Done",
+    "blocked": "Blocked"
+  },
+  "criticality": {
+    "low": "Low",
+    "normal": "Normal",
+    "high": "High",
+    "critical": "Critical"
+  },
+  "metric": {
+    "overdue_tasks": "Overdue tasks",
+    "avg_overdue_days": "Average overdue",
+    "date_shifts": "Date shifts",
+    "close_rate": "Close rate",
+    "stale_in_progress": "Stale in progress",
+    "unassigned_tasks": "Unassigned tasks",
+    "daily_health": "Daily health",
+    "data_quality": "Data quality"
+  },
+  "legend": {
+    "title": "Legend",
+    "late": "Overdue",
+    "critical": "Critical path",
+    "milestone": "Milestone",
+    "baseline": "Baseline",
+    "today": "Today"
+  },
+  "total": {
+    "subtotal": "Subtotal",
+    "tax": "Tax {p}%",
+    "total": "Total",
+    "no_data": "no data"
+  },
+  "comment": {
+    "internal": "internal",
+    "public": "public"
+  },
+  "event": {
+    "unknown": "Plan edit",
+    "add_dependency": "Dependency added",
+    "apply_category_positions": "Categories reordered",
+    "apply_positions": "Tasks reordered",
+    "assign_user": "Assignee added",
+    "create_category": "Category created",
+    "create_task": "Task created",
+    "delete_category": "Category deleted",
+    "delete_task": "Task deleted",
+    "move_category": "Category moved",
+    "move_task": "Task moved",
+    "remove_dependency": "Dependency removed",
+    "rename_category": "Category renamed",
+    "reorder_category": "Category reordered",
+    "reorder_task": "Task reordered",
+    "resize_task": "Duration changed",
+    "set_category_color": "Category color changed",
+    "set_criticality": "Criticality changed",
+    "set_duration": "Duration changed",
+    "set_milestone": "Milestone flag changed",
+    "set_progress": "Progress changed",
+    "set_status": "Status changed",
+    "set_task_fields": "Task fields changed",
+    "unassign_user": "Assignee removed"
+  },
+  "period": {
+    "all": "Whole project",
+    "next_4w": "Next 4 weeks",
+    "next_3m": "Next 3 months",
+    "from_today": "From today to the end"
+  },
+  "zoom": {
+    "day": "Day",
+    "week": "Week",
+    "month": "Month"
+  },
+  "count": {
+    "tasks": "Tasks: {n}",
+    "categories": "Categories: {n}",
+    "links": "Dependencies: {n}",
+    "comments": "Comments: {n}",
+    "weeks": "Weeks: {n}"
+  },
+  "month": {
+    "1": "January",
+    "2": "February",
+    "3": "March",
+    "4": "April",
+    "5": "May",
+    "6": "June",
+    "7": "July",
+    "8": "August",
+    "9": "September",
+    "10": "October",
+    "11": "November",
+    "12": "December"
+  },
+  "month_short": {
+    "1": "Jan",
+    "2": "Feb",
+    "3": "Mar",
+    "4": "Apr",
+    "5": "May",
+    "6": "Jun",
+    "7": "Jul",
+    "8": "Aug",
+    "9": "Sep",
+    "10": "Oct",
+    "11": "Nov",
+    "12": "Dec"
+  },
+  "relative": {
+    "day": "Day {n}",
+    "week": "Week {n}",
+    "month": "Month {n}"
+  }
+}
