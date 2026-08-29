@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from app.auth import authenticate, open_session, register
 from app.db import get_db
 from app.main import app
-from app.models import PasswordReset, Session, User
+from app.models import PasswordReset, Session
 from app.password_reset import (
     RESEND_COOLDOWN,
     RESET_TTL,

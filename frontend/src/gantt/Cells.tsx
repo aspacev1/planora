@@ -23,8 +23,6 @@ import { COLUMN_KEYS, MIN_WIDTH, clampWidth } from "./columns";
  * разошлись бы на первой правке одной из них.
  */
 
-export type CellText = { text: string; title?: string };
-
 /**
  * Колонки, которые строка рисует сейчас.
  *

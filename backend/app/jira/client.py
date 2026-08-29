@@ -56,10 +56,6 @@ _MAX_PAGES = 200
 
 
 class JiraClient(Protocol):
-    def whoami(self) -> str:
-        """Имя подключённого аккаунта — проверка связи."""
-        ...
-
     def list_projects(self) -> list[dict]:
         """Проекты, видимые этому аккаунту: [{key, id, name}, …]."""
         ...
@@ -138,13 +134,6 @@ class HttpJiraClient:
         except json.JSONDecodeError as error:
             raise JiraError("jira_bad_json", "ответ Jira не разобрать как JSON") from error
 
-    def whoami(self) -> str:
-        body = self._request("GET", "/rest/api/3/myself")
-        name = body.get("displayName") or body.get("emailAddress")
-        if not name:
-            raise JiraError("jira_bad_shape", "в ответе /myself нет имени")
-        return name
-
     def list_projects(self) -> list[dict]:
         projects: list[dict] = []
         start = 0
@@ -212,7 +201,6 @@ class RecordedJiraClient:
     def __init__(
         self,
         *,
-        whoami_name: str = "Test User",
         projects: list[dict] | None = None,
         fields: list[dict] | None = None,
         issues: list[dict] | None = None,
@@ -221,16 +209,12 @@ class RecordedJiraClient:
         #: должна прерывать отправку остальных (см. app/jira/sync.py:push_project).
         due_date_failures: frozenset[str] = frozenset(),
     ):
-        self._whoami_name = whoami_name
         self._projects = projects or []
         self._fields = fields or []
         self._issues = issues or []
         self._due_date_failures = due_date_failures
         self.search_calls: list[str] = []
         self.due_date_calls: list[tuple[str, date]] = []
-
-    def whoami(self) -> str:
-        return self._whoami_name
 
     def list_projects(self) -> list[dict]:
         return self._projects

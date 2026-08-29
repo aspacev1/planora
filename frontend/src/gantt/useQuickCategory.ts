@@ -61,5 +61,3 @@ export function useQuickCategory({
 
   return { create, pending };
 }
-
-export type QuickCategory = ReturnType<typeof useQuickCategory>;

@@ -4,7 +4,6 @@
 раздельные «создать» и «перевыпустить» у публичной ссылки, /api/v1.
 """
 
-import uuid
 from datetime import date
 
 import pytest

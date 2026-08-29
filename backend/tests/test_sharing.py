@@ -64,7 +64,7 @@ def test_reissuing_kills_the_previous_link(db, org, project):
 
 
 def test_a_reissued_link_keeps_the_comment_setting(db, org, project):
-    first = issue_link(db, project, org)
+    issue_link(db, project, org)
     set_comments_enabled(db, project, False)
 
     second = issue_link(db, project, org)

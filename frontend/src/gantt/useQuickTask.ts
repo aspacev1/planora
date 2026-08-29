@@ -109,5 +109,3 @@ export function useQuickTask({ projectId, state }: { projectId: string; state: P
       pending.filter((row) => row.categoryId === categoryId),
   };
 }
-
-export type QuickTask = ReturnType<typeof useQuickTask>;
