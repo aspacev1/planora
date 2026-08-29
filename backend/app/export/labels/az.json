@@ -1,0 +1,181 @@
+{
+  "doc": {
+    "plan": "Layihə planı",
+    "approved": "Təsdiqlənib · versiya {v}",
+    "draft": "Qaralama",
+    "period": "Dövr",
+    "deadline": "Son tarix",
+    "generated": "İxrac edilib",
+    "page": "səh. {n} / {total}",
+    "org": "Təşkilat",
+    "client_copy": "Müştəri nüsxəsi"
+  },
+  "kpi": {
+    "total": "Ümumi tapşırıq",
+    "done": "Hazır",
+    "in_progress": "İşdə",
+    "blocked": "Bloklanıb",
+    "late": "Gecikib",
+    "progress": "İcra"
+  },
+  "section": {
+    "overview": "İcmal",
+    "tasks": "Tapşırıqlar",
+    "gantt": "Qant diaqramı",
+    "links": "Əlaqələr",
+    "proposal": "Qiymət təklifi",
+    "scorecard": "Skorkart",
+    "comments": "Müzakirə",
+    "history": "Dəyişikliklər tarixçəsi"
+  },
+  "col": {
+    "n": "№",
+    "category": "Kateqoriya",
+    "task": "Tapşırıq",
+    "status": "Status",
+    "criticality": "Krit.",
+    "progress": "İrəliləyiş",
+    "start": "Başlanğıc",
+    "end": "Bitmə",
+    "days": "Gün",
+    "milestone": "Mərhələ",
+    "critical": "KY",
+    "assignees": "İcraçılar",
+    "baseline_start": "Baza: başlanğıc",
+    "baseline_end": "Baza: bitmə",
+    "deviation": "Kən.",
+    "note": "Qeyd",
+    "from": "Tapşırıqdan",
+    "to": "Tapşırığa",
+    "role": "Rol",
+    "effort": "Həcm",
+    "rate": "Tarif",
+    "sum": "Məbləğ",
+    "metric": "Metrika",
+    "owner": "Sahib",
+    "target": "Hədəf",
+    "week": "Həftə",
+    "author": "Müəllif",
+    "date": "Tarix",
+    "text": "Mətn",
+    "event": "Hadisə",
+    "visibility": "Görünürlük"
+  },
+  "status": {
+    "planned": "Planlaşdırılıb",
+    "in_progress": "İşdə",
+    "done": "Hazır",
+    "blocked": "Bloklanıb"
+  },
+  "criticality": {
+    "low": "Aşağı",
+    "normal": "Adi",
+    "high": "Yüksək",
+    "critical": "Kritik"
+  },
+  "metric": {
+    "overdue_tasks": "Gecikmiş tapşırıqlar",
+    "avg_overdue_days": "Orta gecikmə",
+    "date_shifts": "Tarix sürüşmələri",
+    "close_rate": "Bağlanma nisbəti",
+    "stale_in_progress": "İşdə ilişib qalanlar",
+    "unassigned_tasks": "İcraçısız tapşırıqlar",
+    "daily_health": "Deyli sağlamlığı",
+    "data_quality": "Məlumat keyfiyyəti"
+  },
+  "legend": {
+    "title": "İşarələr",
+    "late": "Gecikmə",
+    "critical": "Kritik yol",
+    "milestone": "Mərhələ",
+    "baseline": "Baza planı",
+    "today": "Bu gün"
+  },
+  "total": {
+    "subtotal": "Vergisiz cəmi",
+    "tax": "Vergi {p}%",
+    "total": "Cəmi",
+    "no_data": "məlumat yoxdur"
+  },
+  "comment": {
+    "internal": "daxili",
+    "public": "ümumi"
+  },
+  "event": {
+    "unknown": "Plan düzəlişi",
+    "add_dependency": "Əlaqə əlavə edildi",
+    "apply_category_positions": "Kateqoriyalar yenidən sıralandı",
+    "apply_positions": "Tapşırıqlar yenidən sıralandı",
+    "assign_user": "İcraçı təyin edildi",
+    "create_category": "Kateqoriya yaradıldı",
+    "create_task": "Tapşırıq yaradıldı",
+    "delete_category": "Kateqoriya silindi",
+    "delete_task": "Tapşırıq silindi",
+    "move_category": "Kateqoriya köçürüldü",
+    "move_task": "Tapşırıq sürüşdürüldü",
+    "remove_dependency": "Əlaqə silindi",
+    "rename_category": "Kateqoriya adı dəyişdi",
+    "reorder_category": "Kateqoriya yerini dəyişdi",
+    "reorder_task": "Tapşırıq yerini dəyişdi",
+    "resize_task": "Müddət dəyişdi",
+    "set_category_color": "Kateqoriya rəngi dəyişdi",
+    "set_criticality": "Kritiklik dəyişdi",
+    "set_duration": "Müddət dəyişdi",
+    "set_milestone": "Mərhələ nişanı dəyişdi",
+    "set_progress": "İrəliləyiş dəyişdi",
+    "set_status": "Status dəyişdi",
+    "set_task_fields": "Tapşırıq sahələri dəyişdi",
+    "unassign_user": "İcraçı götürüldü"
+  },
+  "period": {
+    "all": "Bütün layihə",
+    "next_4w": "Növbəti 4 həftə",
+    "next_3m": "Növbəti 3 ay",
+    "from_today": "Bu gündən sona qədər"
+  },
+  "zoom": {
+    "day": "Gün",
+    "week": "Həftə",
+    "month": "Ay"
+  },
+  "count": {
+    "tasks": "Tapşırıq: {n}",
+    "categories": "Kateqoriya: {n}",
+    "links": "Əlaqə: {n}",
+    "comments": "Rəy: {n}",
+    "weeks": "Həftə: {n}"
+  },
+  "month": {
+    "1": "yanvar",
+    "2": "fevral",
+    "3": "mart",
+    "4": "aprel",
+    "5": "may",
+    "6": "iyun",
+    "7": "iyul",
+    "8": "avqust",
+    "9": "sentyabr",
+    "10": "oktyabr",
+    "11": "noyabr",
+    "12": "dekabr"
+  },
+  "month_short": {
+    "1": "yan",
+    "2": "fev",
+    "3": "mar",
+    "4": "apr",
+    "5": "may",
+    "6": "iyn",
+    "7": "iyl",
+    "8": "avq",
+    "9": "sen",
+    "10": "okt",
+    "11": "noy",
+    "12": "dek"
+  },
+  "relative": {
+    "day": "Gün {n}",
+    "week": "Həftə {n}",
+    "month": "Ay {n}"
+  }
+}

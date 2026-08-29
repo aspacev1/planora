@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { errorKey } from "../api/errors";
@@ -13,11 +13,16 @@ import {
   publicCommentsQueryKey,
   publicProjectQueryKey,
 } from "../api/public";
+import type { PublicProjectState } from "../api/public";
+import { exportPublicProject } from "../api/export";
 import { CommentThread } from "../comments/CommentThread";
+import { IconDownload } from "../components/icons";
+import { ExportDialog } from "../export/ExportDialog";
 import { LocaleSwitch } from "../components/LocaleSwitch";
 import { Gantt } from "../gantt/Gantt";
 import { usePrefersReducedMotion } from "../gantt/motion";
 import { useLocale } from "../i18n/LocaleProvider";
+import type { ExportFacts } from "../export/ExportDialog";
 import { ProjectHead } from "../project/ProjectHead";
 
 /**
@@ -36,6 +41,7 @@ export function PublicProject() {
   const { t } = useLocale();
   const { orgSlug = "", projectSlug = "" } = useParams();
   const [searchParams] = useSearchParams();
+  const [exporting, setExporting] = useState(false);
   const token = searchParams.get("s") ?? "";
   const queryClient = useQueryClient();
   const reducedMotion = usePrefersReducedMotion();
@@ -122,7 +128,32 @@ export function PublicProject() {
         {/* Та же шапка, что и на рабочем экране, но без действий и без строки
             плана: клиенту по ссылке обещаны сроки и объём, а не версия
             согласования и внутренние расхождения с ней. */}
-        <ProjectHead state={project.data} />
+        {/* Выгрузка гостю доступна: тот же урез, что он видит на экране, —
+            без базового плана, исполнителей и внутренних реплик. Отказать в
+            ней значило бы запретить сохранить то, что и так показано. */}
+        <ProjectHead
+          state={project.data}
+          actions={
+            <button
+              type="button"
+              className="button--quiet"
+              onClick={() => setExporting(true)}
+            >
+              <IconDownload />
+              {t("export.open")}
+            </button>
+          }
+        />
+
+        {exporting && (
+          <ExportDialog
+            facts={publicFacts(project.data)}
+            onClose={() => setExporting(false)}
+            download={(options) =>
+              exportPublicProject(orgSlug, projectSlug, searchParams.toString(), options)
+            }
+          />
+        )}
 
         <div className={`project__body${reducedMotion ? " motion-off" : ""}`}>
           {/* Счётчик реплик виден и гостю — но кнопкой не становится:
@@ -208,4 +239,38 @@ function PublicHeader({ title, projectId }: { title: string; projectId?: string 
       </div>
     </header>
   );
+}
+
+
+/**
+ * Что предлагать гостю в окне выгрузки.
+ *
+ * Считается из того же состояния, что нарисовано на экране, а не запросом:
+ * маршрута `export/facts` у публичной страницы нет — и заводить его значило бы
+ * отдать наружу счётчики разделов, которых гость всё равно не увидит.
+ *
+ * Смета, скоркард и журнал правок ему не предлагаются вовсе — по тому же
+ * правилу, что действует на сервере: выгрузка не показывает больше, чем
+ * показывает страница, с которой её позвали (см. INTERNAL_SECTIONS).
+ */
+function publicFacts(state: PublicProjectState): ExportFacts {
+  const starts = state.tasks.map((task) => task.start_date).sort();
+  return {
+    projectName: state.name,
+    start: starts[0] ?? state.start_date ?? new Date().toISOString().slice(0, 10),
+    end: state.project_end ?? starts[starts.length - 1] ?? new Date().toISOString().slice(0, 10),
+    // «Сегодня» у гостя — браузерное: часового пояса проекта публичная выдача
+    // не несёт. На числе страниц это не сказывается: окна отсчитываются
+    // сутками, и разница в пояс их не сдвигает.
+    today: new Date().toISOString().slice(0, 10),
+    dated: state.schedule_mode === "calendar",
+    tasks: state.tasks.length,
+    categories: state.categories.length,
+    links: state.dependencies.length,
+    comments: 0,
+    proposalLines: 0,
+    scorecardMetrics: 0,
+    historyEvents: 0,
+    internalAllowed: false,
+  };
 }

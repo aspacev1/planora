@@ -70,6 +70,7 @@ from app.api import (
     admin_routes,
     ai_routes,
     auth_routes,
+    export_routes,
     invite_routes,
     jira_routes,
     live_routes,
@@ -218,6 +219,7 @@ app.include_router(invite_routes.public_router)
 app.include_router(project_routes.router)
 app.include_router(proposal_routes.router)
 app.include_router(scorecard_routes.router)
+app.include_router(export_routes.router)
 app.include_router(share_routes.router)
 app.include_router(public_routes.router)
 app.include_router(live_routes.router)

@@ -153,8 +153,9 @@ describe("экран проекта", () => {
     expect(actions).not.toBeNull();
     // У каждого действия свой значок, и все они спрятаны от чтения вслух:
     // рядом стоит слово, и озвученный значок повторил бы его.
+    // Четыре: поделиться, экспорт, пригласить, настройки.
     const icons = actions!.querySelectorAll(".icon");
-    expect(icons).toHaveLength(3);
+    expect(icons).toHaveLength(4);
     for (const icon of icons) expect(icon).toHaveAttribute("aria-hidden", "true");
   });
 

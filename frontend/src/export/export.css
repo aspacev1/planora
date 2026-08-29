@@ -1,0 +1,296 @@
+/* Окно выгрузки.
+   Токены берутся из темы: у окна нет ни одного своего цвета, иначе оно
+   разъедется с продуктом на первой же перекраске. */
+
+.export__hint {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.export {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.export__group {
+  border: 0;
+  margin: 0 0 18px;
+  padding: 0;
+  min-width: 0;
+}
+
+.export__label {
+  padding: 0;
+  margin-bottom: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* --- формат --- */
+
+.export__formats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.export__format {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  padding: 13px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.export__format:hover { background: var(--hover); }
+
+.export__format.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Переключатель скрыт с глаз, но не от клавиатуры: карточка целиком —
+   подпись к нему, а фокус обязан быть виден. */
+.export__format input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.export__format:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.export__badge {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.export__badge--xlsx { background: var(--ok); }
+.export__badge--pdf { background: var(--danger); }
+
+.export__format-name {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.export__format-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+/* --- разделы --- */
+
+.export__sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 20px;
+}
+
+.export__section {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.export__section:hover { background: var(--hover); }
+
+.export__section.is-off {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.export__section.is-off:hover { background: transparent; }
+
+.export__section input {
+  margin: 2px 0 0;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+
+.export__section-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.export__section-note {
+  display: block;
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
+.export__section-note.is-why {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* --- период, масштаб, ориентация --- */
+
+.export__options {
+  display: grid;
+  gap: 4px;
+}
+
+.export__segments {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius);
+  background: var(--tag-gray);
+}
+
+.export__segments button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  border: 0;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.export__segments button.is-on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.export__segments button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Цена подробности — числом страниц прямо на кнопке: последствие видно до
+   нажатия, а не после скачивания. */
+.export__price {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.export__segments button.is-on .export__price { color: var(--text-muted); }
+
+/* --- превью --- */
+
+.export__preview {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+
+.export__preview-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.export__preview-head .export__label { margin-bottom: 10px; }
+
+.export__preview-pages {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.export__sheet {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.export__pv-title { font-size: 8.4px; font-weight: 700; fill: var(--text); }
+.export__pv-head { font-size: 6.5px; font-weight: 700; fill: var(--text); }
+.export__pv-muted { font-size: 4.6px; fill: var(--text-muted); }
+.export__pv-foot { font-size: 3.6px; fill: var(--text-faint); }
+
+/* --- подвал --- */
+
+/* Подвал липнет ко дну окна: содержимое высокое, окно прокручивается, и
+   кнопка «Скачать», уехавшая под обрез, означала бы прокрутку ради главного
+   действия. Отрицательный отступ снизу компенсирует поле окна, чтобы за
+   липким подвалом не проглядывала полоса содержимого. */
+.export__foot {
+  position: sticky;
+  bottom: -24px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 14px 0 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.export__filename {
+  min-width: 0;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--tag-gray);
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.export__actions {
+  display: flex;
+  gap: 9px;
+  flex: 0 0 auto;
+}
+
+/* Узкий экран: превью уезжает под настройки, а не сжимает их до нечитаемости.
+   Приём тот же, что у ленты (§4.3 плана редизайна). */
+@media (max-width: 860px) {
+  .export {
+    grid-template-columns: 1fr;
+  }
+
+  .export__formats,
+  .export__sections {
+    grid-template-columns: 1fr;
+  }
+
+  .export__foot {
+    flex-wrap: wrap;
+  }
+}
