@@ -75,12 +75,11 @@
   },
   "metric": {
     "overdue_tasks": "Gecikmiş tapşırıqlar",
-    "avg_overdue_days": "Orta gecikmə",
+    "finish_drift": "Finiş sürüşməsi",
+    "scope_growth": "Həcm artımı",
     "date_shifts": "Tarix sürüşmələri",
     "close_rate": "Bağlanma nisbəti",
     "stale_in_progress": "İşdə ilişib qalanlar",
-    "unassigned_tasks": "İcraçısız tapşırıqlar",
-    "daily_health": "Deyli sağlamlığı",
     "data_quality": "Məlumat keyfiyyəti"
   },
   "legend": {

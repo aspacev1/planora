@@ -75,12 +75,11 @@
   },
   "metric": {
     "overdue_tasks": "Overdue tasks",
-    "avg_overdue_days": "Average overdue",
+    "finish_drift": "Finish drift",
+    "scope_growth": "Scope growth",
     "date_shifts": "Date shifts",
     "close_rate": "Close rate",
     "stale_in_progress": "Stale in progress",
-    "unassigned_tasks": "Unassigned tasks",
-    "daily_health": "Daily health",
     "data_quality": "Data quality"
   },
   "legend": {
