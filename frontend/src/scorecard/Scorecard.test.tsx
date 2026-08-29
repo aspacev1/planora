@@ -12,10 +12,11 @@ import { projectFixtures, renderProject } from "../test/project";
 import { server } from "../test/server";
 
 /**
- * Скоркард по фикстуре: просрочка в красном с серией, средняя просрочка с
- * дробью (запятая в ru — её проверяет отдельное утверждение), качество данных
- * с расшифровкой, оба вида событий справа. daily_health в no_data — строки в
- * таблице быть не должно.
+ * Скоркард по фикстуре: просрочка в красном с серией и средней просрочкой
+ * (дробь с запятой в ru — её проверяет отдельное утверждение), прирост объёма
+ * со знаком, прогноз финиша и ближайшая веха, качество данных чек-листом.
+ * События одной метрики (риск + правило) склеены в одну карточку — с дельтой
+ * и адресатом.
  */
 function metric(
   over: Partial<ScorecardMetric> & { key: ScorecardMetricKey },
@@ -40,9 +41,22 @@ const SCORECARD: ScorecardState = {
   week: { number: 34, start: "2026-08-17", end: "2026-08-23" },
   computed_at: "2026-08-19T10:00:00+00:00",
   metrics: [
-    metric({ key: "overdue_tasks", value: 5, status: "risk", streak: 3 }),
-    metric({ key: "avg_overdue_days", target: 3, value: 3.5, status: "warn" }),
-    metric({ key: "date_shifts", target: 5, value: 1 }),
+    metric({ key: "overdue_tasks", value: 5, status: "risk", streak: 3, avg_days: 3.5 }),
+    metric({ key: "finish_drift", target: 0, value: 6, status: "risk" }),
+    metric({
+      key: "scope_growth",
+      target: 3,
+      value: 7,
+      status: "risk",
+      added_count: 11,
+      closed_count: 4,
+    }),
+    metric({
+      key: "date_shifts",
+      target: 5,
+      value: 1,
+      owner: { id: "u2", name: "Мария" },
+    }),
     metric({
       key: "close_rate",
       direction: "gte",
@@ -52,16 +66,9 @@ const SCORECARD: ScorecardState = {
       streak: 1,
     }),
     metric({ key: "stale_in_progress", target: 3, value: 0 }),
-    metric({
-      key: "unassigned_tasks",
-      target: 0,
-      value: 1,
-      status: "warn",
-      owner: { id: "u2", name: "Мария" },
-    }),
-    metric({ key: "daily_health", direction: "gte", target: 8, value: null, status: "no_data" }),
     metric({ key: "data_quality", direction: "gte", target: 90, value: 80, status: "warn" }),
   ],
+  // Обе записи overdue — риск и правило — склеиваются в одну карточку.
   alerts: [
     {
       id: "al1",
@@ -71,7 +78,9 @@ const SCORECARD: ScorecardState = {
       created_at: "2026-08-17T08:00:00+00:00",
       payload: {
         value: 5,
+        delta: 3,
         total: 5,
+        top_assignee: { name: "Алексей", count: 2 },
         tasks: [
           { id: "t1", name: "Логотип", assignee: "Алексей", days_overdue: 4 },
           { id: "tx", name: "Гайдлайн", assignee: null, days_overdue: 2 },
@@ -80,15 +89,25 @@ const SCORECARD: ScorecardState = {
     },
     {
       id: "al2",
-      metric_key: "close_rate",
+      metric_key: "overdue_tasks",
       kind: "rule_triggered",
       week_start: "2026-08-17",
       created_at: "2026-08-17T08:00:00+00:00",
-      payload: { task_id: "t1", task_name: "Разобрать: Закрываемость" },
+      payload: { task_id: "t9", task_name: "Разобрать: Просроченные задачи" },
     },
   ],
-  daily: null,
-  data_quality: { value: 80, total: 10, unassigned: 1, unreal_deadline: 1 },
+  outlook: {
+    projected_finish: "2026-10-14",
+    milestone: { id: "m1", name: "Бета", date: "2026-09-12", status: "upcoming" },
+  },
+  data_quality: {
+    value: 80,
+    total: 10,
+    affected: 2,
+    both: 0,
+    unassigned: 1,
+    unreal_deadline: 1,
+  },
 };
 
 describe("Scorecard", () => {
@@ -99,23 +118,37 @@ describe("Scorecard", () => {
     );
   });
 
-  it("показывает метрики: значения, серию, качество данных — и прячет дейли", async () => {
+  it("показывает метрики, прогноз, чек-лист качества и склеенную карточку события", async () => {
     renderProject(undefined, { route: "/projects/p1/scorecard" });
 
     expect(await screen.findByText("Просроченные задачи")).toBeInTheDocument();
-    // Дробь — с запятой: десятичные в ru приходят от Intl.
-    expect(screen.getByText("3,5")).toBeInTheDocument();
+    // Средняя просрочка — второй строкой; дробь с запятой (десятичные в ru
+    // приходят от Intl).
+    expect(screen.getByText("в среднем 3,5 р.д.")).toBeInTheDocument();
     // Серия в бейдже — с двух недель.
     expect(screen.getByText(/Риск · 3 нед\./)).toBeInTheDocument();
-    // Модуля дейли нет: метрика в no_data не показывается вовсе.
-    expect(screen.queryByText("Здоровье дейли")).not.toBeInTheDocument();
-    // Правая колонка: расшифровка качества данных.
-    expect(
-      screen.getByText("у 1 задач нет реальных сроков, у 1 — нет исполнителя"),
-    ).toBeInTheDocument();
-    // События: топ просроченных и след правила со ссылкой на задачу.
+    // Прирост объёма — со знаком, с разбивкой.
+    expect(screen.getByText("+7")).toBeInTheDocument();
+    expect(screen.getByText("создано 11, закрыто 4")).toBeInTheDocument();
+    // Снятой метрики в таблице нет.
+    expect(screen.queryByText("Задачи без исполнителя")).not.toBeInTheDocument();
+    // Прогноз финиша и ближайшая веха.
+    expect(screen.getByText("Прогноз финиша")).toBeInTheDocument();
+    expect(screen.getByText(/Бета/)).toBeInTheDocument();
+    // Качество данных — чек-листом со сходящейся арифметикой.
+    expect(screen.getByText("нужно поправить 2 из 10 задач")).toBeInTheDocument();
+    expect(screen.getByText("Нет исполнителя")).toBeInTheDocument();
+    // Одна карточка на метрику: фраза риска, дельта, адресат и след правила
+    // вместе, а не двумя карточками.
+    expect(screen.getByText("«Просроченные задачи» — в риске на этой неделе")).toBeInTheDocument();
+    expect(screen.getByText("+3 за неделю")).toBeInTheDocument();
+    expect(screen.getByText("больше всех у Алексей (2)")).toBeInTheDocument();
     expect(screen.getByText("Открыть все задачи (5) →")).toBeInTheDocument();
-    expect(screen.getByText("Разобрать: Закрываемость")).toBeInTheDocument();
+    expect(screen.getByText("Разобрать: Просроченные задачи")).toBeInTheDocument();
+    // Карточка одна: фраза риска не задвоилась.
+    expect(
+      screen.getAllByText("«Просроченные задачи» — в риске на этой неделе"),
+    ).toHaveLength(1);
   });
 
   it("разворачивает список задач недели и ведёт из него в карточку на ленте", async () => {

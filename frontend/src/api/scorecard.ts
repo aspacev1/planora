@@ -13,12 +13,11 @@ export type ScorecardStatus = "ok" | "warn" | "risk" | "no_data";
 export type ScorecardDirection = "lte" | "gte";
 export type ScorecardMetricKey =
   | "overdue_tasks"
-  | "avg_overdue_days"
+  | "finish_drift"
+  | "scope_growth"
   | "date_shifts"
   | "close_rate"
   | "stale_in_progress"
-  | "unassigned_tasks"
-  | "daily_health"
   | "data_quality";
 
 export type ScorecardHistoryPoint = {
@@ -39,6 +38,11 @@ export type ScorecardMetric = {
   streak: number;
   /** Снимки окна истории, от старых к новым; текущая неделя — последней. */
   history: ScorecardHistoryPoint[];
+  /** Средняя глубина просрочки, р.д. — только у overdue_tasks. */
+  avg_days?: number | null;
+  /** Создано / закрыто за неделю — только у scope_growth. */
+  added_count?: number | null;
+  closed_count?: number | null;
 };
 
 export type ScorecardAlert = {
@@ -49,23 +53,26 @@ export type ScorecardAlert = {
   created_at: string;
   payload: {
     value?: number | null;
+    /** Изменение к прошлой неделе; null, если сравнивать не с чем. */
+    delta?: number | null;
     total?: number;
-    tasks?: { id: string; name: string; assignee: string | null; days_overdue: number }[];
+    tasks?: { id: string; name: string; assignee: string | null; days_overdue?: number }[];
+    /** Кто тянет метрику вниз сильнее всех. */
+    top_assignee?: { name: string; count: number } | null;
     task_id?: string;
     task_name?: string;
   };
 };
 
-/**
- * Контракт под будущий модуль дейли. Сервер сегодня отдаёт `daily: null` —
- * тип описан, чтобы правая колонка была свёрстана заранее (см. Scorecard).
- */
-export type ScorecardDaily = {
-  held: number;
-  planned: number;
-  avg_score: number | null;
-  by_day: { date: string; score: number | null }[];
-  blockers: { task_id: string | null; text: string; stalled: boolean }[];
+/** Прогноз финиша и ближайшая веха — шапка скоркарда. */
+export type ScorecardOutlook = {
+  projected_finish: string | null;
+  milestone: {
+    id: string;
+    name: string;
+    date: string;
+    status: "upcoming" | "overdue";
+  } | null;
 };
 
 export type ScorecardState = {
@@ -73,10 +80,14 @@ export type ScorecardState = {
   computed_at: string | null;
   metrics: ScorecardMetric[];
   alerts: ScorecardAlert[];
-  daily: ScorecardDaily | null;
+  outlook: ScorecardOutlook;
   data_quality: {
     value: number;
     total: number;
+    /** Задач с хотя бы одной бедой (объединение множеств). */
+    affected: number;
+    /** Задач с обеими бедами сразу (пересечение). */
+    both: number;
     unassigned: number;
     unreal_deadline: number;
   } | null;
@@ -86,13 +97,14 @@ export type ScorecardState = {
 export type ScorecardTaskEntry = {
   id: string;
   name: string | null;
-  status?: string;
+  status?: string | null;
   end_date?: string | null;
   assignees?: string[];
   days_overdue?: number;
   in_progress_days?: number;
   delta_days?: number;
   closed_in_week?: boolean;
+  added_in_week?: boolean;
   reasons?: string[];
 };
 
@@ -102,6 +114,8 @@ export type ScorecardMetricTasks = {
   value: number | null;
   details: {
     tasks?: ScorecardTaskEntry[];
+    added?: ScorecardTaskEntry[];
+    closed?: ScorecardTaskEntry[];
     unassigned?: ScorecardTaskEntry[];
     unreal_deadline?: ScorecardTaskEntry[];
     [key: string]: unknown;

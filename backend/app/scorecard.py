@@ -10,18 +10,22 @@
 пересчитывает текущую неделю. Снимки прошлых недель неизменяемы — это
 летопись, по ней считаются серии и спарклайн; перезаписывается только строка
 текущей недели, она же служит кэшем живого расчёта на пять минут. Метрики по
-журналу (`date_shifts`, `close_rate`) восстанавливаются для пропущенных недель
-точно; срезы состояния восстановить нельзя — они считаются по текущему
-состоянию на конец той недели и помечаются `backfilled: true` в details.
+журналу (`date_shifts`, `close_rate`, `scope_growth`) восстанавливаются для
+пропущенных недель точно; срезы состояния восстановить нельзя — они считаются
+по текущему состоянию на конец той недели и помечаются `backfilled: true` в
+details.
+
+`finish_drift` — сдвиг прогнозного финиша за неделю — считается как разность
+двух соседних снимков, поэтому у пропущенных недель точки отсчёта нет: они
+пишутся `no_data`+`backfilled`, а не восстанавливаются проигрыванием журнала
+(это отдельная задача, несоразмерная пользе). Первая же неделя без прошлого
+снимка — тоже `no_data`: дрейф без базы неизмерим, а не равен нулю.
 
 Правило «красная 2 недели подряд» срабатывает при записи снимка текущей
 недели: через слой мутаций создаётся задача «Разобрать: {метрика}», и след
 остаётся событием `rule_triggered`. Повтор подавляется до разрыва серии — по
 уже записанным событиям, а не по отдельному флагу: событие и есть память о
 том, что для этой серии задача уже создана.
-
-Метрика `daily_health` описана контрактом, но модуля дейли не существует —
-она всегда `no_data`; клиент прячет её до появления источника.
 """
 
 import logging
@@ -87,19 +91,15 @@ class MetricDef:
     key: str
     direction: str
     default_target: Decimal
-    #: Есть ли у метрики источник данных. У daily_health его нет — модуль
-    #: дейли не существует, и метрика всегда no_data.
-    has_source: bool = True
 
 
 METRICS: tuple[MetricDef, ...] = (
     MetricDef("overdue_tasks", ScorecardDirection.LTE, Decimal("2")),
-    MetricDef("avg_overdue_days", ScorecardDirection.LTE, Decimal("3")),
+    MetricDef("finish_drift", ScorecardDirection.LTE, Decimal("0")),
+    MetricDef("scope_growth", ScorecardDirection.LTE, Decimal("3")),
     MetricDef("date_shifts", ScorecardDirection.LTE, Decimal("5")),
     MetricDef("close_rate", ScorecardDirection.GTE, Decimal("1.0")),
     MetricDef("stale_in_progress", ScorecardDirection.LTE, Decimal("3")),
-    MetricDef("unassigned_tasks", ScorecardDirection.LTE, Decimal("0")),
-    MetricDef("daily_health", ScorecardDirection.GTE, Decimal("8.0"), has_source=False),
     MetricDef("data_quality", ScorecardDirection.GTE, Decimal("90")),
 )
 
@@ -111,12 +111,11 @@ _DEFS = {m.key: m for m in METRICS}
 #: организации. Тот же принцип, что у писем (app/mail).
 _METRIC_LABELS = {
     "overdue_tasks": {"ru": "Просроченные задачи", "en": "Overdue tasks", "az": "Gecikmiş tapşırıqlar"},
-    "avg_overdue_days": {"ru": "Средняя просрочка", "en": "Average overdue", "az": "Orta gecikmə"},
+    "finish_drift": {"ru": "Сдвиг финиша", "en": "Finish drift", "az": "Finiş sürüşməsi"},
+    "scope_growth": {"ru": "Рост объёма", "en": "Scope growth", "az": "Həcm artımı"},
     "date_shifts": {"ru": "Сдвиги дат", "en": "Date shifts", "az": "Tarix sürüşmələri"},
     "close_rate": {"ru": "Закрываемость", "en": "Close rate", "az": "Bağlanma nisbəti"},
     "stale_in_progress": {"ru": "Зависшие в работе", "en": "Stale in progress", "az": "İşdə ilişib qalanlar"},
-    "unassigned_tasks": {"ru": "Задачи без исполнителя", "en": "Unassigned tasks", "az": "İcraçısız tapşırıqlar"},
-    "daily_health": {"ru": "Здоровье дейли", "en": "Daily health", "az": "Deyli sağlamlığı"},
     "data_quality": {"ru": "Качество данных", "en": "Data quality", "az": "Məlumat keyfiyyəti"},
 }
 _RULE_TASK_TITLE = {"ru": "Разобрать: {label}", "en": "Investigate: {label}", "az": "Araşdır: {label}"}
@@ -171,7 +170,7 @@ def _in_week(stamp: datetime | None, week_start: date, tz: ZoneInfo) -> bool:
 def ensure_metrics(db: DbSession, project: Project) -> list[ScorecardMetric]:
     """Конфиги метрик проекта; недостающие — сеются дефолтами.
 
-    Первое открытие скоркарда заводит все восемь; появившаяся в новой версии
+    Первое открытие скоркарда заводит их все; появившаяся в новой версии
     кода метрика досеется тем же путём. Владельцы у сида пустые: дефолт — это
     цель и направление, а не назначение людей.
     """
@@ -329,30 +328,156 @@ def _overdue_list(plan: _PlanView, ref: date) -> list[tuple[Task, int]]:
 
 
 def _compute_overdue(plan: _PlanView, ref: date) -> tuple[Decimal | None, dict]:
+    """Число просроченных задач; средняя глубина просрочки — в details.
+
+    Средняя вкатана сюда, а не отдельной метрикой: это второй ракурс одного
+    факта, и держать под ним отдельную строку — дублировать сигнал.
+    """
     if not plan.dated:
         return None, {}
     overdue = _overdue_list(plan, ref)
+    avg_days = (
+        (Decimal(sum(days for _, days in overdue)) / Decimal(len(overdue)))
+        .quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        if overdue
+        else Decimal("0")
+    )
     details = {
-        "tasks": [
-            _entry(plan, task, days_overdue=days) for task, days in overdue
-        ]
+        "tasks": [_entry(plan, task, days_overdue=days) for task, days in overdue],
+        "avg_days": float(avg_days),
     }
     return Decimal(len(overdue)), details
 
 
-def _compute_avg_overdue(plan: _PlanView, ref: date) -> tuple[Decimal | None, dict]:
+def _signed_working_days(frm: date, to: date, calendar: Calendar) -> int:
+    """Рабочих дней между двумя датами, со знаком: плюс — `to` позже `frm`.
+
+    Величина считается как просрочка — рабочие дни строго после ранней даты
+    по позднюю включительно; знак навешивается направлением.
+    """
+    if frm == to:
+        return 0
+    lo, hi = (frm, to) if frm < to else (to, frm)
+    magnitude = count_working_days(lo + timedelta(days=1), hi, calendar)
+    return magnitude if to > frm else -magnitude
+
+
+def _projected_finish(plan: _PlanView) -> date | None:
+    """Прогнозный финиш плана — самая поздняя дата окончания среди незакрытых
+    задач. Пусто, если считать не по чему (относительный план, нет дат)."""
+    ends = [
+        plan.ends[task.id]
+        for task in plan.tasks
+        if task.status != TaskStatus.DONE and task.id in plan.ends
+    ]
+    return max(ends) if ends else None
+
+
+def _compute_finish_drift(
+    db: DbSession, project: Project, plan: _PlanView, week_start: date
+) -> tuple[Decimal | None, dict]:
+    """Сдвиг прогнозного финиша за неделю, в рабочих днях со знаком.
+
+    Значение — насколько финиш уехал против записанного в снимке прошлой
+    недели: плюс — срок поехал вправо (плохо), минус — подтянули. Без прошлой
+    точки (первая неделя, разрыв серии) — no_data: дрейф без базы неизмерим.
+    Прогноз всё равно фиксируется в details, чтобы следующей неделе было от
+    чего считать. Относительный план настоящих дат не имеет — no_data.
+    """
     if not plan.dated:
         return None, {}
-    overdue = _overdue_list(plan, ref)
+    projected = _projected_finish(plan)
+    prev_details = db.scalar(
+        select(ScorecardSnapshot.details).where(
+            ScorecardSnapshot.project_id == project.id,
+            ScorecardSnapshot.metric_key == "finish_drift",
+            ScorecardSnapshot.week_start == week_start - timedelta(days=7),
+        )
+    )
+    previous: date | None = None
+    if prev_details and prev_details.get("projected_finish"):
+        try:
+            previous = date.fromisoformat(prev_details["projected_finish"])
+        except (ValueError, TypeError):
+            previous = None
     details = {
-        "tasks": [
-            _entry(plan, task, days_overdue=days) for task, days in overdue
-        ]
+        "projected_finish": projected.isoformat() if projected else None,
+        "previous_finish": previous.isoformat() if previous else None,
+        "shift_days": None,
     }
-    if not overdue:
-        return Decimal("0"), details
-    average = Decimal(sum(days for _, days in overdue)) / Decimal(len(overdue))
-    return average.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP), details
+    if projected is None or previous is None:
+        return None, details
+    try:
+        shift = _signed_working_days(previous, projected, plan.calendar)
+    except CalendarError:
+        # Вырожденный календарь уже отказал на Ганте; дрейф просто не судится.
+        return None, details
+    details["shift_days"] = shift
+    return Decimal(shift), details
+
+
+def _compute_scope(
+    db: DbSession, project: Project, plan: _PlanView, week_start: date, tz: ZoneInfo
+) -> tuple[Decimal, dict]:
+    """Чистый прирост объёма за неделю: создано минус закрыто.
+
+    Создание берётся из журнала (`create_task`, кроме восстановлений отменой),
+    закрытие — те же done, что у close_rate. Восстановление удалённого новым
+    объёмом не считается: намеренная асимметрия с date_shifts, где отмена —
+    такой же сдвиг, как прямая правка. Задачи внутри `create_category` тут не
+    в счёт: свежая категория создаётся пустой, а с задачами она приходит
+    только при отмене каскадного удаления — а её мы и отсекаем по undoes_seq.
+    """
+    begin, end = _week_bounds_utc(week_start, tz)
+    revisions = db.scalars(
+        select(Revision)
+        .where(
+            Revision.project_id == project.id,
+            Revision.created_at >= begin,
+            Revision.created_at < end,
+            Revision.undoes_seq.is_(None),
+            Revision.op["type"].astext == "create_task",
+        )
+        .order_by(Revision.seq)
+    ).all()
+    tasks_by_id = {task.id: task for task in plan.tasks}
+    added: list[dict] = []
+    for revision in revisions:
+        op = revision.op
+        try:
+            task_id = uuid.UUID(op["task_id"])
+        except (KeyError, TypeError, ValueError):
+            logger.warning("непригодная запись журнала при счёте объёма")
+            continue
+        task = tasks_by_id.get(task_id)
+        if task is not None:
+            added.append(_entry(plan, task, added_in_week=True))
+        else:
+            # Задачу успели удалить позже — имя берём из журнала, чтобы в
+            # drill-down она осталась видимой.
+            added.append(
+                {
+                    "id": str(task_id),
+                    "name": op.get("name", ""),
+                    "status": None,
+                    "end_date": None,
+                    "assignees": [],
+                    "added_in_week": True,
+                }
+            )
+    closed = [
+        _entry(plan, task, closed_in_week=True)
+        for task in plan.tasks
+        if _in_week(task.done_at, week_start, tz)
+    ]
+    details = {
+        "tasks": added + closed,
+        "added": added,
+        "closed": closed,
+        "added_count": len(added),
+        "closed_count": len(closed),
+    }
+    return Decimal(len(added) - len(closed)), details
 
 
 def _shift_delta(op: dict) -> int:
@@ -433,8 +558,13 @@ def _compute_date_shifts(
 def _compute_close_rate(
     plan: _PlanView, week_start: date, tz: ZoneInfo
 ) -> tuple[Decimal | None, dict]:
-    """done за неделю ÷ задач с датой окончания в этой неделе; 1.0 при
-    пустом знаменателе — неделя без обещаний не проваливается."""
+    """done за неделю ÷ задач с датой окончания в этой неделе.
+
+    Ничего не было в срок и ничего не закрыто — no_data, а не 1.0: мёртвая
+    неделя без единого движения не «в норме», о ней просто нечего сказать.
+    Есть закрытия при пустом знаменателе — 1.0: неделя без обещаний, но с
+    работой не проваливается.
+    """
     if not plan.dated:
         return None, {}
     week_end = week_start + timedelta(days=6)
@@ -457,6 +587,8 @@ def _compute_close_rate(
         "due": len(due),
     }
     if not due:
+        if not done:
+            return None, details
         return Decimal("1.00"), details
     rate = (Decimal(len(done)) / Decimal(len(due))).quantize(
         _TWO_PLACES, rounding=ROUND_HALF_UP
@@ -486,15 +618,6 @@ def _compute_stale(plan: _PlanView, ref: date, tz: ZoneInfo) -> tuple[Decimal, d
             entries.append(_entry(plan, task, in_progress_days=in_progress_days))
     entries.sort(key=lambda e: e["in_progress_days"], reverse=True)
     return Decimal(len(entries)), {"tasks": entries}
-
-
-def _compute_unassigned(plan: _PlanView) -> tuple[Decimal, dict]:
-    unassigned = [
-        task
-        for task in plan.tasks
-        if not task.milestone and not plan.assignees.get(task.id)
-    ]
-    return Decimal(len(unassigned)), {"tasks": [_entry(plan, t) for t in unassigned]}
 
 
 def _date_edited_ids(
@@ -561,7 +684,11 @@ def _compute_data_quality(
         if "unreal_deadline" in reasons:
             unreal.append(_entry(plan, task, reasons=reasons))
     total = len(plan.tasks)
-    bad = len({e["id"] for e in unassigned} | {e["id"] for e in unreal})
+    unassigned_ids = {e["id"] for e in unassigned}
+    unreal_ids = {e["id"] for e in unreal}
+    both = len(unassigned_ids & unreal_ids)
+    # bad — размер объединения: задача с обеими бедами плоха один раз.
+    bad = len(unassigned_ids | unreal_ids)
     value = (
         Decimal("100.00")
         if total == 0
@@ -569,8 +696,12 @@ def _compute_data_quality(
             _TWO_PLACES, rounding=ROUND_HALF_UP
         )
     )
+    # affected и both отданы наружу, чтобы чек-лист причин сходился с
+    # процентом: len(unassigned) + len(unreal) − both == affected.
     details = {
         "total": total,
+        "affected": bad,
+        "both": both,
         "unassigned": unassigned,
         "unreal_deadline": unreal,
     }
@@ -585,19 +716,19 @@ def _compute_metric(
     для текущей недели, воскресенье недели — для дозаписи пропущенной."""
     if key == "overdue_tasks":
         return _compute_overdue(plan, ref)
-    if key == "avg_overdue_days":
-        return _compute_avg_overdue(plan, ref)
+    if key == "finish_drift":
+        return _compute_finish_drift(db, project, plan, week_start)
+    if key == "scope_growth":
+        return _compute_scope(db, project, plan, week_start, tz)
     if key == "date_shifts":
         return _compute_date_shifts(db, project, org, plan, week_start, tz)
     if key == "close_rate":
         return _compute_close_rate(plan, week_start, tz)
     if key == "stale_in_progress":
         return _compute_stale(plan, ref, tz)
-    if key == "unassigned_tasks":
-        return _compute_unassigned(plan)
     if key == "data_quality":
         return _compute_data_quality(db, project, plan, ref)
-    # daily_health и всё неизвестное: источника нет.
+    # Неизвестная метрика: источника нет.
     return None, {}
 
 
@@ -632,8 +763,7 @@ def _compute_week_values(
     незачем."""
     computed: dict[str, tuple[Decimal | None, str, dict]] = {}
     for config in configs:
-        definition = _DEFS[config.metric_key]
-        if not config.enabled or not definition.has_source:
+        if not config.enabled:
             computed[config.metric_key] = (None, ScorecardStatus.NO_DATA.value, {})
             continue
         value, details = _compute_metric(
@@ -652,10 +782,12 @@ def _backfill_missing_weeks(
     """Дозаписывает недостающие недельные снимки между последним записанным и
     текущей неделей.
 
-    Журнальные метрики (date_shifts, close_rate) считаются точно по журналу
-    той недели; срезы состояния восстановить нельзя — они считаются по
-    текущему состоянию на воскресенье той недели и помечаются
-    `backfilled: true`. Записанные ранее недели не трогаются: снимки прошлых
+    Журнальные метрики (date_shifts, close_rate, scope_growth) считаются точно
+    по журналу той недели; срезы состояния восстановить нельзя — они считаются
+    по текущему состоянию на воскресенье той недели и помечаются
+    `backfilled: true`. finish_drift — разность соседних снимков, у пропущенной
+    недели точки отсчёта нет, поэтому она пишется no_data+backfilled, а не
+    восстанавливается. Записанные ранее недели не трогаются: снимки прошлых
     недель неизменяемы.
     """
     last = db.scalar(
@@ -675,10 +807,14 @@ def _backfill_missing_weeks(
             if config.metric_key in existing:
                 continue
             value, status, details = computed[config.metric_key]
-            if _DEFS[config.metric_key].has_source and config.metric_key not in (
-                "date_shifts",
-                "close_rate",
-            ):
+            if config.metric_key == "finish_drift":
+                # У пропущенной недели нет базы для дрейфа — no_data, и без
+                # projected_finish, чтобы следующая неделя не зацепилась за
+                # прогноз, снятый с сегодняшнего плана.
+                value, status, details = (
+                    None, ScorecardStatus.NO_DATA.value, {"backfilled": True},
+                )
+            elif config.metric_key not in ("date_shifts", "close_rate", "scope_growth"):
                 details = details | {"backfilled": True}
             db.add(
                 ScorecardSnapshot(
@@ -694,8 +830,10 @@ def _backfill_missing_weeks(
                     details=details,
                 )
             )
+        # Флаш на каждой неделе, а не в конце: снимок недели N должен быть
+        # виден, когда считается неделя N+1 (finish_drift читает предыдущую).
+        db.flush()
         week += timedelta(days=7)
-    db.flush()
 
 
 def _upsert_current_week(
@@ -825,24 +963,58 @@ def _risk_series_start(
     return week
 
 
+def _alert_task_source(metric_key: str, details: dict) -> list[dict]:
+    """Список задач под алертом, зависящий от метрики: качество бьёт по двум
+    множествам (объединяем без дублей), объём — по добавленным, остальные — по
+    общему списку drill-down."""
+    if metric_key == "data_quality":
+        merged: dict[str, dict] = {}
+        for entry in details.get("unassigned", []) + details.get("unreal_deadline", []):
+            merged.setdefault(entry["id"], entry)
+        return list(merged.values())
+    if metric_key == "scope_growth":
+        return details.get("added", [])
+    return details.get("tasks") or []
+
+
 def _alert_payload(
-    config: ScorecardMetric, value: Decimal | None, details: dict
+    config: ScorecardMetric,
+    value: Decimal | None,
+    details: dict,
+    previous_value: Decimal | None,
 ) -> dict:
+    """Полезная нагрузка события: значение, дельта к прошлой неделе, кто тянет
+    вниз и топ-3 задачи. Дельта и адресат превращают «X в риске» из констатации
+    в подсказку, что именно и у кого разбирать."""
     payload: dict = {"value": float(value) if value is not None else None}
-    tasks = details.get("tasks")
-    if config.metric_key == "overdue_tasks" and tasks is not None:
-        payload["total"] = len(tasks)
-        payload["tasks"] = [
-            {
-                "id": entry["id"],
-                "name": entry["name"],
-                "assignee": (entry.get("assignees") or [None])[0],
-                "days_overdue": entry.get("days_overdue", 0),
-            }
-            for entry in tasks[:3]
-        ]
-    elif tasks is not None:
-        payload["total"] = len(tasks)
+    if value is not None and previous_value is not None:
+        payload["delta"] = float(value - previous_value)
+    else:
+        payload["delta"] = None
+
+    tasks = _alert_task_source(config.metric_key, details)
+    payload["total"] = len(tasks)
+    payload["tasks"] = [
+        {
+            "id": entry["id"],
+            "name": entry["name"],
+            "assignee": (entry.get("assignees") or [None])[0],
+            **({"days_overdue": entry["days_overdue"]} if "days_overdue" in entry else {}),
+        }
+        for entry in tasks[:3]
+    ]
+
+    # Самый частый первый исполнитель по всему списку — «у кого больше всего».
+    counts: dict[str, int] = {}
+    for entry in tasks:
+        name = (entry.get("assignees") or [None])[0]
+        if name:
+            counts[name] = counts.get(name, 0) + 1
+    if counts:
+        top = max(counts.items(), key=lambda pair: pair[1])
+        payload["top_assignee"] = {"name": top[0], "count": top[1]}
+    else:
+        payload["top_assignee"] = None
     return payload
 
 
@@ -872,12 +1044,16 @@ def _update_alerts(
         )
     ).all()
     statuses_by_metric: dict[str, dict[date, str]] = {}
+    values_by_metric: dict[str, dict[date, Decimal | None]] = {}
     for row in history:
         statuses_by_metric.setdefault(row.metric_key, {})[row.week_start] = row.status
+        values_by_metric.setdefault(row.metric_key, {})[row.week_start] = row.value
 
     now = datetime.now(timezone.utc)
+    previous_week = current_week - timedelta(days=7)
     for config in configs:
         value, status, details = computed[config.metric_key]
+        previous_value = values_by_metric.get(config.metric_key, {}).get(previous_week)
         own = by_metric.get(config.metric_key, [])
         active_risk = [
             a
@@ -894,7 +1070,7 @@ def _update_alerts(
                 alert.resolved_at = now
             continue
 
-        payload = _alert_payload(config, value, details)
+        payload = _alert_payload(config, value, details, previous_value)
         if active_risk:
             # Событие уже открыто — освежается только полезная нагрузка:
             # неделя начала риска и время создания остаются исходными.
@@ -967,9 +1143,71 @@ def _owner_names(db: DbSession, configs: list[ScorecardMetric]) -> dict[uuid.UUI
     }
 
 
+def _build_outlook(
+    db: DbSession, project: Project,
+    current_rows: dict[str, ScorecardSnapshot], today: date,
+) -> dict:
+    """Прогноз финиша и ближайшая веха для шапки скоркарда.
+
+    Дёшево на кэш-хите: финиш берётся из снимка finish_drift, веха — одним
+    запросом. Ближайшая — первая незакрытая веха от сегодня вперёд; если
+    впереди пусто, показываем последнюю просроченную. Относительный план
+    настоящих дат не имеет — outlook пуст.
+    """
+    if project.schedule_mode != ScheduleMode.CALENDAR:
+        return {"projected_finish": None, "milestone": None}
+    finish_row = current_rows.get("finish_drift")
+    projected = None
+    if finish_row is not None and finish_row.details:
+        projected = finish_row.details.get("projected_finish")
+
+    milestones = db.scalars(
+        select(Task).where(
+            Task.project_id == project.id,
+            Task.milestone.is_(True),
+            Task.status != TaskStatus.DONE,
+        )
+    ).all()
+    chosen: Task | None = None
+    status = None
+    upcoming = sorted(
+        (t for t in milestones if t.start_date >= today), key=lambda t: t.start_date
+    )
+    if upcoming:
+        chosen, status = upcoming[0], "upcoming"
+    else:
+        overdue = sorted(
+            (t for t in milestones if t.start_date < today),
+            key=lambda t: t.start_date,
+            reverse=True,
+        )
+        if overdue:
+            chosen, status = overdue[0], "overdue"
+    milestone = (
+        {
+            "id": str(chosen.id),
+            "name": chosen.name,
+            "date": chosen.start_date.isoformat(),
+            "status": status,
+        }
+        if chosen is not None
+        else None
+    )
+    return {"projected_finish": projected, "milestone": milestone}
+
+
+#: Поля details, которые выносятся прямо в строку метрики (а не в drill-down):
+#: второй ракурс, без которого значение читается наполовину.
+_ROW_DETAIL_FIELDS = {
+    "overdue_tasks": ("avg_days",),
+    "scope_growth": ("added_count", "closed_count"),
+}
+
+
 def _build_state(
     db: DbSession, project: Project, configs: list[ScorecardMetric],
     current_rows: dict[str, ScorecardSnapshot], current_week: date, weeks: int,
+    today: date,
 ) -> dict:
     weeks = max(1, weeks)
     horizon = current_week - timedelta(days=7 * (weeks - 1))
@@ -1009,29 +1247,37 @@ def _build_state(
                 "id": str(config.owner_user_id),
                 "name": owners.get(config.owner_user_id, ""),
             }
-        metrics.append(
-            {
-                "key": config.metric_key,
-                "direction": config.direction,
-                "target": float(config.target_value),
-                "enabled": config.enabled,
-                "owner": owner,
-                "value": (
-                    float(current.value)
-                    if current is not None and current.value is not None
-                    else None
-                ),
-                "status": status,
-                "streak": _streak(statuses, current_week, status),
-                "history": history,
-            }
-        )
+        entry = {
+            "key": config.metric_key,
+            "direction": config.direction,
+            "target": float(config.target_value),
+            "enabled": config.enabled,
+            "owner": owner,
+            "value": (
+                float(current.value)
+                if current is not None and current.value is not None
+                else None
+            ),
+            "status": status,
+            "streak": _streak(statuses, current_week, status),
+            "history": history,
+        }
+        # Второй ракурс метрики — сразу в строку: средняя просрочка, разбивка
+        # объёма. `.get`, а не индекс: снимок в старом TTL-окне после деплоя
+        # может ещё не нести новых полей.
+        current_details = current.details or {} if current is not None else {}
+        for field in _ROW_DETAIL_FIELDS.get(config.metric_key, ()):
+            entry[field] = current_details.get(field)
+        metrics.append(entry)
 
     alerts = db.scalars(
         select(ScorecardAlert)
         .where(
             ScorecardAlert.project_id == project.id,
             ScorecardAlert.resolved_at.is_(None),
+            # Событие снятой метрики иначе висело бы вечно: _update_alerts
+            # ходит только по текущим конфигам и не закрыло бы его.
+            ScorecardAlert.metric_key.in_(METRIC_KEYS),
         )
         .order_by(ScorecardAlert.created_at.desc())
     ).all()
@@ -1051,11 +1297,17 @@ def _build_state(
     data_quality = None
     if quality_row is not None and quality_row.value is not None:
         details = quality_row.details or {}
+        unassigned = len(details.get("unassigned", []))
+        unreal = len(details.get("unreal_deadline", []))
+        # affected/both — из details; если снимок из старого TTL-окна их не
+        # несёт, восстанавливаем из двух списков (both там нет — оценим 0).
         data_quality = {
             "value": float(quality_row.value),
             "total": details.get("total", 0),
-            "unassigned": len(details.get("unassigned", [])),
-            "unreal_deadline": len(details.get("unreal_deadline", [])),
+            "affected": details.get("affected", unassigned + unreal),
+            "both": details.get("both", 0),
+            "unassigned": unassigned,
+            "unreal_deadline": unreal,
         }
 
     computed_stamps = [r.computed_at for r in current_rows.values() if r.computed_at]
@@ -1068,9 +1320,7 @@ def _build_state(
         "computed_at": max(computed_stamps).isoformat() if computed_stamps else None,
         "metrics": metrics,
         "alerts": alerts_out,
-        # Контракт под будущий модуль дейли: держится в ответе, чтобы клиент
-        # был свёрстан заранее, но данных не существует.
-        "daily": None,
+        "outlook": _build_outlook(db, project, current_rows, today),
         "data_quality": data_quality,
     }
 
@@ -1132,7 +1382,7 @@ def scorecard_state(
         )
         _update_alerts(db, project, org, plan, configs, computed, current_week)
 
-    return _build_state(db, project, configs, current_rows, current_week, weeks)
+    return _build_state(db, project, configs, current_rows, current_week, weeks, today)
 
 
 def patch_metric(
@@ -1194,7 +1444,7 @@ def metric_tasks(
     if week_start == current_week:
         configs = {c.metric_key: c for c in ensure_metrics(db, project)}
         config = configs[key]
-        if not config.enabled or not _DEFS[key].has_source:
+        if not config.enabled:
             value, details = None, {}
         else:
             plan = _plan_view(db, project, org)

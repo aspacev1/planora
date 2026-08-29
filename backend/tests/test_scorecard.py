@@ -172,11 +172,11 @@ def test_first_get_seeds_configs_and_snapshots_idempotently(authed, db):
     assert first.status_code == 200
     keys = [m["key"] for m in first.json()["metrics"]]
     assert keys == [
-        "overdue_tasks", "avg_overdue_days", "date_shifts", "close_rate",
-        "stale_in_progress", "unassigned_tasks", "daily_health", "data_quality",
+        "overdue_tasks", "finish_drift", "scope_growth", "date_shifts",
+        "close_rate", "stale_in_progress", "data_quality",
     ]
-    assert first.json()["daily"] is None
-    assert _metric(first.json(), "daily_health")["status"] == "no_data"
+    assert "daily" not in first.json()
+    assert first.json()["outlook"] == {"projected_finish": None, "milestone": None}
 
     second = authed.get(f"/api/projects/{project_id}/scorecard")
     assert second.status_code == 200
@@ -185,13 +185,13 @@ def test_first_get_seeds_configs_and_snapshots_idempotently(authed, db):
             ScorecardMetric.project_id == uuid.UUID(project_id)
         )
     ).all()
-    assert len(configs) == 8
+    assert len(configs) == 7
     snapshots = db.scalars(
         select(ScorecardSnapshot).where(
             ScorecardSnapshot.project_id == uuid.UUID(project_id)
         )
     ).all()
-    assert len(snapshots) == 8
+    assert len(snapshots) == 7
     assert {s.week_start for s in snapshots} == {_current_week()}
 
 
@@ -215,13 +215,14 @@ def test_overdue_count_and_average_in_working_days(authed, db):
     assert overdue["value"] == 2
     assert overdue["status"] == "ok"
 
-    # Дата окончания однодневной задачи — первый рабочий день от старта;
-    # средняя просрочка — среднее по рабочим дням от него до сегодня.
+    # Средняя просрочка вкатана в строку overdue: тот же факт, не отдельная
+    # метрика. Дата окончания однодневной задачи — первый рабочий день от
+    # старта; средняя — среднее по рабочим дням от него до сегодня.
     from app.calendar import end_date
 
     ends = [end_date(first_end, 1, WORKWEEK), end_date(second_end, 1, WORKWEEK)]
     expected = sum(_overdue_workdays(end) for end in ends) / 2
-    assert _metric(state, "avg_overdue_days")["value"] == pytest.approx(expected, abs=0.01)
+    assert overdue["avg_days"] == pytest.approx(expected, abs=0.01)
 
 
 def test_close_rate_counts_done_against_due_this_week(authed, db):
@@ -240,9 +241,29 @@ def test_close_rate_counts_done_against_due_this_week(authed, db):
     assert close_rate["status"] == "risk"
 
 
-def test_close_rate_with_nothing_due_is_ok(authed, db):
+def test_close_rate_dead_week_is_no_data(authed, db):
+    """Ничего не в срок и ничего не закрыто — не 1.0, а no_data: о мёртвой
+    неделе нечего сказать, а не «всё в норме»."""
     project_id, category_id = _project(authed, db)
     _task(authed, project_id, category_id, name="Far", start=_today() + timedelta(days=60))
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    assert _metric(state, "close_rate")["value"] is None
+    assert _metric(state, "close_rate")["status"] == "no_data"
+
+
+def test_close_rate_with_work_but_nothing_due_is_ok(authed, db):
+    """Ничего не было в срок, но что-то закрыто — 1.0: неделя без обещаний с
+    работой не проваливается."""
+    project_id, category_id = _project(authed, db)
+    done_id = _task(
+        authed, project_id, category_id, name="Done early",
+        start=_today() + timedelta(days=60),
+    )
+    authed.post(
+        f"/api/projects/{project_id}/mutations",
+        json={"op": {"type": "set_status", "task_id": done_id, "status": "done"}},
+    )
 
     state = authed.get(f"/api/projects/{project_id}/scorecard").json()
     assert _metric(state, "close_rate")["value"] == 1.0
@@ -272,7 +293,9 @@ def test_stale_in_progress_counts_only_long_running_tasks(authed, db):
     assert tasks[0]["in_progress_days"] > 5
 
 
-def test_unassigned_ignores_milestones(authed, db):
+def test_data_quality_unassigned_ignores_milestones(authed, db):
+    """Веху не исполняют — она не «без исполнителя»: в счёт качества по
+    незаполненному исполнителю идёт только обычная задача."""
     project_id, category_id = _project(authed, db)
     _task(authed, project_id, category_id, name="Plain", start=_today())
     _task(
@@ -280,7 +303,7 @@ def test_unassigned_ignores_milestones(authed, db):
     )
 
     state = authed.get(f"/api/projects/{project_id}/scorecard").json()
-    assert _metric(state, "unassigned_tasks")["value"] == 1
+    assert state["data_quality"]["unassigned"] == 1
 
 
 def test_date_shifts_count_journal_operations_over_threshold(authed, db):
@@ -336,8 +359,14 @@ def test_data_quality_counts_unassigned_and_untouched_ai_tasks(authed, db):
     # Две задачи, обе непригодны: одна без исполнителя, вторая — созданная AI
     # с нетронутыми датами. Значение — ноль процентов.
     assert quality["value"] == 0.0
-    assert state["data_quality"]["unassigned"] == 1
-    assert state["data_quality"]["unreal_deadline"] == 1
+    dq = state["data_quality"]
+    assert dq["unassigned"] == 1
+    assert dq["unreal_deadline"] == 1
+    # Чек-лист сходится: unassigned + unreal − both == affected. Причины
+    # разные, пересечения нет.
+    assert dq["both"] == 0
+    assert dq["affected"] == 2
+    assert dq["unassigned"] + dq["unreal_deadline"] - dq["both"] == dq["affected"]
 
 
 def test_relative_project_reports_no_data_for_dated_metrics(authed, db):
@@ -345,9 +374,13 @@ def test_relative_project_reports_no_data_for_dated_metrics(authed, db):
     _task(authed, project_id, category_id, name="Offset task", start=date(2001, 1, 1))
 
     state = authed.get(f"/api/projects/{project_id}/scorecard").json()
-    for key in ("overdue_tasks", "avg_overdue_days", "close_rate"):
+    # Метрики, завязанные на настоящие даты, у относительного плана без данных.
+    for key in ("overdue_tasks", "finish_drift", "close_rate"):
         assert _metric(state, key)["status"] == "no_data", key
-    assert _metric(state, "unassigned_tasks")["value"] == 1
+    # scope_growth и качество считаются по журналу/состоянию, а не по датам —
+    # у относительного плана они живые.
+    assert _metric(state, "scope_growth")["value"] == 1
+    assert state["data_quality"]["unassigned"] == 1
 
 
 # --- фиксация недель ----------------------------------------------------------
@@ -380,13 +413,17 @@ def test_lazy_fixation_backfills_missing_weeks(authed, db):
                 ScorecardSnapshot.week_start == missing,
             )
         ).all()
-        assert len(rows) == 8, missing
+        assert len(rows) == 7, missing
         by_key = {row.metric_key: row for row in rows}
         assert by_key["overdue_tasks"].details.get("backfilled") is True
         assert by_key["overdue_tasks"].computed_by is None
         # Журнальные метрики восстановлены точно — без пометки.
         assert "backfilled" not in by_key["date_shifts"].details
         assert "backfilled" not in by_key["close_rate"].details
+        assert "backfilled" not in by_key["scope_growth"].details
+        # finish_drift без базы для сравнения — no_data и помечен как дозапись.
+        assert by_key["finish_drift"].value is None
+        assert by_key["finish_drift"].details.get("backfilled") is True
 
 
 def test_past_snapshots_are_immutable(authed, db):
@@ -395,10 +432,10 @@ def test_past_snapshots_are_immutable(authed, db):
     db.add(
         ScorecardSnapshot(
             project_id=uuid.UUID(project_id),
-            metric_key="unassigned_tasks",
+            metric_key="overdue_tasks",
             week_start=week,
             value=Decimal("42"),
-            target_value=Decimal("0"),
+            target_value=Decimal("2"),
             direction="lte",
             status="risk",
             details={"tasks": []},
@@ -409,7 +446,7 @@ def test_past_snapshots_are_immutable(authed, db):
     response = authed.post(f"/api/projects/{project_id}/scorecard/recalculate")
     assert response.status_code == 200
 
-    row = _snapshot(db, project_id, "unassigned_tasks", week)
+    row = _snapshot(db, project_id, "overdue_tasks", week)
     assert row.value == Decimal("42")
     assert row.status == "risk"
 
@@ -435,18 +472,24 @@ def _seed_risk_week(db, project_id: str, key: str, week: date) -> None:
 
 def test_rule_creates_task_once_per_risk_series(authed, db):
     project_id, category_id = _project(authed, db)
+    # Три глубоко просроченные задачи при цели 0 держат overdue красной.
     for n in range(3):
-        _task(authed, project_id, category_id, name=f"Bare {n}", start=_today())
-    _seed_risk_week(db, project_id, "unassigned_tasks", _current_week() - timedelta(days=7))
+        _task(
+            authed, project_id, category_id, name=f"Late {n}",
+            start=_today() - timedelta(days=30),
+        )
+    _seed_risk_week(db, project_id, "overdue_tasks", _current_week() - timedelta(days=7))
     user_id = authed.get("/api/auth/me").json()["id"]
+    # Конфиг заводится до первого GET скоркарда: ensure_metrics увидит его
+    # готовым (цель 0, владелец) и не пересеет дефолтом.
     config = ScorecardMetric(
         project_id=uuid.UUID(project_id),
-        metric_key="unassigned_tasks",
+        metric_key="overdue_tasks",
         owner_user_id=uuid.UUID(user_id),
         target_value=Decimal("0"),
         direction="lte",
         enabled=True,
-        position=5,
+        position=0,
     )
     db.add(config)
     db.flush()
@@ -456,34 +499,43 @@ def test_rule_creates_task_once_per_risk_series(authed, db):
     created = db.scalars(
         select(Task).where(
             Task.project_id == uuid.UUID(project_id),
-            Task.name.like("Ara%"),
+            Task.name.like("Araşdır: Gecikmiş%"),
         )
     ).all()
-    # Организация с дефолтной локалью az: «Araşdır: İcraçısız tapşırıqlar».
+    # Организация с дефолтной локалью az: «Araşdır: Gecikmiş tapşırıqlar».
     assert len(created) == 1
     state = authed.post(f"/api/projects/{project_id}/scorecard/recalculate").json()
     created = db.scalars(
         select(Task).where(
-            Task.project_id == uuid.UUID(project_id), Task.name.like("Ara%")
+            Task.project_id == uuid.UUID(project_id),
+            Task.name.like("Araşdır: Gecikmiş%"),
         )
     ).all()
     assert len(created) == 1, "повтор внутри серии обязан подавляться"
-    rule_alerts = [a for a in state["alerts"] if a["kind"] == "rule_triggered"]
+    rule_alerts = [
+        a
+        for a in state["alerts"]
+        if a["kind"] == "rule_triggered" and a["metric_key"] == "overdue_tasks"
+    ]
     assert len(rule_alerts) == 1
     assert rule_alerts[0]["payload"]["task_id"] == str(created[0].id)
 
 
 def test_rule_needs_two_consecutive_risk_weeks(authed, db):
     project_id, category_id = _project(authed, db)
-    for n in range(3):
-        _task(authed, project_id, category_id, name=f"Bare {n}", start=_today())
+    # Пять просроченных при цели по умолчанию 2 — красная неделя, но только одна.
+    for n in range(5):
+        _task(
+            authed, project_id, category_id, name=f"Late {n}",
+            start=_today() - timedelta(days=30),
+        )
 
     state = authed.get(f"/api/projects/{project_id}/scorecard").json()
-    assert _metric(state, "unassigned_tasks")["status"] == "risk"
+    assert _metric(state, "overdue_tasks")["status"] == "risk"
     assert not [a for a in state["alerts"] if a["kind"] == "rule_triggered"]
     created = db.scalars(
         select(Task).where(
-            Task.project_id == uuid.UUID(project_id), Task.name.like("Ara%")
+            Task.project_id == uuid.UUID(project_id), Task.name.like("Araşdır:%")
         )
     ).all()
     assert created == []
@@ -527,6 +579,174 @@ def test_metric_risk_alert_carries_top_overdue_and_resolves(authed, db):
         )
     ).all()
     assert all(a.resolved_at is not None for a in resolved)
+
+
+def test_metric_risk_alert_carries_delta_and_top_assignee(authed, db):
+    project_id, category_id = _project(authed, db)
+    user_id = authed.get("/api/auth/me").json()["id"]
+    ids = [
+        _task(
+            authed, project_id, category_id, name=f"Late {n}",
+            start=_today() - timedelta(days=30 + n),
+        )
+        for n in range(5)
+    ]
+    for task_id in ids:
+        authed.post(
+            f"/api/projects/{project_id}/mutations",
+            json={"op": {"type": "assign_user", "task_id": task_id, "user_id": user_id}},
+        )
+    # Прошлая неделя была спокойнее — есть от чего считать дельту.
+    db.add(
+        ScorecardSnapshot(
+            project_id=uuid.UUID(project_id),
+            metric_key="overdue_tasks",
+            week_start=_current_week() - timedelta(days=7),
+            value=Decimal("2"),
+            target_value=Decimal("2"),
+            direction="lte",
+            status="ok",
+            details={},
+        )
+    )
+    db.flush()
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    risk = next(
+        a
+        for a in state["alerts"]
+        if a["kind"] == "metric_risk" and a["metric_key"] == "overdue_tasks"
+    )
+    assert risk["payload"]["delta"] == 3.0  # 5 просроченных против 2 неделю назад
+    assert risk["payload"]["top_assignee"] == {"name": "Alex", "count": 5}
+
+
+# --- новые метрики: прогноз финиша и объём -----------------------------------
+
+
+def test_finish_drift_measures_shift_from_last_week(authed, db):
+    from app.calendar import end_date
+
+    project_id, category_id = _project(authed, db)
+    start = _today() + timedelta(days=20)
+    _task(authed, project_id, category_id, name="Tail", start=start, duration=1)
+    projected = end_date(start, 1, WORKWEEK)
+    previous = projected - timedelta(days=7)
+    db.add(
+        ScorecardSnapshot(
+            project_id=uuid.UUID(project_id),
+            metric_key="finish_drift",
+            week_start=_current_week() - timedelta(days=7),
+            value=Decimal("0"),
+            target_value=Decimal("0"),
+            direction="lte",
+            status="ok",
+            details={"projected_finish": previous.isoformat()},
+        )
+    )
+    db.flush()
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    drift = _metric(state, "finish_drift")
+    expected = count_working_days(previous + timedelta(days=1), projected, WORKWEEK)
+    assert drift["value"] == expected
+    snap = _snapshot(db, project_id, "finish_drift", _current_week())
+    assert snap.details["projected_finish"] == projected.isoformat()
+    assert snap.details["previous_finish"] == previous.isoformat()
+
+
+def test_finish_drift_without_baseline_is_no_data(authed, db):
+    project_id, category_id = _project(authed, db)
+    _task(authed, project_id, category_id, name="Tail", start=_today() + timedelta(days=20))
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    drift = _metric(state, "finish_drift")
+    # Первая неделя без прошлого снимка — дрейф неизмерим, но прогноз зафиксирован.
+    assert drift["value"] is None
+    assert drift["status"] == "no_data"
+    snap = _snapshot(db, project_id, "finish_drift", _current_week())
+    assert snap.details["projected_finish"] is not None
+
+
+def test_scope_growth_nets_created_against_closed(authed, db):
+    project_id, category_id = _project(authed, db)
+    ids = [
+        _task(authed, project_id, category_id, name=f"New {n}", start=_today())
+        for n in range(5)
+    ]
+    for task_id in ids[:2]:
+        authed.post(
+            f"/api/projects/{project_id}/mutations",
+            json={"op": {"type": "set_status", "task_id": task_id, "status": "done"}},
+        )
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    scope = _metric(state, "scope_growth")
+    assert scope["value"] == 3  # 5 создано − 2 закрыто
+    assert scope["added_count"] == 5
+    assert scope["closed_count"] == 2
+
+
+def test_scope_growth_keeps_deleted_task_name_from_journal(authed, db):
+    project_id, category_id = _project(authed, db)
+    task_id = _task(authed, project_id, category_id, name="Ephemeral", start=_today())
+    authed.post(
+        f"/api/projects/{project_id}/mutations",
+        json={"op": {"type": "delete_task", "task_id": task_id}},
+    )
+
+    details = authed.get(
+        f"/api/projects/{project_id}/scorecard/metrics/scope_growth/tasks"
+    ).json()["details"]
+    # Задача создана и удалена на этой неделе — как добавление она случилась,
+    # имя берётся из журнала, раз в плане её больше нет.
+    assert [t["name"] for t in details["added"]] == ["Ephemeral"]
+
+
+def test_scope_growth_ignores_undo_restore(authed, db):
+    project_id, category_id = _project(authed, db)
+    task_id = _task(authed, project_id, category_id, name="Solid", start=_today())
+    authed.post(
+        f"/api/projects/{project_id}/mutations",
+        json={"op": {"type": "delete_task", "task_id": task_id}},
+    )
+    # Отмена удаления возвращает задачу записью create_task с undoes_seq —
+    # это восстановление, а не новый объём: добавлений по-прежнему одно.
+    assert authed.post(f"/api/projects/{project_id}/undo").status_code == 201
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    assert _metric(state, "scope_growth")["added_count"] == 1
+
+
+def test_removed_metric_config_and_alert_are_hidden(authed, db):
+    project_id, _ = _project(authed, db)
+    authed.get(f"/api/projects/{project_id}/scorecard")  # сеет актуальные конфиги
+    # Осиротевшие строки снятой метрики (как до миграции): конфиг и открытое
+    # событие. Приложение не показывает ни то, ни другое.
+    db.add(
+        ScorecardMetric(
+            project_id=uuid.UUID(project_id),
+            metric_key="unassigned_tasks",
+            target_value=Decimal("0"),
+            direction="lte",
+            enabled=True,
+            position=99,
+        )
+    )
+    db.add(
+        ScorecardAlert(
+            project_id=uuid.UUID(project_id),
+            metric_key="unassigned_tasks",
+            week_start=_current_week(),
+            kind="metric_risk",
+            payload={},
+        )
+    )
+    db.flush()
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    assert all(m["key"] != "unassigned_tasks" for m in state["metrics"])
+    assert all(a["metric_key"] != "unassigned_tasks" for a in state["alerts"])
 
 
 # --- API: права, пределы, настройка ------------------------------------------
