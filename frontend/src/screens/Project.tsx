@@ -8,10 +8,12 @@ import { MEMBERS_QUERY_KEY, members } from "../api/org";
 import { getProject, projectQueryKey } from "../api/projects";
 import type { Category } from "../api/projects";
 import { useCanWrite, useOrgRole } from "../auth/permissions";
-import { IconInvite, IconSettings, IconShare } from "../components/icons";
+import { IconDownload, IconInvite, IconSettings, IconShare } from "../components/icons";
 import { useEscape } from "../components/useEscape";
 import { InviteDialog } from "../components/InviteDialog";
 import { Modal } from "../components/Modal";
+import { exportFacts, exportFactsQueryKey, exportProject } from "../api/export";
+import { ExportDialog } from "../export/ExportDialog";
 import { Gantt } from "../gantt/Gantt";
 import type { NewTaskAt } from "../gantt/Gantt";
 import { usePrefersReducedMotion } from "../gantt/motion";
@@ -61,6 +63,14 @@ export function Project({
   // заново, и окно, помнящее объект, называло бы человеку старое имя.
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  // Спрашивается только при открытом окне: числа разделов нужны раз в жизни
+  // экрана, а платить за них запросом на каждый показ проекта не за что.
+  const factsQuery = useQuery({
+    queryKey: exportFactsQueryKey(projectId),
+    queryFn: () => exportFacts(projectId),
+    enabled: exporting,
+  });
   // Окно приглашения в организацию. Открывается прямо с проекта: зовут людей
   // тогда, когда смотрят на работу, которую собираются им отдать, а не когда
   // зашли в настройки рабочего пространства.
@@ -293,6 +303,20 @@ export function Project({
                           {t("share.open")}
                         </button>
                       )}
+                      {/* Выгрузка стоит в общем ряду действий, а не в тулбаре
+                          ленты: файл собирается и из сметы, и из скоркарда, а
+                          тулбар живёт только на вкладке ленты. Показывается
+                          всем, кто вправе проект читать, — клиент и гость
+                          получат тот же урез, что видят на экране. */}
+                      <button
+                        type="button"
+                        className="button--quiet"
+                        disabled={offline}
+                        onClick={() => setExporting(true)}
+                      >
+                        <IconDownload />
+                        {t("export.open")}
+                      </button>
                       {/* Приглашение стоит рядом с публикацией: обе кнопки отвечают
                           на «дать посмотреть», и разница между ними — кому. Ссылка
                           открывает проект на чтение кому угодно, приглашение зовёт
@@ -533,6 +557,33 @@ export function Project({
             )}
 
             {sharing && <ShareDialog projectId={projectId} onClose={() => setSharing(false)} />}
+
+            {/* Что в проекте есть, а чего нет, окну сообщает экран: состояние
+                у него уже на руках, и окно, сходившее за ним само, показывало
+                бы пустой список разделов первые полсекунды после открытия. */}
+            {exporting && (
+              <ExportDialog
+                facts={
+                  factsQuery.data && {
+                    projectName: query.data.name,
+                    start: factsQuery.data.start,
+                    end: factsQuery.data.end,
+                    today: factsQuery.data.today,
+                    dated: factsQuery.data.dated,
+                    tasks: factsQuery.data.tasks,
+                    categories: factsQuery.data.categories,
+                    links: factsQuery.data.links,
+                    comments: factsQuery.data.comments,
+                    proposalLines: factsQuery.data.proposal_lines,
+                    scorecardMetrics: factsQuery.data.scorecard_metrics,
+                    historyEvents: factsQuery.data.history_events,
+                    internalAllowed: factsQuery.data.internal_allowed,
+                  }
+                }
+                onClose={() => setExporting(false)}
+                download={(options) => exportProject(projectId, options)}
+              />
+            )}
 
             {/* Тот же состав полей, что и на экране состава организации, — и
                 тот же компонент: приглашают одинаково, откуда бы ни звали.

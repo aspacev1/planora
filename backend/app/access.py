@@ -22,6 +22,16 @@ class Action(StrEnum):
     # и всякую возможность отмены. Решение такого веса, как и переутверждение
     # плана, спецификация оставляет владельцу.
     PROJECT_DELETE = "project_delete"
+    # Выгрузка проекта файлом. Отдельное право, хотя сегодня его имеет каждый,
+    # кто вправе проект читать: снимок плана, унесённый файлом, живёт дальше
+    # своей жизнью и отзыву не подлежит — в отличие от публичной ссылки,
+    # которую можно закрыть. Названное право даёт установке, которой это
+    # важно, один рычаг вместо разбирательства по маршрутам.
+    #
+    # Разница в содержимом файла правом не выражается: её решают уже
+    # существующие READ_INTERNAL_NOTE и правило показа исполнителей, ровно те
+    # же, что действуют на публичной странице.
+    PROJECT_EXPORT = "project_export"
 
 
 _MATRIX: dict[Role | None, frozenset[Action]] = {
@@ -34,13 +44,24 @@ _MATRIX: dict[Role | None, frozenset[Action]] = {
             Action.COMMENT,
             Action.READ_INTERNAL_NOTE,
             Action.PLAN_APPROVE,
+            Action.PROJECT_EXPORT,
         }
     ),
     Role.VIEWER: frozenset(
-        {Action.PROJECT_READ, Action.COMMENT, Action.READ_INTERNAL_NOTE}
+        {
+            Action.PROJECT_READ,
+            Action.COMMENT,
+            Action.READ_INTERNAL_NOTE,
+            Action.PROJECT_EXPORT,
+        }
     ),
-    Role.CLIENT: frozenset({Action.PROJECT_READ, Action.COMMENT}),
-    None: frozenset({Action.PROJECT_READ, Action.COMMENT}),
+    # Клиент и гость по ссылке выгружают клиентский экземпляр: тот же урез,
+    # что уже действует на публичной странице. Отказать им было бы странно —
+    # то же самое они видят на экране и могут снять снимком экрана.
+    Role.CLIENT: frozenset(
+        {Action.PROJECT_READ, Action.COMMENT, Action.PROJECT_EXPORT}
+    ),
+    None: frozenset({Action.PROJECT_READ, Action.COMMENT, Action.PROJECT_EXPORT}),
 }
 
 # Роли, которые видят только те проекты, куда их позвали явно, — независимо от

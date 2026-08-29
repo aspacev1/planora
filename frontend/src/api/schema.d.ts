@@ -966,6 +966,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/export.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Выгрузить проект документом PDF */
+        get: operations["export_project_pdf_api_projects__project_id__export_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/export.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Выгрузить проект книгой Excel */
+        get: operations["export_project_xlsx_api_projects__project_id__export_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/export/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Что в проекте есть для выгрузки
+         * @description Чем наполнены разделы — чтобы окно не предлагало пустых.
+         *
+         *     Отдельный маршрут, а не поля в состоянии проекта: эти числа нужны раз в
+         *     жизни экрана, при открытии окна, а состояние проекта читается на каждый
+         *     кадр ленты. Заодно отсюда приходят границы плана и «сегодня» по таймзоне
+         *     проекта — те самые, от которых сервер считает страницы, так что число на
+         *     кнопке масштаба не может разойтись с числом в файле.
+         */
+        get: operations["export_facts_api_projects__project_id__export_facts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/jira": {
         parameters: {
             query?: never;
@@ -1576,6 +1636,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/{org_slug}/{project_slug}/export.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Выгрузить проект по публичной ссылке документом PDF */
+        get: operations["public_export_pdf_api_public__org_slug___project_slug__export_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/{org_slug}/{project_slug}/export.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Выгрузить проект по публичной ссылке книгой Excel */
+        get: operations["public_export_xlsx_api_public__org_slug___project_slug__export_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1681,6 +1775,12 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ExportSection
+         * @description Что человек попросил положить в файл.
+         * @enum {string}
+         */
+        ExportSection: "overview" | "tasks" | "gantt" | "links" | "proposal" | "scorecard" | "comments" | "history";
         /** ForgotPasswordIn */
         ForgotPasswordIn: {
             /**
@@ -1980,6 +2080,11 @@ export interface components {
             /** Working Days */
             working_days: number;
         };
+        /**
+         * Orientation
+         * @enum {string}
+         */
+        Orientation: "landscape" | "portrait";
         /** PasswordIn */
         PasswordIn: {
             /** Current Password */
@@ -1987,6 +2092,12 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /**
+         * Period
+         * @description Окно ленты. Три последних привязаны к «сегодня».
+         * @enum {string}
+         */
+        Period: "all" | "next_4w" | "next_3m" | "from_today";
         /** PreviewOut */
         PreviewOut: {
             /** Email */
@@ -2703,6 +2814,12 @@ export interface components {
             /** Already Verified */
             already_verified: boolean;
         };
+        /**
+         * Zoom
+         * @description Единица колонки шкалы. Те же три значения, что у ленты на экране.
+         * @enum {string}
+         */
+        Zoom: "day" | "week" | "month";
     };
     responses: never;
     parameters: never;
@@ -4513,6 +4630,119 @@ export interface operations {
             };
         };
     };
+    export_project_pdf_api_projects__project_id__export_pdf_get: {
+        parameters: {
+            query?: {
+                include?: components["schemas"]["ExportSection"][];
+                zoom?: components["schemas"]["Zoom"] | null;
+                period?: components["schemas"]["Period"];
+                orientation?: components["schemas"]["Orientation"];
+                locale?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_project_xlsx_api_projects__project_id__export_xlsx_get: {
+        parameters: {
+            query?: {
+                include?: components["schemas"]["ExportSection"][];
+                zoom?: components["schemas"]["Zoom"] | null;
+                period?: components["schemas"]["Period"];
+                orientation?: components["schemas"]["Orientation"];
+                locale?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_facts_api_projects__project_id__export_facts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_jira_link_api_projects__project_id__jira_get: {
         parameters: {
             query?: never;
@@ -5767,6 +5997,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_export_pdf_api_public__org_slug___project_slug__export_pdf_get: {
+        parameters: {
+            query?: {
+                s?: string;
+            };
+            header?: never;
+            path: {
+                org_slug: string;
+                project_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_export_xlsx_api_public__org_slug___project_slug__export_xlsx_get: {
+        parameters: {
+            query?: {
+                s?: string;
+            };
+            header?: never;
+            path: {
+                org_slug: string;
+                project_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
                 };
             };
             /** @description Validation Error */

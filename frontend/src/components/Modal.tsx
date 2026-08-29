@@ -15,6 +15,14 @@ type ModalProps = {
    * где-то выбранная не по умолчанию роль.
    */
   dirty?: boolean;
+  /**
+   * Широкое окно — под содержимое, которое не укладывается в колонку формы.
+   *
+   * Признак, а не произвольная ширина: окон в приложении немного, и второй
+   * размер должен остаться вторым, а не превратиться в поле, которое каждый
+   * потребитель настраивает на свой вкус.
+   */
+  wide?: boolean;
   children: ReactNode;
 };
 
@@ -39,7 +47,7 @@ type ModalProps = {
  * понадобится окно, не должен изобретать эти четыре правила заново и
  * ошибиться в одном из них.
  */
-export function Modal({ title, onClose, dirty = false, children }: ModalProps) {
+export function Modal({ title, onClose, dirty = false, wide = false, children }: ModalProps) {
   const { t } = useLocale();
   const titleId = useId();
   const dialog = useRef<HTMLDivElement>(null);
@@ -126,7 +134,9 @@ export function Modal({ title, onClose, dirty = false, children }: ModalProps) {
         if (event.target === event.currentTarget) close();
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={dialog}>
+      <div
+        className={`modal${wide ? " modal--wide" : ""}`}
+        role="dialog" aria-modal="true" aria-labelledby={titleId} ref={dialog}>
         <h2 className="modal__title" id={titleId}>
           {title}
         </h2>
