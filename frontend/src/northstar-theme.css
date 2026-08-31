@@ -57,11 +57,12 @@
   --radius-lg: 10px;
   --radius-pill: 20px;
   /* Ширина отмерена по самой длинной подписи, а не на глаз: «Админ-панель» —
-     101px при 14px/600, и вместе с полем колонки, полем строки, значком и
-     просветом ей нужно 181px. Остальное достаётся названию организации,
-     которое приходит с сервера какой угодно длины и обрезается многоточием.
-     Прежние 232px держали лишние шестнадцать пикселей, и брала их колонка у
-     диаграммы — ради которой это приложение и открывают. */
+     101px при прежних 14px/600, и вместе с полем колонки, полем строки,
+     значком и просветом ей было нужно 181px. Нынешние 13px/620 набирают её
+     чуть уже, и разница уходит запасом названию организации, которое приходит
+     с сервера какой угодно длины и обрезается многоточием. Прежние 232px
+     держали лишние шестнадцать пикселей, и брала их колонка у диаграммы —
+     ради которой это приложение и открывают. */
   --sidebar: 216px;
   --control: 36px;
   /* Рост кнопки. Меньше `--control` намеренно — см. styles.css, где токен
@@ -117,10 +118,11 @@ a:focus-visible,
 /* --- боковая колонка --- */
 
 /* Тёмная колонка макета сюда не переносится (см. план, §1): здесь она светлая
-   и просто перекрашена. Меры крупнее базовых: квадрат логотипа 30 пикселей, и
-   колонка значков равняется по нему — иначе подписи разделов не встают под
-   названием организации. Крупнее — уже вывеска: колонка о трёх пунктах не
-   должна весить на вид больше страницы, которой служит. */
+   и просто перекрашена. Колонка значков — 30 пикселей, по квадрату логотипа:
+   иначе подписи разделов не встают под названием организации. Сами пункты при
+   этом набраны мерами страницы (кегль 13, вес 620, рисунок 18): прежние
+   14/600 со значками в 22 пикселя делали колонку о трёх пунктах самым крупным
+   органом экрана — вывеской при странице, которой она служит. */
 .sidebar { padding: 16px 10px 12px; gap: 10px; background: var(--surface); border-right: 1px solid var(--border); --sidebar-gutter: 10px; --sidebar-mark: 30px; --sidebar-gap: 10px; }
 .sidebar__workspace { padding: 0 var(--sidebar-gutter); }
 /* Буква в квадрате — первая буква организации, и берётся она из разметки, а не
@@ -133,17 +135,25 @@ a:focus-visible,
 .sidebar__brand { font-size: 15px; font-weight: 700; color: var(--text); }
 .sidebar__section { display: none; }
 .sidebar__nav { gap: 3px; }
-.sidebar__link { min-height: 34px; padding: 0 var(--sidebar-gutter); border-radius: var(--radius-md); color: var(--text-muted); font-size: 14px; font-weight: 600; }
+/* Рост строки — 32, как у переключателя организаций над разделами: колонка —
+   один столбец, и три роста в нём (34, 32 и 35 у дорожки языка) читались как
+   собранные случайно. Не кнопочные 29: пункт — мишень навигации во всю ширину
+   колонки, а не действие при содержимом. Кегль и вес — вкладок и меню (13/620),
+   а не свои 14/600: тот же уровень органа, что «Масштаб» или «Görünüş», и
+   крупнее их пункту колонки быть не за что. */
+.sidebar__link { min-height: 32px; padding: 0 var(--sidebar-gutter); border-radius: var(--radius-md); color: var(--text-muted); font-size: 13px; font-weight: 620; }
 .sidebar__link:hover { background: var(--hover); color: var(--text); }
 /* Текущий раздел — та же отметка в три пикселя слева, что и у выбранной строки
    ленты: одно состояние «вы здесь» на всё приложение, а не два разных. */
 .sidebar__link.is-current { background: var(--accent-soft); color: var(--accent); box-shadow: inset 3px 0 var(--accent); }
 /* Ширину значку задаёт колонка (`flex-basis` от `--sidebar-mark`), здесь —
-   только рост рисунка: он остаётся 22-пиксельным и стоит в середине колонки
-   шириной с логотип. */
-.sidebar__icon { height: 22px; color: currentColor; }
+   только рост рисунка: 18 пикселей в середине колонки шириной с логотип.
+   Прежние 22 растягивали 16-пиксельный оригинал (см. icons.tsx) со штрихом
+   до двух с лишним пикселей — рядом со значками кнопок в 14 колонка выходила
+   вдвое тяжелее страницы. */
+.sidebar__icon { height: 18px; color: currentColor; }
 .sidebar__foot { border-top: 1px solid var(--border); gap: 4px; }
-button.sidebar__button { height: 34px; padding: 0 var(--sidebar-gutter); border-radius: var(--radius-md); font-size: 14px; font-weight: 600; }
+button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-radius: var(--radius-md); font-size: 13px; font-weight: 620; }
 .org-switch { display: inline-flex; }
 .locale-switch { display: flex; }
 
@@ -159,7 +169,11 @@ button.sidebar__button { height: 34px; padding: 0 var(--sidebar-gutter); border-
 }
 
 .sidebar .locale-switch { align-self: stretch; margin: 4px var(--sidebar-gutter); }
-.sidebar .locale-switch button { flex: 1; }
+/* 26 плюс поля дорожки по 3 — те же 32, что у строк вокруг: нижний блок стоит
+   столбиком, и дорожка языка не должна быть в нём самой высокой строкой.
+   Правило при колонке, а не общее: в шапке публичной страницы кнопки языка
+   стоят без соседей-строк и остаются кнопочного роста. */
+.sidebar .locale-switch button { flex: 1; height: 26px; }
 
 /* --- шапка публичной страницы --- */
 
@@ -862,15 +876,14 @@ body:has(.screen--narrow) {
     height: 36px;
     padding: 0 10px;
   }
-  .sidebar__foot .sidebar__icon { flex-basis: 18px; height: 18px; }
+  .sidebar__foot .sidebar__icon { flex-basis: 18px; }
   /* Переключатель организаций подписей не имеет и сжимается сам: он нужен
      ровно тому, у кого организаций стало две, — то есть принявшему
      приглашение. */
   .sidebar .org-switch { max-width: 32vw; flex: 0 1 auto; }
   .sidebar__nav { flex-direction: row; gap: 6px; }
-  .sidebar__link { min-height: 36px; padding: 0 11px; font-size: 13px; }
+  .sidebar__link { min-height: 36px; padding: 0 11px; }
   .sidebar__link.is-current { box-shadow: none; }
-  .sidebar__icon { height: 18px; }
   .screen:not(.screen--wide):not(.screen--narrow) { padding: 24px 18px 56px; }
   .screen__head { align-items: stretch; }
   .screen__head h1 { flex-basis: 100%; margin-bottom: 8px; }
