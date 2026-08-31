@@ -405,7 +405,7 @@ describe("критический путь", () => {
     const { container } = renderProject(WITH_CRITICAL_PATH);
     await bar(/Логотип/);
 
-    expect(container.querySelector("svg.arrows polyline")).toHaveClass("is-critical");
+    expect(container.querySelector("svg.arrows .arrows__line")).toHaveClass("is-critical");
   });
 });
 

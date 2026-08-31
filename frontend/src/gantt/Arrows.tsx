@@ -22,6 +22,16 @@ import type { Scale } from "./timescale";
 const ELBOW = 8;
 
 /**
+ * Радиус скругления поворота.
+ *
+ * Прямой угол на линии в полтора пикселя читается как ступенька и спорит с
+ * округлыми полосками; дуга ведёт глаз по маршруту, не меняя сам маршрут.
+ * На коротких звеньях радиус ужимается (см. roundedPath), так что цифра здесь —
+ * потолок, а не обещание.
+ */
+const CORNER = 6;
+
+/**
  * Признаки связи одной строкой.
  *
  * Нарушение идёт первым и в цвете побеждает: критический путь — это «здесь
@@ -74,7 +84,7 @@ export function Arrows({
 
       return {
         key: `${link.from_task_id}-${link.to_task_id}`,
-        points: shape.map(([x, y]) => `${x},${y}`).join(" "),
+        d: roundedPath(shape),
         head: `M${endX - 6} ${endY - 4} L${endX} ${endY} L${endX - 6} ${endY + 4} Z`,
         // Место для знака нарушения — середина среднего звена ломаной, а не
         // повторно вычисленная по тем же условиям точка: второе такое же
@@ -109,7 +119,12 @@ export function Arrows({
           key={line.key}
           className={classOf(line.violated, line.critical)}
         >
-          <polyline points={line.points} className={classOf(line.violated, line.critical)} />
+          <path
+            d={line.d}
+            className={["arrows__line", classOf(line.violated, line.critical)]
+              .filter(Boolean)
+              .join(" ")}
+          />
           {/* Наконечник — сплошной треугольник остриём в начало полоски:
               линия без него не говорит, кто кого ждёт. Входит всегда
               горизонтально слева — ломаная кончается этим же направлением. */}
@@ -163,6 +178,51 @@ function elbow(startX: number, startY: number, endX: number, endY: number): numb
 
   points.push([endX, endY]);
   return points;
+}
+
+/**
+ * Путь по точкам ломаной со скруглёнными поворотами.
+ *
+ * Ломаная остаётся источником правды о маршруте (по ней же считается место
+ * знака нарушения — см. middleOf): дуги только срезают углы, не двигая звенья.
+ * Радиус на каждом повороте ужимается до того, что звено может отдать: целиком,
+ * если другой конец звена — конец пути, и до половины, если там сосед-поворот,
+ * иначе две дуги съели бы звено с двух сторон и линия пошла бы вспять.
+ * Нулевое звено (связь в той же строке) даёт нулевой радиус — поворот
+ * вырождается в прямую, а не в деление на ноль.
+ */
+function roundedPath(points: number[][]): string {
+  const parts = [`M${points[0][0]} ${points[0][1]}`];
+
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const [prevX, prevY] = points[i - 1];
+    const [cornerX, cornerY] = points[i];
+    const [nextX, nextY] = points[i + 1];
+    const inLen = Math.hypot(cornerX - prevX, cornerY - prevY);
+    const outLen = Math.hypot(nextX - cornerX, nextY - cornerY);
+    const r = Math.min(
+      CORNER,
+      i === 1 ? inLen : inLen / 2,
+      i === points.length - 2 ? outLen : outLen / 2,
+    );
+
+    if (r < 0.5) {
+      // Дуга мельче полупикселя не видна, а рисовать её — значит делить на
+      // длину нулевого звена.
+      parts.push(`L${cornerX} ${cornerY}`);
+      continue;
+    }
+
+    const inX = cornerX - ((cornerX - prevX) / inLen) * r;
+    const inY = cornerY - ((cornerY - prevY) / inLen) * r;
+    const outX = cornerX + ((nextX - cornerX) / outLen) * r;
+    const outY = cornerY + ((nextY - cornerY) / outLen) * r;
+    parts.push(`L${inX} ${inY}`, `Q${cornerX} ${cornerY} ${outX} ${outY}`);
+  }
+
+  const [endX, endY] = points[points.length - 1];
+  parts.push(`L${endX} ${endY}`);
+  return parts.join(" ");
 }
 
 /**
