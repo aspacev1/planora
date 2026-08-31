@@ -490,12 +490,13 @@
   overflow: visible;
 }
 
-.arrows polyline {
+/* Линия — path, а не polyline: повороты скруглены дугами (см. roundedPath в
+   Arrows.tsx), поэтому селектор по классу — голый `path` здесь означал бы и
+   наконечник. */
+.arrows .arrows__line {
   fill: none;
   stroke: #7d879c;
   stroke-width: 1.5;
-  /* Скруглённые углы: на изломе в один пиксель острый угол читается как
-     артефакт отрисовки. */
   stroke-linejoin: round;
   stroke-linecap: round;
 }
@@ -503,19 +504,19 @@
 /* Нарушенная связь — задача начата до готовности той, которой она ждёт:
    цвет тревоги и пунктир, чтобы нахлёст было видно с расстояния и чтобы
    связь отличалась от обычной не только цветом. */
-.arrows polyline.is-violated {
+.arrows .arrows__line.is-violated {
   stroke: var(--danger);
   stroke-width: 2;
   stroke-dasharray: 4 3;
 }
 
 /* Наконечник — заливка в цвет линии. */
-.arrows path {
+.arrows .arrows__head {
   fill: #7d879c;
   stroke: none;
 }
 
-.arrows g.is-violated path {
+.arrows g.is-violated .arrows__head {
   fill: var(--danger);
 }
 
@@ -2031,11 +2032,11 @@
 
 /* Стрелки внутри цепочки — тем же цветом: путь читается как путь, а не как
    набор одинаково обведённых полосок. */
-.gantt.show-critical .arrows polyline.is-critical {
+.gantt.show-critical .arrows .arrows__line.is-critical {
   stroke: var(--danger-strong);
 }
 
-.gantt.show-critical .arrows g.is-critical path {
+.gantt.show-critical .arrows g.is-critical .arrows__head {
   fill: var(--danger-strong);
 }
 

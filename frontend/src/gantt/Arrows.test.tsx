@@ -20,13 +20,15 @@ function barBox(name: string): { left: number; width: number } {
 }
 
 function pointsOf(container: HTMLElement): number[][] {
-  const polyline = container.querySelector("svg.arrows polyline");
-  if (!polyline) throw new Error("стрелки нет");
-  return polyline
-    .getAttribute("points")!
-    .trim()
-    .split(/\s+/)
-    .map((pair) => pair.split(",").map(Number));
+  const line = container.querySelector("svg.arrows .arrows__line");
+  if (!line) throw new Error("стрелки нет");
+  // Из пути берутся все пары координат подряд, без разбора команд: тесту
+  // важны концы линии, а начало пути — всегда первая пара, конец — последняя,
+  // какие бы дуги ни стояли между ними.
+  const numbers = line.getAttribute("d")!.match(/-?[\d.]+/g)!.map(Number);
+  const points: number[][] = [];
+  for (let i = 0; i < numbers.length; i += 2) points.push([numbers[i], numbers[i + 1]]);
+  return points;
 }
 
 describe("стрелки связей", () => {
@@ -34,7 +36,7 @@ describe("стрелки связей", () => {
     const { container } = renderProject(WITH_DEPENDENCY);
     await screen.findByRole("button", { name: /Логотип/ });
 
-    expect(container.querySelectorAll("svg.arrows polyline")).toHaveLength(1);
+    expect(container.querySelectorAll("svg.arrows .arrows__line")).toHaveLength(1);
   });
 
   it("держит стрелку на концах полосок, когда открывается карточка", async () => {
@@ -58,7 +60,7 @@ describe("стрелки связей", () => {
     // Ломаная кончается на размер наконечника раньше полоски: остриё
     // треугольника доводит стрелку ровно до её левого края.
     expect(points.at(-1)![0]).toBe(to.left - 4);
-    expect(container.querySelector("svg.arrows path")!.getAttribute("d")).toContain(
+    expect(container.querySelector("svg.arrows .arrows__head")!.getAttribute("d")).toContain(
       `L${to.left} `,
     );
   });
@@ -75,14 +77,14 @@ describe("стрелки связей", () => {
     });
     await screen.findByRole("button", { name: /Логотип/ });
 
-    expect(container.querySelector("svg.arrows polyline")).toHaveClass("is-violated");
+    expect(container.querySelector("svg.arrows .arrows__line")).toHaveClass("is-violated");
   });
 
   it("не подсвечивает связь, когда приёмник начинается после источника", async () => {
     const { container } = renderProject(WITH_DEPENDENCY);
     await screen.findByRole("button", { name: /Логотип/ });
 
-    expect(container.querySelector("svg.arrows polyline")).not.toHaveClass("is-violated");
+    expect(container.querySelector("svg.arrows .arrows__line")).not.toHaveClass("is-violated");
   });
 
   it("не рисует стрелку в задачу, которой нет в проекте", async () => {
@@ -95,6 +97,6 @@ describe("стрелки связей", () => {
     });
     await screen.findByRole("button", { name: /Логотип/ });
 
-    expect(container.querySelectorAll("svg.arrows polyline")).toHaveLength(0);
+    expect(container.querySelectorAll("svg.arrows .arrows__line")).toHaveLength(0);
   });
 });
