@@ -13,7 +13,6 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
-from starlette.websockets import WebSocketDisconnect
 
 from app.ai.netguard import ensure_public_https
 from app.ai.provider import LlmError
