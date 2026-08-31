@@ -17,8 +17,9 @@ from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
 from app.db import get_db
-from app.export import budget
+from app.export import budget, theme
 from app.export.budget import Orientation, Period, Zoom
+from app.export.document import align_weeks, metric_row
 from app.export.labels import available_locales, dictionary
 from app.main import app
 
@@ -535,6 +536,90 @@ def test_a_project_entirely_in_the_past_still_gets_a_window(authed):
     whole = budget.Window(date(2024, 1, 1), date(2024, 3, 1))
     window = budget.resolve_window(Period.NEXT_4W, whole, date(2026, 6, 1), dated=True)
     assert window.start == window.end == whole.end
+
+
+# --- скоркард: метрики с разной историей ----------------------------------------
+#
+# Метрики появляются и снимаются (см. миграцию scorecard_signal_cleanup), а
+# снимки прошлых недель неизменяемы: у метрики, заведённой в августе, июльских
+# снимков нет и не будет. Значит набор недель у метрик разный, и таблица обязана
+# это переживать.
+
+
+def _metric(key: str, history: list[tuple[str, float]], value=0.0, status="ok") -> dict:
+    return {
+        "key": key,
+        "value": value,
+        "status": status,
+        "history": [
+            {"week_start": week, "value": point, "status": "ok"} for week, point in history
+        ],
+    }
+
+
+def test_the_week_columns_are_the_union_across_metrics():
+    """Иначе метрика помоложе обрезала бы историю всем остальным."""
+    old = _metric("overdue_tasks", [("2026-08-03", 1), ("2026-08-10", 2)])
+    young = _metric("finish_drift", [("2026-08-10", 3)])
+
+    weeks = align_weeks([old, young], date(2026, 8, 17))
+
+    assert weeks == [date(2026, 8, 3), date(2026, 8, 10), date(2026, 8, 17)]
+
+
+def test_a_metric_without_a_snapshot_gets_a_gap_not_a_shift():
+    """Прочерк на своём месте, а не сдвиг соседних значений влево: сдвинутая
+    строка — это молча неверный документ, и заметили бы его не сразу."""
+    old = _metric("overdue_tasks", [("2026-08-03", 1), ("2026-08-10", 2)], value=5)
+    young = _metric("finish_drift", [("2026-08-10", 3)], value=7)
+    weeks = align_weeks([old, young], date(2026, 8, 17))
+
+    assert metric_row(old, weeks) == ([1, 2, 5], ["ok", "ok", "ok"])
+    # У молодой метрики первая колонка пуста, а её единственный снимок стоит
+    # под своей неделей — второй, а не первой.
+    values, statuses = metric_row(young, weeks)
+    assert values == [None, 3, 7]
+    assert statuses == ["no_data", "ok", "ok"]
+
+
+def test_a_first_metric_without_history_does_not_collapse_the_table():
+    """Тот самый случай, который сегодня не наступает лишь из-за порядка метрик
+    в миграции: раньше недели брались у первой метрики, и молодая на нулевой
+    позиции схлопнула бы таблицу в одну колонку."""
+    young = _metric("finish_drift", [])
+    old = _metric("overdue_tasks", [("2026-08-03", 1), ("2026-08-10", 2)])
+
+    weeks = align_weeks([young, old], date(2026, 8, 17))
+
+    assert len(weeks) == 3
+    assert metric_row(young, weeks) == ([None, None, 0.0], ["no_data", "no_data", "ok"])
+
+
+def test_the_current_week_is_always_the_last_column():
+    """Её значение живое и берётся не из истории — снимка за неё может ещё не
+    быть вовсе."""
+    metric = _metric("overdue_tasks", [("2026-08-03", 1)], value=9, status="risk")
+    weeks = align_weeks([metric], date(2026, 8, 17))
+
+    assert weeks[-1] == date(2026, 8, 17)
+    assert metric_row(metric, weeks) == ([1, 9], ["ok", "risk"])
+
+
+def test_a_snapshot_for_the_current_week_does_not_double_the_column():
+    """Снимок текущей недели уже есть (ленивая фиксация при открытии
+    скоркарда) — колонка всё равно одна, и в ней живое значение."""
+    metric = _metric("overdue_tasks", [("2026-08-17", 4)], value=6)
+    weeks = align_weeks([metric], date(2026, 8, 17))
+
+    assert weeks == [date(2026, 8, 17)]
+    assert metric_row(metric, weeks) == ([6], ["ok"])
+
+
+def test_an_unknown_metric_status_does_not_cost_the_whole_document():
+    """Набор состояний живёт в ScorecardStatus и меняется вместе со скоркардом.
+    Падение на неизвестном — пятисотка на весь файл из-за одной ячейки."""
+    assert theme.metric_cell("risk") == theme.METRIC_CELL["risk"]
+    assert theme.metric_cell("brand_new") == theme.METRIC_CELL["no_data"]
 
 
 # --- словари -------------------------------------------------------------------

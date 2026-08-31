@@ -508,6 +508,49 @@ def _proposal(db: DbSession, project: Project) -> DocProposal | None:
     )
 
 
+def align_weeks(metrics: list[dict], current_week: date) -> list[date]:
+    """Колонки таблицы скоркарда: объединение недель по всем метрикам.
+
+    Не история первой метрики. Набор недель у метрик разный и обязан таким
+    оставаться: метрики появляются и снимаются, а снимки прошлых недель
+    неизменяемы — у метрики, заведённой в августе, июльских снимков нет и не
+    будет (см. миграцию scorecard_signal_cleanup).
+
+    Брать недели у одной метрики значило бы поставить весь документ в
+    зависимость от того, какая из них оказалась первой: попади на её место
+    метрика помоложе — и таблица молча схлопнулась бы в одну колонку. Молча
+    неверный документ хуже отказа, и заметили бы это не сразу.
+
+    Текущая неделя — всегда последняя колонка, даже если снимка за неё ещё
+    нет: её значение живое и берётся не из истории.
+    """
+    weeks = {
+        date.fromisoformat(point["week_start"])
+        for metric in metrics
+        for point in metric["history"]
+    }
+    weeks.add(current_week)
+    return sorted(weeks)
+
+
+def metric_row(metric: dict, weeks: list[date]) -> tuple[list[float | None], list[str]]:
+    """Значения и состояния одной метрики, разложенные по колонкам `weeks`.
+
+    Неделя, за которую у метрики снимка нет, — прочерк на своём месте, а не
+    сдвиг соседних значений влево.
+    """
+    history = {point["week_start"]: point for point in metric["history"]}
+    values: list[float | None] = []
+    statuses: list[str] = []
+    for week in weeks[:-1]:
+        point = history.get(week.isoformat())
+        values.append(point["value"] if point else None)
+        statuses.append(point["status"] if point else "no_data")
+    values.append(metric["value"])
+    statuses.append(metric["status"])
+    return values, statuses
+
+
 def _scorecard(
     db: DbSession, project: Project, org: Organization, labels: Labels
 ) -> DocScorecard | None:
@@ -516,22 +559,11 @@ def _scorecard(
     if not metrics:
         return None
 
-    # Недели берутся из истории первой метрики: снимки сеются всем метрикам
-    # одной транзакцией, и набор недель у них общий.
-    weeks = [date.fromisoformat(p["week_start"]) for p in metrics[0]["history"]]
-    weeks.append(date.fromisoformat(state["week"]["start"]))
+    weeks = align_weeks(metrics, date.fromisoformat(state["week"]["start"]))
 
     out: list[DocMetric] = []
     for metric in metrics:
-        history = {p["week_start"]: p for p in metric["history"]}
-        values: list[float | None] = []
-        statuses: list[str] = []
-        for week in weeks[:-1]:
-            point = history.get(week.isoformat())
-            values.append(point["value"] if point else None)
-            statuses.append(point["status"] if point else "no_data")
-        values.append(metric["value"])
-        statuses.append(metric["status"])
+        values, statuses = metric_row(metric, weeks)
         out.append(
             DocMetric(
                 key=metric["key"],

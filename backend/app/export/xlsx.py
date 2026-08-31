@@ -531,7 +531,7 @@ def _scorecard(wb: Workbook, doc: ExportDocument) -> None:
         for i, (value, status) in enumerate(zip(metric.values, metric.statuses)):
             cell = ws.cell(row=row, column=5 + i, value=value if value is not None else "—")
             cell.alignment = Alignment(horizontal="center", vertical="center")
-            bg, fg = theme.METRIC_CELL[status]
+            bg, fg = theme.metric_cell(status)
             cell.fill = _fill(bg)
             cell.font = Font(name=FONT, size=9, bold=status != "no_data", color=fg)
     ws.freeze_panes = "E2"

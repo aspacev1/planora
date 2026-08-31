@@ -837,7 +837,7 @@ def _scorecard_block(sheet: _Sheet, y: float) -> None:
               theme.TEXT_MUTED, align="r")
         for i, (value, status) in enumerate(zip(metric.values, metric.statuses)):
             x = left + name_w + 52 + i * col_w
-            bg, fg = theme.METRIC_CELL[status]
+            bg, fg = theme.metric_cell(status)
             if value is None:
                 _text(c, x + col_w / 2, y - 11, "—", theme.FONT, 7, theme.TEXT_FAINT,
                       align="c")
