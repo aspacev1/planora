@@ -21,7 +21,7 @@ demand" but a working, maintainable application.
 
 ## Language
 
-Always respond in English — summaries, explanations, questions, commit
+Always respond in Russian — summaries, explanations, questions, commit
 messages, and code comments — regardless of the language the task was
 written in.
 
