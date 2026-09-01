@@ -300,7 +300,10 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
    Прежние 36 пикселей поднимали их над переключателем представления, стоящим
    в том же ряду, и тулбар читался двумя этажами вместо одного. */
 /* Индикатор «Относительный план»: плашка состояния, а не кнопка — до
-   назначения даты старта режим один и переключать нечего. */
+   назначения даты старта режим один и переключать нечего. Стоит в ряду
+   только у того, кому дату назначить нечем: рядом с кнопкой «Назначить дату
+   старта» она говорила то же самое второй раз и занимала больше места, чем
+   любая кнопка ряда (см. тулбар в Gantt.tsx). */
 .project-toolbar__mode { display: inline-flex; align-items: center; gap: 5px; height: 29px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; white-space: nowrap; cursor: help; }
 /* Знак ⓘ — псевдоэлементом, а не разметкой: он говорит, что у бейджа есть
    подсказка, и в читалку отдельным словом попадать при этом не должен. */
@@ -530,6 +533,8 @@ button:hover { background: var(--accent-hover); }
 .button--quiet[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px transparent; }
 .button--alert { background: var(--surface); box-shadow: inset 0 0 0 1px var(--danger); }
 .button--alert:hover, .button--alert:disabled:hover { background: var(--danger-soft); box-shadow: inset 0 0 0 1px var(--danger); }
+.button--accent { background: var(--surface); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.button--accent:hover, .button--accent:disabled:hover { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 
 /* Ссылка-кнопка повторяет размеры кнопки темы: стоит с ней в одной строке и
    обязана совпадать по высоте, иначе пара действий читается лесенкой. Селектор

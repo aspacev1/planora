@@ -243,6 +243,38 @@ describe("диаграмма", () => {
     expect(legend).toHaveTextContent("Блокер");
   });
 
+  it("«Вид» несёт и колонки таблицы, и слои: двух кнопок об одном в ряду нет", async () => {
+    draw(STATE, "ru");
+
+    // Отдельной кнопки «Колонки» в тулбаре больше нет — ряд был перегружен, а
+    // обе кнопки отвечали на один вопрос «что показывать».
+    expect(screen.queryByRole("button", { name: "Колонки" })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Вид" }));
+
+    // Обе части названы заголовками: без них список из девяти галочек пришлось
+    // бы вычитывать целиком ради любой из них.
+    const menu = screen.getByRole("button", { name: "Вид" }).nextElementSibling;
+    expect(menu).toHaveTextContent("Колонки");
+    expect(menu).toHaveTextContent("Слои");
+    expect(screen.getByRole("checkbox", { name: "Длительность" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Легенда" })).toBeInTheDocument();
+  });
+
+  it("колонка включается из того же меню, что и слои", async () => {
+    const { container } = draw(STATE, "ru");
+    const header = () => container.querySelector(".gantt__corner");
+
+    // По умолчанию длительности в таблице нет — она из числа тех колонок,
+    // которые просят.
+    expect(header()).not.toHaveTextContent("Длительность");
+
+    await userEvent.click(screen.getByRole("button", { name: "Вид" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Длительность" }));
+
+    expect(header()).toHaveTextContent("Длительность");
+  });
+
   it("статус полоски — хранимое поле, а не вывод из дат", () => {
     // Смысл переезда на хранимый статус: «заблокировано» из дат не выводится,
     // а «запланировано» может стоять и на уже начатой по датам задаче.
@@ -591,9 +623,26 @@ describe("относительная шкала", () => {
     );
   });
 
-  it("называет режим в тулбаре", () => {
+  it("называет режим в тулбаре тому, кому назначить дату нечем", () => {
     draw(RELATIVE);
     expect(screen.getByText("Относительный план")).toBeInTheDocument();
+  });
+
+  it("не дублирует бейджем кнопку «Назначить дату старта»", () => {
+    renderWithProviders(
+      <Gantt
+        projectId="p1"
+        state={RELATIVE}
+        scheduleAction={<button type="button">Назначить дату старта</button>}
+      />,
+      { locale: "ru" },
+    );
+
+    // Кнопка называет режим не хуже плашки: пока дату старта назначают, план
+    // относительный. Две подписи об одном стояли рядом и занимали в ряду
+    // больше места, чем любая кнопка.
+    expect(screen.getByRole("button", { name: "Назначить дату старта" })).toBeInTheDocument();
+    expect(screen.queryByText("Относительный план")).toBeNull();
   });
 
   it("занимает всю отведённую ширину целыми неделями", () => {

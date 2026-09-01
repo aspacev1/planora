@@ -127,4 +127,17 @@ describe("полноэкранная лента", () => {
 
     expect(screen.getByRole("button", { name: "На весь экран" })).toBeInTheDocument();
   });
+
+  it("кнопка — значок без подписи, но с именем", async () => {
+    renderProject();
+    await tape();
+
+    // Подпись в одиннадцать букв стояла последней в перегруженном ряду, а
+    // стрелки в углы понимают и без неё. Имя при кнопке осталось целиком —
+    // тому, кто слушает экран, и тому, кто навёл курсор.
+    const button = screen.getByRole("button", { name: "На весь экран" });
+    expect(button).toHaveAttribute("title", "На весь экран");
+    expect(button).toHaveTextContent("");
+    expect(button.querySelector("svg")).not.toBeNull();
+  });
 });

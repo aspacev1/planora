@@ -8,7 +8,14 @@ import { MEMBERS_QUERY_KEY, members } from "../api/org";
 import { getProject, projectQueryKey } from "../api/projects";
 import type { Category } from "../api/projects";
 import { useCanWrite, useOrgRole } from "../auth/permissions";
-import { IconDownload, IconInvite, IconSettings, IconShare } from "../components/icons";
+import {
+  IconDownload,
+  IconExpand,
+  IconInvite,
+  IconSettings,
+  IconShare,
+  IconShrink,
+} from "../components/icons";
 import { useEscape } from "../components/useEscape";
 import { InviteDialog } from "../components/InviteDialog";
 import { Menu } from "../components/Menu";
@@ -473,15 +480,30 @@ export function Project({
                   canWrite ? (
                     <button
                       type="button"
-                      // Первая привязка — главное действие тулбара, как в
-                      // макете; перенос уже назначенной даты — тихая кнопка:
-                      // главного действия у настроенного проекта здесь нет.
+                      // Первая привязка выделена акцентом, но контуром, а не
+                      // заливкой: залитых кнопок в ряду было две — эта и
+                      // «Новая задача», — и первый взгляд они делили поровну,
+                      // хотя задачу здесь заводят десятки раз, а дату старта
+                      // назначают однажды. Перенос уже назначенной даты —
+                      // тихая кнопка: главного действия у настроенного
+                      // проекта здесь нет.
                       className={
                         query.data.schedule_mode === "relative"
-                          ? "project-toolbar__primary"
+                          ? "button--accent"
                           : "button--quiet"
                       }
                       disabled={offline}
+                      // Подсказка «когда назначают дату старта» — на самой
+                      // кнопке: плашка «Относительный план», носившая её
+                      // прежде, стояла тут же и говорила то же самое третий
+                      // раз после шкалы без месяцев и этой кнопки (см.
+                      // Gantt.tsx). У календарного проекта подсказки нет —
+                      // объяснять нечего.
+                      title={
+                        query.data.schedule_mode === "relative"
+                          ? t("gantt.relative.hint")
+                          : undefined
+                      }
                       onClick={() => setScheduling(true)}
                     >
                       {query.data.schedule_mode === "relative"
@@ -491,10 +513,18 @@ export function Project({
                   ) : undefined
                 }
                 focusAction={
+                  /* Значок без подписи: «На весь экран» — единственная кнопка
+                     ряда, которую можно назвать рисунком и не потерять смысла
+                     (стрелки в углы понимают все), а подпись в одиннадцать
+                     букв стояла в самом конце перегруженной строки. Имя
+                     осталось при кнопке целиком — `aria-label` для тех, кто
+                     слушает экран, и `title` для тех, кто навёл курсор. */
                   <button
                     type="button"
-                    className="button--quiet"
+                    className="button--quiet project-toolbar__icon"
                     aria-pressed={focusMode}
+                    aria-label={t(focusMode ? "gantt.toolbar.focus_exit" : "gantt.toolbar.focus")}
+                    title={t(focusMode ? "gantt.toolbar.focus_exit" : "gantt.toolbar.focus")}
                     onClick={() => {
                       // Прокрутка страницы обнуляется до разворота: высоту
                       // ленты меряют от окна (useViewportFit), и слой,
@@ -504,7 +534,7 @@ export function Project({
                       setFocusMode((current) => !current);
                     }}
                   >
-                    {t(focusMode ? "gantt.toolbar.focus_exit" : "gantt.toolbar.focus")}
+                    {focusMode ? <IconShrink /> : <IconExpand />}
                   </button>
                 }
                 onAddTask={editable ? setAddingTaskAt : undefined}
