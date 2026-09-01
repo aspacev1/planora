@@ -106,6 +106,7 @@ export function CategoryRow({
   layout,
   format,
   addLabel,
+  emptyHint,
   onAddTask,
   deleteLabel,
   onDelete,
@@ -129,6 +130,14 @@ export function CategoryRow({
   /** Строка категории — сводка, а не правка: её ячейки только показывают. */
   format: DayFormat;
   addLabel: string;
+  /**
+   * Что написать в пустой полосе категории вместо пустоты. Не передано —
+   * полоса остаётся пустой.
+   *
+   * Решает лента, а не строка: подсказку показывают одной категории на весь
+   * экран, а строка знает только про себя (см. `hintedCategoryId` в Gantt).
+   */
+  emptyHint?: string;
   onAddTask?: (categoryId: string) => void;
   deleteLabel?: string;
   /** Крестик удаления. Спрашивает подтверждение не он, а экран: вместе с
@@ -155,6 +164,11 @@ export function CategoryRow({
   // задачи (см. nameId в TaskRow и describedBy в RowMenu).
   const categoryNameId = useId();
   const span = rollUp(tasks);
+  // Пустая категория говорит о себе разметкой: по этому признаку «плюс» на
+  // строке перестаёт прятаться до наведения (см. .gantt__row--category.is-empty
+  // в gantt.css). Пока в категории есть задачи, знаки строки ведут себя как
+  // везде — молчат, пока на строку не навели.
+  const empty = tasks.length === 0;
   const drag = useDragCategory({
     projectId,
     category,
@@ -194,7 +208,9 @@ export function CategoryRow({
 
   return (
     <div
-      className={`gantt__row gantt__row--category ${reorder?.markFor("category", category.id) ?? ""}`.trimEnd()}
+      className={`gantt__row gantt__row--category${empty ? " is-empty" : ""} ${
+        reorder?.markFor("category", category.id) ?? ""
+      }`.trimEnd()}
       // Заголовок категории — тоже цель броска: перенести задачу в другую
       // категорию иначе можно было бы только через список в карточке.
       //
@@ -420,6 +436,32 @@ export function CategoryRow({
             aria-hidden="true"
             {...drag.handlers}
           />
+        )}
+        {empty && emptyHint !== undefined && onAddTask && (
+          // Подсказка стоит в полосе, а не отдельной строкой: полоса пустой
+          // категории всё равно ничем не занята, и объяснение, вставшее в неё,
+          // не двигает вниз ни одной строки ленты и исчезает с первой же
+          // задачей само.
+          //
+          // Кнопка, а не надпись: она предлагает действие и обязана его
+          // выполнять — нарисованное приглашение, которое не нажимается,
+          // отправляло бы искать «плюс» глазами (тот же довод, что у кнопки
+          // посреди пустой ленты, см. gantt__empty-add).
+          //
+          // Имя категории — описанием, а не подписью: видимый текст один и тот
+          // же на любой категории, и подменять им произносимое значило бы
+          // рассказывать читалке не то, что написано (см. describedBy у «⋯»).
+          <button
+            type="button"
+            className="gantt__lane-hint"
+            aria-describedby={categoryNameId}
+            onClick={() => onAddTask(category.id)}
+          >
+            <span className="gantt__lane-hint-plus" aria-hidden="true">
+              +
+            </span>
+            {emptyHint}
+          </button>
         )}
       </div>
     </div>

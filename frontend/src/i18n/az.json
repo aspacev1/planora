@@ -515,6 +515,7 @@
       "day": "Gün {number}"
     },
     "empty": "Layihədə hələ bir dənə də kateqoriya yoxdur. Kateqoriya yaradın, tapşırıqlar isə onun içində olacaq",
+    "category_empty": "Hələ tapşırıq yoxdur — birincisini əlavə edin",
     "today": "Bu gün",
     "moved": "Tapşırıq {date} tarixinə keçirildi",
     "toolbar": {
