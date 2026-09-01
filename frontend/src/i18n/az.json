@@ -301,6 +301,9 @@
       "not_started": "Başlanmayıb",
       "not_planned": "Plandan kənar",
       "completed": "Tamamlanıb"
+    },
+    "actions": {
+      "more": "Digər əməliyyatlar"
     }
   },
   "my_tasks": {

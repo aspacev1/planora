@@ -11,6 +11,7 @@ import { useCanWrite, useOrgRole } from "../auth/permissions";
 import { IconDownload, IconInvite, IconSettings, IconShare } from "../components/icons";
 import { useEscape } from "../components/useEscape";
 import { InviteDialog } from "../components/InviteDialog";
+import { Menu } from "../components/Menu";
 import { Modal } from "../components/Modal";
 import { exportFacts, exportFactsQueryKey, exportProject } from "../api/export";
 import { ExportDialog } from "../export/ExportDialog";
@@ -26,7 +27,8 @@ import { deleteCategory } from "../project/optimistic";
 import { useProjectMutation } from "../project/useProjectMutation";
 import { PlanApproval } from "../project/PlanApproval";
 import { PlanChangesPanel } from "../project/PlanChangesPanel";
-import { ProjectHead, ProjectHeadCompact } from "../project/ProjectHead";
+import { PlanSummary } from "../project/PlanSummary";
+import { ProjectBar } from "../project/ProjectBar";
 import { Proposal } from "../proposal/Proposal";
 import { ProjectHistory } from "../project/ProjectHistory";
 import { Scorecard } from "../scorecard/Scorecard";
@@ -118,10 +120,6 @@ export function Project({
     );
   };
 
-  // Шапка сжата: лента прокручена вглубь плана. Признак присылает сама лента
-  // (см. onCondense у Gantt) — только у неё есть прокрутка, по которой он
-  // считается. Живёт же он здесь, потому что сжимается не лента, а шапка.
-  const [condensed, setCondensed] = useState(false);
   // Лента развёрнута на весь экран. Между визитами не запоминается: полный
   // экран включают осознанно, и открывшийся без шапки и колонки проект читался
   // бы как сломанный, а не как удобно настроенный.
@@ -146,14 +144,11 @@ export function Project({
     if (offline) setFocusMode(false);
   }, [offline]);
 
-  // На других вкладках лента не прокручивается и разворачивать нечего: сжатая
-  // шапка, унесённая со вкладки на вкладку, осталась бы сжатой навсегда — снять
-  // признак некому, прокрутки, которая его ставила, там нет.
+  // На других вкладках разворачивать нечего: полноэкранный режим, унесённый со
+  // вкладки на вкладку, накрыл бы собой историю или смету, к которым он не
+  // относится.
   useEffect(() => {
-    if (tab !== "gantt") {
-      setCondensed(false);
-      setFocusMode(false);
-    }
+    if (tab !== "gantt") setFocusMode(false);
   }, [tab]);
 
   // Esc сворачивает полный экран — тем же слоем, что закрывает окна и меню:
@@ -234,11 +229,6 @@ export function Project({
   // «можно ли сейчас».
   const editable = canWrite && !offline;
 
-  // Сжатие живёт только на ленте. Признак снимает эффект выше, но эффект
-  // приходит кадром позже перехода на другую вкладку, и без этой поправки
-  // шапка на один кадр открывалась бы там сжатой.
-  const headCondensed = condensed && tab === "gantt";
-
   return (
     <ShiftReasonProvider>
       <DependencyNudgeProvider>
@@ -249,22 +239,39 @@ export function Project({
                 какая вкладка открыта, оно не зависит. */}
             <UndoHotkey projectId={projectId} state={query.data} enabled={editable} />
 
-            {/* Шапка складывается, когда лента прокручена вглубь плана, и
-                прячется целиком в полноэкранном режиме. Сложенная остаётся в
-                разметке ради анимации высоты, но помечается inert: свёрнутое
-                не должно ловить табуляцию и читаться вслух вторым экземпляром
-                рядом со сжатой строкой, которая говорит то же самое. */}
+            {/* Шапка — одна строка: имя, состояние плана, вкладки, действия.
+                В полноэкранном режиме прячется целиком: над лентой там не
+                стоит ничего. */}
             {!focusMode && (
-              <div
-                className={`project-fold${headCondensed ? " is-condensed" : ""}`}
-                inert={headCondensed}
-              >
-                <div className="project-fold__inner">
-                <ProjectHead
-                  state={query.data}
-                  showPlan
-                  onShowChanges={() => setShowingChanges(true)}
-                  planAction={
+              <ProjectBar
+                state={query.data}
+                onShowChanges={() => setShowingChanges(true)}
+                summary={<PlanSummary state={query.data} />}
+                tabs={
+                  /* Вкладки — в адресе, а не в состоянии экрана: на историю
+                     ссылаются в переписке, и ссылка обязана открывать её
+                     сразу. */
+                  <nav className="tabs" aria-label={t("history.tabs_label")}>
+                    <NavLink to={`/projects/${projectId}`} end className={tabClass}>
+                      {t("history.tab_gantt")}
+                    </NavLink>
+                    {/* Предложение — между лентой и историей, как в макете:
+                        лента остаётся первым экраном проекта, смета — рядом. */}
+                    <NavLink to={`/projects/${projectId}/proposal`} className={tabClass}>
+                      {t("history.tab_proposal")}
+                    </NavLink>
+                    {/* Скоркард — после сметы, перед историей: сводка недели
+                        ближе к работе, чем журнал. На публичной странице
+                        (/p/...) вкладок нет вовсе. */}
+                    <NavLink to={`/projects/${projectId}/scorecard`} className={tabClass}>
+                      {t("history.tab_scorecard")}
+                    </NavLink>
+                    <NavLink to={`/projects/${projectId}/history`} className={tabClass}>
+                      {t("history.tab_history")}
+                    </NavLink>
+                  </nav>
+                }
+                planAction={
                     <PlanApproval
                       projectId={projectId}
                       state={query.data}
@@ -277,8 +284,16 @@ export function Project({
                       onShowChanges={() => setShowingChanges(true)}
                     />
                   }
+                  // Редкие действия — под «⋯»: каждое открывает окно, и в ряду
+                  // постоянных кнопок они стояли только затем, чтобы там
+                  // стоять. Четыре плашки в строке — это и есть тот ярус, из
+                  // которого шапка выросла в последний раз (кнопка «Экспорт»
+                  // приехала уже после того, как шапку сжимали).
+                  //
                   // Гостю кнопки не передаются вовсе: они обещали бы действие,
-                  // которое сервер отклонит.
+                  // которое сервер отклонит. Меню без единого пункта не
+                  // рисуется — читателю без права на запись остаётся только
+                  // выгрузка, и она в меню одна.
                   //
                   // Каждое действие — со значком слева от подписи: ряд одинаковых
                   // плашек различался только словом, и найти в нём нужную можно
@@ -286,7 +301,11 @@ export function Project({
                   // раньше, чем читается слово. Значки `aria-hidden`: вслух они
                   // повторили бы стоящую рядом подпись.
                   actions={
-                    <>
+                    <Menu
+                      label="⋯"
+                      showCaret={false}
+                      buttonLabel={t("project.actions.more")}
+                    >
                       {/* Публикация — действие над проектом, и стоит она в общем
                           ряду действий, а не вплотную к названию: у названия теперь
                           живёт состояние плана, а действия собраны в одном месте.
@@ -295,7 +314,7 @@ export function Project({
                       {canWrite && (
                         <button
                           type="button"
-                          className="button--quiet"
+                          className="menu__item"
                           disabled={offline}
                           onClick={() => setSharing(true)}
                         >
@@ -310,7 +329,7 @@ export function Project({
                           получат тот же урез, что видят на экране. */}
                       <button
                         type="button"
-                        className="button--quiet"
+                        className="menu__item"
                         disabled={offline}
                         onClick={() => setExporting(true)}
                       >
@@ -331,7 +350,7 @@ export function Project({
                       {role === "owner" && (
                         <button
                           type="button"
-                          className="button--quiet"
+                          className="menu__item"
                           onClick={() => setInviting(true)}
                         >
                           <IconInvite />
@@ -356,56 +375,19 @@ export function Project({
                       {canWrite && (
                         <Link
                           to={`/projects/${projectId}/settings`}
-                          className="button-link"
+                          className="menu__item"
                           aria-label={t("settings.project.link_aria")}
                         >
                           <IconSettings />
                           {t("settings.project.link")}
                         </Link>
                       )}
-                    </>
+                    </Menu>
                   }
-                />
-                </div>
-              </div>
-            )}
-
-            {/* Сжатая шапка — та же сводка одной строкой (см. ProjectHeadCompact). */}
-            {!focusMode && headCondensed && (
-              <ProjectHeadCompact
-                state={query.data}
-                onShowChanges={() => setShowingChanges(true)}
               />
             )}
 
             {offline && <OfflineBar syncedAt={query.dataUpdatedAt || null} />}
-
-            {/* Вкладки — в адресе, а не в состоянии экрана: на историю
-                ссылаются в переписке, и ссылка обязана открывать её сразу.
-                Полноэкранная лента их прячет: под непрозрачным слоем они не
-                видны, а видимая табуляция в невидимые ссылки хуже их
-                отсутствия. */}
-            {!focusMode && (
-            <nav className="tabs" aria-label={t("history.tabs_label")}>
-              <NavLink to={`/projects/${projectId}`} end className={tabClass}>
-                {t("history.tab_gantt")}
-              </NavLink>
-              {/* Предложение — между лентой и историей, как в макете: лента
-                  остаётся первым экраном проекта, смета — рядом. */}
-              <NavLink to={`/projects/${projectId}/proposal`} className={tabClass}>
-                {t("history.tab_proposal")}
-              </NavLink>
-              {/* Скоркард — после сметы, перед историей: сводка недели ближе
-                  к работе, чем журнал. На публичной странице (/p/...) вкладок
-                  нет вовсе, и скоркард туда не попадает. */}
-              <NavLink to={`/projects/${projectId}/scorecard`} className={tabClass}>
-                {t("history.tab_scorecard")}
-              </NavLink>
-              <NavLink to={`/projects/${projectId}/history`} className={tabClass}>
-                {t("history.tab_history")}
-              </NavLink>
-            </nav>
-            )}
 
             {tab === "history" && (
               <ProjectHistory projectId={projectId} state={query.data} canUndo={editable} />
@@ -525,7 +507,6 @@ export function Project({
                     {t(focusMode ? "gantt.toolbar.focus_exit" : "gantt.toolbar.focus")}
                   </button>
                 }
-                onCondense={setCondensed}
                 onAddTask={editable ? setAddingTaskAt : undefined}
                 newTaskAt={addingTaskAt}
                 onCloseNewTask={() => setAddingTaskAt(null)}

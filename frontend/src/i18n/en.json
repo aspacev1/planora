@@ -301,6 +301,9 @@
       "not_started": "Not started",
       "not_planned": "Beyond the plan",
       "completed": "Completed"
+    },
+    "actions": {
+      "more": "More actions"
     }
   },
   "my_tasks": {

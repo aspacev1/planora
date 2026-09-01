@@ -110,6 +110,26 @@
   color: var(--text-muted);
 }
 
+/* Крестик — у правого края подсказки: прочитанную закрывают, и полоса в
+   полсотни пикселей перестаёт стоять над лентой при каждом её открытии
+   (см. planHint.ts). Своей рамки не рисует: подсказка тихая, и обведённая
+   кнопка в ней читалась бы главнее самого текста. */
+.gantt__plan-hint-close {
+  margin-left: auto;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gantt__plan-hint-close:hover {
+  color: var(--text);
+}
+
 .gantt__summary.is-late {
   background: var(--danger-soft);
   color: var(--danger-strong);

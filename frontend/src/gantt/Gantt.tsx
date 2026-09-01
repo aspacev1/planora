@@ -43,6 +43,7 @@ import type { ColumnKey, ColumnLayout } from "./columns";
 import { rememberLayout, storedLayout } from "./columns";
 import { DAY_WIDTH, ROW_HEIGHT, lastOfMonth, projectWindow } from "./scale";
 import type { Zoom } from "./scale";
+import { hidePlanHint, planHintHidden } from "./planHint";
 import { rememberZoom, storedZoom } from "./scalePreference";
 import { addDays, buildScale, daysBetween } from "./timescale";
 import { useToday } from "../time/useToday";
@@ -91,18 +92,6 @@ function byPosition<T extends { position: number; id: string }>(rows: T[]): T[] 
  */
 export type NewTaskAt = { categoryId: string; before: string | null };
 
-/**
- * Пороги признака «лента прокручена вглубь» — с зазором, а не одной чертой.
- *
- * По этому признаку экран сжимает шапку проекта, а сжатие меняет высоту самой
- * ленты (см. useViewportFit). Одна черта на границе давала бы дребезг: сжатие
- * у порога чуть сдвигает прокрутку, признак снимается, шапка разворачивается —
- * и так по кругу под рукой. С зазором сжатое состояние держится до самого
- * верха, а верхнее — до заметного погружения.
- */
-const CONDENSE_AFTER = 32;
-const EXPAND_BEFORE = 4;
-
 export function Gantt({
   projectId,
   state,
@@ -121,7 +110,6 @@ export function Gantt({
   toolbarAction,
   scheduleAction,
   focusAction,
-  onCondense,
   assigneeNames,
 }: {
   projectId: string;
@@ -201,15 +189,6 @@ export function Gantt({
    */
   focusAction?: ReactNode;
   /**
-   * Лента ушла прокруткой вглубь плана — или вернулась к его верху.
-   *
-   * По этому признаку экран сжимает шапку проекта: пока человек наверху,
-   * шапка полная, а прокрутка вниз означает «сейчас читают план», и место
-   * над лентой дороже сводки. Зовётся только на смене признака, не на каждом
-   * обороте колеса (см. CONDENSE_AFTER/EXPAND_BEFORE).
-   */
-  onCondense?: (condensed: boolean) => void;
-  /**
    * Состав организации: имена по идентификаторам. Ими подписаны исполнители в
    * карточке наведения и в колонке — из них же выбирают новых прямо со строки.
    *
@@ -238,12 +217,17 @@ export function Gantt({
   // спрашивать заново то, что уже решили (см. scalePreference.ts).
   const [zoom, setZoomState] = useState<Zoom>(() => storedZoom(projectId) ?? "day");
 
+  // Закрыта ли подсказка про относительный план. Тем же способом, что и
+  // масштаб: спрошено один раз при открытии проекта, дальше держится здесь.
+  const [hintHidden, setHintHidden] = useState(() => planHintHidden(projectId));
+
   // Экран проекта не размонтирует ленту при смене адреса — те же компоненты
   // просто получают другой `projectId`. Без этого эффекта лента при переходе
   // между проектами тащила бы за собой масштаб предыдущего вместо того,
   // чтобы вспомнить, каким его в последний раз выбрали здесь.
   useEffect(() => {
     setZoomState(storedZoom(projectId) ?? "day");
+    setHintHidden(planHintHidden(projectId));
   }, [projectId]);
 
   const setZoom = (next: Zoom) => {
@@ -457,28 +441,6 @@ export function Gantt({
     const index = Math.floor(center);
     focus.current = { date: addDays(scale.from, index), fraction: center - index };
   }, [scale]);
-
-  // Последнее сообщённое экрану значение признака «прокручено вглубь».
-  // Ссылка, а не состояние: сама лента от него не перерисовывается — оно
-  // нужно только чтобы не звать onCondense на каждом обороте колеса.
-  const condensed = useRef(false);
-
-  const handleScroll = () => {
-    rememberFocus();
-    const element = scroller.current;
-    if (onCondense === undefined || element === null) return;
-    // Между порогами признак держит прежнее значение — это и есть зазор,
-    // ради которого порогов два (см. CONDENSE_AFTER).
-    const next =
-      element.scrollTop > CONDENSE_AFTER
-        ? true
-        : element.scrollTop < EXPAND_BEFORE
-          ? false
-          : condensed.current;
-    if (next === condensed.current) return;
-    condensed.current = next;
-    onCondense(next);
-  };
 
   // Слой ниже — единственное место, где лента прокручивается сама.
   //
@@ -729,8 +691,25 @@ export function Gantt({
       </div>
 
       {/* Подсказка вместо сводки по дедлайну: у относительного плана
-          настоящих сроков нет, и строка объясняет, что с этим делать. */}
-      {relativeAxis && <p className="gantt__plan-hint">{t("gantt.relative.hint")}</p>}
+          настоящих сроков нет, и строка объясняет, что с этим делать.
+          Прочитанную закрывают — см. planHint про то, почему она вообще
+          закрывается и почему память о закрытии живёт в браузере. */}
+      {relativeAxis && !hintHidden && (
+        <p className="gantt__plan-hint">
+          {t("gantt.relative.hint")}
+          <button
+            type="button"
+            className="gantt__plan-hint-close"
+            aria-label={t("common.close")}
+            onClick={() => {
+              hidePlanHint(projectId);
+              setHintHidden(true);
+            }}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </p>
+      )}
 
       {/* Сводка сравнивает конец проекта с дедлайном — двумя настоящими
           датами; у относительной оси её не бывает. */}
@@ -759,7 +738,7 @@ export function Gantt({
         </div>
       ) : (
         <>
-        <div className="gantt__scroll" ref={scroller} onScroll={handleScroll}>
+        <div className="gantt__scroll" ref={scroller} onScroll={rememberFocus}>
           <div className="gantt__canvas">
             <div className="gantt__head-row">
               <div className="gantt__label gantt__corner">
