@@ -574,14 +574,67 @@ describe("относительная шкала", () => {
 
     expect(container.querySelector(".gantt__today")).toBeNull();
     expect(container.querySelector(".gantt__deadline")).toBeNull();
-    // Сводка по дедлайну тоже молчит — вместо неё строка-подсказка.
+    // Сводка по дедлайну тоже молчит: сравнивать нечего.
     expect(container.querySelector(".gantt__summary")).toBeNull();
-    expect(container.querySelector(".gantt__plan-hint")).not.toBeNull();
+  });
+
+  it("объясняет режим подсказкой бейджа, а не строкой над лентой", () => {
+    const { container } = draw(RELATIVE);
+
+    // Отдельной строки над лентой больше нет: она говорила третий раз то же,
+    // что уже сказали бейдж и кнопка рядом, и стоила ленте полсотни пикселей
+    // высоты (см. тулбар в Gantt.tsx).
+    expect(container.querySelector(".gantt__plan-hint")).toBeNull();
+    expect(screen.getByText("Относительный план")).toHaveAttribute(
+      "title",
+      "Планируйте сроки сейчас. Дату старта назначите, когда проект согласуют.",
+    );
   });
 
   it("называет режим в тулбаре", () => {
     draw(RELATIVE);
     expect(screen.getByText("Относительный план")).toBeInTheDocument();
+  });
+
+  it("занимает всю отведённую ширину целыми неделями", () => {
+    // Ширину ленты jsdom не считает вовсе — её приходится назвать. Заодно это
+    // и есть проверяемое: окно относительного плана не выведено ни из чего,
+    // кроме этой меры (см. weeksAcross в relative.ts).
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+    // 2300 = колонка названий (468 — имя и обе даты по умолчанию) + 1832 под
+    // шкалу: лента открывается в дневном масштабе, неделя в нём 364 пикселя,
+    // и целых недель помещается пять — остаток в 12 пикселей на неделю не
+    // тянет и уходит под полосу «вне плана».
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      value: 2300,
+      configurable: true,
+    });
+    try {
+      const { container } = draw(RELATIVE);
+      expect(container.querySelectorAll(".gantt__week")).toHaveLength(5);
+      // Второй «месяц» неполный — так шкалу и режет relativeMonths.
+      expect(container.querySelectorAll(".gantt__month")).toHaveLength(2);
+    } finally {
+      // Своего `clientWidth` у HTMLElement нет — он объявлен выше, на Element,
+      // и вернуть подменённое можно только сняв подмену: `defineProperty` с
+      // `undefined` оставил бы её висеть на всех следующих тестах файла.
+      if (original) Object.defineProperty(HTMLElement.prototype, "clientWidth", original);
+      else Reflect.deleteProperty(HTMLElement.prototype, "clientWidth");
+    }
+  });
+
+  it("остаток за краем плана размечен, а не оставлен белым", () => {
+    const { container } = draw(RELATIVE);
+
+    // Полоса стоит дважды — в шапке и в теле — и обе невидимы для чтения с
+    // экрана: это фон, а не содержимое (см. .gantt__beyond в gantt.css).
+    const strips = container.querySelectorAll(".gantt__beyond");
+    expect(strips).toHaveLength(2);
+    for (const strip of strips) expect(strip).toHaveAttribute("aria-hidden", "true");
+    // Ширина шкалы уехала в стили: по ней полоса и находит своё начало.
+    // Четыре недели дневного масштаба: 28 дней по 52 пикселя.
+    expect((container.querySelector(".gantt") as HTMLElement).style.getPropertyValue("--gantt-lane"))
+      .toBe("1456px");
   });
 
   it("календарный проект с датой старта не предлагает переключиться в относительный вид", () => {

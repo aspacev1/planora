@@ -169,6 +169,60 @@ describe("исполнители со строки", () => {
   });
 });
 
+describe("пустая категория", () => {
+  // В STATE (см. test/project.ts) задачи есть только у «Дизайна»; «Разработка»
+  // пуста — она и объясняет пустую полосу.
+
+  it("объясняет пустую полосу и заводит из неё первую задачу", async () => {
+    renderProject(STATE);
+    await screen.findByRole("button", { name: /Логотип/ });
+
+    const hint = screen.getByRole("button", { name: "Задач пока нет — добавьте первую" });
+    // Подсказка стоит в полосе своей категории, а не отдельной строкой ленты.
+    expect(hint.closest(".gantt__row")).toHaveAttribute("data-drop-id", "c2");
+
+    await userEvent.click(hint);
+    expect(screen.getByRole("textbox", { name: "Новая задача в «Разработка»" })).toHaveFocus();
+  });
+
+  it("подсказка одна на ленту, и наполненной категории её не достаётся", async () => {
+    renderProject(STATE);
+    await screen.findByRole("button", { name: /Логотип/ });
+
+    expect(document.querySelectorAll(".gantt__lane-hint")).toHaveLength(1);
+  });
+
+  it("подсказка уходит, как только в категорию открыли поле ввода", async () => {
+    renderProject(STATE);
+    await screen.findByRole("button", { name: /Логотип/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Задач пока нет — добавьте первую" }));
+
+    // «Задач пока нет» рядом с уже открытым полем спорило бы с набираемым
+    // именем строкой ниже.
+    expect(document.querySelector(".gantt__lane-hint")).toBeNull();
+  });
+
+  it("«плюс» пустой категории виден без наведения, у наполненной — нет", async () => {
+    renderProject(STATE);
+    await screen.findByRole("button", { name: /Логотип/ });
+
+    // Признак — на строке: сама видимость задана стилем (см. is-empty в
+    // gantt.css), а jsdom стилей не считает.
+    const rows = [...document.querySelectorAll(".gantt__row--category")];
+    const byId = (id: string) => rows.find((row) => row.getAttribute("data-drop-id") === id);
+    expect(byId("c2")).toHaveClass("is-empty");
+    expect(byId("c1")).not.toHaveClass("is-empty");
+  });
+
+  it("читателю пустая полоса действия не обещает", async () => {
+    renderProject(STATE, { canWrite: false });
+    await screen.findByRole("button", { name: /Логотип/ });
+
+    expect(document.querySelector(".gantt__lane-hint")).toBeNull();
+  });
+});
+
 describe("вставка строки посередине", () => {
   /** «Плюс» на верхней границе строки названной задачи — теперь пункт меню «⋯». */
   async function insert(taskId: string) {

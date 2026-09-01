@@ -20,7 +20,13 @@ import { AddCategoryRow, AddTaskRow, NewCategoryRow, PendingCategoryRow } from "
 import { HeadCells } from "./Cells";
 import { Grid } from "./Grid";
 import { Header, RelativeHeader } from "./Header";
-import { RELATIVE_EPOCH, relativeDayLabel, relativeWeekEnd, relativeWindow } from "./relative";
+import {
+  RELATIVE_EPOCH,
+  relativeDayLabel,
+  relativeWeekEnd,
+  relativeWindow,
+  weeksAcross,
+} from "./relative";
 import { Arrows } from "./Arrows";
 import { NewTaskRow, PendingRow } from "./NewTaskRow";
 import { CategoryRow, TaskRow } from "./Row";
@@ -30,6 +36,7 @@ import { useLinkDrag } from "./useLinkDrag";
 import { useQuickCategory } from "./useQuickCategory";
 import { useQuickTask } from "./useQuickTask";
 import { useReorder } from "./useReorder";
+import { useLaneWidth } from "./useLaneWidth";
 import { useViewportFit } from "./useViewportFit";
 import {
   COLUMN_KEYS,
@@ -386,11 +393,20 @@ export function Gantt({
   const [reach, setReach] = useState<string | null>(null);
   const onReach = useCallback((endISO: string | null) => setReach(endISO), []);
 
+  const dayWidth = DAY_WIDTH[zoom];
+  // Сколько места остаётся шкале справа от таблицы. Знает об этом только
+  // относительное окно: у плана без дат правый край не выведен ни из чего, и
+  // без поправки на ширину экрана он всегда один и тот же — четыре недели,
+  // после которых до края шло белое поле (см. `weeksAcross`).
+  const laneSpace = useLaneWidth(scroller) - layoutWidth(layout);
+
   // Зависимость — границы окна, а не само состояние: после каждого изменения
   // сервер присылает новый объект состояния, и шкала, привязанная к его
   // тождеству, пересобиралась бы всякий раз — вместе со всеми делениями и
   // месяцами, которые от правки одной задачи не изменились.
-  const base = relativeAxis ? relativeWindow(state, anchor) : projectWindow(state, today);
+  const base = relativeAxis
+    ? relativeWindow(state, anchor, weeksAcross(laneSpace, dayWidth))
+    : projectWindow(state, today);
   const from = base.from;
   // Достройка меняет только правый край: `from` и ширина дня стоят на месте,
   // поэтому `Scale.key` не меняется и координаты всех полосок остаются теми
@@ -401,7 +417,6 @@ export function Gantt({
       : relativeAxis
         ? relativeWeekEnd(reach, anchor)
         : lastOfMonth(reach);
-  const dayWidth = DAY_WIDTH[zoom];
   const scale = useMemo(() => buildScale({ from, to, dayWidth }), [dayWidth, from, to]);
 
   // Подтверждённый перенос накрыл достройку своим окном — её можно снять, не
@@ -526,6 +541,30 @@ export function Gantt({
     categories.map((category) => [category.id, tasksByCategory.get(category.id)?.length ?? 0]),
   );
 
+  /**
+   * Категория, чья пустая полоса объяснит, что с ней делать, — самая верхняя
+   * из пустых, и только она одна.
+   *
+   * Категории есть, задач нет — обычное состояние только что заведённого
+   * проекта, и до сих пор оно не объяснялось ничем: пустой экран лента
+   * объясняет, только пока нет ни одной категории (см. `gantt.empty` ниже), а
+   * дальше остаётся пустая сетка. Подсказка в каждой пустой полосе была бы
+   * тремя одинаковыми строками подряд: приём, понятый на первой, работает и на
+   * остальных — тем более что «плюс» на строке у пустых категорий с этой же
+   * правкой перестал прятаться до наведения.
+   *
+   * Категория со строкой ожидания или с открытым полем ввода пустой не
+   * считается: задача в неё уже идёт, и «задач пока нет» спорило бы с
+   * набранным именем, стоящим строкой ниже.
+   */
+  const hintedCategoryId =
+    categories.find(
+      (category) =>
+        (tasksByCategory.get(category.id)?.length ?? 0) === 0 &&
+        quick.pendingIn(category.id).length === 0 &&
+        newTaskAt?.categoryId !== category.id,
+    )?.id ?? null;
+
   const isLate = (task: Task) => state.deadline !== null && task.end_date > state.deadline;
 
   /** Подпись бейджа отклонения. Ноль дней бейджа не получает: он ни о чём.
@@ -639,6 +678,9 @@ export function Gantt({
         {
           "--gantt-row": `${ROW_HEIGHT}px`,
           "--gantt-label": `${layoutWidth(layout)}px`,
+          // Ширина шкалы — стилям: по ней встаёт полоса «вне плана», а она
+          // рисуется двумя узлами на всю ленту, а не по одному в строке.
+          "--gantt-lane": `${scale.width}px`,
           "--motion": `${MOTION_MS}ms`,
         } as CSSProperties
       }
@@ -658,7 +700,16 @@ export function Gantt({
               проекта переключателя обратно в «Месяц 1 / Неделя 1» больше нет,
               назначенная дата старта окончательна. */}
           {relativeAxis && (
-            <span className="project-toolbar__mode">{t("gantt.relative.badge")}</span>
+            // Подробность — подсказкой самого бейджа, а не отдельной строкой
+            // над лентой: та говорила третий раз то же, что уже сказали бейдж
+            // и кнопка «Назначить дату старта» рядом, и стоила ленте полсотни
+            // пикселей высоты при каждом открытии проекта — высота ленты
+            // считается вычитанием всего, что стоит над ней (см.
+            // useViewportFit). Заодно уходит перекос: плашку видел и читатель,
+            // у которого кнопки назначения нет вовсе.
+            <span className="project-toolbar__mode" title={t("gantt.relative.hint")}>
+              {t("gantt.relative.badge")}
+            </span>
           )}
 
           {scheduleAction}
@@ -727,10 +778,6 @@ export function Gantt({
               способ смотреть, самый широкий из них. */}
           {focusAction}
       </div>
-
-      {/* Подсказка вместо сводки по дедлайну: у относительного плана
-          настоящих сроков нет, и строка объясняет, что с этим делать. */}
-      {relativeAxis && <p className="gantt__plan-hint">{t("gantt.relative.hint")}</p>}
 
       {/* Сводка сравнивает конец проекта с дедлайном — двумя настоящими
           датами; у относительной оси её не бывает. */}
@@ -805,9 +852,18 @@ export function Gantt({
                   weekdayLabel={(weekday) => weekdayNarrow(t, weekday)}
                 />
               )}
+              {/* Пустое поле за правым краем шкалы. Лента идёт во всю ширину
+                  экрана, а план — только до своего конца, и без этой полосы
+                  разница между «здесь ничего не запланировано» и «здесь
+                  оборвалась вёрстка» видна не была: сетка просто кончалась
+                  белым швом. Двумя узлами на всю ленту, а не по одному в
+                  строке: поле одинаково во всех строках — тот же довод, по
+                  которому одна на всех и сама сетка (см. Grid). */}
+              <div className="gantt__beyond gantt__beyond--head" aria-hidden="true" />
             </div>
 
             <div className="gantt__body">
+              <div className="gantt__beyond" aria-hidden="true" />
               <Grid
                 scale={scale}
                 calendar={state.calendar}
@@ -904,6 +960,14 @@ export function Gantt({
                         moveLabel={t("gantt.move_category", { name: category.name })}
                         reorderLabel={t("gantt.reorder_category", { name: category.name })}
                         addLabel={t("task.add_to", { category: category.name })}
+                        // Подсказка в пустой полосе — только у одной категории
+                        // и только тому, кто может писать (см.
+                        // hintedCategoryId выше).
+                        emptyHint={
+                          onAddTask && category.id === hintedCategoryId
+                            ? t("gantt.category_empty")
+                            : undefined
+                        }
                         // Плюс на строке категории кладёт задачу в её конец:
                         // место в середине выбирают плюсом на границе строк.
                         onAddTask={
@@ -992,12 +1056,11 @@ export function Gantt({
                 {onAddTask && (
                   <AddTaskRow
                     scale={scale}
-                    label={t("gantt.row_menu.add_task")}
-                    // Отдельная подпись для читалки: видимый текст один на
-                    // всю ленту и не называет категорию, в которую ляжет
-                    // задача, а до неё — единственной, куда кладёт эта строка
-                    // — стоит сказать вслух.
-                    ariaLabel={t("task.add_to", {
+                    // Одна подпись на глаз и на слух: та же строка, что и у
+                    // «плюса» на строке этой категории, — одно действие, одно
+                    // имя. Прежде видимый текст называл действие, а имя
+                    // категории знала только читалка (см. AddTaskRow).
+                    label={t("task.add_to", {
                       category: categories[categories.length - 1].name,
                     })}
                     onClick={() =>

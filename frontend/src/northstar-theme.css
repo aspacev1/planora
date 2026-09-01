@@ -301,7 +301,10 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
    в том же ряду, и тулбар читался двумя этажами вместо одного. */
 /* Индикатор «Относительный план»: плашка состояния, а не кнопка — до
    назначения даты старта режим один и переключать нечего. */
-.project-toolbar__mode { display: inline-flex; align-items: center; height: 29px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; white-space: nowrap; }
+.project-toolbar__mode { display: inline-flex; align-items: center; gap: 5px; height: 29px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; white-space: nowrap; cursor: help; }
+/* Знак ⓘ — псевдоэлементом, а не разметкой: он говорит, что у бейджа есть
+   подсказка, и в читалку отдельным словом попадать при этом не должен. */
+.project-toolbar__mode::before { content: "ⓘ"; font-weight: 400; }
 
 .project__body { gap: 0; align-items: stretch; }
 

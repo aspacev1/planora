@@ -19,10 +19,37 @@ import type { Scale } from "./timescale";
  * левой (см. `Lane` ниже и требование к сетке Ганта в макете).
  */
 
-/** Пустая полоса шкалы — своей ширины, без содержимого: полоски здесь ещё
-    нет и не будет, но лента не должна обрываться по краю таблицы. */
-function Lane({ scale }: { scale: Scale }) {
-  return <div className="gantt__lane" style={{ width: scale.width }} />;
+/**
+ * Пустая полоса шкалы — своей ширины, без содержимого: полоски здесь ещё нет и
+ * не будет, но лента не должна обрываться по краю таблицы.
+ *
+ * У строк, которые нажимаются, она нажимается вместе с ними. Подсветка под
+ * курсором накрывает строку целиком — и полосу тоже (см. `.gantt__row:hover`
+ * в gantt.css), а нажималась до сих пор одна колонка названий: две трети
+ * подсвеченной строки на нажатие не отвечали вовсе. Полоса пуста, полоски в
+ * ней не будет, и отдавать её нечему — кроме того же действия, что и у
+ * подписи слева.
+ *
+ * Второй кнопкой, а не растянутой первой: колонка названий закреплена
+ * прокруткой (`position: sticky`), и одна кнопка на обе половины уносила бы
+ * подпись за левый край на прокрученной вправо ленте. Читалке эта половина не
+ * нужна и от неё скрыта — действие у строки одно, и названо оно кнопкой в
+ * колонке названий.
+ */
+function Lane({ scale, onClick }: { scale: Scale; onClick?: () => void }) {
+  if (onClick === undefined) {
+    return <div className="gantt__lane" style={{ width: scale.width }} />;
+  }
+  return (
+    <button
+      type="button"
+      className="gantt__lane gantt__lane--add"
+      style={{ width: scale.width }}
+      tabIndex={-1}
+      aria-hidden="true"
+      onClick={onClick}
+    />
+  );
 }
 
 /**
@@ -36,25 +63,34 @@ function Lane({ scale }: { scale: Scale }) {
 export function AddTaskRow({
   scale,
   label,
-  ariaLabel,
   onClick,
 }: {
   scale: Scale;
+  /**
+   * Подпись с именем категории, в которую строка кладёт задачу, — та же,
+   * которую произносит читалка.
+   *
+   * Прежде видимая подпись называлась просто «Добавить задачу», а имя
+   * категории знала одна читалка: зрячий видел меньше, чем слышал слепой. Пока
+   * категорий три и все на экране, соседство отвечало за подпись само; на
+   * списке в полсотни строк заголовок уезжает вверх, и строка читается как
+   * «добавить куда-нибудь». Длинное имя уступает место многоточием —
+   * см. `.gantt__add-label`.
+   */
   label: string;
-  ariaLabel: string;
   onClick: () => void;
 }) {
   return (
     <div className="gantt__row gantt__row--add gantt__row--add-task">
       <div className="gantt__label">
-        <button type="button" className="gantt__add" title={ariaLabel} aria-label={ariaLabel} onClick={onClick}>
+        <button type="button" className="gantt__add" title={label} onClick={onClick}>
           <span className="gantt__add-plus" aria-hidden="true">
             +
           </span>
           <span className="gantt__add-label">{label}</span>
         </button>
       </div>
-      <Lane scale={scale} />
+      <Lane scale={scale} onClick={onClick} />
     </div>
   );
 }
@@ -77,14 +113,14 @@ export function AddCategoryRow({
   return (
     <div className="gantt__row gantt__row--add gantt__row--add-category">
       <div className="gantt__label">
-        <button type="button" className="gantt__add" onClick={onClick}>
+        <button type="button" className="gantt__add" title={label} onClick={onClick}>
           <span className="gantt__add-plus" aria-hidden="true">
             +
           </span>
           <span className="gantt__add-label">{label}</span>
         </button>
       </div>
-      <Lane scale={scale} />
+      <Lane scale={scale} onClick={onClick} />
     </div>
   );
 }
