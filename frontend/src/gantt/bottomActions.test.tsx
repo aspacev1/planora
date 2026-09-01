@@ -35,6 +35,41 @@ describe("низ ленты", () => {
     expect(screen.getByRole("textbox", { name: "Новая задача в «Разработка»" })).toHaveFocus();
   });
 
+  it("подпись называет категорию, в которую строка кладёт задачу", async () => {
+    renderProject(STATE);
+    await screen.findByRole("button", { name: /Логотип/ });
+
+    // Видимый текст и произносимое имя — одна и та же строка: прежде подпись
+    // называлась просто «Добавить задачу», а имя категории знала только
+    // читалка (см. AddTaskRow).
+    const cta = addTaskCta();
+    expect(cta).toHaveAccessibleName("Добавить задачу в «Разработка»");
+    expect(cta).toHaveTextContent("Добавить задачу в «Разработка»");
+  });
+
+  it("нажимается вся строка, а не одна колонка названий", async () => {
+    renderProject(STATE);
+    await screen.findByRole("button", { name: /Логотип/ });
+
+    // Подсветка под курсором накрывает строку целиком, включая полосу шкалы
+    // (см. `.gantt__row:hover` в gantt.css) — значит, и нажатие обязано
+    // работать всюду, где строка подсвечена.
+    const lane = document.querySelector(".gantt__row--add-task .gantt__lane") as HTMLElement;
+    expect(lane).not.toBeNull();
+    await userEvent.click(lane);
+
+    expect(screen.getByRole("textbox", { name: "Новая задача в «Разработка»" })).toHaveFocus();
+  });
+
+  it("половина со стороны шкалы читалке не показывается: действие у строки одно", async () => {
+    renderProject(STATE);
+    await screen.findByRole("button", { name: /Логотип/ });
+
+    const lane = document.querySelector(".gantt__row--add-task .gantt__lane") as HTMLElement;
+    expect(lane).toHaveAttribute("aria-hidden", "true");
+    expect(lane).toHaveAttribute("tabindex", "-1");
+  });
+
   it("«+ Новая категория» заводит категорию строкой, а не окном", async () => {
     const sent = captureMutations();
     renderProject(STATE);

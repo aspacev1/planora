@@ -55,16 +55,43 @@ export function relativeWeekEnd(iso: string, anchor: string = RELATIVE_EPOCH): s
 }
 
 /**
+ * Сколько целых недель помещается в отведённую шкале ширину.
+ *
+ * Нижняя граница окна ленты, а не его настоящий край: окно всё равно
+ * дотягивается до последней занятой недели, если задачи уходят дальше (см.
+ * `relativeWindow`). Нужна потому, что окно относительного плана не выведено
+ * из дат — настоящих дат у него нет, — и без этой поправки оно всегда ровно
+ * четыре недели: 504 пикселя на масштабе «Месяц», сколько бы места ни было на
+ * экране. Остаток справа при этом оставался белым, и правый край ленты
+ * читался обрывом вёрстки, а не концом плана.
+ *
+ * Недели целые: шапка режется по неделям (см. `spansOf`), и половина недели в
+ * её конце читалась бы тем же обрывом, от которого здесь и уходят. Остаток
+ * меньше недели закрывает полоса «вне плана» (см. `.gantt__beyond`).
+ *
+ * Не меньше «месяца»: узкое окно не повод показать пустому проекту меньше
+ * шкалы, чем «Месяц 1» целиком.
+ */
+export function weeksAcross(laneWidth: number, dayWidth: number): number {
+  const weekWidth = WEEK_DAYS * dayWidth;
+  // Ширины ещё нет (первая отрисовка, jsdom) — шкала строится по умолчанию.
+  if (!(laneWidth > 0) || !(weekWidth > 0)) return MONTH_WEEKS;
+  return Math.max(MONTH_WEEKS, Math.floor(laneWidth / weekWidth));
+}
+
+/**
  * Окно относительной ленты.
  *
- * От якоря до конца последней занятой недели — и не короче четырёх недель:
- * пустой проект всё равно показывает шкалу «Месяц 1». Дедлайн и сегодняшний
- * день в окно не входят намеренно: обе даты настоящие, а на этой оси
- * настоящих дат нет.
+ * От якоря до конца последней занятой недели — и не короче `minWeeks` недель:
+ * пустой проект всё равно показывает шкалу «Месяц 1», а на широком экране —
+ * столько целых недель, сколько помещается (см. `weeksAcross`). Дедлайн и
+ * сегодняшний день в окно не входят намеренно: обе даты настоящие, а на этой
+ * оси настоящих дат нет.
  */
 export function relativeWindow(
   state: ProjectState,
   anchor: string = RELATIVE_EPOCH,
+  minWeeks: number = MONTH_WEEKS,
 ): { from: string; to: string } {
   const dates = [
     ...state.tasks.map((task) => task.start_date),
@@ -73,9 +100,9 @@ export function relativeWindow(
   ].filter((date) => date >= anchor);
 
   const latest = dates.length === 0 ? anchor : dates.reduce((a, b) => (a > b ? a : b));
-  const monthEnd = addDays(anchor, MONTH_WEEKS * WEEK_DAYS - 1);
+  const floorEnd = addDays(anchor, Math.max(MONTH_WEEKS, minWeeks) * WEEK_DAYS - 1);
   const weekEnd = relativeWeekEnd(latest, anchor);
-  return { from: anchor, to: weekEnd > monthEnd ? weekEnd : monthEnd };
+  return { from: anchor, to: weekEnd > floorEnd ? weekEnd : floorEnd };
 }
 
 export type RelativeSpan = {

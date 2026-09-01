@@ -1,13 +1,9 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { ProjectState } from "../api/projects";
-import { STATE, projectFixtures, renderProject } from "../test/project";
+import { projectFixtures, renderProject } from "../test/project";
 
-beforeEach(() => {
-  projectFixtures();
-  localStorage.clear();
-});
+beforeEach(projectFixtures);
 
 async function tape(): Promise<HTMLElement> {
   await screen.findByRole("heading", { name: "Редизайн" });
@@ -89,50 +85,6 @@ describe("шапка проекта одной строкой", () => {
     // под «⋯» им не место.
     expect(bar()).toHaveTextContent("План проекта · черновик");
     expect(bar()).toHaveTextContent("Согласовать план");
-  });
-});
-
-/** Относительный проект: подсказка про даты старта живёт только у него. */
-const RELATIVE: ProjectState = {
-  ...STATE,
-  schedule_mode: "relative",
-  project_end: "2001-01-12",
-  calendar: { working_days: 31, holidays: [], extra_workdays: [] },
-  tasks: [
-    {
-      ...STATE.tasks[0],
-      start_date: "2001-01-01",
-      end_date: "2001-01-12",
-      start_offset_days: 0,
-      duration_days: 10,
-    },
-  ],
-};
-
-describe("подсказка про относительный план", () => {
-  const hint = () => document.querySelector(".gantt__plan-hint");
-
-  it("закрывается и не возвращается при следующем открытии проекта", async () => {
-    const first = renderProject(RELATIVE);
-    await tape();
-    expect(hint()).not.toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
-    expect(hint()).toBeNull();
-
-    first.unmount();
-    renderProject(RELATIVE);
-    await tape();
-
-    // Полоса в полсотни пикселей не встаёт над лентой заново на каждом входе.
-    expect(hint()).toBeNull();
-  });
-
-  it("у календарного проекта её нет вовсе", async () => {
-    renderProject();
-    await tape();
-
-    expect(hint()).toBeNull();
   });
 });
 

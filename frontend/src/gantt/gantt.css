@@ -90,46 +90,6 @@
   font-weight: 500;
 }
 
-/* Информационная строка относительного плана — на месте сводки по дедлайну
-   и той же формы: у плана без дат это и есть его сводка. Знак ⓘ — из
-   разметки псевдоэлементом, чтобы не попадать в читалку отдельным словом. */
-.gantt__plan-hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 14px 32px 0;
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-  background: var(--hover);
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.gantt__plan-hint::before {
-  content: "ⓘ";
-  color: var(--text-muted);
-}
-
-/* Крестик — у правого края подсказки: прочитанную закрывают, и полоса в
-   полсотни пикселей перестаёт стоять над лентой при каждом её открытии
-   (см. planHint.ts). Своей рамки не рисует: подсказка тихая, и обведённая
-   кнопка в ней читалась бы главнее самого текста. */
-.gantt__plan-hint-close {
-  margin-left: auto;
-  padding: 0 4px;
-  border: 0;
-  background: none;
-  box-shadow: none;
-  color: var(--text-muted);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.gantt__plan-hint-close:hover {
-  color: var(--text);
-}
-
 .gantt__summary.is-late {
   background: var(--danger-soft);
   color: var(--danger-strong);
@@ -298,8 +258,53 @@
 
 .gantt__head {
   position: relative;
+  /* Своей ширины, не растяжимая: справа от неё стоит полоса «вне плана», и
+     без запрета шкала растянулась бы на её место сама. */
+  flex: 0 0 auto;
   height: var(--gantt-head);
   background: #fafbfc;
+}
+
+/* Поле за правым краем плана.
+
+   Окно ленты кончается там, где кончается план, а лента идёт во всю ширину
+   экрана: между ними остаётся полоса, которая раньше была просто белой — и
+   правый край сетки читался обрывом вёрстки, а не концом плана. Штриховка
+   говорит то же, что говорила бы подпись: сюда план не доходит.
+
+   Тонкая и почти беззвучная нарочно: это фон, а не содержимое, и спорить с
+   полосками задач ему не за чем. Началом служит ширина шкалы, переданная
+   разметкой (см. --gantt-lane в Gantt.tsx): второе такое же число, посчитанное
+   в стилях, разошлось бы с сеткой на первой же смене масштаба. */
+.gantt__beyond {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgb(36 48 68 / 3.5%) 0,
+    rgb(36 48 68 / 3.5%) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  border-left: 1px solid var(--border);
+}
+
+/* В шапке — обычным соседом шкалы: строка шапки и так выложена в ряд, и
+   растянуть остаток проще, чем считать его координаты. */
+.gantt__beyond--head {
+  flex: 1 1 auto;
+  min-width: 0;
+  background-color: #fafbfc;
+}
+
+/* В теле — слоем под строками, как и сетка: строки прозрачны всюду, кроме
+   закреплённой колонки, и полоса видна сквозь них. Правый край не назван —
+   поле идёт до конца холста, каким бы широким тот ни был. */
+.gantt__body > .gantt__beyond {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: calc(var(--gantt-label) + var(--gantt-lane));
+  z-index: 0;
 }
 
 .gantt__months {
@@ -825,6 +830,21 @@
   transition: color var(--motion-fast) var(--motion-ease);
 }
 
+/* Половина строки со стороны шкалы — та же кнопка, что и подпись слева.
+
+   Кнопкой, а не полосой с обработчиком: она приносит курсор, нажатие с
+   клавиатуры и роль даром, и её же остаётся только раздеть до вида полосы.
+   Из порядка обхода и из чтения с экрана она убрана разметкой (см. Lane в
+   BottomActions.tsx) — действие у строки одно. */
+.gantt__lane--add {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
 /* Подпись — своим переносом, а не общим на всю кнопку: у кнопки два
    потомка (знак и текст), и обрезка многоточием на ней самой просто срезала
    бы хвост подписи без «…». На узкой (свёрнутой) таблице подпись уступает
@@ -1160,6 +1180,70 @@
    значение, либо не рисуется вовсе (см. TaskRow). */
 .gantt__row:hover .row-icon {
   opacity: 1;
+}
+
+/* У пустой категории «плюс» виден всегда.
+
+   Прятать до наведения знак, которым эту категорию только и заполняют, значит
+   не показать входа вовсе: у проекта, где категории уже заведены, а задач ещё
+   нет, единственным видимым действием строки оставалось меню «⋯». Наполненной
+   категории это не нужно — там «плюс» ведёт себя как все прочие знаки строки
+   и молчит, пока на неё не навели. */
+.gantt__row--category.is-empty .row-icon {
+  opacity: 1;
+}
+
+/* Приглашение в пустой полосе категории — призрак будущей полоски: та же
+   высота и то же место, что у настоящей (см. --gantt-bar), но без заливки.
+   Ровно одно на ленту, у самой верхней пустой категории (см. hintedCategoryId
+   в Gantt.tsx).
+
+   Грань точками, а не штрихами: штрихами по светлой заливке нарисована
+   запланированная задача (см. .gantt__swatch[data-status="planned"]), и
+   приглашение, повторившее её язык, читалось бы задачей, которой на самом
+   деле нет. Отличают их и подпись со знаком внутри — но узнаваться оно должно
+   раньше, чем прочитано. */
+.gantt__lane-hint {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--gantt-bar);
+  max-width: calc(100% - 28px);
+  padding: 0 12px;
+  border: 1px dotted var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: none;
+  /* Приглушённый, а не бледный: бледный (--text-faint) на белом не набирает и
+     трёх к одному, а это подпись кнопки, а не декорация. */
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.gantt__lane-hint:hover,
+.gantt__lane-hint:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* Знак «+» — цветом действия, а не подписи рядом: он здесь и есть обещание
+   (тот же приём, что у «плюса» в низу ленты, см. .gantt__add-plus). */
+.gantt__lane-hint-plus {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 13px;
+  line-height: 1;
 }
 
 /* Зона действий строки: кнопка «⋯» и панель под ней.
