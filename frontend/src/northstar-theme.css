@@ -308,76 +308,159 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
 
 .project__body { gap: 0; align-items: stretch; }
 
-/* --- сжатие шапки при прокрутке ленты --- */
+/* --- шапка рабочего экрана: одна строка --- */
 
-/* Шапка складывается, когда лента прокручена вглубь плана (см. onCondense у
-   Gantt). Анимируется решёткой, а не max-height: высота шапки «по
-   содержимому» — у неё нет числа, до которого можно ехать, а max-height с
-   запасом дал бы паузу в начале движения, пока невидимый запас съедается.
-   Строка решётки из 1fr в 0fr едет ровно от настоящей высоты до нуля.
-   Общее правило «меньше движения» (styles.css) гасит переход вместе со всеми
-   остальными. Конец переезда заодно повод перемерить ленту — см.
-   useViewportFit про transitionend. */
-.project-fold {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows var(--motion-base) var(--motion-ease);
-}
+/* Пришла на место четырёх ярусов — шапки, срока, полосы метрик и ряда
+   вкладок, — которые вместе с тулбаром ленты оставляли задачам треть окна.
+   Прежде они складывались по прокрутке ленты; складывание помогало только
+   тому, кто уже прокрутил план, а начинают работу наверху, где шапка как раз
+   и стояла во весь рост (см. ProjectBar).
 
-/* min-height обязателен: без него содержимое строки решётки не сжимается ниже
-   своей высоты, и 0fr ничего не сворачивает. */
-.project-fold__inner {
-  overflow: hidden;
-  min-height: 0;
-}
-
-.project-fold.is-condensed {
-  grid-template-rows: 0fr;
-}
-
-/* Сжатая шапка — та же сводка одной строкой: имя, состояние плана, метрики.
-   Метрики уходят вправо, как действия в полной шапке: слева то, что это за
-   проект, справа — что с ним. Появляется тем же проявлением, что всплывающие
-   слои: она и есть слой, вставший на место уехавшей шапки. */
-.project-head-compact {
+   Высота — от органа управления, а не от собственного числа: 36 пикселей
+   кнопки плюс поля и есть весь ярус. Строка переносится: в узком окне ей
+   лучше стать двумя, чем обрезать вкладки. */
+.project-bar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  padding: 8px 24px;
+  gap: 6px 10px;
+  min-height: 44px;
+  padding: 4px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  animation: layer-fade var(--motion-layer) var(--motion-layer-ease);
 }
 
-.project-head-compact__name {
+/* Заголовок экрана остался заголовком, но крупным быть перестал: имя проекта
+   в 25 пикселей отвечало на «куда я попал» ровно один раз за визит, а место
+   занимало всегда. */
+.project-bar__name {
+  margin: 0;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.015em;
+  line-height: 1.2;
 }
 
-.project-head-compact__metrics {
+/* Вкладки отделены от имени и плашек пустотой, а не чертой: черта в середине
+   строки читалась бы как её конец. */
+.project-bar .tabs {
+  gap: 2px;
+  margin: 0 0 0 10px;
+  border-bottom: 0;
+}
+
+/* Выбранная вкладка внутри строки — заливкой, а не подчёркиванием: подчёркнутое
+   в середине ряда висит над собственной границей, до которой ему здесь не
+   достать (нижняя черта у строки одна, и она общая). */
+.project-bar .tabs__link {
+  padding: 6px 10px;
+  margin-bottom: 0;
+  border-bottom: 0;
+  border-radius: var(--radius-md);
+}
+
+.project-bar .tabs__link:hover {
+  background: var(--hover);
+}
+
+.project-bar .tabs__link.is-current {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Редкие действия — у правого края: слева то, что это за проект, справа то,
+   что с ним можно сделать. Тот же порядок, что был в полной шапке. */
+.project-bar__actions {
+  margin-left: auto;
+}
+
+/* --- сводка плана: панель у имени проекта --- */
+
+/* Уголок вплотную к имени: он про этот проект, и пустота между ними читалась
+   бы как «это про что-то другое». Своей рамки не рисует — обведённая кнопка
+   рядом с заголовком спорила бы с ним за внимание. */
+/* Панель раскрывается вправо от уголка, а не влево: общее правило меню
+   прижимает её к правому краю кнопки — так надо тем меню, что стоят у правого
+   края экрана, — а это стоит у левого, и панель уезжала бы за него. */
+.project-bar__summary .menu__pop {
+  right: auto;
+  left: 0;
+}
+
+.project-bar__summary-toggle {
+  min-height: 22px;
+  margin-left: -4px;
+  padding: 0 5px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.project-bar__summary-toggle:hover {
+  background: var(--hover);
+  box-shadow: none;
+  color: var(--text);
+}
+
+.plan-summary {
+  min-width: 216px;
+}
+
+.plan-summary__period {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.plan-summary__period:empty {
+  display: none;
+}
+
+/* Цифры столбцом: в панели место есть, и семь ячеек читаются списком быстрее,
+   чем строкой, которую приходится разбирать глазами на пары. */
+.plan-summary__metrics {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin: 0 0 0 auto;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12px;
-  color: var(--text-muted);
-  white-space: nowrap;
+  font-size: 12.5px;
 }
 
-/* Число ярче подписи — тем же соотношением, что в полной полосе метрик:
+.plan-summary__metrics li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+/* Число ярче подписи и одной ширины у всех строк — тем же соотношением, что
+   было в полосе карточек: первой читается цифра, подпись объясняет её. */
+.plan-summary__value {
+  min-width: 26px;
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.plan-summary__metrics .is-warn .plan-summary__value {
+  color: var(--danger-strong);
+}
+
+/* Число ярче подписи — тем же соотношением, что было в полосе карточек:
    первой читается цифра, подпись объясняет её. */
-.project-head-compact__metrics strong {
+.plan-summary__value {
   color: var(--text);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
-.project-head-compact__metrics .is-warn strong {
+.plan-summary__metrics .is-warn .plan-summary__value {
   color: var(--danger-strong);
 }
 

@@ -19,8 +19,11 @@ const UNPUBLISHED = { allowed: true, url: null, comments_enabled: true, created_
 
 async function openDialog() {
   // Кнопка появляется вместе с экраном проекта, то есть после ответа
-  // сервера: искать её сразу — значит проверять скорость сети.
-  await userEvent.click(await screen.findByRole("button", { name: "Поделиться" }));
+  // сервера: искать её сразу — значит проверять скорость сети. Живёт она под
+  // «⋯» в шапке — публикацию открывают редко, и постоянной кнопки ей не
+  // отводится.
+  await userEvent.click(await screen.findByRole("button", { name: "Ещё действия" }));
+  await userEvent.click(screen.getByRole("button", { name: "Поделиться" }));
 }
 
 describe("публичная ссылка проекта", () => {

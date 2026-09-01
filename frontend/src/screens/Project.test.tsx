@@ -125,31 +125,34 @@ describe("экран проекта", () => {
     await screen.findByRole("button", { name: /Логотип/ });
   });
 
-  it("настройки проекта — в шапке проекта, а не в общем меню и не в кебабе", async () => {
+  it("настройки проекта — под «⋯» в шапке проекта, а не в общем меню", async () => {
     server.use(...sessionHandlers(), http.get("/api/projects/p1", () => HttpResponse.json(STATE)));
 
     renderApp({ route: "/projects/p1", locale: "ru" });
 
     await screen.findByRole("heading", { name: "Редизайн" });
+    // Кебаб теперь рисуется и держит четыре действия: постоянными кнопками
+    // они стоили ярус высоты над каждым экраном проекта.
+    await userEvent.click(screen.getByRole("button", { name: "Ещё действия" }));
+
     // Подпись — одно слово, а вслух называется подлежащее: в колонке рядом
     // тем же словом подписан вход в настройки рабочего пространства, и на
     // глаз их различает место, которого не видно тому, кто экран слушает.
     const settings = screen.getByRole("link", { name: "Настройки проекта" });
     expect(settings).toHaveTextContent(/^Настройки$/);
     expect(settings).toHaveAttribute("href", "/projects/p1/settings");
-    expect(settings.closest(".project-head")).not.toBeNull();
+    expect(settings.closest(".project-bar")).not.toBeNull();
     expect(screen.getByRole("link", { name: "Настройки" })).toHaveAttribute("href", "/settings");
-    // Кебаб «⋯» не рисуется — в нём был единственный пункт, и тот переехал.
-    expect(screen.queryByRole("button", { name: /Ещё действия/i })).not.toBeInTheDocument();
   });
 
-  it("действия шапки — со значками и ростом с кнопку согласования плана", async () => {
+  it("действия шапки — со значками, все четыре под «⋯»", async () => {
     server.use(...sessionHandlers(), http.get("/api/projects/p1", () => HttpResponse.json(STATE)));
 
     renderApp({ route: "/projects/p1", locale: "ru" });
 
     await screen.findByRole("heading", { name: "Редизайн" });
-    const actions = document.querySelector(".project-head__actions");
+    await userEvent.click(screen.getByRole("button", { name: "Ещё действия" }));
+    const actions = document.querySelector(".project-bar__actions");
     expect(actions).not.toBeNull();
     // У каждого действия свой значок, и все они спрятаны от чтения вслух:
     // рядом стоит слово, и озвученный значок повторил бы его.
@@ -174,11 +177,12 @@ describe("экран проекта", () => {
     renderApp({ route: "/projects/p1", locale: "ru" });
 
     await screen.findByRole("heading", { name: "Редизайн" });
-    const actions = document.querySelector(".project-head__actions");
+    await userEvent.click(screen.getByRole("button", { name: "Ещё действия" }));
+    const actions = document.querySelector(".project-bar__actions");
     const invite = screen.getByRole("button", { name: "Пригласить" });
-    // В одном ряду с публикацией: обе отвечают на «дать посмотреть».
-    expect(invite.closest(".project-head__actions")).toBe(actions);
-    expect(screen.getByRole("button", { name: "Поделиться" }).closest(".project-head__actions"))
+    // В одном меню с публикацией: обе отвечают на «дать посмотреть».
+    expect(invite.closest(".project-bar__actions")).toBe(actions);
+    expect(screen.getByRole("button", { name: "Поделиться" }).closest(".project-bar__actions"))
       .toBe(actions);
 
     await userEvent.click(invite);
@@ -201,6 +205,7 @@ describe("экран проекта", () => {
     renderApp({ route: "/projects/p1", locale: "ru" });
 
     await screen.findByRole("heading", { name: "Редизайн" });
+    await userEvent.click(screen.getByRole("button", { name: "Ещё действия" }));
     // Остальные действия при этом на месте: право писать у редактора есть.
     expect(screen.getByRole("button", { name: "Поделиться" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Пригласить" })).not.toBeInTheDocument();

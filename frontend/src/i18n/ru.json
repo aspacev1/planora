@@ -305,6 +305,9 @@
       "not_started": "Не начато",
       "not_planned": "Вне плана",
       "completed": "Завершено"
+    },
+    "actions": {
+      "more": "Ещё действия"
     }
   },
   "my_tasks": {

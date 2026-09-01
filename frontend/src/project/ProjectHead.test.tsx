@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { ProjectState } from "../api/projects";
@@ -13,16 +14,22 @@ import {
 beforeEach(projectFixtures);
 
 /**
- * Цифра в ячейке полосы метрик.
+ * Цифра в ячейке сводки плана.
  *
  * Ищется от подписи, а не от числа: чисел на экране много, и «1» нашлось бы
- * в первой попавшейся. Поиск ограничен самой полосой — те же слова стоят и в
+ * в первой попавшейся. Поиск ограничен самой сводкой — те же слова стоят и в
  * легенде диаграммы, и в карточке задачи.
  */
+async function openSummary(): Promise<HTMLElement> {
+  const toggle = await screen.findByRole("button", { name: "Сводка по проекту" });
+  if (toggle.getAttribute("aria-expanded") !== "true") await userEvent.click(toggle);
+  return screen.getByRole("list", { name: "Сводка по проекту" });
+}
+
 async function metric(label: string): Promise<string> {
-  const strip = await screen.findByRole("list", { name: "Сводка по проекту" });
-  const cell = within(strip).getByText(label).closest(".project-head__metric");
-  return cell?.querySelector(".project-head__metric-value")?.textContent ?? "";
+  const strip = await openSummary();
+  const cell = within(strip).getByText(label).closest("li");
+  return cell?.querySelector(".plan-summary__value")?.textContent ?? "";
 }
 
 describe("шапка проекта", () => {
@@ -31,16 +38,16 @@ describe("шапка проекта", () => {
 
     // Срок — от самого раннего старта до посчитанного сервером окончания, а не
     // до конца последней задачи: окончание бывает позже её.
-    expect(await screen.findByText("4 марта — 8 июня")).toBeInTheDocument();
+    await openSummary();
+    expect(screen.getByText("4 марта — 8 июня")).toBeInTheDocument();
   });
 
   it("проект без задач срока не выдумывает", async () => {
     renderProject({ ...STATE, tasks: [], project_end: null });
 
-    // Строки под названием у такого проекта нет вовсе: срока нет, а считать
-    // категории и задачи в ней больше нечего.
-    await screen.findByRole("list", { name: "Сводка по проекту" });
-    expect(document.querySelector(".project-head__meta")).toBeNull();
+    // Срока у такого проекта нет — панель начинается сразу с метрик.
+    await openSummary();
+    expect(document.querySelector(".plan-summary__period")).toBeEmptyDOMElement();
   });
 
   it("несогласованный план так и называет себя черновиком", async () => {
@@ -76,18 +83,24 @@ describe("шапка проекта", () => {
   it("состояние плана стоит в строке названия, а не хвостом за сводкой", async () => {
     renderProject(APPROVED);
 
-    // Проверяется именно место: текст плашки виден и в сводке, а расхождение с
-    // согласованным планом читают вместе с именем проекта.
+    // Проверяется именно место: расхождение с согласованным планом читают
+    // вместе с именем проекта, а не среди цифр сводки над лентой.
     const label = await screen.findByText("План проекта · v1");
-    expect(label.closest(".project-head__title-row")).not.toBeNull();
-    expect(label.closest(".project-head__meta")).toBeNull();
+    expect(label.closest(".project-bar")).not.toBeNull();
+    expect(label.closest(".plan-summary")).toBeNull();
   });
 
-  it("публикация стоит в общем ряду действий, а не вплотную к названию", async () => {
+  it("публикация убрана под «⋯»: её открывают редко", async () => {
     renderProject();
 
-    const share = await screen.findByRole("button", { name: "Поделиться" });
-    expect(share.closest(".project-head__actions")).not.toBeNull();
+    // В строке шапки её нет — ярус растёт от каждой постоянной кнопки, и
+    // именно так он вырос в прошлый раз.
+    expect(screen.queryByRole("button", { name: "Поделиться" })).toBeNull();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Ещё действия" }));
+
+    const share = screen.getByRole("button", { name: "Поделиться" });
+    expect(share.closest(".project-bar__actions")).not.toBeNull();
   });
 
   it("работа сверх плана помечает план как изменённый", async () => {
@@ -224,7 +237,7 @@ describe("полоса метрик", () => {
 
     // Нулевая ячейка не показывается: «После дедлайна 0» — норма, а не сводка,
     // и полоса называет только то, что есть.
-    const strip = await screen.findByRole("list", { name: "Сводка по проекту" });
+    const strip = await openSummary();
     expect(await metric("Всего задач")).toBe("5");
     expect(within(strip).queryByText("После дедлайна проекта")).toBeNull();
   });
@@ -241,16 +254,16 @@ describe("полоса метрик", () => {
   it("ноль заблокированных — чёрный: тревогу включает только ненулевой счёт", async () => {
     renderProject();
 
-    const strip = await screen.findByRole("list", { name: "Сводка по проекту" });
-    const cell = within(strip).getByText("Заблокировано").closest(".project-head__metric");
+    const strip = await openSummary();
+    const cell = within(strip).getByText("Заблокировано").closest("li");
     expect(cell).not.toHaveClass("is-warn");
   });
 
   it("ненулевой счёт заблокированных — красный", async () => {
     renderProject(MIXED);
 
-    const strip = await screen.findByRole("list", { name: "Сводка по проекту" });
-    const cell = within(strip).getByText("Заблокировано").closest(".project-head__metric");
+    const strip = await openSummary();
+    const cell = within(strip).getByText("Заблокировано").closest("li");
     expect(cell).toHaveClass("is-warn");
   });
 
@@ -264,7 +277,7 @@ describe("полоса метрик", () => {
     renderProject();
 
     // Сравнивать не с чем — счёт нулевой, и ячейка не показывается вовсе.
-    const strip = await screen.findByRole("list", { name: "Сводка по проекту" });
+    const strip = await openSummary();
     expect(await metric("Всего задач")).toBe("1");
     expect(within(strip).queryByText("Вне плана")).toBeNull();
   });
