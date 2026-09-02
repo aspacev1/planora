@@ -235,9 +235,6 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
   border: 1px solid #f0c2cf;
   border-radius: var(--radius-pill);
   background: var(--danger-soft);
-  /* Общее правило кнопки даёт всякой кнопке синеватую подсветку — на алой
-     плашке она читалась бы грязью вокруг края. */
-  box-shadow: none;
   color: var(--danger-strong);
   font-family: inherit;
   font-size: 12px;
@@ -261,7 +258,7 @@ button.project-head__plan-note {
   transition: background var(--motion-fast) var(--motion-ease);
 }
 
-button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
+button.project-head__plan-note:hover { background: #ffe3ea; }
 
 /* Уголок мельче подписи и приглушён: он обещает продолжение, а не спорит с
    числом за внимание. */
@@ -401,8 +398,8 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
    вида в шапке проекта: рядом стоят вкладки и дела плана, и третий ряд
    обведённых плашек спорил бы с ними за внимание — а это второй класс
    органов, «как смотреть», и выглядеть он обязан тише первого. */
-.button--ghost { background: transparent; color: var(--text-muted); box-shadow: none; }
-.button--ghost:hover, .button--ghost:disabled:hover { background: var(--hover); color: var(--text); box-shadow: none; }
+.button--ghost { background: transparent; color: var(--text-muted); }
+.button--ghost:hover, .button--ghost:disabled:hover { background: var(--hover); color: var(--text); }
 .button--ghost[aria-expanded="true"] { background: var(--hover); color: var(--text); }
 .button--ghost[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 
@@ -547,10 +544,19 @@ body:has(.project__body--focus) {
 
 /* --- кнопки --- */
 
-/* Кнопка: 29 пикселей (`--control-button`), скругление 8, подпись в 12 и
-   волосяная тень вместо цветного ореола. Прежняя тень — синее облако в 18
-   пикселей — осталась от другого акцента и висела под каждой кнопкой подряд,
-   включая тихие: на экране с пятью действиями это пять «главных».
+/* Кнопка: 29 пикселей (`--control-button`), скругление 8, подпись в 12.
+
+   Тени и своего наведения здесь нет намеренно. Тень базовое правило вешало на
+   всякую кнопку подряд — включая разрушительную, где синева читалась грязью
+   вокруг алого края, — и тем отменяла её для той одной, ради которой
+   заводилась; теперь она у `.button--primary`. Наведение же тема повторяла за
+   styles.css слово в слово, а лишняя копия правила — второе место, где та же
+   ошибка чинится дважды и по-разному.
+
+   Заливку голой кнопке по-прежнему даёт styles.css: без класса кнопка здесь
+   главная. Что изменилось — вес её наведения (см. `button:where(:hover)` там
+   же): теперь класс, перекрасивший кнопку, забирает наведение с собой, а не
+   получает поверх себя чужой акцент с нетронутой подписью.
 
    Рост здесь один на все кнопки приложения. Прежде он был 36 — ростом поля, —
    и невысокой кнопка была ровно в одном месте, в ряду действий шапки проекта;
@@ -558,8 +564,7 @@ body:has(.project__body--focus) {
    писали своё число (24, 28, 32, 34), и один и тот же орган выходил на экран
    пятью разными размерами. Кнопка ниже поля намеренно: она действие *при*
    содержимом, а не само содержимое. */
-button { height: var(--control-button); padding: 0 10px; border-radius: var(--radius-md); font-size: 12px; font-weight: 620; box-shadow: 0 2px 5px rgb(83 103 232 / 20%); }
-button:hover { background: var(--accent-hover); }
+button { height: var(--control-button); padding: 0 10px; border-radius: var(--radius-md); font-size: 12px; font-weight: 620; }
 
 /* Значок на кнопке — 14 пикселей, а не 16, которые рисует сама разметка
    (см. icons.tsx): при подписи в 12-м кегле шестнадцатый читается как
@@ -567,6 +572,21 @@ button:hover { background: var(--accent-hover); }
    шапке проекта, где оно завелось: рост кнопки теперь один на всё приложение,
    и мера значка обязана следовать за ним, а не за местом. */
 .icon { width: 14px; height: 14px; }
+
+/* Главная кнопка — единственная залитая на экране и единственное место, где
+   законен `--accent-hover`: он задуман нажатием поверх `--accent`, а не
+   заливкой тихой кнопки. Подпись задана рядом с фоном намеренно — врозь они и
+   расходились. Тень досталась ей одной, ради неё она и заводилась.
+
+   Класс был в разметке окна экспорта и не существовал в стилях ни строкой:
+   главное действие окна держалось на заливке, которую styles.css даёт всякой
+   кнопке без класса, — то есть выглядело главным по случайности, а не потому,
+   что его таким назвали. */
+.button--primary { background: var(--accent); color: var(--accent-text); box-shadow: 0 2px 5px rgb(83 103 232 / 20%); }
+.button--primary:hover { background: var(--accent-hover); color: var(--accent-text); }
+/* Отключённая не отзывается вовсе — тем же приёмом, что и `.button--danger`:
+   под курсором она остаётся ровно тем, чем была в покое. */
+.button--primary:disabled:hover { background: var(--accent); color: var(--accent-text); }
 
 .button--quiet { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm); }
 .button--quiet:hover, .button--quiet:disabled:hover { background: var(--bg-subtle); box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm); }

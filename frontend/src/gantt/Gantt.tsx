@@ -596,7 +596,11 @@ export function Gantt({
            обещать гостю действие, которого у него нет, не за чем. */
         <div className={`empty gantt__empty${onAddCategory ? " gantt__empty--action" : ""}`}>
           {onAddCategory && (
-            <button type="button" className="gantt__empty-add" onClick={onAddCategory}>
+            <button
+              type="button"
+              className="button--primary gantt__empty-add"
+              onClick={onAddCategory}
+            >
               <span className="gantt__empty-plus" aria-hidden="true">
                 +
               </span>
