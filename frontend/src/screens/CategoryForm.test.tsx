@@ -35,22 +35,22 @@ const STATE = {
 };
 
 /**
- * Кнопка тулбара, а не «+ Новая категория» с низа ленты: у ленты теперь два
+ * «Плюс» в углу таблицы, а не «+ Новая категория» с низа ленты: у ленты два
  * пути завести категорию — эта форма (с выбором цвета) и короткий путь снизу
  * списка (см. `gantt/BottomActions.tsx`), и у обеих одно и то же имя для
  * читалки, потому что они и делают одно и то же. Различает их только место —
- * тулбар рождается вместе с данными проекта, поэтому ищем сначала его.
+ * угол таблицы рождается вместе с данными проекта, поэтому ищем сначала его.
  */
-async function toolbarAddCategoryButton() {
+async function cornerAddCategoryButton() {
   return waitFor(() => {
-    const toolbar = document.querySelector(".project-toolbar");
-    if (!toolbar) throw new Error("toolbar not rendered yet");
-    return within(toolbar as HTMLElement).getByRole("button", { name: /категория/i });
+    const corner = document.querySelector(".gantt__corner");
+    if (!corner) throw new Error("table head not rendered yet");
+    return within(corner as HTMLElement).getByRole("button", { name: /категория/i });
   });
 }
 
 async function createCategoryNamed(name: string) {
-  await userEvent.click(await toolbarAddCategoryButton());
+  await userEvent.click(await cornerAddCategoryButton());
   await userEvent.type(screen.getByLabelText(/название/i), name);
   await userEvent.click(screen.getByRole("button", { name: /^создать$/i }));
 }
@@ -70,9 +70,8 @@ describe("создание категории", () => {
                 ...STATE,
                 categories: [
                   ...STATE.categories,
-                  // Сервер вернул то, что ему прислали: название категории
-                  // уходит прописным.
-                  { id: "c2", name: "АНАЛИТИКА", color: "#a855f7", position: 1 },
+                  // Сервер вернул то, что ему прислали.
+                  { id: "c2", name: "Аналитика", color: "#a855f7", position: 1 },
                 ],
               },
         );
@@ -91,7 +90,7 @@ describe("создание категории", () => {
         {
           op: {
             type: "create_category",
-            name: "АНАЛИТИКА",
+            name: "Аналитика",
             color: expect.stringMatching(/^#[0-9a-f]{6}$/i),
           },
         },
@@ -101,12 +100,13 @@ describe("создание категории", () => {
     // Состояние перезапрашивается, а не дописывается в кэш руками: позицию и
     // идентификатор назначил сервер, и придуманные клиентом разошлись бы с
     // ними в самом неудобном месте.
-    expect(await screen.findByText("АНАЛИТИКА")).toBeInTheDocument();
+    expect(await screen.findByText("Аналитика")).toBeInTheDocument();
   });
 
-  it("заводит категорию прописными, как её ни набери", async () => {
-    // Заголовок группы в ленте набран одинаково у всех категорий: разнобой
-    // регистров читался бы как строки разной природы.
+  it("отправляет название как набрано, только без краевых пробелов", async () => {
+    // Регистр не трогается: единообразие заголовку группы даёт начертание
+    // строки в ленте, а не прописные, которые раздували строку и обрезали
+    // длинные имена раньше времени.
     const sent: { op: { name?: string } }[] = [];
     server.use(
       ...sessionHandlers(),
@@ -121,30 +121,12 @@ describe("создание категории", () => {
     await createCategoryNamed("  аналитика и Отчёты  ");
 
     await waitFor(() => expect(sent).toHaveLength(1));
-    expect(sent[0].op.name).toBe("АНАЛИТИКА И ОТЧЁТЫ");
+    expect(sent[0].op.name).toBe("аналитика и Отчёты");
   });
 
-  it("показывает набираемое название прописными, не переписывая набранное", async () => {
-    server.use(
-      ...sessionHandlers(),
-      http.get("/api/projects/p1", () => HttpResponse.json(STATE)),
-    );
-
-    renderApp({ route: "/projects/p1", locale: "ru" });
-    await userEvent.click(await toolbarAddCategoryButton());
-    await userEvent.type(screen.getByLabelText(/название/i), "аналитика");
-
-    // Регистр поднимает браузер при выводе, а значение остаётся набранным:
-    // переписывать его на каждом символе значило бы уводить курсор в конец
-    // строки при всякой правке в середине.
-    const field = screen.getByLabelText(/название/i);
-    expect(field.closest("p")).toHaveClass("field--upper");
-    expect(field).toHaveValue("аналитика");
-  });
-
-  it("поднимает регистр по языку, а не инвариантно", async () => {
-    // Азербайджанское «i» поднимается в «İ»: инвариантный toUpperCase дал бы
-    // «I» — другую букву алфавита, то есть другое слово.
+  it("не поднимает регистр ни в поле, ни при отправке", async () => {
+    // Азербайджанское «işlər» уходит как есть — раньше форма делала из него
+    // «İŞLƏR», и это проверялось отдельно; теперь важно обратное.
     const sent: { op: { name?: string } }[] = [];
     server.use(
       http.post("/api/projects/p1/mutations", async ({ request }) => {
@@ -156,11 +138,13 @@ describe("создание категории", () => {
     renderWithProviders(<CategoryForm projectId="p1" suggested="#3b82f6" onClose={() => {}} />, {
       locale: "az",
     });
-    await userEvent.type(screen.getByLabelText("Ad"), "işlər");
+    const field = screen.getByLabelText("Ad");
+    await userEvent.type(field, "işlər");
+    expect(field.closest("p")).not.toHaveClass("field--upper");
     await userEvent.click(screen.getByRole("button", { name: /^yarat$/i }));
 
     await waitFor(() => expect(sent).toHaveLength(1));
-    expect(sent[0].op.name).toBe("İŞLƏR");
+    expect(sent[0].op.name).toBe("işlər");
   });
 
   it("не шлёт в операции полей, которых нет в публичном контракте", async () => {
@@ -190,7 +174,7 @@ describe("создание категории", () => {
     );
 
     renderApp({ route: "/projects/p1", locale: "ru" });
-    await userEvent.click(await toolbarAddCategoryButton());
+    await userEvent.click(await cornerAddCategoryButton());
 
     // Выбор — это набор готовых цветов, а не пипетка: произвольный цвет умеет
     // быть неотличимым от соседнего и нечитаемым на доске.
@@ -219,7 +203,7 @@ describe("создание категории", () => {
     );
 
     renderApp({ route: "/projects/p1", locale: "ru" });
-    await userEvent.click(await toolbarAddCategoryButton());
+    await userEvent.click(await cornerAddCategoryButton());
     await userEvent.type(screen.getByLabelText(/название/i), "Аналитика");
     // Кружок назван словом, а не кодом цвета: читалка обязана произнести
     // выбор, а `#ec4899` произнести нечем.
@@ -278,7 +262,7 @@ describe("создание категории", () => {
     );
 
     renderApp({ route: "/projects/p1", locale: "ru" });
-    await userEvent.click(await toolbarAddCategoryButton());
+    await userEvent.click(await cornerAddCategoryButton());
 
     expect(screen.getByRole("button", { name: /^создать$/i })).toBeDisabled();
   });

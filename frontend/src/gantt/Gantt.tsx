@@ -7,11 +7,10 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 import { TASK_STATUSES } from "../api/projects";
 import type { Category, ProjectState, Task } from "../api/projects";
-import { Menu } from "../components/Menu";
 import { endShiftDays, isBeyondPlan } from "../project/baseline";
 import { formatDate, formatMonth, weekdayNarrow } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
@@ -38,32 +37,16 @@ import { useQuickTask } from "./useQuickTask";
 import { useReorder } from "./useReorder";
 import { useLaneWidth } from "./useLaneWidth";
 import { useViewportFit } from "./useViewportFit";
-import {
-  COLUMN_KEYS,
-  OPTIONAL_COLUMNS,
-  defaultLayout,
-  layoutWidth,
-  reorderColumns,
-  toggleColumn,
-} from "./columns";
-import type { ColumnKey, ColumnLayout } from "./columns";
-import { rememberLayout, storedLayout } from "./columns";
+import { COLUMN_KEYS, layoutWidth } from "./columns";
+import type { ColumnKey } from "./columns";
 import { DAY_WIDTH, ROW_HEIGHT, lastOfMonth, projectWindow } from "./scale";
-import type { Zoom } from "./scale";
-import { rememberZoom, storedZoom } from "./scalePreference";
 import { addDays, buildScale, daysBetween } from "./timescale";
+import { useGanttView } from "./useGanttView";
+import type { GanttView } from "./useGanttView";
+import { GanttViewControls } from "./ViewControls";
 import { useToday } from "../time/useToday";
 
 import "./gantt.css";
-
-/** Что из необязательных слоёв показывать. Состояние экрана, не проекта. */
-type ViewFlags = {
-  baseline: boolean;
-  legend: boolean;
-  summary: boolean;
-  caption: boolean;
-  critical: boolean;
-};
 
 /**
  * Точка, за которую лента держится при пересборке шкалы.
@@ -113,9 +96,7 @@ export function Gantt({
   onSelectTask,
   onOpenComments,
   commentCounts,
-  toolbarAction,
-  scheduleAction,
-  focusAction,
+  viewState,
   assigneeNames,
 }: {
   projectId: string;
@@ -130,20 +111,20 @@ export function Gantt({
   /**
    * Где открыта строка новой задачи. `null` — закрыта.
    *
-   * Состоянием снаружи, а не внутри ленты: ту же строку открывает кнопка
-   * тулбара, а тулбар приходит с экрана готовым узлом (см. `toolbarAction`), и
-   * дотянуться до состояния ленты ему было бы нечем.
+   * Состоянием снаружи, а не внутри ленты: строку закрывает и экран — когда
+   * открывает поверх ленты карточку или окно, — и дотянуться до состояния
+   * ленты ему было бы нечем.
    */
   newTaskAt?: NewTaskAt | null;
   onCloseNewTask?: () => void;
   /**
-   * Завести первую категорию — кнопкой посреди пустой ленты.
+   * Завести категорию: «плюсом» в углу таблицы, у заголовка «Задача», и
+   * кнопкой посреди пустой ленты.
    *
-   * Отдельно от `toolbarAction`, хотя окно открывают одно и то же: пустая
-   * лента — единственное место экрана, где больше нечего сделать, и «плюс»
-   * посреди неё обязан нажиматься. Нарисованный плюс, похожий на кнопку, но не
-   * нажимающийся, отправлял бы искать действие в тулбаре — мимо того самого
-   * пятна, на которое человек уже смотрит.
+   * Плюс стоит на том, чему добавляет ребёнка: угол таблицы — корень списка,
+   * и его плюс заводит категорию; плюс на строке категории заводит задачу в
+   * ней. Прежняя кнопка тулбара «Новая задача» этого правила не знала — она
+   * клала задачу в первую категорию, потому что не знала, куда ещё.
    */
   onAddCategory?: () => void;
   /**
@@ -180,20 +161,15 @@ export function Gantt({
    */
   baselineShown?: boolean;
   onBaselineToggle?: () => void;
-  /** Primary project action shown beside the working timeline controls. */
-  toolbarAction?: ReactNode;
   /**
-   * Кнопка «Назначить дату старта» (или «Изменить»). Приходит с экрана, как
-   * и toolbarAction: открыть окно привязки — действие проекта, а не ленты, и
-   * прав у ленты для него нет.
+   * Как смотреть на ленту — масштаб, колонки, слои (см. useGanttView).
+   *
+   * Передано — органы управления стоят у экрана (в шапке проекта), и лента
+   * своего ряда над собой не рисует. Не передано — лента заводит состояние
+   * сама и ставит ряд с масштабом и «Видом» над собой: так живёт публичная
+   * страница, где шапки проекта нет.
    */
-  scheduleAction?: ReactNode;
-  /**
-   * Кнопка полноэкранной ленты. Приходит с экрана готовым узлом, как и
-   * scheduleAction: разворачивается не лента, а экран — прячутся его шапка,
-   * вкладки и колонка приложения, и состояние этого живёт там же.
-   */
-  focusAction?: ReactNode;
+  viewState?: GanttView;
   /**
    * Состав организации: имена по идентификаторам. Ими подписаны исполнители в
    * карточке наведения и в колонке — из них же выбирают новых прямо со строки.
@@ -215,79 +191,20 @@ export function Gantt({
   const quick = useQuickTask({ projectId, state });
   const quickCategory = useQuickCategory({ projectId, state });
   const reducedMotion = usePrefersReducedMotion();
-  // Лента по умолчанию открывается в дневном масштабе — самом крупном: на
-  // нём у деления хватает места на день недели над числом, и первое, что
-  // человек видит, — ближайшие дни, а не сжатый до неразличимости квартал.
-  // Но если для этого проекта масштаб уже выбирали, лента открывается им:
-  // переключение вкладок и уход на другой экран не должны каждый раз
-  // спрашивать заново то, что уже решили (см. scalePreference.ts).
-  const [zoom, setZoomState] = useState<Zoom>(() => storedZoom(projectId) ?? "day");
-
-  // Экран проекта не размонтирует ленту при смене адреса — те же компоненты
-  // просто получают другой `projectId`. Без этого эффекта лента при переходе
-  // между проектами тащила бы за собой масштаб предыдущего вместо того,
-  // чтобы вспомнить, каким его в последний раз выбрали здесь.
-  useEffect(() => {
-    setZoomState(storedZoom(projectId) ?? "day");
-  }, [projectId]);
-
-  const setZoom = (next: Zoom) => {
-    setZoomState(next);
-    rememberZoom(projectId, next);
+  // Масштаб, колонки и слои. Своё состояние заводится всегда — правило хуков
+  // не даёт заводить его условно, — но в дело идёт только когда экран не дал
+  // своего: на рабочем экране органы управления стоят в его шапке, и лента
+  // лишь читает то, что там выбрали (см. `viewState`).
+  const ownView = useGanttView(projectId, { baselineShown, onBaselineToggle });
+  const ganttView = viewState ?? ownView;
+  const { zoom, layout, setLayout, toggleTable, resizeColumn, moveColumn } = ganttView;
+  const baselineOn = ganttView.flag("baseline");
+  const view = {
+    legend: ganttView.flag("legend"),
+    summary: ganttView.flag("summary"),
+    caption: ganttView.flag("caption"),
+    critical: ganttView.flag("critical"),
   };
-
-  // Колонки закреплённой таблицы — набор и ширины. Живут там же, где масштаб,
-  // и по той же причине: раскладка — состояние экрана, привязанное к проекту,
-  // а не свойство плана, и сосед по проекту чужой её получать не должен.
-  const [layout, setLayoutState] = useState<ColumnLayout>(
-    () => storedLayout(projectId) ?? defaultLayout(),
-  );
-  useEffect(() => {
-    setLayoutState(storedLayout(projectId) ?? defaultLayout());
-  }, [projectId]);
-
-  const setLayout = (next: ColumnLayout) => {
-    setLayoutState(next);
-    rememberLayout(projectId, next);
-  };
-  const switchColumn = (column: ColumnKey) =>
-    setLayout({ ...layout, shown: toggleColumn(layout.shown, column) });
-  // Таблица целиком: свёрнутая отдаёт всё своё место шкале. Полугодовой план
-  // иначе виден только кусками — таблица занимает треть экрана, и разглядеть
-  // за ней форму проекта нельзя, не уехав прокруткой от имён задач.
-  const toggleTable = () => setLayout({ ...layout, collapsed: !layout.collapsed });
-  const resizeColumn = (column: ColumnKey, width: number) =>
-    setLayout({ ...layout, widths: { ...layout.widths, [column]: width } });
-  const moveColumn = (moved: ColumnKey, before: ColumnKey) =>
-    setLayout({ ...layout, shown: reorderColumns(layout.shown, moved, before) });
-
-  // Необязательные слои. Базовый план и сводка по дедлайну видны сразу:
-  // первый — язык отклонений, вторая — единственная цифра, которая
-  // по-настоящему интересует заказчика. Легенда и сноска ждут, пока их
-  // попросят через «Вид», — как в макете, где их нет вовсе.
-  const [view, setView] = useState<ViewFlags>({
-    baseline: true,
-    legend: false,
-    summary: true,
-    caption: false,
-    // Критический путь ждёт, пока его попросят: он красит полоски третьим
-    // способом поверх статуса и просрочки, и включённый всегда превращал бы
-    // ленту в карту цепочек там, где спрашивают всего лишь «что когда».
-    critical: false,
-  });
-  const toggleView = (flag: keyof ViewFlags) =>
-    setView((current) => ({ ...current, [flag]: !current[flag] }));
-
-  // Призрак базового плана — единственный слой, которым управляют и снаружи:
-  // окно изменений показывает те же расхождения списком и включает их же на
-  // ленте. Флажок «Вид» и тумблер в окне обязаны быть одним переключателем, а
-  // не двумя одинаковыми, — иначе один говорит «включено» там, где второй уже
-  // выключил. Своё состояние остаётся про запас: у публичной страницы окна
-  // изменений нет, и поднимать флаг ей некуда.
-  const baselineOn = baselineShown ?? view.baseline;
-  const viewValue = (flag: keyof ViewFlags) => (flag === "baseline" ? baselineOn : view[flag]);
-  const viewToggle = (flag: keyof ViewFlags) =>
-    flag === "baseline" && onBaselineToggle ? onBaselineToggle() : toggleView(flag);
 
   // Свёрнутые категории. Состояние экрана, а не проекта: сосед по проекту не
   // должен получать чужие свёртки, поэтому оно не уходит на сервер.
@@ -322,10 +239,8 @@ export function Gantt({
   // задача» открывала бы поле, которого не видно.
   useEffect(() => {
     if (newTaskIn === null || !layout.collapsed) return;
-    const next = { ...layout, collapsed: false };
-    setLayoutState(next);
-    rememberLayout(projectId, next);
-  }, [newTaskIn, layout, projectId]);
+    setLayout({ ...layout, collapsed: false });
+  }, [newTaskIn, layout, setLayout]);
 
   // Строка ввода новой категории — с самого низа ленты (см. «+ Новая
   // категория» ниже). Состояние экрана, как и свёртка категорий: соседу по
@@ -336,10 +251,8 @@ export function Gantt({
   // колонке, которой у свёрнутой таблицы нет.
   useEffect(() => {
     if (!composingCategory || !layout.collapsed) return;
-    const next = { ...layout, collapsed: false };
-    setLayoutState(next);
-    rememberLayout(projectId, next);
-  }, [composingCategory, layout, projectId]);
+    setLayout({ ...layout, collapsed: false });
+  }, [composingCategory, layout, setLayout]);
 
   // Относительная ось: план ещё не привязан к датам, шкала считает недели
   // проекта от эпохи. Свойство проекта, а не экрана — приходит с сервера.
@@ -641,99 +554,31 @@ export function Gantt({
         } as CSSProperties
       }
     >
-      {/* Тулбар видит и читатель: масштаб и состав слоёв — способы смотреть,
-          а не менять, и прятать их от гостя не за что. */}
-      <div className="project-toolbar" aria-label={t("gantt.toolbar.label")}>
-          {toolbarAction}
-          {toolbarAction !== undefined && (
-            <span className="project-toolbar__divider" aria-hidden="true" />
-          )}
+      {/* Ряд над лентой — только когда органы управления не отданы экрану
+          (публичная страница). На рабочем экране они стоят в шапке проекта
+          справа от вкладок, и второго яруса над лентой нет: каждые 46
+          пикселей над ней — это строка плана, которой не видно. Ряд видит и
+          читатель: масштаб и состав слоёв — способы смотреть, а не менять. */}
+      {viewState === undefined && (
+        <div className="project-toolbar" aria-label={t("gantt.toolbar.label")}>
           <span className="project-toolbar__spacer" />
 
           {/* Индикатор режима: пока план относительный, об этом сказано
               словами, а не только шкалой без месяцев. Дата старта назначена —
               индикатор гаснет вместе с относительным режимом: у календарного
               проекта переключателя обратно в «Месяц 1 / Неделя 1» больше нет,
-              назначенная дата старта окончательна. */}
+              назначенная дата старта окончательна. Подробность — подсказкой
+              самого бейджа, а не строкой над лентой: та стоила ленте полсотни
+              пикселей высоты при каждом открытии проекта. */}
           {relativeAxis && (
-            // Подробность — подсказкой самого бейджа, а не отдельной строкой
-            // над лентой: та говорила третий раз то же, что уже сказали бейдж
-            // и кнопка «Назначить дату старта» рядом, и стоила ленте полсотни
-            // пикселей высоты при каждом открытии проекта — высота ленты
-            // считается вычитанием всего, что стоит над ней (см.
-            // useViewportFit). Заодно уходит перекос: плашку видел и читатель,
-            // у которого кнопки назначения нет вовсе.
             <span className="project-toolbar__mode" title={t("gantt.relative.hint")}>
               {t("gantt.relative.badge")}
             </span>
           )}
 
-          {scheduleAction}
-
-          {/* Масштаб назван вместе со своим значением: свёрнутое меню, в
-              отличие от прежнего ряда сегментов, само по себе не показывает,
-              в каком масштабе лента сейчас. */}
-          <Menu label={t("gantt.toolbar.scale", { value: t(`gantt.toolbar.${zoom}`) })}>
-            {(["day", "week", "month"] as const).map((value) => (
-              <label key={value} className="menu__item">
-                <input
-                  type="radio"
-                  name="gantt-scale"
-                  checked={zoom === value}
-                  onChange={() => setZoom(value)}
-                />
-                {t(`gantt.toolbar.${value}`)}
-              </label>
-            ))}
-          </Menu>
-
-          {/* Колонки таблицы слева — отдельным меню, а не вместе со слоями:
-              «показать столбец с длительностью» и «показать легенду» отвечают
-              на разные вопросы, и один список из девяти галочек заставлял бы
-              вычитывать его целиком ради любой из них. Название задачи в
-              список не входит: строка без имени — строка, по которой нельзя
-              понять, о чём она. */}
-          <Menu label={t("gantt.toolbar.columns")}>
-            {OPTIONAL_COLUMNS.map((column) => (
-              <label key={column} className="menu__item">
-                <input
-                  type="checkbox"
-                  checked={layout.shown.includes(column)}
-                  onChange={() => switchColumn(column)}
-                />
-                {cellLabels.columns[column]}
-              </label>
-            ))}
-          </Menu>
-
-          {/* «Вид» включает слои, которых нет в макете, но которые уже есть в
-              продукте: легенду, сводку по дедлайну, сноску и призрак базового
-              плана. Так они перестают быть спрятанной стилем разметкой. */}
-          <Menu label={t("gantt.toolbar.view")}>
-            {(
-              [
-                ["baseline", t("gantt.view.baseline")],
-                ["critical", t("gantt.view.critical")],
-                ["legend", t("gantt.view.legend")],
-                ["summary", t("gantt.view.summary")],
-                ["caption", t("gantt.view.caption")],
-              ] as const
-            ).map(([flag, label]) => (
-              <label key={flag} className="menu__item">
-                <input
-                  type="checkbox"
-                  checked={viewValue(flag)}
-                  onChange={() => viewToggle(flag)}
-                />
-                {label}
-              </label>
-            ))}
-          </Menu>
-
-          {/* Полноэкранная лента — последней в ряду настроек показа: это тоже
-              способ смотреть, самый широкий из них. */}
-          {focusAction}
-      </div>
+          <GanttViewControls view={ganttView} />
+        </div>
+      )}
 
       {/* Сводка сравнивает конец проекта с дедлайном — двумя настоящими
           датами; у относительной оси её не бывает. */}
@@ -751,7 +596,11 @@ export function Gantt({
            обещать гостю действие, которого у него нет, не за чем. */
         <div className={`empty gantt__empty${onAddCategory ? " gantt__empty--action" : ""}`}>
           {onAddCategory && (
-            <button type="button" className="gantt__empty-add" onClick={onAddCategory}>
+            <button
+              type="button"
+              className="button--primary gantt__empty-add"
+              onClick={onAddCategory}
+            >
               <span className="gantt__empty-plus" aria-hidden="true">
                 +
               </span>
@@ -773,13 +622,33 @@ export function Gantt({
                   onReorder={moveColumn}
                   resizeLabel={(column) => t("gantt.col.resize", { column })}
                   reorderLabel={(column) => t("gantt.col.reorder", { column })}
+                  leading={
+                    /* «Плюс» у заголовка списка заводит категорию — то
+                       единственное, что можно добавить в корень плана, не
+                       выбирая родителя. Значок без подписи: рядом стоит
+                       слово «Задача», и подпись «Новая категория» под ним
+                       читалась бы как заголовок второй колонки. Имя при
+                       кнопке остаётся для читалки и подсказки. Гостю и
+                       читателю кнопки нет — как и остальных «плюсов» ленты. */
+                    onAddCategory && (
+                      <button
+                        type="button"
+                        className="gantt__corner-add"
+                        aria-label={t("category.create")}
+                        title={t("category.create")}
+                        onClick={onAddCategory}
+                      >
+                        <span aria-hidden="true">+</span>
+                      </button>
+                    )
+                  }
                 />
                 {/* Кнопка свёртки — в углу таблицы, на границе со шкалой: она
-                    двигает эту границу, и стоять обязана там же. В тулбаре, к
-                    которому её просилось бы отнести, она оказалась бы в ряду
-                    настроек показа — среди «Вида» и «Колонок», то есть в
-                    списке того, что открывают, чтобы что-то настроить. Здесь
-                    её видно сразу и целиться в неё не надо. */}
+                    двигает эту границу, и стоять обязана там же. В шапке
+                    проекта, к которой её просилось бы отнести, она оказалась
+                    бы в ряду настроек показа — среди «Масштаба» и «Вида», то
+                    есть в списке того, что открывают, чтобы что-то настроить.
+                    Здесь её видно сразу и целиться в неё не надо. */}
                 <button
                   type="button"
                   className="gantt__fold"

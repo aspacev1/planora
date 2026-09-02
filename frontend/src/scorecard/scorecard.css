@@ -239,6 +239,14 @@
   cursor: pointer;
 }
 
+/* Столбик отзывается сам: подсветкой в свою ширину, а не заливкой всей
+   кнопки акцентом, как делало общее правило темы. Столбик здесь — деление
+   шкалы, и под курсором он обязан остаться делением. */
+.scorecard-spark__bar:hover,
+.scorecard-spark__bar:focus-visible {
+  background: var(--hover);
+}
+
 .scorecard-spark__fill {
   display: block;
   width: 8px;
@@ -446,6 +454,10 @@
   color: var(--accent);
   cursor: pointer;
   font-size: 13px;
+}
+
+.scorecard-alert__all:hover {
+  text-decoration: underline;
 }
 
 /* Качество данных: процент и полоса в цвете статуса. */

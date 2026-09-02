@@ -437,7 +437,7 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
         {canWrite && (
           <button
             type="button"
-            className="proposal-summary__push"
+            className="button--primary proposal-summary__push"
             disabled={tasks.length === 0 || push.isPending}
             onClick={() => push.mutate()}
           >

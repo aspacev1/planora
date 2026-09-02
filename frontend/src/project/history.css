@@ -231,6 +231,14 @@
   color: inherit;
   text-decoration: underline;
   cursor: pointer;
+  transition: color var(--motion-fast) var(--motion-ease);
+}
+
+/* Ссылка внутри строки сводки: под курсором меняет цвет, а не обрастает
+   заливкой — заливка в наборе текста рисует объект там, где его нет. */
+.feed__toggle:hover,
+.feed__toggle:focus-visible {
+  color: var(--accent);
 }
 
 /* Вложенный список раскрытой пачки: сдвиг вместо рамки — записи те же,

@@ -146,3 +146,42 @@ export function IconCollapse({ className }: IconProps) {
     </Icon>
   );
 }
+
+/* Стрелки в углы: «развернуть на весь экран». Диагональ, а не рамка со
+   стрелкой внутри, — рамку в этом ряду уже носят кнопки, и вторая читалась бы
+   их частью. */
+export function IconExpand({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M9.5 2.5H13.5V6.5" />
+      <path d="M6.5 13.5H2.5V9.5" />
+      <path d="M13.5 2.5 9.5 6.5" />
+      <path d="M2.5 13.5 6.5 9.5" />
+    </Icon>
+  );
+}
+
+/* Те же стрелки, сведённые внутрь: выход из полного экрана — то же движение
+   наоборот, и узнаётся оно по развороту, а не по другому рисунку. */
+export function IconShrink({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M13 3 9.5 6.5H13.5" />
+      <path d="M9.5 6.5V2.5" />
+      <path d="M3 13 6.5 9.5H2.5" />
+      <path d="M6.5 9.5V13.5" />
+    </Icon>
+  );
+}
+
+/* Календарь: перенос даты старта. Лист с кольцами сверху, а не сетка дней —
+   на четырнадцати пикселях сетка сливается в серое пятно. */
+export function IconCalendar({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" />
+      <path d="M2.5 7h11" />
+      <path d="M5.5 2v3M10.5 2v3" />
+    </Icon>
+  );
+}

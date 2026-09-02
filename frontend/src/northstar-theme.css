@@ -232,9 +232,6 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
   border: 1px solid #f0c2cf;
   border-radius: var(--radius-pill);
   background: var(--danger-soft);
-  /* Общее правило кнопки даёт всякой кнопке синеватую подсветку — на алой
-     плашке она читалась бы грязью вокруг края. */
-  box-shadow: none;
   color: var(--danger-strong);
   font-family: inherit;
   font-size: 12px;
@@ -258,7 +255,7 @@ button.project-head__plan-note {
   transition: background var(--motion-fast) var(--motion-ease);
 }
 
-button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
+button.project-head__plan-note:hover { background: #ffe3ea; }
 
 /* Уголок мельче подписи и приглушён: он обещает продолжение, а не спорит с
    числом за внимание. */
@@ -284,16 +281,16 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
    кнопками прежние 78 пикселей оставляли над лентой полосу пустоты выше самой
    шапки ленты. */
 .project-toolbar { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 5px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
-/* Своих полей главной кнопке тулбара не задаётся: лишние два пикселя по бокам
-   отличали её от соседних кнопок ряда, а выделяет её заливка, а не размер. */
-.project-toolbar__divider { width: 1px; height: 24px; margin: 0 4px; background: var(--border); }
 .project-toolbar__spacer { flex: 1; }
 /* Меню тулбара — «Масштаб» и «Вид» — одной высоты между собой и со всеми
    кнопками приложения: своего роста им больше не задаётся, они берут общий.
    Прежние 36 пикселей поднимали их над переключателем представления, стоящим
    в том же ряду, и тулбар читался двумя этажами вместо одного. */
 /* Индикатор «Относительный план»: плашка состояния, а не кнопка — до
-   назначения даты старта режим один и переключать нечего. */
+   назначения даты старта режим один и переключать нечего. Стоит только у
+   того, кому дату назначить нечем — у читателя в шапке проекта и на
+   публичной странице: рядом с кнопкой «Назначить дату старта» она говорила
+   то же самое второй раз и занимала больше места, чем любая кнопка ряда. */
 .project-toolbar__mode { display: inline-flex; align-items: center; gap: 5px; height: 29px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; white-space: nowrap; cursor: help; }
 /* Знак ⓘ — псевдоэлементом, а не разметкой: он говорит, что у бейджа есть
    подсказка, и в читалку отдельным словом попадать при этом не должен. */
@@ -335,37 +332,69 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
 }
 
 /* Вкладки отделены от имени и плашек пустотой, а не чертой: черта в середине
-   строки читалась бы как её конец. */
+   строки читалась бы как её конец. Растянуты на весь рост строки — включая
+   её поля, — чтобы подчёркивание выбранной легло на нижнюю черту строки, а
+   не висело над ней. */
 .project-bar .tabs {
   gap: 2px;
-  margin: 0 0 0 10px;
+  align-self: stretch;
+  margin: -4px 0 -4px 12px;
   border-bottom: 0;
 }
 
-/* Выбранная вкладка внутри строки — заливкой, а не подчёркиванием: подчёркнутое
-   в середине ряда висит над собственной границей, до которой ему здесь не
-   достать (нижняя черта у строки одна, и она общая). */
+/* Выбранная вкладка — подчёркиванием, а не заливкой. Прежняя заливка делала
+   вкладку пилюлей — той же формы, что кнопки и плашки в этой же строке, — и
+   навигация не отличалась от действий. Подчёркнутый текст здесь ни на что
+   больше не похож. */
 .project-bar .tabs__link {
-  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
   margin-bottom: 0;
-  border-bottom: 0;
-  border-radius: var(--radius-md);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--text-muted);
 }
 
 .project-bar .tabs__link:hover {
-  background: var(--hover);
+  color: var(--text);
 }
 
 .project-bar .tabs__link.is-current {
-  background: var(--accent-soft);
+  border-bottom-color: var(--accent);
   color: var(--accent);
 }
 
-/* Редкие действия — у правого края: слева то, что это за проект, справа то,
-   что с ним можно сделать. Тот же порядок, что был в полной шапке. */
-.project-bar__actions {
+/* Правый край строки: слева то, что это за проект, справа то, как на него
+   смотреть и что с ним можно сделать. Тот же порядок, что был в полной шапке. */
+.project-bar__end {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-left: auto;
 }
+
+.project-bar__tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.project-bar__divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: var(--border);
+}
+
+/* Призрачная кнопка: без рамки и заливки, приглушённой подписью. Для органов
+   вида в шапке проекта: рядом стоят вкладки и дела плана, и третий ряд
+   обведённых плашек спорил бы с ними за внимание — а это второй класс
+   органов, «как смотреть», и выглядеть он обязан тише первого. */
+.button--ghost { background: transparent; color: var(--text-muted); }
+.button--ghost:hover, .button--ghost:disabled:hover { background: var(--hover); color: var(--text); }
+.button--ghost[aria-expanded="true"] { background: var(--hover); color: var(--text); }
+.button--ghost[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 
 /* --- сводка плана: панель у имени проекта --- */
 
@@ -471,6 +500,17 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
   background: var(--bg);
 }
 
+/* Выход из полного экрана — поверх ленты в правом верхнем углу: шапка с
+   кнопкой разворота в этом режиме спрятана, и выход обязан быть на виду там,
+   где его ищут по привычке к видео и картам. Выше закреплённой шапки шкалы
+   (z-index 3), ниже меню (30). */
+.project__focus-exit {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 5;
+}
+
 /* Страница под развёрнутой лентой не прокручивается: её полоса прокрутки
    двигала бы невидимое содержимое, а высота ленты отмерена от окна
    (useViewportFit) в предположении, что страница стоит на нуле. */
@@ -497,10 +537,19 @@ body:has(.project__body--focus) {
 
 /* --- кнопки --- */
 
-/* Кнопка: 29 пикселей (`--control-button`), скругление 8, подпись в 12 и
-   волосяная тень вместо цветного ореола. Прежняя тень — синее облако в 18
-   пикселей — осталась от другого акцента и висела под каждой кнопкой подряд,
-   включая тихие: на экране с пятью действиями это пять «главных».
+/* Кнопка: 29 пикселей (`--control-button`), скругление 8, подпись в 12.
+
+   Тени и своего наведения здесь нет намеренно. Тень базовое правило вешало на
+   всякую кнопку подряд — включая разрушительную, где синева читалась грязью
+   вокруг алого края, — и тем отменяла её для той одной, ради которой
+   заводилась; теперь она у `.button--primary`. Наведение же тема повторяла за
+   styles.css слово в слово, а лишняя копия правила — второе место, где та же
+   ошибка чинится дважды и по-разному.
+
+   Заливку голой кнопке по-прежнему даёт styles.css: без класса кнопка здесь
+   главная. Что изменилось — вес её наведения (см. `button:where(:hover)` там
+   же): теперь класс, перекрасивший кнопку, забирает наведение с собой, а не
+   получает поверх себя чужой акцент с нетронутой подписью.
 
    Рост здесь один на все кнопки приложения. Прежде он был 36 — ростом поля, —
    и невысокой кнопка была ровно в одном месте, в ряду действий шапки проекта;
@@ -508,8 +557,7 @@ body:has(.project__body--focus) {
    писали своё число (24, 28, 32, 34), и один и тот же орган выходил на экран
    пятью разными размерами. Кнопка ниже поля намеренно: она действие *при*
    содержимом, а не само содержимое. */
-button { height: var(--control-button); padding: 0 10px; border-radius: var(--radius-md); font-size: 12px; font-weight: 620; box-shadow: 0 2px 5px rgb(83 103 232 / 20%); }
-button:hover { background: var(--accent-hover); }
+button { height: var(--control-button); padding: 0 10px; border-radius: var(--radius-md); font-size: 12px; font-weight: 620; }
 
 /* Значок на кнопке — 14 пикселей, а не 16, которые рисует сама разметка
    (см. icons.tsx): при подписи в 12-м кегле шестнадцатый читается как
@@ -518,11 +566,28 @@ button:hover { background: var(--accent-hover); }
    и мера значка обязана следовать за ним, а не за местом. */
 .icon { width: 14px; height: 14px; }
 
+/* Главная кнопка — единственная залитая на экране и единственное место, где
+   законен `--accent-hover`: он задуман нажатием поверх `--accent`, а не
+   заливкой тихой кнопки. Подпись задана рядом с фоном намеренно — врозь они и
+   расходились. Тень досталась ей одной, ради неё она и заводилась.
+
+   Класс был в разметке окна экспорта и не существовал в стилях ни строкой:
+   главное действие окна держалось на заливке, которую styles.css даёт всякой
+   кнопке без класса, — то есть выглядело главным по случайности, а не потому,
+   что его таким назвали. */
+.button--primary { background: var(--accent); color: var(--accent-text); box-shadow: 0 2px 5px rgb(83 103 232 / 20%); }
+.button--primary:hover { background: var(--accent-hover); color: var(--accent-text); }
+/* Отключённая не отзывается вовсе — тем же приёмом, что и `.button--danger`:
+   под курсором она остаётся ровно тем, чем была в покое. */
+.button--primary:disabled:hover { background: var(--accent); color: var(--accent-text); }
+
 .button--quiet { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm); }
 .button--quiet:hover, .button--quiet:disabled:hover { background: var(--bg-subtle); box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm); }
 .button--quiet[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px transparent; }
 .button--alert { background: var(--surface); box-shadow: inset 0 0 0 1px var(--danger); }
 .button--alert:hover, .button--alert:disabled:hover { background: var(--danger-soft); box-shadow: inset 0 0 0 1px var(--danger); }
+.button--accent { background: var(--surface); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.button--accent:hover, .button--accent:disabled:hover { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 
 /* Ссылка-кнопка повторяет размеры кнопки темы: стоит с ней в одной строке и
    обязана совпадать по высоте, иначе пара действий читается лесенкой. Селектор
@@ -947,7 +1012,6 @@ body:has(.screen--narrow) {
   .project-head__main { flex-direction: column; }
   .project-head__actions { justify-content: flex-start; gap: 8px; }
   .project-toolbar { gap: 8px; }
-  .project-toolbar__divider { display: none; }
   .panel { padding: 18px 18px 26px; }
 }
 
@@ -955,7 +1019,6 @@ body:has(.screen--narrow) {
   .screen--narrow { margin: 24px auto; padding: 28px 22px; }
   .project-head__title { font-size: 22px; }
   .project-head__meta { font-size: 12px; }
-  .project-toolbar__primary { flex: 1; }
   .modal { padding: 22px 18px; }
   .modal__actions { align-items: stretch; flex-direction: column; }
   .modal__actions button { width: 100%; }

@@ -661,6 +661,37 @@
   background: #f9fafc;
 }
 
+/* «Плюс» новой категории у заголовка списка. Мелкий квадрат в тон акцента, а
+   не кнопка в полный рост: он стоит в строке заголовка колонки, набранного
+   десятым кеглем, и кнопка обычной меры перевесила бы сам заголовок. Цветом
+   тем же, каким лента красит остальные свои «плюсы»: это одно действие в
+   разных местах, и выглядеть оно обязано одинаково. */
+.gantt__corner-add {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-right: 2px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.gantt__corner-add:hover {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: none;
+}
+
 /* Кнопка, двигающая границу таблицы и шкалы: свёрнутая таблица отдаёт всё своё
    место полоскам. Стоит в углу шапки, вплотную к этой границе, — там же, где
    произойдёт обещанное.
@@ -821,7 +852,6 @@
   border-radius: 0;
   background: transparent;
   color: var(--text-muted);
-  box-shadow: none;
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
@@ -841,7 +871,6 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  box-shadow: none;
   cursor: pointer;
 }
 
@@ -867,10 +896,15 @@
 /* Знак «+» — тусклее подписи рядом с ним в покое и ярче под курсором: то же
    соотношение, что и у ручки перестановки строк, — и то же место в глазах,
    потому что тем же путём ведут в остальной ленте молчащие до наведения
-   знаки. */
+   знаки.
+
+   Тусклее — но не бледнее `--text-muted`: бледный (`--text-faint`) на белом
+   даёт 2,6:1, а знак здесь несёт смысл, а не украшает, и обязан набирать три к
+   одному. Соотношение с подписью держится тем, что подпись под курсором
+   уходит в `--text`, а знак — в `--accent`. */
 .gantt__add-plus {
   flex: 0 0 auto;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 400;
   line-height: 1;
@@ -943,7 +977,9 @@
 }
 
 /* Категория — заголовок группы, как в сгруппированной базе: полужирно, на
-   собственной подложке, задачи под ней — обычным начертанием. Высота у неё
+   собственной подложке, задачи под ней — обычным начертанием. Именно 600, а
+   не 700: иерархии в один шаг от обычной задачи хватает, а жирное при том же
+   кегле делало из списка категорий стену чёрных заголовков. Высота у неё
    та же, что у задачи: по одной константе строки считаются стрелки связей,
    и второй высоты здесь заводить нельзя. */
 .gantt__row--category .gantt__label {
@@ -957,7 +993,7 @@
 }
 
 .gantt__row--category .gantt__label-name {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .gantt__row:not(.gantt__row--category) .gantt__label-name {
@@ -983,7 +1019,7 @@
 /* Числа строки категории — того же начертания, что и её имя: это сводка по
    группе, а не значение отдельной задачи. */
 .gantt__row--category .cell-value {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .gantt__flag {
@@ -1217,7 +1253,6 @@
   border: 1px dotted var(--border-strong);
   border-radius: var(--radius-sm);
   background: transparent;
-  box-shadow: none;
   /* Приглушённый, а не бледный: бледный (--text-faint) на белом не набирает и
      трёх к одному, а это подпись кнопки, а не декорация. */
   color: var(--text-muted);
