@@ -852,7 +852,6 @@
   border-radius: 0;
   background: transparent;
   color: var(--text-muted);
-  box-shadow: none;
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
@@ -872,7 +871,6 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  box-shadow: none;
   cursor: pointer;
 }
 
@@ -898,10 +896,15 @@
 /* Знак «+» — тусклее подписи рядом с ним в покое и ярче под курсором: то же
    соотношение, что и у ручки перестановки строк, — и то же место в глазах,
    потому что тем же путём ведут в остальной ленте молчащие до наведения
-   знаки. */
+   знаки.
+
+   Тусклее — но не бледнее `--text-muted`: бледный (`--text-faint`) на белом
+   даёт 2,6:1, а знак здесь несёт смысл, а не украшает, и обязан набирать три к
+   одному. Соотношение с подписью держится тем, что подпись под курсором
+   уходит в `--text`, а знак — в `--accent`. */
 .gantt__add-plus {
   flex: 0 0 auto;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 400;
   line-height: 1;
@@ -1248,7 +1251,6 @@
   border: 1px dotted var(--border-strong);
   border-radius: var(--radius-sm);
   background: transparent;
-  box-shadow: none;
   /* Приглушённый, а не бледный: бледный (--text-faint) на белом не набирает и
      трёх к одному, а это подпись кнопки, а не декорация. */
   color: var(--text-muted);
