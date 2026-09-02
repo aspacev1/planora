@@ -126,17 +126,6 @@
     "set_task_fields": "Task fields changed",
     "unassign_user": "Assignee removed"
   },
-  "period": {
-    "all": "Whole project",
-    "next_4w": "Next 4 weeks",
-    "next_3m": "Next 3 months",
-    "from_today": "From today to the end"
-  },
-  "zoom": {
-    "day": "Day",
-    "week": "Week",
-    "month": "Month"
-  },
   "count": {
     "tasks": "Tasks: {n}",
     "categories": "Categories: {n}",

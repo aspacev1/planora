@@ -21,7 +21,6 @@ from app.invitations import (
     accept,
     by_token,
     create,
-    granted_project_ids,
     reissue,
     revoke,
     status_of,
@@ -30,6 +29,12 @@ from app.models import Invitation, Membership, Project, ProjectAccess, Role
 from app.orgs import member_of, remove_membership
 from app.projects import create_project
 from app.security import hash_token
+
+def granted_project_ids(db, *, user_id):
+    """Проекты, к которым у человека есть явный доступ, — глазами теста."""
+    return set(
+        db.scalars(select(ProjectAccess.project_id).where(ProjectAccess.user_id == user_id)).all()
+    )
 
 NOW = datetime(2026, 8, 11, 12, 0, tzinfo=timezone.utc)
 

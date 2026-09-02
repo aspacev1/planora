@@ -126,17 +126,6 @@
     "set_task_fields": "Tapşırıq sahələri dəyişdi",
     "unassign_user": "İcraçı götürüldü"
   },
-  "period": {
-    "all": "Bütün layihə",
-    "next_4w": "Növbəti 4 həftə",
-    "next_3m": "Növbəti 3 ay",
-    "from_today": "Bu gündən sona qədər"
-  },
-  "zoom": {
-    "day": "Gün",
-    "week": "Həftə",
-    "month": "Ay"
-  },
   "count": {
     "tasks": "Tapşırıq: {n}",
     "categories": "Kateqoriya: {n}",

@@ -375,9 +375,3 @@ def grant_project_access(db: DbSession, *, user_id: uuid.UUID, project_ids: list
     for project_id in sorted(alive - already, key=str):
         db.add(ProjectAccess(project_id=project_id, user_id=user_id))
     db.flush()
-
-
-def granted_project_ids(db: DbSession, *, user_id: uuid.UUID) -> set[uuid.UUID]:
-    return set(
-        db.scalars(select(ProjectAccess.project_id).where(ProjectAccess.user_id == user_id)).all()
-    )

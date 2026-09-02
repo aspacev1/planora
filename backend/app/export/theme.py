@@ -21,7 +21,6 @@ from reportlab.lib.colors import HexColor
 TEXT = "172033"
 TEXT_MUTED = "667085"
 TEXT_FAINT = "98A2B3"
-BG = "F5F7FB"
 BG_SUBTLE = "FBFCFE"
 SURFACE = "FFFFFF"
 BORDER = "E5E9F0"

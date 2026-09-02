@@ -213,7 +213,6 @@
     "already_member": "Bu adam artıq təşkilatdadır: dəvət heç nə əlavə etməyəcək",
     "last_owner": "Təşkilatda ən azı bir sahib qalmalıdır",
     "member_not_found": "Belə iştirakçı artıq təşkilatda yoxdur",
-    "verification_not_found": "Təsdiq keçidi işləmir",
     "llm_not_configured": "LLM qoşulmayıb",
     "llm_unreachable": "Model əlçatan deyil",
     "llm_refused": "Model sorğunu rədd etdi",
@@ -228,13 +227,7 @@
     "ai_session_not_found": "Sessiya tapılmadı",
     "interview_exhausted": "Suallar bitdi — konspektə keçin",
     "nothing_asked": "Sual hələ verilməyib",
-    "share_not_found": "Keçid işləmir və ya ləğv edilib",
-    "comments_disabled": "Şərhlər bağlıdır",
-    "comment_rate_limited": "Çox tez-tez — bir az gözləyin",
-    "public_sharing_disabled": "Açıq keçidlər bu quraşdırmada bağlıdır",
-    "comment_author_required": "Şərhi imzalayacaq kimsə yoxdur",
     "slug_empty": "Bundan ünvan alınmır — hərf və ya rəqəm işlədin",
-    "not_published": "Layihə dərc olunmayıb",
     "self_dependency": "Tapşırıq özündən asılı ola bilməz",
     "dependency_exists": "Belə əlaqə artıq var",
     "dependency_cycle": "Bu əlaqə dövrə bağlayır: tapşırıqlar bir-birini gözləyərdi",
@@ -406,8 +399,7 @@
       "save": "Dəyişiklikləri yadda saxla",
       "section_main": "Əsas",
       "section_links": "Əlaqələr",
-      "milestone": "Mərhələ",
-      "milestone_hint": "Şkalada nöqtə: müddəti yoxdur"
+      "milestone": "Mərhələ"
     },
     "new": {
       "placeholder": "Tapşırığın adı, sonra Enter",
@@ -578,7 +570,6 @@
       "expand": "Tapşırıq cədvəlini aç"
     },
     "toggle_category": "«{name}» kateqoriyasını qatla və ya aç",
-    "insert_before": "«{name}» tapşırığından əvvəl tapşırıq əlavə et",
     "assign": {
       "label": "İcraçılar",
       "empty": "İcraçı təyin et",
@@ -609,8 +600,7 @@
     "category_moved_late": "«{name}» {days} gec sürüşdü",
     "category_moved_early": "«{name}» {days} tez sürüşdü",
     "milestone": {
-      "short": "Mərhələ",
-      "label": "Mərhələ"
+      "short": "Mərhələ"
     },
     "link": {
       "from": "«{name}» nəyi gözləyir — göstərmək üçün dartın",

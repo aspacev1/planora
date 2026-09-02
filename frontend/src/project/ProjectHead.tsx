@@ -8,7 +8,7 @@ import { planChanges } from "./planChanges";
 import { projectMetrics, projectPeriod } from "./summary";
 
 /**
- * Шапка проекта: название с состоянием плана, сводка, действия справа.
+ * Шапка проекта: название, сводка, действия справа.
  *
  * Осталась публичной странице (`/p/...`), где над лентой больше ничего не
  * стоит и высота ярусов ни с кем не делится. Рабочий экран проекта носит
@@ -22,26 +22,10 @@ import { projectMetrics, projectPeriod } from "./summary";
 export function ProjectHead({
   state,
   actions,
-  planAction,
-  onShowChanges,
-  showPlan = false,
 }: {
   state: ProjectState;
   /** Кнопки над названием. Гостю не передаются вовсе — их у него нет. */
   actions?: ReactNode;
-  /** Кнопка согласования плана. Своей строки не рисует — становится в строку названия. */
-  planAction?: ReactNode;
-  /**
-   * Показать, что именно разошлось с согласованным планом. Не передано —
-   * пометка о расхождении остаётся текстом и никуда не ведёт.
-   */
-  onShowChanges?: () => void;
-  /**
-   * Показывать ли строку плана. Публичная страница её не показывает: версия
-   * плана и расхождение с ним — внутренняя кухня, а не то, что обещано клиенту
-   * по ссылке.
-   */
-  showPlan?: boolean;
 }) {
   const period = projectPeriod(state);
 
@@ -55,15 +39,6 @@ export function ProjectHead({
               есть и не переводится ни при каком языке интерфейса. */}
           <div className="project-head__title-row">
             <h1 className="project-head__title">{state.name}</h1>
-            {/* Состояние плана едет за названием: у короткого имени стоит
-                рядом, за длинным переносится следом — расстояние от имени до
-                плашки всегда одно и то же. */}
-            {showPlan && (
-              <span className="project-head__plan-inline">
-                <PlanState state={state} onShowChanges={onShowChanges} />
-                {planAction && <span className="project-head__approval">{planAction}</span>}
-              </span>
-            )}
           </div>
 
           {/* Срок работ и ничего больше. Счёт категорий и задач ушёл: полоса
@@ -81,7 +56,7 @@ export function ProjectHead({
         {actions && <div className="project-head__actions">{actions}</div>}
       </div>
 
-      <ProjectMetrics state={state} showPlan={showPlan} />
+      <ProjectMetrics state={state} />
     </header>
   );
 }
@@ -187,9 +162,12 @@ export function ProjectPeriod({ state }: { state: ProjectState }) {
  * «Завершено» и «После дедлайна проекта» пересекаются намеренно — это ответы
  * на разные вопросы: «сделано ли» и «в срок ли».
  */
-function ProjectMetrics({ state, showPlan }: { state: ProjectState; showPlan: boolean }) {
+function ProjectMetrics({ state }: { state: ProjectState }) {
   const { t } = useLocale();
-  const metrics = projectMetrics(state, showPlan);
+  // Строка плана и счёт «вне плана» — внутренняя кухня: версия плана и
+  // расхождение с ним не обещаны клиенту по ссылке, и публичная шапка их не
+  // показывает. Рабочий экран считает их в `PlanSummary`.
+  const metrics = projectMetrics(state, false);
 
   return (
     <ul className="project-head__metrics" aria-label={t("project.metrics.label")}>

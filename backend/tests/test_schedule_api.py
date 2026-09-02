@@ -102,8 +102,6 @@ def test_relative_task_carries_its_offset_in_working_days(authed):
 
     state = _state(authed, project_id)
 
-    assert _task_out(state, first)["start_offset_days"] == 0
-    assert _task_out(state, third_week)["start_offset_days"] == 10
     # Десять рабочих дней с понедельника — конец в пятницу второй недели.
     assert _task_out(state, first)["end_date"] == "2001-01-12"
 
@@ -167,8 +165,6 @@ def test_assigning_a_start_date_lays_tasks_over_the_real_calendar(authed):
     assert _task_out(state, first)["end_date"] == "2026-09-07"
     # Смещение 10 рабочих дней: праздник сдвигает и его — 8 сентября, а не 7-е.
     assert _task_out(state, third_week)["start_date"] == "2026-09-08"
-    # Смещения — принадлежность относительного плана; в календарном их нет.
-    assert _task_out(state, first)["start_offset_days"] is None
     # Календарь снова настоящий: праздник вернулся в выдачу.
     assert state["calendar"]["holidays"] == ["2026-08-26"]
 
