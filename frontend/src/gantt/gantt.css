@@ -661,6 +661,37 @@
   background: #f9fafc;
 }
 
+/* «Плюс» новой категории у заголовка списка. Мелкий квадрат в тон акцента, а
+   не кнопка в полный рост: он стоит в строке заголовка колонки, набранного
+   десятым кеглем, и кнопка обычной меры перевесила бы сам заголовок. Цветом
+   тем же, каким лента красит остальные свои «плюсы»: это одно действие в
+   разных местах, и выглядеть оно обязано одинаково. */
+.gantt__corner-add {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-right: 2px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.gantt__corner-add:hover {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: none;
+}
+
 /* Кнопка, двигающая границу таблицы и шкалы: свёрнутая таблица отдаёт всё своё
    место полоскам. Стоит в углу шапки, вплотную к этой границе, — там же, где
    произойдёт обещанное.

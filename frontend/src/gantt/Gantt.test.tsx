@@ -8,6 +8,7 @@ import { Providers, renderWithProviders } from "../test/utils";
 import { Gantt } from "./Gantt";
 import { COLLAPSED_WIDTH, DEFAULT_WIDTH } from "./columns";
 import { DAY_WIDTH } from "./scale";
+import { useGanttView } from "./useGanttView";
 
 const STATE: ProjectState = {
   id: "p1",
@@ -62,11 +63,13 @@ function draw(state: ProjectState, locale: Locale = "ru") {
   return renderWithProviders(<Gantt projectId="p1" state={state} />, { locale });
 }
 
-function drawWithToolbar(locale: Locale = "ru") {
-  return renderWithProviders(
-    <Gantt projectId="p1" state={STATE} toolbarAction={<button type="button">New task</button>} />,
-    { locale },
-  );
+/**
+ * Лента, чьим видом распоряжается экран, — как на рабочем экране проекта, где
+ * масштаб и «Вид» стоят в шапке, а не над лентой (см. `viewState`).
+ */
+function Controlled({ state }: { state: ProjectState }) {
+  const view = useGanttView("p1");
+  return <Gantt projectId="p1" state={state} viewState={view} />;
 }
 
 describe("диаграмма", () => {
@@ -243,6 +246,38 @@ describe("диаграмма", () => {
     expect(legend).toHaveTextContent("Блокер");
   });
 
+  it("«Вид» несёт и колонки таблицы, и слои: двух кнопок об одном в ряду нет", async () => {
+    draw(STATE, "ru");
+
+    // Отдельной кнопки «Колонки» в тулбаре больше нет — ряд был перегружен, а
+    // обе кнопки отвечали на один вопрос «что показывать».
+    expect(screen.queryByRole("button", { name: "Колонки" })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Вид" }));
+
+    // Обе части названы заголовками: без них список из девяти галочек пришлось
+    // бы вычитывать целиком ради любой из них.
+    const menu = screen.getByRole("button", { name: "Вид" }).nextElementSibling;
+    expect(menu).toHaveTextContent("Колонки");
+    expect(menu).toHaveTextContent("Слои");
+    expect(screen.getByRole("checkbox", { name: "Длительность" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Легенда" })).toBeInTheDocument();
+  });
+
+  it("колонка включается из того же меню, что и слои", async () => {
+    const { container } = draw(STATE, "ru");
+    const header = () => container.querySelector(".gantt__corner");
+
+    // По умолчанию длительности в таблице нет — она из числа тех колонок,
+    // которые просят.
+    expect(header()).not.toHaveTextContent("Длительность");
+
+    await userEvent.click(screen.getByRole("button", { name: "Вид" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Длительность" }));
+
+    expect(header()).toHaveTextContent("Длительность");
+  });
+
   it("статус полоски — хранимое поле, а не вывод из дат", () => {
     // Смысл переезда на хранимый статус: «заблокировано» из дат не выводится,
     // а «запланировано» может стоять и на уже начатой по датам задаче.
@@ -291,7 +326,7 @@ describe("диаграмма", () => {
   });
 
   it("меню масштаба называет текущий масштаб и меняет его", async () => {
-    const { container } = drawWithToolbar("ru");
+    const { container } = draw(STATE, "ru");
     // Свёрнутое меню обязано называть выбранное само: иначе, в отличие от
     // прежнего ряда сегментов, текущий масштаб виден только раскрытым.
     const button = screen.getByRole("button", { name: "Масштаб: День" });
@@ -305,10 +340,7 @@ describe("диаграмма", () => {
   });
 
   it("помнит выбранный масштаб после ухода с экрана и обратно", async () => {
-    const first = renderWithProviders(
-      <Gantt projectId="p1" state={STATE} toolbarAction={<button type="button">New task</button>} />,
-      { locale: "ru" },
-    );
+    const first = renderWithProviders(<Gantt projectId="p1" state={STATE} />, { locale: "ru" });
     await userEvent.click(screen.getByRole("button", { name: "Масштаб: День" }));
     await userEvent.click(screen.getByRole("radio", { name: "Неделя" }));
     expect(first.container.querySelector(".gantt")).toHaveClass("gantt--week");
@@ -591,9 +623,39 @@ describe("относительная шкала", () => {
     );
   });
 
-  it("называет режим в тулбаре", () => {
+  it("называет режим в тулбаре тому, кому назначить дату нечем", () => {
     draw(RELATIVE);
     expect(screen.getByText("Относительный план")).toBeInTheDocument();
+  });
+
+  it("ряда над лентой нет, когда видом распоряжается экран", () => {
+    const { container } = renderWithProviders(<Controlled state={RELATIVE} />, { locale: "ru" });
+
+    // Масштаб, «Вид» и плашка режима живут тогда в шапке проекта: второй ярус
+    // над лентой стоил бы строки плана (см. ProjectBar).
+    expect(container.querySelector(".project-toolbar")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Масштаб/ })).toBeNull();
+    expect(screen.queryByText("Относительный план")).toBeNull();
+  });
+
+  it("рисует по масштабу, который выбрал экран", async () => {
+    function Screen() {
+      const view = useGanttView("p1");
+      return (
+        <>
+          <button type="button" onClick={() => view.setZoom("month")}>
+            месяц снаружи
+          </button>
+          <Gantt projectId="p1" state={STATE} viewState={view} />
+        </>
+      );
+    }
+    const { container } = renderWithProviders(<Screen />, { locale: "ru" });
+    expect(container.querySelector(".gantt")).toHaveClass("gantt--day");
+
+    await userEvent.click(screen.getByRole("button", { name: "месяц снаружи" }));
+
+    expect(container.querySelector(".gantt")).toHaveClass("gantt--month");
   });
 
   it("занимает всю отведённую ширину целыми неделями", () => {

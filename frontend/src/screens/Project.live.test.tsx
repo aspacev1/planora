@@ -21,16 +21,16 @@ async function goOffline() {
 }
 
 /**
- * Кнопка тулбара «Новая категория» — не «+ Новая категория» с низа ленты
- * (см. `gantt/BottomActions.tsx`): у обеих одно и то же имя для читалки, а
- * заперта обрывом связи только эта, явным пропом `disabled` (см. Project.tsx).
- * Строка снизу ленты о разрыве не знает вовсе и остаётся нажимаемой — как и
- * прочие «плюсы» внутри ленты, она полагается на общий запрет в
- * `useProjectMutation`, а не на собственный признак.
+ * «Плюс» в углу таблицы — не «+ Новая категория» с низа ленты (см.
+ * `gantt/BottomActions.tsx`): у обеих одно и то же имя для читалки, а обрыв
+ * связи гасит только этот — вместе с остальными «плюсами» ленты он приходит
+ * только пока проект можно править (см. `editable` в Project.tsx). Строка
+ * снизу ленты о разрыве не знает вовсе и остаётся нажимаемой: она полагается
+ * на общий запрет в `useProjectMutation`, а не на собственный признак.
  */
-function toolbarAddCategoryButton() {
-  const toolbar = document.querySelector(".project-toolbar") as HTMLElement;
-  return within(toolbar).getByRole("button", { name: "Новая категория" });
+function cornerAddCategoryButton() {
+  const corner = document.querySelector(".gantt__corner") as HTMLElement;
+  return within(corner).queryByRole("button", { name: "Новая категория" });
 }
 
 beforeEach(projectFixtures);
@@ -54,12 +54,14 @@ describe("экран проекта при обрыве связи", () => {
   it("запирает редактирование, пока связи нет", async () => {
     renderProject(STATE);
     await screen.findByRole("button", { name: /Логотип/ });
-    expect(toolbarAddCategoryButton()).toBeEnabled();
+    expect(cornerAddCategoryButton()).toBeEnabled();
 
     await goOffline();
 
-    expect(toolbarAddCategoryButton()).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Новая задача" })).toBeDisabled();
+    // «Плюсы» ленты уходят вместе с правом писать: кнопка, обещающая
+    // действие, которое сервер отклонит, хуже отсутствующей.
+    expect(cornerAddCategoryButton()).toBeNull();
+    expect(screen.queryByRole("button", { name: /Добавить задачу/ })).not.toBeInTheDocument();
   });
 
   it("не отправляет изменений, пока связи нет", async () => {
@@ -83,13 +85,13 @@ describe("экран проекта при обрыве связи", () => {
     renderProject(STATE);
     await screen.findByRole("button", { name: /Логотип/ });
     await goOffline();
-    expect(toolbarAddCategoryButton()).toBeDisabled();
+    expect(cornerAddCategoryButton()).toBeNull();
 
     // Переподключение: следующий сокет открывается по таймеру отката.
     await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
     await act(async () => lastSocket().accept());
 
-    await waitFor(() => expect(toolbarAddCategoryButton()).toBeEnabled());
+    await waitFor(() => expect(cornerAddCategoryButton()).toBeEnabled());
     expect(screen.queryByText(/нет связи/i)).not.toBeInTheDocument();
   });
 
@@ -127,6 +129,6 @@ describe("экран проекта при обрыве связи", () => {
     await act(async () => lastSocket().drop());
 
     expect(screen.queryByText(/нет связи/i)).not.toBeInTheDocument();
-    expect(toolbarAddCategoryButton()).toBeEnabled();
+    expect(cornerAddCategoryButton()).toBeEnabled();
   });
 });

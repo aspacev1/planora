@@ -1102,6 +1102,36 @@ button:disabled:hover {
   background: var(--danger-soft);
 }
 
+/* Та же тихая кнопка, но акцентом: «Назначить дату старта», пока план
+   относительный. Действие важное — им проект переводят из набросков в сроки, —
+   но второй залитой кнопкой в тулбаре оно спорило бы за первый взгляд с
+   «Новой задачей», которую нажимают в этом ряду десятки раз, а его самого
+   нажимают однажды. Контур вместо заливки — тот же приём, каким выделено
+   пересогласование в шапке. */
+.button--accent {
+  color: var(--accent);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.button--accent:hover,
+.button--accent:disabled:hover {
+  background: var(--accent-soft);
+}
+
+/* Призрачная кнопка — без рамки и заливки: органы вида в шапке проекта,
+   рядом с вкладками. Тема (northstar-theme.css) задаёт ей цвет и наведение. */
+.button--ghost {
+  color: var(--text-muted);
+  background: transparent;
+  box-shadow: none;
+}
+
+.button--ghost:hover,
+.button--ghost:disabled:hover {
+  background: var(--hover);
+}
+
 /* Кнопка, доводящая необратимое до конца, — залитая цветом тревоги. Рядом с
    ней в окне стоит отказ, и выглядеть она обязана как действие, а не как
    вторая тихая кнопка. Заливка, а не рамка `.button--alert`: та отвечает
@@ -2098,6 +2128,14 @@ input[type="checkbox"] {
 }
 
 /* --- кнопка с выпадающей панелью --- */
+
+/* Кнопка-значок тулбара: квадрат в рост обычной кнопки, без боковых полей.
+   Своей меры не заводит — берёт общую (`--control-button`), иначе ряд читался
+   бы лесенкой. */
+.project-toolbar__icon {
+  width: var(--control-button);
+  padding: 0;
+}
 
 .menu {
   position: relative;

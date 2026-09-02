@@ -533,6 +533,7 @@
       "focus_exit": "Exit full screen"
     },
     "view": {
+      "layers": "Layers",
       "baseline": "Baseline plan",
       "legend": "Legend",
       "summary": "Deadline summary",
