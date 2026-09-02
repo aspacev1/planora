@@ -117,18 +117,6 @@ def columns_for(days: int, zoom: Zoom) -> int:
     return -(-days // DAYS_PER_UNIT[zoom])
 
 
-@dataclass(frozen=True)
-class ZoomOption:
-    """Один масштаб с его ценой — ровно то, что окно пишет на кнопке."""
-
-    zoom: Zoom
-    pages: int
-    #: Доступен ли. Недоступный не отказ, а объяснённая невозможность: окно
-    #: показывает и его, с числом страниц, чтобы человек понял, чего стоит
-    #: подробность, а не гадал, куда делась кнопка.
-    allowed: bool
-
-
 def allowed(zoom: Zoom, days: int, orientation: Orientation) -> bool:
     """Укладывается ли масштаб в потолок.
 
@@ -141,13 +129,6 @@ def allowed(zoom: Zoom, days: int, orientation: Orientation) -> bool:
     if zoom is ZOOMS[-1]:
         return True
     return page_count(days, zoom, orientation) <= MAX_PAGES
-
-
-def zoom_options(days: int, orientation: Orientation) -> list[ZoomOption]:
-    return [
-        ZoomOption(zoom, page_count(days, zoom, orientation), allowed(zoom, days, orientation))
-        for zoom in ZOOMS
-    ]
 
 
 def default_zoom(days: int, orientation: Orientation) -> Zoom:

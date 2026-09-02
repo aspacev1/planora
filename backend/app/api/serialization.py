@@ -26,7 +26,7 @@ from app.models import (
     Task,
     TaskAssignee,
 )
-from app.schedule import RELATIVE_EPOCH, offset_of, relative_calendar
+from app.schedule import relative_calendar
 from app.settings_resolution import project_calendar, resolve_shift_threshold, resolve_timezone
 
 
@@ -176,17 +176,6 @@ def project_state(
                 "name": t.name,
                 "description": t.description,
                 "start_date": t.start_date.isoformat(),
-                # Смещение от начала проекта в рабочих днях — модель задачи
-                # относительного плана, выведенная из координаты. Считает
-                # сервер: клиент рабочие дни не пересчитывает нигде. None — у
-                # календарного проекта и у координаты, ушедшей раньше начала
-                # оси (по проводу такое положение допустимо, смещения у него
-                # нет).
-                "start_offset_days": (
-                    offset_of(t.start_date, RELATIVE_EPOCH, calendar)
-                    if relative and t.start_date >= RELATIVE_EPOCH
-                    else None
-                ),
                 "duration_days": t.duration_days,
                 "end_date": task_end.isoformat(),
                 # Веха рисуется ромбом в своём дне, а не отрезком. Признак, а

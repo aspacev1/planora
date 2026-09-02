@@ -549,7 +549,6 @@ const RELATIVE: ProjectState = {
       ...STATE.tasks[0],
       start_date: "2001-01-01",
       end_date: "2001-01-12",
-      start_offset_days: 0,
       duration_days: 10,
     },
   ],
