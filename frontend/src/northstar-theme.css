@@ -45,7 +45,6 @@
   --tag-blue: #eef0ff;
   --tag-yellow: #fff6e7;
   --tag-red: #fff0f4;
-  --tag-green: #e9f8f0;
   /* Выходной — не заливка, а затемнение: колонка ложится и на белое тело
      ленты, и на серую шапку, и в обоих местах обязана читаться одинаково. */
   --nonworking: rgb(36 48 68 / 3.5%);
@@ -133,7 +132,6 @@ a:focus-visible,
    единственное, что от неё остаётся. */
 .sidebar__avatar { width: 30px; height: 30px; border-radius: 8px; color: #fff; font-size: 15px; line-height: 1; font-weight: 800; background: linear-gradient(145deg, #7182ff, #4256d8); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%); }
 .sidebar__brand { font-size: 15px; font-weight: 700; color: var(--text); }
-.sidebar__section { display: none; }
 .sidebar__nav { gap: 3px; }
 /* Рост строки — 32, как у переключателя организаций над разделами: колонка —
    один столбец, и три роста в нём (34, 32 и 35 у дорожки языка) читались как
@@ -189,7 +187,6 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
 .project-head__main { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; width: 100%; }
 .project-head__title { font-size: 25px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.25; }
 .project-head__meta { margin-top: 7px; font-size: 13px; color: var(--text-muted); font-style: normal; }
-.project-head__plan-inline { display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 
 /* Состояние плана — пилюля-бейдж макета с точкой: черновик янтарный,
    согласованный зелёный. Прежняя прямоугольная плашка была всегда янтарной и
@@ -280,10 +277,6 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
 
    Значку остался только цвет: меру ему задаёт общее правило `.icon`. */
 .project-head__actions .icon { color: var(--text-muted); }
-/* Кнопка согласования стоит в строке плана, сразу за плашкой версии, и её
-   высота повторяет высоту плашки — иначе кнопка раздувает строку сводки.
-   Своего роста ей тоже не нужно: общая мера кнопки и есть высота плашки. */
-.project-head__approval { display: inline-flex; align-items: center; }
 
 /* --- тулбар ленты --- */
 
@@ -571,12 +564,12 @@ textarea:focus {
    макета. Мельче значения ровно затем, чтобы читалось значение: подпись
    человек прочитывает один раз, а возвращается к ней глазами постоянно. */
 .field { gap: 6px; margin-bottom: 18px; }
-.field label, .field > .settings__key, .links__label, .settings__key { color: var(--text-muted); font-size: 11px; font-weight: 700; }
+.field label, .field > .settings__key, .settings__key { color: var(--text-muted); font-size: 11px; font-weight: 700; }
 /* Пояснение под подписью — мельче значения и крупнее подписи: набранное общим
    кеглем, оно оказывалось заметнее самой подписи поля. */
 .field .muted { font-size: 12px; }
 
-.links__item, .panel__dep { border-radius: var(--radius-pill); background: var(--tag-gray); box-shadow: none; font-size: 12px; font-weight: 700; }
+.panel__dep { border-radius: var(--radius-pill); background: var(--tag-gray); box-shadow: none; font-size: 12px; font-weight: 700; }
 .panel__dep { border: 0; }
 
 /* --- меню --- */
@@ -584,8 +577,6 @@ textarea:focus {
 .menu__pop { min-width: 220px; padding: 7px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-md); }
 .menu__item { min-height: 34px; gap: 9px; padding: 7px 9px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; }
 .menu__item:hover { background: var(--hover); }
-.menu__title { margin: 4px 5px 6px; font-size: 10px; letter-spacing: 0.06em; font-weight: 800; color: var(--text-muted); }
-.menu__sep { margin: 6px 0; }
 .menu__caret { color: var(--text-muted); }
 
 /* --- плашка статуса --- */
@@ -606,8 +597,7 @@ textarea:focus {
 /* --- сообщения --- */
 
 .error,
-.ok,
-.callout {
+.ok {
   padding: 10px 12px;
   border: 1px solid currentColor;
   border-radius: var(--radius-md);
@@ -616,7 +606,6 @@ textarea:focus {
 }
 
 .ok { background: var(--ok-soft); }
-.callout { color: var(--text); border-color: var(--border); background: var(--bg-subtle); }
 .nudge { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); }
 .plan__confirm { padding: 4px 4px 4px 12px; border-radius: var(--radius-md); background: var(--danger-soft); }
 
@@ -767,16 +756,13 @@ body:has(.screen--narrow) {
 
 /* --- списки --- */
 
-.home-card, .task-list, .report { border-color: var(--border); border-radius: var(--radius-lg); background: var(--surface); }
-/* Название карточки и ссылка на проект в строке задачи — чернилами, а не
-   акцентом: `.screen a` красит всякую ссылку страницы синим и подчёркивает её,
-   и в списке из двадцати строк это частокол. Открывается по щелчку вся строка,
-   а не подчёркнутое слово в ней. */
-.screen .home-card__name { color: var(--text); font-size: 16px; text-decoration: none; }
+.task-list, .report { border-color: var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+/* Ссылка на проект в строке задачи — чернилами, а не акцентом: `.screen a`
+   красит всякую ссылку страницы синим и подчёркивает её, и в списке из
+   двадцати строк это частокол. Открывается по щелчку вся строка, а не
+   подчёркнутое слово в ней. */
 .screen .task-list__project { color: var(--text-muted); text-decoration: none; }
-.screen .home-card__name:hover, .screen .task-list__project:hover { background: transparent; text-decoration: underline; }
-.home-card__bar, .home-card__bar i, .panel__progressbar, .panel__progressbar i { border-radius: var(--radius-lg); }
-.home-card__bar { height: 7px; background: var(--border); }
+.screen .task-list__project:hover { background: transparent; text-decoration: underline; }
 .report thead th { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: var(--text-muted); }
 .report__warn { color: var(--warn); }
 .report__late { color: var(--danger-strong); }
@@ -886,22 +872,6 @@ body:has(.screen--narrow) {
 .panel__fields select:focus,
 .panel__fields textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
-/* Блок прогресса — рамка и подложка макета. Пустая подпись слева от полосы
-   здесь не нужна: блок занимает строку целиком, а не колонку значения.
-   Подложка взята токеном: две почти неразличимые серые макета (#fbfcfe у
-   полосы метрик и #fafbfc здесь) — это одна роль, а не две. */
-.panel__row:has(.panel__progressbar) {
-  display: block;
-  margin: 6px 0 10px;
-  padding: 13px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--bg-subtle);
-}
-
-.panel__row:has(.panel__progressbar) .panel__key { display: none; }
-.panel__progressbar { height: 7px; background: var(--border); }
-
 .panel__chip { height: 23px; border-radius: var(--radius-pill); background: var(--tag-gray); font-size: 11px; font-weight: 700; }
 .panel__baseline { padding: 10px 12px; border-radius: var(--radius-md); background: var(--bg-subtle); box-shadow: inset 0 0 0 1px var(--border); font-size: 12px; }
 .panel__history, .panel__comments { border-top-color: var(--border); }
@@ -985,10 +955,6 @@ body:has(.screen--narrow) {
   .screen--narrow { margin: 24px auto; padding: 28px 22px; }
   .project-head__title { font-size: 22px; }
   .project-head__meta { font-size: 12px; }
-  /* На узком экране состояние плана становится под название целой строкой, а
-     не жмётся к нему сбоку: имя проекта и без того занимает всю ширину.
-     Просвет задаёт `gap` строки — свой отступ здесь сложился бы с ним. */
-  .project-head__plan-inline { flex-basis: 100%; margin: 0; }
   .project-toolbar__primary { flex: 1; }
   .modal { padding: 22px 18px; }
   .modal__actions { align-items: stretch; flex-direction: column; }

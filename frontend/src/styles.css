@@ -13,15 +13,11 @@
       «просрочено», зелёный — «в срок». Всё прочее набрано чернилами разной
       плотности, и это единственная градация, которая не спорит с данными.
 
-   Палитра задаётся переменными, а не значениями по месту: тёмная тема
-   переопределяет только их, и ни один компонент об этом не знает. */
+   Палитра задаётся переменными, а не значениями по месту: тема поверх
+   (northstar-theme.css) переопределяет только их, и ни один компонент об
+   этом не знает. */
 
 :root {
-  /* Браузер обязан знать про обе темы: без этого его собственные части —
-     полосы прокрутки, календарь в поле даты, выпадающий список — остаются
-     светлыми на тёмной странице. */
-  color-scheme: light dark;
-
   /* Чернила Notion — не чёрные: rgb(55 53 47) теплее и мягче на белом, а
      степени приглушённости заданы прозрачностью, а не отдельными серыми.
      Так текст поверх любой подложки остаётся согласован с ней сам. */
@@ -61,14 +57,6 @@
   --tag-blue: #d3e5ef;
   --tag-yellow: #fdecc8;
   --tag-red: #ffe2dd;
-  --tag-green: #dbeddb;
-
-  /* Полоски диаграммы говорят цветом метки, а не собственным набором:
-     критичность — такое же свойство, как статус в базе Notion. */
-  --bar: var(--tag-blue);
-  --bar-low: var(--tag-gray);
-  --bar-high: var(--tag-yellow);
-  --bar-critical: var(--tag-red);
   --nonworking: #f7f7f5;
 
   /* Тени Notion многослойные: первый слой заменяет рамку, второй и третий
@@ -124,50 +112,6 @@
   --font:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji",
     Arial, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: 255 255 255;
-    /* В темноте белый в полную силу слепит: Notion держит основной текст на
-       81% и тем сохраняет запас яркости для выделенного. */
-    --text: rgb(var(--ink) / 81%);
-    --text-muted: rgb(var(--ink) / 46%);
-    --text-faint: rgb(var(--ink) / 28%);
-
-    --bg: #191919;
-    --bg-subtle: #202020;
-    --surface: #202020;
-
-    --hover: rgb(var(--ink) / 5.5%);
-    --active: rgb(var(--ink) / 8%);
-    --border: rgb(var(--ink) / 9.4%);
-    --border-strong: rgb(var(--ink) / 16%);
-
-    --accent: #2383e2;
-    --accent-hover: #3b91e6;
-    --accent-text: #ffffff;
-    --accent-soft: rgb(35 131 226 / 20%);
-
-    --danger: #ff7369;
-    --danger-soft: rgb(255 115 105 / 14%);
-    --ok: #4dab9a;
-    --ok-soft: rgb(77 171 154 / 14%);
-
-    --input-bg: rgb(var(--ink) / 5.5%);
-
-    --tag-gray: #454546;
-    --tag-blue: #1f3d52;
-    --tag-yellow: #59563b;
-    --tag-red: #5e3435;
-    --tag-green: #2f4e3c;
-    --nonworking: rgb(var(--ink) / 3.5%);
-
-    --shadow-sm: rgb(0 0 0 / 30%) 0 1px 2px;
-    --shadow-md:
-      rgb(255 255 255 / 10%) 0 0 0 1px, rgb(0 0 0 / 20%) 0 3px 6px, rgb(0 0 0 / 40%) 0 9px 24px;
-    --backdrop: rgb(15 15 15 / 80%);
-  }
 }
 
 * {
@@ -467,7 +411,6 @@ button.sidebar__workspace:focus-visible {
   .sidebar--collapsed .sidebar__brand,
   .sidebar--collapsed .org-switch,
   .sidebar--collapsed .locale-switch,
-  .sidebar--collapsed .sidebar__section,
   .sidebar--collapsed .sidebar__fold {
     display: none;
   }
@@ -519,16 +462,6 @@ button.sidebar__workspace:focus-visible {
       visibility 0s linear 400ms;
   }
 
-}
-
-/* Подпись раздела колонки. Мельче и тише пунктов: она объясняет их, а не
-   соперничает с ними за внимание. */
-.sidebar__section {
-  margin: 12px 0 4px;
-  padding: 0 8px;
-  color: var(--text-faint);
-  font-size: 12px;
-  font-weight: 500;
 }
 
 .sidebar__nav {
@@ -644,10 +577,6 @@ button.sidebar__button:hover {
     flex-direction: row;
   }
 
-  .sidebar__section {
-    display: none;
-  }
-
   .sidebar__foot {
     margin: 0 0 0 auto;
     flex-direction: row;
@@ -722,11 +651,6 @@ button.sidebar__button:hover {
   gap: 8px;
   margin-left: auto;
   flex-wrap: wrap;
-}
-
-.header__nav {
-  display: flex;
-  gap: 4px;
 }
 
 /* --- страница --- */
@@ -951,13 +875,6 @@ h2 {
     min-width: 104px;
     padding: 9px 12px;
   }
-}
-
-.screen__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .muted {
@@ -1286,71 +1203,6 @@ input[type="checkbox"] {
   gap: 8px;
 }
 
-/* --- связи задачи в форме --- */
-
-/* Те же плашки и тот же «добавить связь…», что и в карточке: связь, заведённую
-   при создании, снимают потом уже там, и второй способ выбирать то же самое
-   пришлось бы объяснять заново. */
-.links__label {
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.links__list {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.links__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--input-bg);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
-  font-size: 13px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.links__remove {
-  height: auto;
-  padding: 0 2px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--text-faint);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.links__remove:hover {
-  background: transparent;
-  box-shadow: none;
-  color: var(--danger);
-}
-
-/* Узкий список среди плашек, а не поле во всю строку: это команда, а не
-   значение поля. */
-.links__add {
-  width: auto;
-  max-width: 100%;
-  height: auto;
-  min-height: 0;
-  padding: 3px 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
 .fieldset,
 .settings__fieldset {
   margin: 0;
@@ -1483,19 +1335,6 @@ input[type="checkbox"] {
 .field__mark {
   margin: 0;
   font-size: 12px;
-}
-
-/* Выноска — прямоугольник с тонкой заливкой, как callout в Notion: он
-   отделён от текста, но не выкрикивает. Полотно в полный цвет над диаграммой
-   перекрикивало бы саму диаграмму. */
-.callout {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  background: var(--hover);
 }
 
 /* --- списки строк --- */
@@ -1658,13 +1497,6 @@ input[type="checkbox"] {
   margin-bottom: var(--gap);
 }
 
-/* Ссылка приглашения показывается один раз, поэтому переносится целиком, а не
-   обрезается: обрезанную нельзя ни прочитать, ни продиктовать. */
-.members__link {
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
 /* --- окно --- */
 
 /* Подложка проявляется, а не включается: она затемняет весь экран на 60% (в
@@ -1790,14 +1622,6 @@ input[type="checkbox"] {
   background: var(--danger-soft);
 }
 
-/* Карточка встаёт под строку плана целой строкой, а не втискивается между
-   плашками: обёртка кнопки согласования для этого раздаётся на всю ширину, как
-   только вопрос в ней развернулся. Иначе карточка уезжает в правый край, где
-   на ней остаётся полторы колонки и три переноса. */
-.project-head__approval:has(.plan-reapprove) {
-  flex-basis: 100%;
-  margin-top: 4px;
-}
 
 /* Пока в строке одни плашки, они и имя проекта стоят на одной оси. Когда
    развернулась карточка вопроса, ось теряет смысл: имя уехало бы на середину
@@ -2138,15 +1962,6 @@ input[type="checkbox"] {
   animation: layer-drop var(--motion-layer) var(--motion-layer-ease);
 }
 
-.menu__title {
-  margin: 4px 4px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-
 .menu__item {
   display: flex;
   align-items: center;
@@ -2187,12 +2002,6 @@ input[type="checkbox"] {
 
 .menu__item--danger:hover {
   background: var(--danger-soft);
-}
-
-.menu__sep {
-  height: 1px;
-  margin: 8px 0;
-  background: var(--border);
 }
 
 /* --- тост --- */

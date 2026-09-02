@@ -213,7 +213,6 @@
     "already_member": "That person is in the organization already: an invitation adds nothing",
     "last_owner": "The organization must keep at least one owner",
     "member_not_found": "That member is no longer in the organization",
-    "verification_not_found": "That confirmation link no longer works",
     "llm_not_configured": "No LLM is connected",
     "llm_unreachable": "The model is unreachable",
     "llm_refused": "The model refused the request",
@@ -228,13 +227,7 @@
     "ai_session_not_found": "Session not found",
     "interview_exhausted": "No questions left — move on to the summary",
     "nothing_asked": "Nothing has been asked yet",
-    "share_not_found": "The link does not work or was revoked",
-    "comments_disabled": "Comments are off",
-    "comment_rate_limited": "Too fast — wait a little",
-    "public_sharing_disabled": "Public links are switched off in this installation",
-    "comment_author_required": "There is no one to sign this comment",
     "slug_empty": "That makes no address — use letters or digits",
-    "not_published": "The project is not published",
     "self_dependency": "A task cannot depend on itself",
     "dependency_exists": "That link is already there",
     "dependency_cycle": "That link closes a loop: the tasks would wait for each other",
@@ -406,8 +399,7 @@
       "save": "Save changes",
       "section_main": "General",
       "section_links": "Links",
-      "milestone": "Milestone",
-      "milestone_hint": "A point on the timeline: no duration"
+      "milestone": "Milestone"
     },
     "new": {
       "placeholder": "Task name, then Enter",
@@ -577,7 +569,6 @@
       "expand": "Expand the task table"
     },
     "toggle_category": "Collapse or expand “{name}”",
-    "insert_before": "Add a task above “{name}”",
     "assign": {
       "label": "Assigned people",
       "empty": "Assign people",
@@ -608,8 +599,7 @@
     "category_moved_late": "“{name}” moved {days} later",
     "category_moved_early": "“{name}” moved {days} earlier",
     "milestone": {
-      "short": "Milestone",
-      "label": "Milestone"
+      "short": "Milestone"
     },
     "link": {
       "from": "Drag to pick what “{name}” waits for",
