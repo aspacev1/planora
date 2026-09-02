@@ -173,3 +173,15 @@ export function IconShrink({ className }: IconProps) {
     </Icon>
   );
 }
+
+/* Календарь: перенос даты старта. Лист с кольцами сверху, а не сетка дней —
+   на четырнадцати пикселях сетка сливается в серое пятно. */
+export function IconCalendar({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" />
+      <path d="M2.5 7h11" />
+      <path d="M5.5 2v3M10.5 2v3" />
+    </Icon>
+  );
+}

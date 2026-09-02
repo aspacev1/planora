@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { projectFixtures, renderProject } from "../test/project";
+import { STATE, projectFixtures, renderProject } from "../test/project";
 
 beforeEach(projectFixtures);
 
@@ -112,7 +112,7 @@ describe("полноэкранная лента", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "На весь экран" }));
 
-    // Тулбар остаётся на экране — выход из режима живёт в нём же.
+    // Шапка спрятана вместе с кнопкой разворота — выход живёт поверх ленты.
     const exit = screen.getByRole("button", { name: "Выйти из полного экрана" });
     expect(exit).toHaveAttribute("aria-pressed", "true");
 
@@ -139,5 +139,87 @@ describe("полноэкранная лента", () => {
     expect(button).toHaveAttribute("title", "На весь экран");
     expect(button).toHaveTextContent("");
     expect(button.querySelector("svg")).not.toBeNull();
+  });
+});
+
+describe("органы вида — в шапке, второго яруса над лентой нет", () => {
+  it("масштаб и «Вид» стоят в строке шапки, тулбара над лентой нет", async () => {
+    renderProject();
+    await tape();
+
+    expect(document.querySelector(".project-toolbar")).toBeNull();
+
+    const row = within(bar() as HTMLElement);
+    // Масштаб назван одним значением, но имя у кнопки полное — для читалки.
+    expect(row.getByRole("button", { name: "Масштаб: День" })).toHaveTextContent("День");
+    expect(row.getByRole("button", { name: "Вид" })).toBeInTheDocument();
+    expect(row.getByRole("button", { name: "На весь экран" })).toBeInTheDocument();
+  });
+
+  it("масштаб из шапки меняет ленту", async () => {
+    renderProject();
+    await tape();
+
+    fireEvent.click(screen.getByRole("button", { name: "Масштаб: День" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Месяц" }));
+
+    expect(document.querySelector(".gantt")).toHaveClass("gantt--month");
+    expect(screen.getByRole("button", { name: "Масштаб: Месяц" })).toBeInTheDocument();
+  });
+
+  it("на других вкладках органов вида нет: масштаб у истории ни к чему", async () => {
+    renderProject(undefined, { route: "/projects/p1/history" });
+    await screen.findByRole("heading", { name: "Редизайн" });
+
+    expect(screen.queryByRole("button", { name: /Масштаб/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "На весь экран" })).toBeNull();
+    // Сама шапка со вкладками и «⋯» на месте.
+    expect(within(bar() as HTMLElement).getByRole("button", { name: "Ещё действия" })).toBeInTheDocument();
+  });
+
+  it("создание живёт в ленте: «плюс» категории — у заголовка списка", async () => {
+    renderProject();
+    await tape();
+
+    expect(screen.queryByRole("button", { name: "Новая задача" })).toBeNull();
+    const corner = document.querySelector(".gantt__corner") as HTMLElement;
+    expect(within(corner).getByRole("button", { name: "Новая категория" })).toBeInTheDocument();
+  });
+});
+
+describe("дела плана — у его состояния", () => {
+  it("перенос назначенной даты старта — под «⋯», а не в строке", async () => {
+    renderProject();
+    await tape();
+
+    expect(screen.queryByRole("button", { name: "Изменить дату старта" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ещё действия" }));
+
+    expect(
+      within(bar() as HTMLElement).getByRole("button", { name: "Изменить дату старта" }),
+    ).toBeInTheDocument();
+  });
+
+  it("первая привязка стоит в строке рядом с состоянием плана", async () => {
+    renderProject({ ...STATE, schedule_mode: "relative", start_date: null, deadline: null });
+    await tape();
+
+    const row = within(bar() as HTMLElement);
+    const button = row.getByRole("button", { name: "Назначить дату старта" });
+    expect(button).toHaveClass("button--accent");
+    // Плашка «Относительный план» кнопку не дублирует.
+    expect(screen.queryByText("Относительный план")).toBeNull();
+  });
+
+  it("читателю относительного плана — плашка режима вместо кнопки", async () => {
+    renderProject(
+      { ...STATE, schedule_mode: "relative", start_date: null, deadline: null },
+      { canWrite: false },
+    );
+    await tape();
+
+    expect(screen.queryByRole("button", { name: "Назначить дату старта" })).toBeNull();
+    expect(within(bar() as HTMLElement).getByText("Относительный план")).toBeInTheDocument();
   });
 });

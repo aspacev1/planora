@@ -76,9 +76,17 @@ export function HeadCells({
   onReorder,
   resizeLabel,
   reorderLabel,
+  leading,
 }: {
   layout: ColumnLayout;
   labels: Record<ColumnKey, string>;
+  /**
+   * Что стоит перед заголовком первой колонки — «плюс» новой категории.
+   * Внутри ячейки, а не рядом с ней: ячейка названия несёт поле слева
+   * (`--gantt-pad`), и узел вне её встал бы либо в это поле, либо за ним,
+   * сдвинув заголовок относительно имён задач под ним.
+   */
+  leading?: ReactNode;
   /** `undefined` — ширины не меняются (у ленты нет памяти, например в тесте). */
   onResize?: (column: ColumnKey, width: number) => void;
   /** `undefined` — колонки не переставляются. */
@@ -92,6 +100,7 @@ export function HeadCells({
     <>
       {shownColumns(layout).map((column) => (
         <Cell key={column} column={column} layout={layout}>
+          {column === "task" && leading}
           <span
             className={`gantt__corner-label${
               onReorder && column !== "task" ? " gantt__corner-label--movable" : ""

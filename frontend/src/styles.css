@@ -1119,6 +1119,19 @@ button:disabled:hover {
   background: var(--accent-soft);
 }
 
+/* Призрачная кнопка — без рамки и заливки: органы вида в шапке проекта,
+   рядом с вкладками. Тема (northstar-theme.css) задаёт ей цвет и наведение. */
+.button--ghost {
+  color: var(--text-muted);
+  background: transparent;
+  box-shadow: none;
+}
+
+.button--ghost:hover,
+.button--ghost:disabled:hover {
+  background: var(--hover);
+}
+
 /* Кнопка, доводящая необратимое до конца, — залитая цветом тревоги. Рядом с
    ней в окне стоит отказ, и выглядеть она обязана как действие, а не как
    вторая тихая кнопка. Заливка, а не рамка `.button--alert`: та отвечает

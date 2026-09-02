@@ -291,19 +291,16 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
    кнопками прежние 78 пикселей оставляли над лентой полосу пустоты выше самой
    шапки ленты. */
 .project-toolbar { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 5px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
-/* Своих полей главной кнопке тулбара не задаётся: лишние два пикселя по бокам
-   отличали её от соседних кнопок ряда, а выделяет её заливка, а не размер. */
-.project-toolbar__divider { width: 1px; height: 24px; margin: 0 4px; background: var(--border); }
 .project-toolbar__spacer { flex: 1; }
 /* Меню тулбара — «Масштаб» и «Вид» — одной высоты между собой и со всеми
    кнопками приложения: своего роста им больше не задаётся, они берут общий.
    Прежние 36 пикселей поднимали их над переключателем представления, стоящим
    в том же ряду, и тулбар читался двумя этажами вместо одного. */
 /* Индикатор «Относительный план»: плашка состояния, а не кнопка — до
-   назначения даты старта режим один и переключать нечего. Стоит в ряду
-   только у того, кому дату назначить нечем: рядом с кнопкой «Назначить дату
-   старта» она говорила то же самое второй раз и занимала больше места, чем
-   любая кнопка ряда (см. тулбар в Gantt.tsx). */
+   назначения даты старта режим один и переключать нечего. Стоит только у
+   того, кому дату назначить нечем — у читателя в шапке проекта и на
+   публичной странице: рядом с кнопкой «Назначить дату старта» она говорила
+   то же самое второй раз и занимала больше места, чем любая кнопка ряда. */
 .project-toolbar__mode { display: inline-flex; align-items: center; gap: 5px; height: 29px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; white-space: nowrap; cursor: help; }
 /* Знак ⓘ — псевдоэлементом, а не разметкой: он говорит, что у бейджа есть
    подсказка, и в читалку отдельным словом попадать при этом не должен. */
@@ -345,37 +342,69 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
 }
 
 /* Вкладки отделены от имени и плашек пустотой, а не чертой: черта в середине
-   строки читалась бы как её конец. */
+   строки читалась бы как её конец. Растянуты на весь рост строки — включая
+   её поля, — чтобы подчёркивание выбранной легло на нижнюю черту строки, а
+   не висело над ней. */
 .project-bar .tabs {
   gap: 2px;
-  margin: 0 0 0 10px;
+  align-self: stretch;
+  margin: -4px 0 -4px 12px;
   border-bottom: 0;
 }
 
-/* Выбранная вкладка внутри строки — заливкой, а не подчёркиванием: подчёркнутое
-   в середине ряда висит над собственной границей, до которой ему здесь не
-   достать (нижняя черта у строки одна, и она общая). */
+/* Выбранная вкладка — подчёркиванием, а не заливкой. Прежняя заливка делала
+   вкладку пилюлей — той же формы, что кнопки и плашки в этой же строке, — и
+   навигация не отличалась от действий. Подчёркнутый текст здесь ни на что
+   больше не похож. */
 .project-bar .tabs__link {
-  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
   margin-bottom: 0;
-  border-bottom: 0;
-  border-radius: var(--radius-md);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--text-muted);
 }
 
 .project-bar .tabs__link:hover {
-  background: var(--hover);
+  color: var(--text);
 }
 
 .project-bar .tabs__link.is-current {
-  background: var(--accent-soft);
+  border-bottom-color: var(--accent);
   color: var(--accent);
 }
 
-/* Редкие действия — у правого края: слева то, что это за проект, справа то,
-   что с ним можно сделать. Тот же порядок, что был в полной шапке. */
-.project-bar__actions {
+/* Правый край строки: слева то, что это за проект, справа то, как на него
+   смотреть и что с ним можно сделать. Тот же порядок, что был в полной шапке. */
+.project-bar__end {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-left: auto;
 }
+
+.project-bar__tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.project-bar__divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: var(--border);
+}
+
+/* Призрачная кнопка: без рамки и заливки, приглушённой подписью. Для органов
+   вида в шапке проекта: рядом стоят вкладки и дела плана, и третий ряд
+   обведённых плашек спорил бы с ними за внимание — а это второй класс
+   органов, «как смотреть», и выглядеть он обязан тише первого. */
+.button--ghost { background: transparent; color: var(--text-muted); box-shadow: none; }
+.button--ghost:hover, .button--ghost:disabled:hover { background: var(--hover); color: var(--text); box-shadow: none; }
+.button--ghost[aria-expanded="true"] { background: var(--hover); color: var(--text); }
+.button--ghost[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 
 /* --- сводка плана: панель у имени проекта --- */
 
@@ -479,6 +508,17 @@ button.project-head__plan-note:hover { background: #ffe3ea; box-shadow: none; }
   inset: 0;
   z-index: 10;
   background: var(--bg);
+}
+
+/* Выход из полного экрана — поверх ленты в правом верхнем углу: шапка с
+   кнопкой разворота в этом режиме спрятана, и выход обязан быть на виду там,
+   где его ищут по привычке к видео и картам. Выше закреплённой шапки шкалы
+   (z-index 3), ниже меню (30). */
+.project__focus-exit {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 5;
 }
 
 /* Страница под развёрнутой лентой не прокручивается: её полоса прокрутки
@@ -982,7 +1022,6 @@ body:has(.screen--narrow) {
   .project-head__main { flex-direction: column; }
   .project-head__actions { justify-content: flex-start; gap: 8px; }
   .project-toolbar { gap: 8px; }
-  .project-toolbar__divider { display: none; }
   .panel { padding: 18px 18px 26px; }
 }
 
@@ -994,7 +1033,6 @@ body:has(.screen--narrow) {
      не жмётся к нему сбоку: имя проекта и без того занимает всю ширину.
      Просвет задаёт `gap` строки — свой отступ здесь сложился бы с ним. */
   .project-head__plan-inline { flex-basis: 100%; margin: 0; }
-  .project-toolbar__primary { flex: 1; }
   .modal { padding: 22px 18px; }
   .modal__actions { align-items: stretch; flex-direction: column; }
   .modal__actions button { width: 100%; }

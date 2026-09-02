@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,8 +11,8 @@ import { startDayFor } from "./useQuickTask";
 /**
  * Заведение задачи — строкой в ленте.
  *
- * Проверяется тот путь, которым задачи и заводят: «плюс» на категории или
- * кнопка тулбара, имя, Enter, следующее имя. Раньше здесь открывалось окно на
+ * Проверяется тот путь, которым задачи и заводят: «плюс» на категории, имя,
+ * Enter, следующее имя. Раньше здесь открывалось окно на
  * девять полей, и на десяти задачах это было десять открытий и закрытий.
  */
 
@@ -135,14 +135,17 @@ describe("новая задача", () => {
     expect(sent[0].op).toMatchObject({ type: "create_task", name: "Макет" });
   });
 
-  it("кнопка тулбара открывает ту же строку, что и «плюс»", async () => {
+  it("кнопки «Новая задача» над лентой нет: задачу заводят на её категории", async () => {
     renderProject();
     await screen.findByRole("button", { name: /Логотип/ });
 
-    await userEvent.click(screen.getByRole("button", { name: "Новая задача" }));
-
-    // Первая категория проекта — та же, в которую целится «плюс» на её строке.
-    expect(field()).toHaveFocus();
+    // Прежняя кнопка тулбара клала задачу в первую категорию, потому что не
+    // знала, куда ещё. Теперь плюс стоит на том, чему добавляет ребёнка: на
+    // строке категории — задачу, в углу таблицы — категорию.
+    expect(screen.queryByRole("button", { name: "Новая задача" })).not.toBeInTheDocument();
+    // Внутри угла таблицы: то же имя носит и «+ Новая категория» с низа ленты.
+    const corner = document.querySelector(".gantt__corner") as HTMLElement;
+    expect(within(corner).getByRole("button", { name: "Новая категория" })).toBeInTheDocument();
   });
 
   it("задача заводится в той категории, чей «плюс» нажали", async () => {

@@ -9,6 +9,7 @@ import { getProject, projectQueryKey } from "../api/projects";
 import type { Category } from "../api/projects";
 import { useCanWrite, useOrgRole } from "../auth/permissions";
 import {
+  IconCalendar,
   IconDownload,
   IconExpand,
   IconInvite,
@@ -25,6 +26,8 @@ import { ExportDialog } from "../export/ExportDialog";
 import { Gantt } from "../gantt/Gantt";
 import type { NewTaskAt } from "../gantt/Gantt";
 import { usePrefersReducedMotion } from "../gantt/motion";
+import { useGanttView } from "../gantt/useGanttView";
+import { GanttViewControls } from "../gantt/ViewControls";
 import { useLocale } from "../i18n/LocaleProvider";
 import { LiveProvider } from "../live/LiveProvider";
 import { OfflineBar } from "../live/OfflineBar";
@@ -97,6 +100,13 @@ export function Project({
   // что тем же слоем управляет тумблер в панели изменений: список и диаграмма
   // рассказывают одно и то же двумя языками, и переключатель у них общий.
   const [showBaseline, setShowBaseline] = useState(true);
+  // Масштаб, колонки и слои ленты. Заводит экран, а не лента: органы
+  // управления стоят в шапке проекта, справа от вкладок, а рисует по ним
+  // лента — и у одного состояния обязан быть один хозяин (см. useGanttView).
+  const ganttView = useGanttView(projectId, {
+    baselineShown: showBaseline,
+    onBaselineToggle: () => setShowBaseline((shown) => !shown),
+  });
   // Где открыта строка новой задачи. `null` — закрыта.
   //
   // Задачу заводят прямо в ленте, а не в окне: план пишут списком, и окно
@@ -279,17 +289,82 @@ export function Project({
                   </nav>
                 }
                 planAction={
-                    <PlanApproval
-                      projectId={projectId}
-                      state={query.data}
-                      canApprove={editable}
-                      // Пересогласование — право владельца: оно сдвигает базу, от
-                      // которой считаются все объяснённые сдвиги.
-                      canReapprove={role === "owner" && !offline}
-                      confirming={reapproving}
-                      onConfirmingChange={setReapproving}
-                      onShowChanges={() => setShowingChanges(true)}
-                    />
+                    <>
+                      <PlanApproval
+                        projectId={projectId}
+                        state={query.data}
+                        canApprove={editable}
+                        // Пересогласование — право владельца: оно сдвигает базу, от
+                        // которой считаются все объяснённые сдвиги.
+                        canReapprove={role === "owner" && !offline}
+                        confirming={reapproving}
+                        onConfirmingChange={setReapproving}
+                        onShowChanges={() => setShowingChanges(true)}
+                      />
+                      {/* Привязка плана к дате — дело плана, как и согласование,
+                          и стоит рядом с его состоянием, а не в ряду настроек
+                          ленты, где жила прежде: она меняет проект, а не то, как
+                          на него смотрят. Контуром, а не заливкой — как
+                          пересогласование рядом: действие важное, но однократное,
+                          и первый взгляд ему делить не с чем. Подсказка о том,
+                          когда дату назначают, — на самой кнопке.
+
+                          Перенос уже назначенной даты — редкость, и он под «⋯».
+                          Читателю относительного плана вместо кнопки — плашка
+                          режима: шкала без месяцев без неё читалась бы как
+                          поломка. */}
+                      {query.data.schedule_mode === "relative" &&
+                        (canWrite ? (
+                          <button
+                            type="button"
+                            className="button--accent"
+                            disabled={offline}
+                            title={t("gantt.relative.hint")}
+                            onClick={() => setScheduling(true)}
+                          >
+                            {t("schedule.open")}
+                          </button>
+                        ) : (
+                          <span className="project-toolbar__mode" title={t("gantt.relative.hint")}>
+                            {t("gantt.relative.badge")}
+                          </span>
+                        ))}
+                    </>
+                  }
+                  // Как смотреть на ленту — справа, отдельно от вкладок и тише
+                  // их: это второй класс органов, и на других вкладках их нет —
+                  // масштаб у сметы и истории ни к чему. Группа прижата к
+                  // правому краю, поэтому её появление и исчезновение ничего
+                  // слева не двигает.
+                  tools={
+                    tab === "gantt" ? (
+                      <>
+                        <GanttViewControls view={ganttView} variant="bar" />
+                        {/* Полноэкранная лента — последней в ряду настроек
+                            показа: это тоже способ смотреть, самый широкий из
+                            них. Значок без подписи: стрелки в углы понимают все,
+                            а имя осталось при кнопке — для читалки и подсказки.
+                            Выход из режима — своей кнопкой поверх ленты (см.
+                            ниже): шапка в нём спрятана. */}
+                        <button
+                          type="button"
+                          className="button--ghost project-toolbar__icon"
+                          aria-pressed={false}
+                          aria-label={t("gantt.toolbar.focus")}
+                          title={t("gantt.toolbar.focus")}
+                          onClick={() => {
+                            // Прокрутка страницы обнуляется до разворота: высоту
+                            // ленты меряют от окна (useViewportFit), и слой,
+                            // раскрытый на прокрученной странице, отмерил бы её
+                            // от уехавшего края.
+                            window.scrollTo(0, 0);
+                            setFocusMode(true);
+                          }}
+                        >
+                          <IconExpand />
+                        </button>
+                      </>
+                    ) : undefined
                   }
                   // Редкие действия — под «⋯»: каждое открывает окно, и в ряду
                   // постоянных кнопок они стояли только затем, чтобы там
@@ -343,6 +418,22 @@ export function Project({
                         <IconDownload />
                         {t("export.open")}
                       </button>
+                      {/* Перенос даты старта уже привязанного плана — здесь, а
+                          не в шапке: у настроенного проекта это редкость, и
+                          постоянная кнопка стояла в ряду только затем, чтобы
+                          там стоять. Первая привязка, наоборот, стоит в шапке
+                          у состояния плана — она дело плана, а не редкость. */}
+                      {canWrite && query.data.schedule_mode === "calendar" && (
+                        <button
+                          type="button"
+                          className="menu__item"
+                          disabled={offline}
+                          onClick={() => setScheduling(true)}
+                        >
+                          <IconCalendar />
+                          {t("schedule.change")}
+                        </button>
+                      )}
                       {/* Приглашение стоит рядом с публикацией: обе кнопки отвечают
                           на «дать посмотреть», и разница между ними — кому. Ссылка
                           открывает проект на чтение кому угодно, приглашение зовёт
@@ -440,109 +531,13 @@ export function Project({
                 assigneeNames={assigneeNames}
                 baselineShown={showBaseline}
                 onBaselineToggle={() => setShowBaseline((shown) => !shown)}
-                toolbarAction={
-                  canWrite ? (
-                    <>
-                      {/* Сначала категория, потом задача — в порядке, в каком
-                          проект и заполняют: задачу некуда класть, пока нет ни
-                          одной категории, и кнопка задачи до первой категории
-                          не показывается — строке ввода негде было бы
-                          открыться. Дальше она открывается в первой категории:
-                          положить задачу в любую другую — тот же «плюс» на её
-                          строке, а перенести написанную можно ручкой. */}
-                      <button
-                        type="button"
-                        className="button--quiet"
-                        disabled={offline}
-                        onClick={() => setAddingCategory(true)}
-                      >
-                        {t("category.create")}
-                      </button>
-                      {query.data.categories.length > 0 && (
-                        <button
-                          type="button"
-                          className="project-toolbar__primary"
-                          disabled={offline}
-                          onClick={() =>
-                            setAddingTaskAt({
-                              categoryId: query.data.categories[0].id,
-                              before: null,
-                            })
-                          }
-                        >
-                          {t("task.create")}
-                        </button>
-                      )}
-                    </>
-                  ) : undefined
-                }
-                scheduleAction={
-                  canWrite ? (
-                    <button
-                      type="button"
-                      // Первая привязка выделена акцентом, но контуром, а не
-                      // заливкой: залитых кнопок в ряду было две — эта и
-                      // «Новая задача», — и первый взгляд они делили поровну,
-                      // хотя задачу здесь заводят десятки раз, а дату старта
-                      // назначают однажды. Перенос уже назначенной даты —
-                      // тихая кнопка: главного действия у настроенного
-                      // проекта здесь нет.
-                      className={
-                        query.data.schedule_mode === "relative"
-                          ? "button--accent"
-                          : "button--quiet"
-                      }
-                      disabled={offline}
-                      // Подсказка «когда назначают дату старта» — на самой
-                      // кнопке: плашка «Относительный план», носившая её
-                      // прежде, стояла тут же и говорила то же самое третий
-                      // раз после шкалы без месяцев и этой кнопки (см.
-                      // Gantt.tsx). У календарного проекта подсказки нет —
-                      // объяснять нечего.
-                      title={
-                        query.data.schedule_mode === "relative"
-                          ? t("gantt.relative.hint")
-                          : undefined
-                      }
-                      onClick={() => setScheduling(true)}
-                    >
-                      {query.data.schedule_mode === "relative"
-                        ? t("schedule.open")
-                        : t("schedule.change")}
-                    </button>
-                  ) : undefined
-                }
-                focusAction={
-                  /* Значок без подписи: «На весь экран» — единственная кнопка
-                     ряда, которую можно назвать рисунком и не потерять смысла
-                     (стрелки в углы понимают все), а подпись в одиннадцать
-                     букв стояла в самом конце перегруженной строки. Имя
-                     осталось при кнопке целиком — `aria-label` для тех, кто
-                     слушает экран, и `title` для тех, кто навёл курсор. */
-                  <button
-                    type="button"
-                    className="button--quiet project-toolbar__icon"
-                    aria-pressed={focusMode}
-                    aria-label={t(focusMode ? "gantt.toolbar.focus_exit" : "gantt.toolbar.focus")}
-                    title={t(focusMode ? "gantt.toolbar.focus_exit" : "gantt.toolbar.focus")}
-                    onClick={() => {
-                      // Прокрутка страницы обнуляется до разворота: высоту
-                      // ленты меряют от окна (useViewportFit), и слой,
-                      // раскрытый на прокрученной странице, отмерил бы её от
-                      // уехавшего края.
-                      if (!focusMode) window.scrollTo(0, 0);
-                      setFocusMode((current) => !current);
-                    }}
-                  >
-                    {focusMode ? <IconShrink /> : <IconExpand />}
-                  </button>
-                }
+                viewState={ganttView}
                 onAddTask={editable ? setAddingTaskAt : undefined}
                 newTaskAt={addingTaskAt}
                 onCloseNewTask={() => setAddingTaskAt(null)}
-                // Кнопка в пустой ленте открывает то же окно, что и «Новая
-                // категория» в тулбаре: пустому проекту действие называют там,
-                // куда он смотрит, а не только в ряду настроек показа.
+                // «Плюс» в углу таблицы и кнопка в пустой ленте открывают одно
+                // окно: категорию заводят там, куда смотрят, — у заголовка
+                // списка или посреди пустого поля, — а не в ряду над лентой.
                 onAddCategory={editable ? () => setAddingCategory(true) : undefined}
                 // Крестик на строке категории только спрашивает: удаление
                 // уносит с собой весь этап, и назвать, что именно уйдёт,
@@ -553,6 +548,22 @@ export function Project({
                 onOpenComments={(taskId) => openTask(taskId, "comments")}
                 commentCounts={commentsByTask}
               />
+
+              {/* Шапка в полном экране спрятана, а с ней и кнопка разворота —
+                  выход живёт поверх самой ленты, в правом верхнем углу, где его
+                  ищут по привычке к видео и картам. Esc делает то же. */}
+              {focusMode && (
+                <button
+                  type="button"
+                  className="button--quiet project-toolbar__icon project__focus-exit"
+                  aria-pressed={true}
+                  aria-label={t("gantt.toolbar.focus_exit")}
+                  title={t("gantt.toolbar.focus_exit")}
+                  onClick={() => setFocusMode(false)}
+                >
+                  <IconShrink />
+                </button>
+              )}
 
               {selectedTask && (
                 <TaskPanel

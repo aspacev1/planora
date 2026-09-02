@@ -8,6 +8,7 @@ import { Providers, renderWithProviders } from "../test/utils";
 import { Gantt } from "./Gantt";
 import { COLLAPSED_WIDTH, DEFAULT_WIDTH } from "./columns";
 import { DAY_WIDTH } from "./scale";
+import { useGanttView } from "./useGanttView";
 
 const STATE: ProjectState = {
   id: "p1",
@@ -62,11 +63,13 @@ function draw(state: ProjectState, locale: Locale = "ru") {
   return renderWithProviders(<Gantt projectId="p1" state={state} />, { locale });
 }
 
-function drawWithToolbar(locale: Locale = "ru") {
-  return renderWithProviders(
-    <Gantt projectId="p1" state={STATE} toolbarAction={<button type="button">New task</button>} />,
-    { locale },
-  );
+/**
+ * Лента, чьим видом распоряжается экран, — как на рабочем экране проекта, где
+ * масштаб и «Вид» стоят в шапке, а не над лентой (см. `viewState`).
+ */
+function Controlled({ state }: { state: ProjectState }) {
+  const view = useGanttView("p1");
+  return <Gantt projectId="p1" state={state} viewState={view} />;
 }
 
 describe("диаграмма", () => {
@@ -323,7 +326,7 @@ describe("диаграмма", () => {
   });
 
   it("меню масштаба называет текущий масштаб и меняет его", async () => {
-    const { container } = drawWithToolbar("ru");
+    const { container } = draw(STATE, "ru");
     // Свёрнутое меню обязано называть выбранное само: иначе, в отличие от
     // прежнего ряда сегментов, текущий масштаб виден только раскрытым.
     const button = screen.getByRole("button", { name: "Масштаб: День" });
@@ -337,10 +340,7 @@ describe("диаграмма", () => {
   });
 
   it("помнит выбранный масштаб после ухода с экрана и обратно", async () => {
-    const first = renderWithProviders(
-      <Gantt projectId="p1" state={STATE} toolbarAction={<button type="button">New task</button>} />,
-      { locale: "ru" },
-    );
+    const first = renderWithProviders(<Gantt projectId="p1" state={STATE} />, { locale: "ru" });
     await userEvent.click(screen.getByRole("button", { name: "Масштаб: День" }));
     await userEvent.click(screen.getByRole("radio", { name: "Неделя" }));
     expect(first.container.querySelector(".gantt")).toHaveClass("gantt--week");
@@ -628,21 +628,34 @@ describe("относительная шкала", () => {
     expect(screen.getByText("Относительный план")).toBeInTheDocument();
   });
 
-  it("не дублирует бейджем кнопку «Назначить дату старта»", () => {
-    renderWithProviders(
-      <Gantt
-        projectId="p1"
-        state={RELATIVE}
-        scheduleAction={<button type="button">Назначить дату старта</button>}
-      />,
-      { locale: "ru" },
-    );
+  it("ряда над лентой нет, когда видом распоряжается экран", () => {
+    const { container } = renderWithProviders(<Controlled state={RELATIVE} />, { locale: "ru" });
 
-    // Кнопка называет режим не хуже плашки: пока дату старта назначают, план
-    // относительный. Две подписи об одном стояли рядом и занимали в ряду
-    // больше места, чем любая кнопка.
-    expect(screen.getByRole("button", { name: "Назначить дату старта" })).toBeInTheDocument();
+    // Масштаб, «Вид» и плашка режима живут тогда в шапке проекта: второй ярус
+    // над лентой стоил бы строки плана (см. ProjectBar).
+    expect(container.querySelector(".project-toolbar")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Масштаб/ })).toBeNull();
     expect(screen.queryByText("Относительный план")).toBeNull();
+  });
+
+  it("рисует по масштабу, который выбрал экран", async () => {
+    function Screen() {
+      const view = useGanttView("p1");
+      return (
+        <>
+          <button type="button" onClick={() => view.setZoom("month")}>
+            месяц снаружи
+          </button>
+          <Gantt projectId="p1" state={STATE} viewState={view} />
+        </>
+      );
+    }
+    const { container } = renderWithProviders(<Screen />, { locale: "ru" });
+    expect(container.querySelector(".gantt")).toHaveClass("gantt--day");
+
+    await userEvent.click(screen.getByRole("button", { name: "месяц снаружи" }));
+
+    expect(container.querySelector(".gantt")).toHaveClass("gantt--month");
   });
 
   it("занимает всю отведённую ширину целыми неделями", () => {
