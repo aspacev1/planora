@@ -554,7 +554,7 @@
       "late": "Проект заканчивается {end} — на {days} позже дедлайна {deadline}",
       "fits": "Укладываемся в {deadline} — запас {days}"
     },
-    "beyond_plan": "Сверх первоначального плана",
+    "beyond_plan": "Сверх плана",
     "baseline": "По плану: {from} — {to}",
     "deviation_late": "+{days}",
     "deviation_early": "−{days}",

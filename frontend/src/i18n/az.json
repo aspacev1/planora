@@ -550,7 +550,7 @@
       "late": "Layihə {end} tarixində bitir — son tarixdən ({deadline}) {days} gec",
       "fits": "{deadline} tarixinə çatırıq — ehtiyat {days}"
     },
-    "beyond_plan": "İlkin plandan əlavə",
+    "beyond_plan": "Plandan əlavə",
     "baseline": "Plan üzrə: {from} — {to}",
     "deviation_late": "+{days}",
     "deviation_early": "−{days}",
