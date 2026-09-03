@@ -550,7 +550,7 @@
       "late": "The project ends {end} — {days} after the {deadline} deadline",
       "fits": "On track for {deadline} — {days} to spare"
     },
-    "beyond_plan": "Beyond the original plan",
+    "beyond_plan": "Beyond plan",
     "baseline": "Planned: {from} — {to}",
     "deviation_late": "+{days}",
     "deviation_early": "−{days}",

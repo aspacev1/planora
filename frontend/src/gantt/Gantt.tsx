@@ -856,6 +856,9 @@ export function Gantt({
                               handleLabel={t("gantt.reorder", { name: task.name })}
                               beyondPlan={isBeyondPlan(state, task)}
                               beyondPlanLabel={t("gantt.beyond_plan")}
+                              // Та же фраза, что и в карточке задачи: одно
+                              // объяснение на оба места, где о нём спрашивают.
+                              beyondPlanHint={t("plan.beyond_plan_explained")}
                               baselineLabel={baselineLabel(task)}
                               deviationLabel={deviationLabel(task)}
                               statusLabel={t(`task.status.${task.status}`)}
