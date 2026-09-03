@@ -11,6 +11,15 @@ import type { Comment } from "./comments";
 
 export type EffortUnit = "days" | "hours";
 
+/**
+ * Этап сделки, который отмечают рукой. «В плане» здесь нет: он выводится из
+ * ссылок строк на задачи (`plan_task_id`) и счётчиков ниже.
+ */
+export type ProposalStage = "draft" | "sent" | "agreed";
+
+/** Роль, которую организация уже писала в сметах, с последней её ставкой. */
+export type RoleSuggestion = { role: string; rate: number };
+
 export type ProposalTask = {
   id: string;
   category_id: string;
@@ -29,6 +38,8 @@ export type ProposalTask = {
   assumptions: string;
   position: number;
   comment_count: number;
+  /** Задача плана, в которую строка уже перенесена; `null` — ещё нет. */
+  plan_task_id: string | null;
 };
 
 export type ProposalCategory = {
@@ -49,6 +60,15 @@ export type ProposalState = {
   currency: string;
   /** Допущения и примечания предложения целиком, по пункту на строку. */
   notes: string;
+  status: ProposalStage;
+  sent_at: string | null;
+  agreed_at: string | null;
+  /** Сколько строк уже в плане и сколько оценённых строк ещё можно перенести. */
+  pushed_count: number;
+  pushable_count: number;
+  role_suggestions: RoleSuggestion[];
+  /** Сколько в плане категорий и задач — пустому предложению, чтобы предложить собрать смету из плана. */
+  plan_facts: { categories: number; tasks: number };
   categories: ProposalCategory[];
 };
 

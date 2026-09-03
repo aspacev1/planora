@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Link, NavLink, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, NavLink, useNavigate, useParams } from "react-router-dom";
 
 import { commentCounts, commentCountsQueryKey } from "../api/comments";
 import { errorKey } from "../api/errors";
@@ -246,6 +246,13 @@ export function Project({
   // «можно ли сейчас».
   const editable = canWrite && !offline;
 
+  // Адрес сметы у клиента ведёт на диаграмму: вкладки у него нет (см. ниже),
+  // а сервер на смету ответит отказом. Отказ словами человек, который сюда не
+  // целился, а пришёл по чужой ссылке, читал бы как поломку.
+  if (tab === "proposal" && role === "client") {
+    return <Navigate to={`/projects/${projectId}`} replace />;
+  }
+
   return (
     <ShiftReasonProvider>
       <DependencyNudgeProvider>
@@ -273,10 +280,15 @@ export function Project({
                       {t("history.tab_gantt")}
                     </NavLink>
                     {/* Предложение — между лентой и историей, как в макете:
-                        лента остаётся первым экраном проекта, смета — рядом. */}
-                    <NavLink to={`/projects/${projectId}/proposal`} className={tabClass}>
-                      {t("history.tab_proposal")}
-                    </NavLink>
+                        лента остаётся первым экраном проекта, смета — рядом.
+                        Клиенту вкладка не показывается: сервер ему смету не
+                        отдаёт (Action.PROPOSAL_READ), и дорога к заведомому
+                        отказу никому не нужна. Решает всё равно сервер. */}
+                    {role !== "client" && (
+                      <NavLink to={`/projects/${projectId}/proposal`} className={tabClass}>
+                        {t("history.tab_proposal")}
+                      </NavLink>
+                    )}
                     {/* Скоркард — после сметы, перед историей: сводка недели
                         ближе к работе, чем журнал. На публичной странице
                         (/p/...) вкладок нет вовсе. */}

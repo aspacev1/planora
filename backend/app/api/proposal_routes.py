@@ -4,6 +4,11 @@
 (app/proposals) и свой характер записи — правки без журнала ревизий, как у
 комментариев. Единственный маршрут, который трогает план, — перенос строк в
 задачи, и он один ходит в слой мутаций.
+
+Читать предложение вправе не всякий, кто читает проект: клиент и гость по
+ссылке видят план, но не смету с её ставками и рисками (см.
+Action.PROPOSAL_READ). Поэтому чтение здесь проверяется явно, а не
+наследуется от project_context.
 """
 
 import uuid
@@ -121,6 +126,7 @@ def get_project_proposal(
     присланных чисел, и сервер, пересказывающий их, был бы вторым местом с
     той же арифметикой.
     """
+    context.require(Action.PROPOSAL_READ)
     return proposal_state(db, context.project)
 
 
@@ -286,6 +292,7 @@ def list_proposal_task_comments(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
+    context.require(Action.PROPOSAL_READ)
     try:
         comments = list_task_comments(db, get_proposal(db, context.project), task_id)
     except ProposalError as error:
@@ -307,6 +314,9 @@ def create_proposal_task_comment(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
+    # Обе проверки: реплику к строке пишет тот, кто вправе и комментировать,
+    # и видеть смету. Одного COMMENT мало — он есть и у клиента.
+    context.require(Action.PROPOSAL_READ)
     context.require(Action.COMMENT)
     try:
         comment = add_task_comment(

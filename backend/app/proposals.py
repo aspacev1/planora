@@ -25,6 +25,7 @@ from app.models import (
     ProposalCategory,
     ProposalComment,
     ProposalTask,
+    Task,
     User,
 )
 from app.mutations import CreateCategory, CreateTask, apply_op
@@ -141,6 +142,61 @@ def add_task_comment(
     return comment
 
 
+#: Сколько ролей подсказывать при вводе строки. Организация с длинной
+#: историей смет накапливает десятки написаний, а строка ввода вмещает
+#: несколько — и лишние всё равно отсеет набор.
+ROLE_SUGGESTIONS_LIMIT = 20
+
+
+def role_suggestions(db: DbSession, project: Project) -> list[dict]:
+    """Роли, которые организация уже писала в сметах, с последней ставкой каждой.
+
+    По всей организации, а не по проекту: ставка дизайнера одна на студию, и
+    во втором проекте её не должны набирать заново. Свежесть — по created_at
+    строки: последняя написанная ставка и есть действующая. Регистр и
+    пробелы не плодят ролей — «Дизайнер» и « дизайнер » одна роль, показанная
+    самым свежим написанием. Нулевая ставка роль не отбрасывает (имя всё
+    равно стоит подсказать), но ненулевая, если она была, выигрывает.
+    """
+    rows = db.execute(
+        select(ProposalTask.role, ProposalTask.rate)
+        .join(Proposal, Proposal.id == ProposalTask.proposal_id)
+        .join(Project, Project.id == Proposal.project_id)
+        .where(Project.org_id == project.org_id, ProposalTask.role != "")
+        .order_by(ProposalTask.created_at.desc(), ProposalTask.id)
+    ).all()
+    latest: dict[str, dict] = {}
+    for role, rate in rows:
+        name = role.strip()
+        key = name.casefold()
+        if not key:
+            continue
+        known = latest.get(key)
+        if known is None:
+            latest[key] = {"role": name, "rate": float(rate)}
+        elif known["rate"] == 0 and rate:
+            known["rate"] = float(rate)
+    return list(latest.values())[:ROLE_SUGGESTIONS_LIMIT]
+
+
+def plan_facts(db: DbSession, project: Project) -> dict:
+    """Сколько в плане категорий и задач.
+
+    Нужно пустому предложению: оно предлагает собрать смету из плана и обязано
+    назвать, из чего именно, — «3 категории и 9 задач», а не «что-то есть».
+    """
+    return {
+        "categories": db.scalar(
+            select(func.count()).select_from(Category).where(Category.project_id == project.id)
+        )
+        or 0,
+        "tasks": db.scalar(
+            select(func.count()).select_from(Task).where(Task.project_id == project.id)
+        )
+        or 0,
+    }
+
+
 def _comment_counts(db: DbSession, proposal: Proposal) -> dict[uuid.UUID, int]:
     """Сколько реплик у каждой строки — одним запросом на предложение."""
     rows = db.execute(
@@ -162,8 +218,18 @@ def proposal_state(db: DbSession, project: Project) -> dict:
     Итоги (часы, сумма, налог) намеренно не считаются здесь: они — простое
     произведение и сумма показанных чисел, и сервер, пересказывающий их,
     завёл бы второе место, где живёт та же арифметика.
+
+    Счётчики переноса — исключение из этого правила, и оно оправдано: «сколько
+    строк уже в плане» и «сколько можно перенести» клиент мог бы вывести из
+    ссылок сам, но полоса этапов и главная кнопка спрашивают их первыми, ещё
+    до таблицы, и два места с одним правилом «оценённая строка без ссылки»
+    разошлись бы на первой правке правила.
     """
     proposal = get_proposal(db, project)
+    common = {
+        "role_suggestions": role_suggestions(db, project),
+        "plan_facts": plan_facts(db, project),
+    }
     if proposal is None:
         return {
             "effort_unit": "days",
@@ -171,7 +237,13 @@ def proposal_state(db: DbSession, project: Project) -> dict:
             "tax_rate_pct": 0.0,
             "currency": "USD",
             "notes": "",
+            "status": "draft",
+            "sent_at": None,
+            "agreed_at": None,
+            "pushed_count": 0,
+            "pushable_count": 0,
             "categories": [],
+            **common,
         }
 
     categories = db.scalars(
@@ -206,6 +278,8 @@ def proposal_state(db: DbSession, project: Project) -> dict:
                 "assumptions": task.assumptions,
                 "position": task.position,
                 "comment_count": counts.get(task.id, 0),
+                # Задача плана, в которую строка уже перенесена; null — ещё нет.
+                "plan_task_id": str(task.plan_task_id) if task.plan_task_id else None,
             }
         )
 
@@ -215,6 +289,17 @@ def proposal_state(db: DbSession, project: Project) -> dict:
         "tax_rate_pct": float(proposal.tax_rate_pct),
         "currency": proposal.currency,
         "notes": proposal.notes,
+        "status": proposal.status,
+        "sent_at": proposal.sent_at.isoformat() if proposal.sent_at else None,
+        "agreed_at": proposal.agreed_at.isoformat() if proposal.agreed_at else None,
+        "pushed_count": sum(1 for task in tasks if task.plan_task_id is not None),
+        # Переносима строка с оценкой и без ссылки: нулевую оценку в план не
+        # зовут — задача из неё выходит однодневной заглушкой, которой никто
+        # не заказывал.
+        "pushable_count": sum(
+            1 for task in tasks if task.plan_task_id is None and task.effort > 0
+        ),
+        **common,
         "categories": [
             {
                 "id": str(category.id),

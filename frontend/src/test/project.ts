@@ -439,12 +439,18 @@ export function captureMutations(): Sent[] {
 
 export function renderProject(
   next: ProjectState = STATE,
-  options: { canWrite?: boolean; locale?: Locale; route?: string } = {},
+  options: {
+    canWrite?: boolean;
+    /** Роль словами — там, где двух состояний «пишет / не пишет» мало: клиент не пишет, как и наблюдатель, но видит меньше него. */
+    role?: "owner" | "editor" | "viewer" | "client";
+    locale?: Locale;
+    route?: string;
+  } = {},
 ) {
   const { canWrite = true, locale = "ru", route = "/projects/p1" } = options;
   state = next;
   // Гость по спеку — это роль без права писать, а не человек без сессии:
   // диаграмму он видит, трогать её не может.
-  role = canWrite ? "owner" : "viewer";
+  role = options.role ?? (canWrite ? "owner" : "viewer");
   return renderApp({ route, locale });
 }

@@ -91,6 +91,24 @@ class EffortUnit(StrEnum):
 EFFORT_UNITS: tuple[str, ...] = tuple(unit.value for unit in EffortUnit)
 
 
+class ProposalStatus(StrEnum):
+    """Этап предложения, который отмечает человек: черновик, отправлено,
+    согласовано.
+
+    «В плане» здесь нет намеренно: этот этап не отмечают, а выводят из ссылок
+    строк на задачи (ProposalTask.plan_task_id). Хранимый флаг разошёлся бы с
+    правдой первой же отменой переноса — отмена удаляет задачи, ссылки
+    обнуляются базой, а флаг остался бы поднятым.
+    """
+
+    DRAFT = "draft"
+    SENT = "sent"
+    AGREED = "agreed"
+
+
+PROPOSAL_STATUSES: tuple[str, ...] = tuple(status.value for status in ProposalStatus)
+
+
 def _uuid_pk() -> Mapped[uuid.UUID]:
     return mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
@@ -919,6 +937,10 @@ class Proposal(Base):
         ),
         CheckConstraint("hours_per_day >= 1", name="ck_proposals_hours_per_day"),
         CheckConstraint("tax_rate_pct >= 0", name="ck_proposals_tax_rate_pct"),
+        CheckConstraint(
+            "status IN (" + ", ".join(f"'{status}'" for status in PROPOSAL_STATUSES) + ")",
+            name="ck_proposals_status",
+        ),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -945,6 +967,15 @@ class Proposal(Base):
     # «ставки без стоимости лицензий». Свободный текст, а не список: пункты
     # пишут строками, и структура списка не добавила бы к ним ничего.
     notes: Mapped[str] = mapped_column(Text, default="", server_default=text("''"))
+    # Этап сделки, отмеченный рукой: черновик, отправлено клиенту, согласовано.
+    # Отметки времени рядом — подписи под полосой этапов («отправлено 27 авг»);
+    # шаг назад их снимает, чтобы полоса не называла дату этапа, которого
+    # больше нет.
+    status: Mapped[str] = mapped_column(
+        Text, default=ProposalStatus.DRAFT, server_default=text("'draft'")
+    )
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    agreed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ProposalCategory(Base):
@@ -1012,6 +1043,20 @@ class ProposalTask(Base):
     risks: Mapped[str] = mapped_column(Text, default="")
     assumptions: Mapped[str] = mapped_column(Text, default="")
     position: Mapped[int] = mapped_column(Integer, default=0)
+    # Задача плана, в которую строка уже перенесена. SET NULL, а не CASCADE:
+    # удаление задачи — в том числе отменой пачки переноса — возвращает строку
+    # в переносимые, а не уносит её из предложения. По этой ссылке перенос
+    # пропускает уже перенесённое: без неё второй перенос удваивал план.
+    plan_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="SET NULL"), index=True
+    )
+    # Для подсказок ролей: «последняя ставка этой роли» — ставка самой свежей
+    # строки, и свежесть не из чего вывести без метки. clock_timestamp, а не
+    # now(): строки, заведённые одной транзакцией (сбор из плана), должны
+    # различаться по времени, а now() у всех них одно.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
 
 
 class ProposalComment(Base):

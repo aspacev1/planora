@@ -1,7 +1,10 @@
 """Маршруты коммерческого предложения: смета, реплики, перенос в план."""
 
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.db import get_db
 from app.main import app
@@ -58,6 +61,25 @@ def _task_id(authed, project_id: str, category_id: str, name: str = "Логот�
     return response.json()["id"]
 
 
+def _demote(authed, db, role: str) -> None:
+    """Та же роль, что в tests/test_comment_api.py: членство правится в базе,
+    потому что маршрута «понизить самого себя» у приложения нет."""
+    from app.models import Membership
+
+    user_id = authed.get("/api/auth/me").json()["id"]
+    membership = db.scalar(select(Membership).where(Membership.user_id == user_id))
+    membership.role = role
+    db.flush()
+
+
+def _grant(authed, db, project_id: str) -> None:
+    from app.models import ProjectAccess
+
+    user_id = authed.get("/api/auth/me").json()["id"]
+    db.add(ProjectAccess(project_id=uuid.UUID(project_id), user_id=uuid.UUID(user_id)))
+    db.flush()
+
+
 def test_untouched_project_answers_with_default_proposal(authed, project_id):
     """Проект без сметы отвечает значениями по умолчанию, а не 404: клиент не
     различает «не заводили» и «завели пустым», и различие это ему ни к чему."""
@@ -69,8 +91,104 @@ def test_untouched_project_answers_with_default_proposal(authed, project_id):
         "tax_rate_pct": 0.0,
         "currency": "USD",
         "notes": "",
+        "status": "draft",
+        "sent_at": None,
+        "agreed_at": None,
+        "pushed_count": 0,
+        "pushable_count": 0,
+        "role_suggestions": [],
+        "plan_facts": {"categories": 0, "tasks": 0},
         "categories": [],
     }
+
+
+def test_viewer_reads_the_proposal_but_cannot_change_it(authed, db, project_id):
+    _category_id(authed, project_id)
+    _demote(authed, db, "viewer")
+
+    assert authed.get(f"/api/projects/{project_id}/proposal").status_code == 200
+    refused = [
+        authed.patch(f"/api/projects/{project_id}/proposal", json={"tax_rate_pct": 5}),
+        authed.post(f"/api/projects/{project_id}/proposal/categories", json={"name": "X"}),
+        authed.post(f"/api/projects/{project_id}/proposal/push-to-plan"),
+    ]
+    assert [response.status_code for response in refused] == [403, 403, 403]
+
+
+def test_client_does_not_see_the_proposal_even_with_a_project_grant(authed, db, project_id):
+    """Ставки, себестоимость и разговор команды — не для клиента: план он
+    читает, смету нет. Тот же урез, что уже действует у выгрузки, где раздел
+    «Смета» вырезается из клиентского экземпляра."""
+    category_id = _category_id(authed, project_id)
+    task_id = _task_id(authed, project_id, category_id)
+    _demote(authed, db, "client")
+    _grant(authed, db, project_id)
+
+    assert authed.get(f"/api/projects/{project_id}").status_code == 200
+    proposal = authed.get(f"/api/projects/{project_id}/proposal")
+    assert proposal.status_code == 403
+    assert proposal.json()["detail"] == "forbidden"
+    thread = f"/api/projects/{project_id}/proposal/tasks/{task_id}/comments"
+    assert authed.get(thread).status_code == 403
+    assert authed.post(thread, json={"body": "Дорого"}).status_code == 403
+
+
+def test_role_suggestions_gather_the_organizations_latest_rates(authed, project_id):
+    """Подсказки ролей — по всей организации: ставка дизайнера одна на студию,
+    и во втором проекте её не набирают заново. Последнее написание выигрывает,
+    регистр и пробелы не плодят ролей, роль без ставки всё равно подсказана."""
+    category_id = _category_id(authed, project_id)
+    for name, patch in (
+        ("Логотип", {"role": "Дизайнер", "rate": 350}),
+        ("Гайдлайн", {"role": " дизайнер ", "rate": 400}),
+        ("Интервью", {"role": "Аналитик"}),
+    ):
+        task_id = _task_id(authed, project_id, category_id, name=name)
+        authed.patch(f"/api/projects/{project_id}/proposal/tasks/{task_id}", json=patch)
+
+    other_id = authed.post("/api/projects", json={"name": "Other"}).json()["id"]
+    state = authed.get(f"/api/projects/{other_id}/proposal").json()
+
+    assert state["role_suggestions"] == [
+        {"role": "Аналитик", "rate": 0.0},
+        {"role": "дизайнер", "rate": 400.0},
+    ]
+
+
+def test_plan_facts_count_the_plan_not_the_proposal(authed, project_id):
+    created = authed.post(
+        f"/api/projects/{project_id}/mutations",
+        json={"op": {"type": "create_category", "name": "Дизайн", "color": "#3b82f6"}},
+    ).json()
+    authed.post(
+        f"/api/projects/{project_id}/mutations",
+        json={
+            "op": {
+                "type": "create_task",
+                "category_id": created["op"]["category_id"],
+                "name": "Логотип",
+                "start_date": "2001-01-01",
+                "duration_days": 2,
+            }
+        },
+    )
+
+    state = authed.get(f"/api/projects/{project_id}/proposal").json()
+    assert state["plan_facts"] == {"categories": 1, "tasks": 1}
+    # Смета при этом по-прежнему пуста: план и предложение — разные списки.
+    assert state["categories"] == []
+
+
+def test_rows_start_without_a_plan_link(authed, project_id):
+    category_id = _category_id(authed, project_id)
+    _task_id(authed, project_id, category_id)
+
+    state = authed.get(f"/api/projects/{project_id}/proposal").json()
+    assert state["categories"][0]["tasks"][0]["plan_task_id"] is None
+    assert state["pushed_count"] == 0
+    # Строка без оценки не считается переносимой: нулевая оценка дала бы
+    # однодневную задачу-заглушку, которой никто не заказывал.
+    assert state["pushable_count"] == 0
 
 
 def test_estimate_row_carries_role_effort_and_rate(authed, project_id):

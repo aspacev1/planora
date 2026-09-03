@@ -19,6 +19,13 @@ const PROPOSAL: ProposalState = {
   tax_rate_pct: 10,
   currency: "USD",
   notes: "Оценки по текущему объёму.\nСтавки без стоимости лицензий.",
+  status: "draft",
+  sent_at: null,
+  agreed_at: null,
+  pushed_count: 0,
+  pushable_count: 2,
+  role_suggestions: [{ role: "Дизайнер", rate: 100 }],
+  plan_facts: { categories: 2, tasks: 1 },
   categories: [
     {
       id: "pc1",
@@ -40,6 +47,7 @@ const PROPOSAL: ProposalState = {
           assumptions: "Брендбук уже есть",
           position: 0,
           comment_count: 1,
+          plan_task_id: null,
         },
         {
           id: "pt2",
@@ -55,6 +63,7 @@ const PROPOSAL: ProposalState = {
           assumptions: "",
           position: 1,
           comment_count: 0,
+          plan_task_id: null,
         },
       ],
     },
@@ -470,6 +479,18 @@ describe("вкладка предложения", () => {
     await waitFor(() =>
       expect(sent).toContainEqual({ method: "POST", path: "push-to-plan", body: null }),
     );
+  });
+
+  it("клиенту вкладка не показывается, а адрес сметы уводит на диаграмму", async () => {
+    proposalFixtures();
+    renderProject(undefined, { role: "client", route: "/projects/p1/proposal" });
+
+    // Диаграмма открылась вместо сметы: сервер клиенту смету не отдаёт, и
+    // дорога к заведомому отказу никому не нужна.
+    expect(await screen.findByRole("link", { name: "Диаграмма" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Предложение" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Итоги предложения" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent("/projects/p1");
   });
 
   it("читателю смета видна, а правка — нет", async () => {

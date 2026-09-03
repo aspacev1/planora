@@ -14,27 +14,20 @@ import {
   updateProposalSettings,
   updateProposalTask,
 } from "../api/proposal";
-import type {
-  ProposalCategory,
-  ProposalSettingsPatch,
-  ProposalTask,
-  ProposalTaskPatch,
-} from "../api/proposal";
-import { SaveMark, SelectField, TextField, ValueField } from "../components/autosave";
+import type { ProposalSettingsPatch, ProposalTaskPatch } from "../api/proposal";
+import { SelectField, TextField, ValueField } from "../components/autosave";
 import { useFieldSaves } from "../components/autosave";
-import { ConfirmAction } from "../components/ConfirmAction";
-import { CommentIcon, EditableCell, PencilIcon, RowBadge, RowIcon } from "../components/rows";
 import { useToast } from "../components/toast";
 import { useLocale } from "../i18n/LocaleProvider";
 import { formatAmount, formatMoney } from "./money";
-import { NewProposalTaskRow } from "./NewProposalTaskRow";
 import { ProposalCategoryForm } from "./ProposalCategoryForm";
+import { ProposalNotes } from "./ProposalNotes";
+import { ProposalSummary } from "./ProposalSummary";
+import { CategoryRows } from "./ProposalTable";
+import type { EffortMath, Formats } from "./ProposalTable";
 import { ProposalTaskPanel } from "./ProposalTaskPanel";
 
 import "./proposal.css";
-
-/** Колонки таблицы: работа, описание, оценка, часы, ставка, цена. */
-const COLUMNS = 6;
 
 /**
  * Вкладка «Предложение»: смета проекта до плана.
@@ -55,6 +48,10 @@ const COLUMNS = 6;
  * карточка ради одной ставки означала бы открыть, поправить, закрыть — на
  * каждой строке подряд. Карточка остаётся для того, чего в таблице нет:
  * подробностей, рисков, допущений и разговора.
+ *
+ * Экран держит данные и состояние вкладки; таблица (ProposalTable), итоги
+ * (ProposalSummary) и примечания (ProposalNotes) — свои компоненты, каждому
+ * достаётся ровно то, что он показывает.
  */
 export function Proposal({ projectId, canWrite }: { projectId: string; canWrite: boolean }) {
   const { t, locale } = useLocale();
@@ -80,7 +77,6 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
   // Свёрнутые разделы. Пустое множество — всё развёрнуто: смету читают
   // целиком, и прятать что-то по умолчанию не за чем.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const [editingNotes, setEditingNotes] = useState(false);
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: proposalQueryKey(projectId) });
@@ -160,30 +156,30 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
 
   // Оценка живёт в единице сметы, а показывается в обеих: колонка дней и
   // колонка часов пересчитываются через «часов в дне» — те же правила, по
-  // которым перенос в план считает длительности.
-  const toDays = (effort: number) => (hours ? effort / proposal.hours_per_day : effort);
-  const toHours = (effort: number) => (hours ? effort : effort * proposal.hours_per_day);
-  // Обратный пересчёт: правят ту колонку, в которую смотрят, а в трудоёмкость
-  // строки написанное переводится тем же «часов в дне», каким и показано.
-  const effortOfDays = (value: number) => (hours ? value * proposal.hours_per_day : value);
-  const effortOfHours = (value: number) => (hours ? value : value / proposal.hours_per_day);
+  // которым перенос в план считает длительности. Обратный пересчёт нужен
+  // правке: правят ту колонку, в которую смотрят.
+  const math: EffortMath = {
+    toDays: (effort) => (hours ? effort / proposal.hours_per_day : effort),
+    toHours: (effort) => (hours ? effort : effort * proposal.hours_per_day),
+    effortOfDays: (value) => (hours ? value * proposal.hours_per_day : value),
+    effortOfHours: (value) => (hours ? value : value / proposal.hours_per_day),
+  };
 
-  const days = (value: number) =>
-    t("proposal.format.days", { value: formatAmount(locale, value) });
-  const hoursLabel = (value: number) =>
-    t("proposal.format.hours", { value: formatAmount(locale, value) });
   const money = (value: number) => formatMoney(locale, proposal.currency, value);
-  // Ставка — за день или за час, и подпись обязана это говорить: голое
-  // «$100» не отвечает на вопрос «за что».
-  const rate = (value: number) =>
-    t(hours ? "proposal.format.per_hour" : "proposal.format.per_day", {
-      rate: money(value),
-    });
+  const formats: Formats = {
+    days: (value) => t("proposal.format.days", { value: formatAmount(locale, value) }),
+    hoursLabel: (value) => t("proposal.format.hours", { value: formatAmount(locale, value) }),
+    money,
+    // Ставка — за день или за час, и подпись обязана это говорить: голое
+    // «$100» не отвечает на вопрос «за что».
+    rate: (value) =>
+      t(hours ? "proposal.format.per_hour" : "proposal.format.per_day", { rate: money(value) }),
+  };
 
   const subtotal = tasks.reduce((sum, task) => sum + task.effort * task.rate, 0);
   const tax = (subtotal * proposal.tax_rate_pct) / 100;
-  const totalDays = tasks.reduce((sum, task) => sum + toDays(task.effort), 0);
-  const totalHours = tasks.reduce((sum, task) => sum + toHours(task.effort), 0);
+  const totalDays = tasks.reduce((sum, task) => sum + math.toDays(task.effort), 0);
+  const totalHours = tasks.reduce((sum, task) => sum + math.toHours(task.effort), 0);
 
   const toggle = (categoryId: string) =>
     setCollapsed((current) => {
@@ -195,6 +191,9 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
 
   const createTask = (categoryId: string) => (name: string) =>
     addTask.mutate({ categoryId, name });
+
+  const failure =
+    addTask.error ?? removeCategory.error ?? patchCategory.error ?? patchTask.error ?? removeTask.error;
 
   return (
     <div className="proposal">
@@ -312,14 +311,8 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
                     category={category}
                     open={!collapsed.has(category.id)}
                     canWrite={canWrite}
-                    toDays={toDays}
-                    toHours={toHours}
-                    effortOfDays={effortOfDays}
-                    effortOfHours={effortOfHours}
-                    days={days}
-                    hoursLabel={hoursLabel}
-                    money={money}
-                    rate={rate}
+                    math={math}
+                    formats={formats}
                     addingTask={newTaskIn === category.id}
                     onToggle={() => toggle(category.id)}
                     onAddTask={() => setNewTaskIn(category.id)}
@@ -343,108 +336,33 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
           </div>
         )}
 
-        {(addTask.error ||
-          removeCategory.error ||
-          patchCategory.error ||
-          patchTask.error ||
-          removeTask.error) && (
+        {failure && (
           <p className="error" role="alert">
-            {t(
-              errorKey(
-                addTask.error ??
-                  removeCategory.error ??
-                  patchCategory.error ??
-                  patchTask.error ??
-                  removeTask.error,
-              ),
-            )}
+            {t(errorKey(failure))}
           </p>
         )}
 
-        {/* Допущения и примечания — свойство предложения целиком, карточкой
-            под таблицей: «оценки по текущему объёму», «ставки без лицензий»
-            относятся ко всем строкам сразу. */}
-        <section className="proposal-notes" aria-label={t("proposal.notes.title")}>
-          <header className="proposal-notes__head">
-            <h3 className="proposal-notes__title" id="proposal-notes-title">
-              {t("proposal.notes.title")}
-            </h3>
-            <SaveMark save={saves.at("notes")} />
-            {canWrite && !editingNotes && (
-              <button
-                type="button"
-                className="button--quiet"
-                onClick={() => setEditingNotes(true)}
-              >
-                {t("proposal.notes.edit")}
-              </button>
-            )}
-          </header>
-          {editingNotes ? (
-            <NotesEditor
-              initial={proposal.notes}
-              onDone={(value) => {
-                if (value !== proposal.notes) saves.commit("notes", { notes: value });
-                setEditingNotes(false);
-              }}
-            />
-          ) : proposal.notes.trim() === "" ? (
-            <p className="muted">{t("proposal.notes.empty")}</p>
-          ) : (
-            // Пункт на строку, как их и пишут: маркеры даёт список, а не
-            // разметка внутри текста.
-            <ul className="proposal-notes__list">
-              {proposal.notes
-                .split("\n")
-                .filter((line) => line.trim() !== "")
-                .map((line, index) => (
-                  <li key={index}>{line}</li>
-                ))}
-            </ul>
-          )}
-        </section>
+        <ProposalNotes
+          notes={proposal.notes}
+          canWrite={canWrite}
+          save={saves.at("notes")}
+          onCommit={(value) => saves.commit("notes", { notes: value })}
+        />
       </div>
 
-      {/* Итоги — карточкой сбоку, на виду при любой прокрутке: «сколько
-          всего» спрашивают, не дочитав смету. */}
-      <aside className="proposal-summary" aria-label={t("proposal.summary.title")}>
-        <h3 className="proposal-summary__title">{t("proposal.summary.title")}</h3>
-        <dl>
-          <div className="proposal-summary__row">
-            <dt>{t("proposal.summary.total_hours")}</dt>
-            <dd>{hoursLabel(totalHours)}</dd>
-          </div>
-          <div className="proposal-summary__row">
-            <dt>{t("proposal.summary.total_duration")}</dt>
-            <dd>{days(totalDays)}</dd>
-          </div>
-          <div className="proposal-summary__row proposal-summary__row--first">
-            <dt>{t("proposal.summary.subtotal")}</dt>
-            <dd>{money(subtotal)}</dd>
-          </div>
-          <div className="proposal-summary__row">
-            <dt>{t("proposal.summary.tax", { rate: proposal.tax_rate_pct })}</dt>
-            <dd>{money(tax)}</dd>
-          </div>
-          <div className="proposal-summary__row proposal-summary__total">
-            <dt>
-              {t("proposal.summary.total")}
-              <span className="proposal-summary__currency">{proposal.currency}</span>
-            </dt>
-            <dd className="proposal-summary__amount">{money(subtotal + tax)}</dd>
-          </div>
-        </dl>
-        {canWrite && (
-          <button
-            type="button"
-            className="button--primary proposal-summary__push"
-            disabled={tasks.length === 0 || push.isPending}
-            onClick={() => push.mutate()}
-          >
-            {t("proposal.push.action")}
-          </button>
-        )}
-      </aside>
+      <ProposalSummary
+        currency={proposal.currency}
+        taxRatePct={proposal.tax_rate_pct}
+        totalHours={totalHours}
+        totalDays={totalDays}
+        subtotal={subtotal}
+        tax={tax}
+        formats={formats}
+        canWrite={canWrite}
+        canPush={tasks.length > 0}
+        pushing={push.isPending}
+        onPush={() => push.mutate()}
+      />
 
       {selectedTask && (
         <ProposalTaskPanel
@@ -474,440 +392,3 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
     </div>
   );
 }
-
-/**
- * Раздел в таблице: строка-заголовок со сводкой и строки работ под ней.
- *
- * Сводка раздела — суммы его строк; ставка показывается, только когда она у
- * всех строк одна: среднее от разных ставок не значит ничего, а первое
- * попавшееся врёт.
- */
-function CategoryRows({
-  category,
-  open,
-  canWrite,
-  toDays,
-  toHours,
-  effortOfDays,
-  effortOfHours,
-  days,
-  hoursLabel,
-  money,
-  rate,
-  addingTask,
-  onToggle,
-  onAddTask,
-  onCloseNewTask,
-  onCreateTask,
-  onDelete,
-  onEdit,
-  onPatch,
-  onPatchTask,
-  onDeleteTask,
-  onOpenTask,
-  t,
-}: {
-  category: ProposalCategory;
-  open: boolean;
-  canWrite: boolean;
-  toDays: (effort: number) => number;
-  toHours: (effort: number) => number;
-  effortOfDays: (value: number) => number;
-  effortOfHours: (value: number) => number;
-  days: (value: number) => string;
-  hoursLabel: (value: number) => string;
-  money: (value: number) => string;
-  rate: (value: number) => string;
-  addingTask: boolean;
-  onToggle: () => void;
-  onAddTask: () => void;
-  onCloseNewTask: () => void;
-  onCreateTask: (name: string) => void;
-  onDelete: () => void;
-  /** Открыть окно раздела: имя и описание с клавиатуры правятся там. */
-  onEdit: () => void;
-  onPatch: (patch: Partial<{ name: string; description: string }>) => void;
-  onPatchTask: (taskId: string, patch: ProposalTaskPatch) => void;
-  onDeleteTask: (taskId: string) => void;
-  onOpenTask: (taskId: string) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}) {
-  const categoryDays = category.tasks.reduce((sum, task) => sum + toDays(task.effort), 0);
-  const categoryHours = category.tasks.reduce((sum, task) => sum + toHours(task.effort), 0);
-  const categoryPrice = category.tasks.reduce(
-    (sum, task) => sum + task.effort * task.rate,
-    0,
-  );
-  const rates = new Set(category.tasks.map((task) => task.rate));
-  const uniformRate = rates.size === 1 ? [...rates][0] : null;
-
-  const toggleLabel = t(open ? "proposal.category.collapse" : "proposal.category.expand", {
-    name: category.name,
-  });
-
-  return (
-    <>
-      <tr className="proposal-row proposal-row--category">
-        <td>
-          <span className="proposal-row__name">
-            <button
-              type="button"
-              className="row-chevron"
-              aria-expanded={open}
-              aria-label={toggleLabel}
-              title={toggleLabel}
-              onClick={onToggle}
-            >
-              {open ? "▾" : "▸"}
-            </button>
-            {/* Имя раздела — содержимое пользователя: не переводится. */}
-            <span className="proposal-row__field">
-              <EditableCell
-                type="text"
-                value={category.name}
-                display={category.name}
-                disabled={!canWrite}
-                label={t("proposal.category.rename", { name: category.name })}
-                onCommit={(value) => {
-                  const name = value.trim();
-                  if (name !== "" && name !== category.name) onPatch({ name });
-                }}
-              />
-            </span>
-            {canWrite && (
-              // Знаки строки — те же, что у строки ленты, и молчат так же:
-              // постоянное удаление возле каждого раздела читается как угроза.
-              // Подпись каждого включает название раздела — на десятке
-              // разделов безымянные «плюсы» при чтении с экрана неразличимы.
-              <span className="row-icons">
-                <RowIcon
-                  label={t("proposal.category.add_task", { name: category.name })}
-                  onClick={onAddTask}
-                >
-                  +
-                </RowIcon>
-                <RowIcon
-                  label={t("proposal.category.edit", { name: category.name })}
-                  onClick={onEdit}
-                >
-                  <PencilIcon />
-                </RowIcon>
-                <ConfirmAction
-                  className="row-icon row-icon--danger"
-                  icon="×"
-                  label={t("proposal.category.delete", { name: category.name })}
-                  warning={t("proposal.category.delete_warning", { name: category.name })}
-                  confirm={t("proposal.category.delete_confirm")}
-                  onConfirm={onDelete}
-                />
-              </span>
-            )}
-          </span>
-        </td>
-        <td className="proposal-table__desc">
-          <EditableCell
-            type="text"
-            value={category.description}
-            display={category.description}
-            disabled={!canWrite}
-            allowEmpty
-            label={t("proposal.category.describe", { name: category.name })}
-            onCommit={(description) => onPatch({ description })}
-          />
-        </td>
-        {/* Числа раздела — сводка его строк, а не значения: править их значило
-            бы менять неизвестно какую из работ. Как строка категории в ленте. */}
-        <td className="proposal-table__num">{days(categoryDays)}</td>
-        <td className="proposal-table__num">{hoursLabel(categoryHours)}</td>
-        <td className="proposal-table__num muted">
-          {uniformRate !== null && uniformRate > 0 ? rate(uniformRate) : ""}
-        </td>
-        <td className="proposal-table__num proposal-table__price">
-          {money(categoryPrice)}
-        </td>
-      </tr>
-
-      {open &&
-        category.tasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            canWrite={canWrite}
-            days={days}
-            hoursLabel={hoursLabel}
-            toDays={toDays}
-            toHours={toHours}
-            effortOfDays={effortOfDays}
-            effortOfHours={effortOfHours}
-            money={money}
-            rate={rate}
-            onOpen={() => onOpenTask(task.id)}
-            onPatch={(patch) => onPatchTask(task.id, patch)}
-            onDelete={() => onDeleteTask(task.id)}
-            t={t}
-          />
-        ))}
-
-      {addingTask && (
-        <NewProposalTaskRow
-          columns={COLUMNS}
-          label={t("proposal.task.new_label", { name: category.name })}
-          placeholder={t("proposal.task.new_placeholder")}
-          onCreate={onCreateTask}
-          onClose={onCloseNewTask}
-        />
-      )}
-    </>
-  );
-}
-
-/**
- * Строка работы: каждая ячейка правится на месте.
- *
- * Оценка живёт в трудоёмкости строки, а показана двумя колонками — днями и
- * часами; правится любая, и написанное переводится обратно тем же «часов в
- * дне». Цена — произведение оценки на ставку, и правка её меняет ставку: «эта
- * строка стоит пять тысяч» говорят именно так, а оценку в этот момент не
- * пересматривают. У строки без оценки множителя нет, и цену ей задать нечем.
- *
- * Карточка остаётся для того, чего в таблице нет: роли, подробностей, рисков,
- * допущений и разговора. Её открывает знак «править» — и он же единственный
- * путь туда с клавиатуры: ячейки открываются щелчком (см. components/rows).
- */
-function TaskRow({
-  task,
-  canWrite,
-  days,
-  hoursLabel,
-  toDays,
-  toHours,
-  effortOfDays,
-  effortOfHours,
-  money,
-  rate,
-  onOpen,
-  onPatch,
-  onDelete,
-  t,
-}: {
-  task: ProposalTask;
-  canWrite: boolean;
-  days: (value: number) => string;
-  hoursLabel: (value: number) => string;
-  toDays: (effort: number) => number;
-  toHours: (effort: number) => number;
-  effortOfDays: (value: number) => number;
-  effortOfHours: (value: number) => number;
-  money: (value: number) => string;
-  rate: (value: number) => string;
-  onOpen: () => void;
-  onPatch: (patch: ProposalTaskPatch) => void;
-  onDelete: () => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}) {
-  /** «Изменить: {колонка} у „{имя}“» — подпись поля, открытого на месте. */
-  const label = (column: string) =>
-    t("proposal.cell.edit", { column: t(column), name: task.name });
-
-  const commit = {
-    name: (value: string) => {
-      const name = value.trim();
-      if (name !== "" && name !== task.name) onPatch({ name });
-    },
-    effort: (value: number | null) => {
-      const effort = value === null ? null : rounded(value);
-      if (effort !== null && effort !== task.effort) onPatch({ effort });
-    },
-    rate: (value: string) => {
-      const parsed = amount(value);
-      if (parsed !== null && rounded(parsed) !== task.rate) onPatch({ rate: rounded(parsed) });
-    },
-    price: (value: string) => {
-      const parsed = amount(value);
-      // Делить не на что: у строки без оценки цена не разложится на ставку.
-      if (parsed === null || task.effort === 0) return;
-      const next = rounded(parsed / task.effort);
-      if (next !== task.rate) onPatch({ rate: next });
-    },
-  };
-
-  return (
-    <tr className="proposal-row proposal-row--task">
-      <td>
-        <span className="proposal-row__name proposal-row__name--task">
-          {/* Имя строки — содержимое пользователя: не переводится.
-
-              У читателя щелчок по имени открывает карточку — как и раньше:
-              правкой он быть не может, а карточка со всем, чего в таблице нет,
-              для чтения открыта и ему. Тому, кто пишет, то же движение
-              открывает ячейку, а карточку — знак «править» справа: два разных
-              дела на одном щелчке не помещаются. */}
-          <span className="proposal-row__field">
-            {canWrite ? (
-              <EditableCell
-                type="text"
-                value={task.name}
-                display={task.name}
-                label={label("proposal.columns.work_item")}
-                onCommit={commit.name}
-              />
-            ) : (
-              <button type="button" className="cell-value proposal-row__open" onClick={onOpen}>
-                {task.name}
-              </button>
-            )}
-          </span>
-          <span className="row-icons">
-            {(task.comment_count > 0 || canWrite) && (
-              <RowBadge
-                // Подпись та же, что у счётчика на строке ленты: разговор —
-                // один и тот же разговор, где бы его ни открыли.
-                label={t("comments.aria", { name: task.name, count: task.comment_count })}
-                set={task.comment_count > 0}
-                onClick={onOpen}
-              >
-                <CommentIcon />
-                {task.comment_count > 0 && task.comment_count}
-              </RowBadge>
-            )}
-            {canWrite && (
-              <>
-                <RowIcon label={t("proposal.task.edit", { name: task.name })} onClick={onOpen}>
-                  <PencilIcon />
-                </RowIcon>
-                <ConfirmAction
-                  className="row-icon row-icon--danger"
-                  icon="×"
-                  label={t("proposal.task.remove", { name: task.name })}
-                  warning={t("proposal.task.delete_warning", { name: task.name })}
-                  confirm={t("proposal.task.delete_confirm")}
-                  onConfirm={onDelete}
-                />
-              </>
-            )}
-          </span>
-        </span>
-      </td>
-      <td className="proposal-table__desc">
-        <EditableCell
-          type="text"
-          value={task.description}
-          display={task.description}
-          disabled={!canWrite}
-          allowEmpty
-          label={label("proposal.columns.description")}
-          onCommit={(description) => onPatch({ description })}
-        />
-      </td>
-      <td className="proposal-table__num">
-        <EditableCell
-          type="number"
-          step="any"
-          min={0}
-          value={String(toDays(task.effort))}
-          display={days(toDays(task.effort))}
-          disabled={!canWrite}
-          label={label("proposal.columns.effort")}
-          onCommit={(value) => {
-            const parsed = amount(value);
-            commit.effort(parsed === null ? null : effortOfDays(parsed));
-          }}
-        />
-      </td>
-      <td className="proposal-table__num">
-        <EditableCell
-          type="number"
-          step="any"
-          min={0}
-          value={String(toHours(task.effort))}
-          display={hoursLabel(toHours(task.effort))}
-          disabled={!canWrite}
-          label={label("proposal.columns.hours")}
-          onCommit={(value) => {
-            const parsed = amount(value);
-            commit.effort(parsed === null ? null : effortOfHours(parsed));
-          }}
-        />
-      </td>
-      <td className="proposal-table__num muted">
-        <EditableCell
-          type="number"
-          step="any"
-          min={0}
-          value={String(task.rate)}
-          display={task.rate > 0 ? rate(task.rate) : ""}
-          disabled={!canWrite}
-          label={label("proposal.columns.rate")}
-          onCommit={commit.rate}
-        />
-      </td>
-      <td className="proposal-table__num">
-        <EditableCell
-          type="number"
-          step="any"
-          min={0}
-          value={String(task.effort * task.rate)}
-          display={money(task.effort * task.rate)}
-          disabled={!canWrite || task.effort === 0}
-          label={label("proposal.columns.price")}
-          onCommit={commit.price}
-        />
-      </td>
-    </tr>
-  );
-}
-
-/**
- * Число из ячейки — или `null`, если написано не число.
- *
- * Отрицательные не проходят: ни оценка, ни ставка, ни цена меньше нуля не
- * бывают, и сервер откажет — но сказать об этом можно и здесь, не спрашивая
- * никого.
- */
-function amount(text: string): number | null {
-  const value = Number(text);
-  return text.trim() === "" || !Number.isFinite(value) || value < 0 ? null : value;
-}
-
-/**
- * Два знака после запятой — ровно столько, сколько хранит сервер.
- *
- * Пересчёты сметы делят: 25 часов при восьмичасовом дне — это 3,125 дня, а
- * колонка цены, разложенная на ставку, и вовсе даёт бесконечную дробь.
- * Отправить её целиком значит попросить сервер о точности, которой у его
- * колонки нет, и получить в ответ округление, о котором никто не просил.
- */
-function rounded(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-/**
- * Правка примечаний: текст, по пункту на строку.
- *
- * Уход фокуса заканчивает правку в любом случае — изменённый текст уходит на
- * сервер, неизменённый просто закрывает поле: режим правки, из которого нет
- * выхода без изменения, читался бы как заевшая кнопка.
- */
-function NotesEditor({
-  initial,
-  onDone,
-}: {
-  initial: string;
-  onDone: (value: string) => void;
-}) {
-  const [draft, setDraft] = useState(initial);
-
-  return (
-    <textarea
-      className="proposal-notes__field"
-      aria-labelledby="proposal-notes-title"
-      rows={4}
-      value={draft}
-      // Фокус — сразу: «править» нажали ради того, чтобы писать.
-      autoFocus
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={() => onDone(draft)}
-    />
-  );
-}
-
