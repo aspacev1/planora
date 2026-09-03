@@ -165,5 +165,10 @@
     "day": "Gün {n}",
     "week": "Həftə {n}",
     "month": "Ay {n}"
+  },
+  "proposal_note": {
+    "notes": "Qeydlər",
+    "risks": "Risklər",
+    "assumptions": "Fərziyyələr"
   }
 }

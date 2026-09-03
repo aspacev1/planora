@@ -4,6 +4,11 @@
 (app/proposals) и свой характер записи — правки без журнала ревизий, как у
 комментариев. Единственный маршрут, который трогает план, — перенос строк в
 задачи, и он один ходит в слой мутаций.
+
+Читать предложение вправе не всякий, кто читает проект: клиент и гость по
+ссылке видят план, но не смету с её ставками и рисками (см.
+Action.PROPOSAL_READ). Поэтому чтение здесь проверяется явно, а не
+наследуется от project_context.
 """
 
 import uuid
@@ -26,13 +31,16 @@ from app.proposals import (
     add_category,
     add_task,
     add_task_comment,
+    convert_unit,
     ensure_proposal,
     get_proposal,
     require_category,
     list_task_comments,
     proposal_state,
+    push_preview,
     push_to_plan,
     require_task,
+    set_stage,
 )
 
 router = APIRouter(prefix="/api/projects", tags=["proposal"])
@@ -61,7 +69,17 @@ class ProposalCategoryPatch(BaseModel):
 
 
 class ProposalTaskIn(BaseModel):
+    """Новая строка: имя обязательно, роль, оценка и ставка — если назвали
+    сразу. Потолки чисел те же, что у правки, — ширина колонок Numeric."""
+
     name: str = Field(min_length=1, max_length=300)
+    role: str = Field(default="", max_length=120)
+    effort: float | None = Field(default=None, ge=0, le=999_999)
+    rate: float | None = Field(default=None, ge=0, le=9_999_999_999)
+
+
+class ProposalStageIn(BaseModel):
+    stage: Literal["draft", "sent", "agreed"]
 
 
 class ProposalTaskPatch(BaseModel):
@@ -84,6 +102,13 @@ class ProposalTaskPatch(BaseModel):
 
 class ProposalCommentIn(BaseModel):
     body: str = Field(min_length=1)
+
+
+class PushToPlanIn(BaseModel):
+    """Какие строки переносить. Пустой список — все переносимые по умолчанию:
+    оценённые и ещё не перенесённые (см. proposals._pushable)."""
+
+    task_ids: list[uuid.UUID] = []
 
 
 def _refuse(error: ProposalError | MutationError) -> HTTPException:
@@ -121,6 +146,7 @@ def get_project_proposal(
     присланных чисел, и сервер, пересказывающий их, был бы вторым местом с
     той же арифметикой.
     """
+    context.require(Action.PROPOSAL_READ)
     return proposal_state(db, context.project)
 
 
@@ -135,7 +161,12 @@ def update_proposal_settings(
     proposal = ensure_proposal(db, context.project)
     changes = payload.model_dump(exclude_unset=True, exclude_none=True)
     if "effort_unit" in changes:
-        proposal.effort_unit = changes["effort_unit"]
+        # Пересчёт строк — до новой нормы часов, если она пришла тем же
+        # запросом: оценки писались при старой, и переводить их надо ею.
+        try:
+            convert_unit(db, proposal, changes["effort_unit"])
+        except ProposalError as error:
+            raise _refuse(error)
     if "hours_per_day" in changes:
         proposal.hours_per_day = changes["hours_per_day"]
     if "tax_rate_pct" in changes:
@@ -146,6 +177,25 @@ def update_proposal_settings(
         proposal.currency = changes["currency"].upper()
     if "notes" in changes:
         proposal.notes = changes["notes"]
+    db.flush()
+    _publish(background, db, context.project.id, _CHANGED)
+    return proposal_state(db, context.project)
+
+
+@router.post("/{project_id}/proposal/stage")
+def set_proposal_stage(
+    payload: ProposalStageIn,
+    background: BackgroundTasks,
+    context: ProjectContext = Depends(project_context),
+    db: DbSession = Depends(get_db),
+):
+    """Отметить этап сделки — в любую сторону (см. proposals.set_stage)."""
+    context.require(Action.PROJECT_WRITE)
+    proposal = ensure_proposal(db, context.project)
+    try:
+        set_stage(proposal, payload.stage)
+    except ProposalError as error:
+        raise _refuse(error)
     db.flush()
     _publish(background, db, context.project.id, _CHANGED)
     return proposal_state(db, context.project)
@@ -228,7 +278,16 @@ def create_proposal_task(
     if not name:
         raise HTTPException(status_code=422, detail="validation_error")
     try:
-        task = add_task(db, ensure_proposal(db, context.project), category_id, name)
+        task = add_task(
+            db,
+            ensure_proposal(db, context.project),
+            category_id,
+            name,
+            role=payload.role.strip(),
+            # Decimal из строки, а не из float — по той же причине, что у налога.
+            effort=Decimal(str(payload.effort)) if payload.effort is not None else Decimal("0"),
+            rate=Decimal(str(payload.rate)) if payload.rate is not None else Decimal("0"),
+        )
     except ProposalError as error:
         raise _refuse(error)
     response = {"id": str(task.id), "category_id": str(task.category_id), "name": task.name}
@@ -286,6 +345,7 @@ def list_proposal_task_comments(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
+    context.require(Action.PROPOSAL_READ)
     try:
         comments = list_task_comments(db, get_proposal(db, context.project), task_id)
     except ProposalError as error:
@@ -307,6 +367,9 @@ def create_proposal_task_comment(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
+    # Обе проверки: реплику к строке пишет тот, кто вправе и комментировать,
+    # и видеть смету. Одного COMMENT мало — он есть и у клиента.
+    context.require(Action.PROPOSAL_READ)
     context.require(Action.COMMENT)
     try:
         comment = add_task_comment(
@@ -331,21 +394,45 @@ def _comment_out(comment: ProposalComment, names: dict[uuid.UUID, str]) -> dict:
     }
 
 
+@router.get("/{project_id}/proposal/push-plan")
+def preview_push_to_plan(
+    context: ProjectContext = Depends(project_context), db: DbSession = Depends(get_db)
+):
+    """Что случится при переносе — до того, как он случился.
+
+    Окно переноса показывает, куда ляжет каждый раздел и во сколько дней
+    выйдет каждая строка, и отмечает то, что переносить не будет: уже
+    перенесённое и строки без оценки. Считает это сервер теми же функциями,
+    что и перенос, — см. proposals.push_preview.
+    """
+    context.require(Action.PROPOSAL_READ)
+    return push_preview(db, context.project)
+
+
 @router.post("/{project_id}/proposal/push-to-plan", status_code=201)
 def push_proposal_to_plan(
     background: BackgroundTasks,
+    payload: PushToPlanIn | None = None,
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
     """Переносит смету в план: раздел — категорией, строка — задачей.
 
     Пачка ревизий с общим batch_id: в истории перенос читается одной записью
-    и снимается одной отменой. Задачи встают на старт плана — раскладку по
-    оси человек делает сам.
+    и снимается одной отменой — batch_id уходит в ответ ради кнопки «Вернуть»
+    в тосте. Задачи встают на старт плана — раскладку по оси человек делает
+    сам. Заметки, риски и допущения строки уходят во внутреннюю заметку
+    задачи на языке организации: её читает команда, а не клиент.
     """
     context.require(Action.PROJECT_WRITE)
     try:
-        result = push_to_plan(db, context.project, context.user.id)
+        result = push_to_plan(
+            db,
+            context.project,
+            context.user.id,
+            task_ids=payload.task_ids if payload else None,
+            locale=context.org.default_locale,
+        )
     except (ProposalError, MutationError) as error:
         raise _refuse(error)
     # Ревизии уже в журнале — соседям достаточно факта «план изменился»:

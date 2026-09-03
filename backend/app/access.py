@@ -32,6 +32,15 @@ class Action(StrEnum):
     # существующие READ_INTERNAL_NOTE и правило показа исполнителей, ровно те
     # же, что действуют на публичной странице.
     PROJECT_EXPORT = "project_export"
+    # Предложение — внутренняя кухня сделки: ставки, себестоимость, риски и
+    # разговор команды о клиенте. Клиент и гость по ссылке его не читают —
+    # тем же правилом, каким выгрузка уже вырезает смету из клиентского
+    # экземпляра (см. export/document.py, INTERNAL_SECTIONS). Клиенту
+    # предназначен документ, собранный из клиентских полей, а не экран.
+    #
+    # Отдельное право, а не PROJECT_READ: план клиенту читать как раз
+    # положено, и разница между планом и сметой должна быть названа.
+    PROPOSAL_READ = "proposal_read"
 
 
 _MATRIX: dict[Role | None, frozenset[Action]] = {
@@ -45,6 +54,7 @@ _MATRIX: dict[Role | None, frozenset[Action]] = {
             Action.READ_INTERNAL_NOTE,
             Action.PLAN_APPROVE,
             Action.PROJECT_EXPORT,
+            Action.PROPOSAL_READ,
         }
     ),
     Role.VIEWER: frozenset(
@@ -53,6 +63,7 @@ _MATRIX: dict[Role | None, frozenset[Action]] = {
             Action.COMMENT,
             Action.READ_INTERNAL_NOTE,
             Action.PROJECT_EXPORT,
+            Action.PROPOSAL_READ,
         }
     ),
     # Клиент и гость по ссылке выгружают клиентский экземпляр: тот же урез,

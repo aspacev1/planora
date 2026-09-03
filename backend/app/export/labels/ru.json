@@ -165,5 +165,10 @@
     "day": "День {n}",
     "week": "Неделя {n}",
     "month": "Месяц {n}"
+  },
+  "proposal_note": {
+    "notes": "Заметки",
+    "risks": "Риски",
+    "assumptions": "Допущения"
   }
 }

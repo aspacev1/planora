@@ -165,5 +165,10 @@
     "day": "Day {n}",
     "week": "Week {n}",
     "month": "Month {n}"
+  },
+  "proposal_note": {
+    "notes": "Notes",
+    "risks": "Risks",
+    "assumptions": "Assumptions"
   }
 }

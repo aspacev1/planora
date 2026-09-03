@@ -256,7 +256,9 @@
     "jira_token_required": "A token is required for the first connection",
     "jira_url_not_https": "The Jira address must be https",
     "jira_url_invalid": "The Jira address is invalid",
-    "jira_url_private": "The Jira address does not resolve to a public host"
+    "jira_url_private": "The Jira address does not resolve to a public host",
+    "proposal_nothing_to_push": "Nothing to move: the selected work items are already in the plan or have no estimate",
+    "proposal_value_out_of_range": "The conversion does not fit the allowed range: lower the estimates or rates"
   },
   "live": {
     "offline": "No connection to the server. Editing is unavailable",
@@ -970,13 +972,18 @@
       "effort_days": "Effort, days",
       "effort_hours": "Effort, hours",
       "rate": "Rate",
-      "price": "Price"
+      "price": "Price",
+      "role": "Role",
+      "rate_unit": "Rate, {currency}/{unit}",
+      "price_unit": "Price, {currency}"
     },
     "format": {
       "days": "{value}d",
       "hours": "{value}h",
       "per_day": "{rate}/d",
-      "per_hour": "{rate}/h"
+      "per_hour": "{rate}/h",
+      "day_letter": "d",
+      "hour_letter": "h"
     },
     "category": {
       "create": "New section",
@@ -1009,7 +1016,9 @@
       "delete_warning": "The work item “{name}” will be deleted with its discussion",
       "delete_confirm": "Delete work item",
       "edit": "Edit work item “{name}”",
-      "remove": "Delete work item “{name}”"
+      "remove": "Delete work item “{name}”",
+      "in_plan": "in the plan",
+      "in_plan_aria": "“{name}” is already in the plan: open the task"
     },
     "notes": {
       "title": "Assumptions & Notes",
@@ -1029,10 +1038,68 @@
       "done": {
         "one": "{count} task added to the plan",
         "other": "{count} tasks added to the plan"
-      }
+      },
+      "title": "Move the proposal into the plan",
+      "lead": "Sections become categories, work items become tasks. Every task starts at the plan start with a duration taken from the estimate; you can arrange them on the chart afterwards.",
+      "new_category": "new category",
+      "into_category": "into category “{name}”",
+      "already": "already in the plan",
+      "unestimated": "no estimate",
+      "confirm": {
+        "one": "Move {count} task",
+        "other": "Move {count} tasks"
+      },
+      "undo_hint": "The move can be undone with one click",
+      "open_gantt": "Open the chart",
+      "more": {
+        "one": "Move {count} new work item",
+        "other": "Move {count} new work items"
+      },
+      "section_aria": "Section “{name}”",
+      "row_aria": "Move “{name}”"
     },
     "cell": {
-      "edit": "Change {column} for “{name}”"
+      "edit": "Change {column} for “{name}”",
+      "role_hint": "role",
+      "effort_hint": "estimate",
+      "rate_hint": "rate"
+    },
+    "stage": {
+      "title": "Proposal stages",
+      "draft": "Draft",
+      "sent": "Sent",
+      "agreed": "Agreed",
+      "in_plan": "In the plan",
+      "in_plan_count": {
+        "one": "{pushed} of {count} work item",
+        "other": "{pushed} of {count} work items"
+      },
+      "mark_sent": "Mark as sent",
+      "mark_agreed": "Mark as agreed",
+      "push": "Move into the plan",
+      "back_to": "Go back to “{stage}”"
+    },
+    "params": {
+      "open": "Proposal settings",
+      "summary": "{unit} · Tax {tax} % · {currency}",
+      "unit_hint": "Changing the unit converts the estimates and rates of every row: two days at 400 become sixteen hours at 50. The totals stay the same."
+    },
+    "entry": {
+      "role": "Role of the new work item",
+      "effort": "Estimate of the new work item, {unit}",
+      "rate": "Rate of the new work item, {currency}/{unit}",
+      "role_placeholder": "Role",
+      "effort_placeholder": "Estimate, {unit}",
+      "rate_placeholder": "Rate, {currency}/{unit}",
+      "hint_enter": "add and start the next one",
+      "hint_tab": "next field",
+      "hint_esc": "close",
+      "hint_rate": "The rate is filled in from the role; you can change it",
+      "roles": "Roles and rates in the organisation"
+    },
+    "next": {
+      "title": "Next",
+      "push_note": "Work items become tasks on the chart; the move can be undone."
     }
   },
   "scorecard": {

@@ -256,7 +256,9 @@
     "jira_token_required": "İlk qoşulmada token lazımdır",
     "jira_url_not_https": "Jira ünvanı https olmalıdır",
     "jira_url_invalid": "Jira ünvanı düzgün deyil",
-    "jira_url_private": "Jira ünvanı ictimai host ilə həll olunmur"
+    "jira_url_private": "Jira ünvanı ictimai host ilə həll olunmur",
+    "proposal_nothing_to_push": "Köçürməyə heç nə yoxdur: seçilmiş işlər artıq plandadır və ya qiymətləndirilməyib",
+    "proposal_value_out_of_range": "Yenidən hesablama icazə verilən hədlərə sığmır: qiymətləndirmə və ya dərəcələri azaldın"
   },
   "live": {
     "offline": "Serverlə əlaqə yoxdur. Redaktə mümkün deyil",
@@ -970,13 +972,18 @@
       "effort_days": "Həcm, gün",
       "effort_hours": "Həcm, saat",
       "rate": "Tarif",
-      "price": "Qiymət"
+      "price": "Qiymət",
+      "role": "Rol",
+      "rate_unit": "Dərəcə, {currency}/{unit}",
+      "price_unit": "Qiymət, {currency}"
     },
     "format": {
       "days": "{value}g",
       "hours": "{value}s",
       "per_day": "{rate}/g",
-      "per_hour": "{rate}/s"
+      "per_hour": "{rate}/s",
+      "day_letter": "g",
+      "hour_letter": "s"
     },
     "category": {
       "create": "Yeni bölmə",
@@ -1009,7 +1016,9 @@
       "delete_warning": "«{name}» işi müzakirəsi ilə birlikdə silinəcək",
       "delete_confirm": "İşi sil",
       "edit": "«{name}» işini redaktə et",
-      "remove": "«{name}» işini sil"
+      "remove": "«{name}» işini sil",
+      "in_plan": "plandadır",
+      "in_plan_aria": "«{name}» artıq plandadır: tapşırığı aç"
     },
     "notes": {
       "title": "Fərziyyələr və qeydlər",
@@ -1029,10 +1038,68 @@
       "done": {
         "one": "{count} tapşırıq plana əlavə olundu",
         "other": "{count} tapşırıq plana əlavə olundu"
-      }
+      },
+      "title": "Təklifi plana köçür",
+      "lead": "Bölmələr kateqoriyaya, işlər tapşırığa çevriləcək. Bütün tapşırıqlar planın başlanğıcına düşəcək, müddət qiymətləndirmədən götürüləcək. Sonra onları diaqramda tarixlərə görə yerləşdirmək olar.",
+      "new_category": "yeni kateqoriya",
+      "into_category": "«{name}» kateqoriyasına",
+      "already": "artıq plandadır",
+      "unestimated": "qiymətləndirmə yoxdur",
+      "confirm": {
+        "one": "{count} tapşırığı köçür",
+        "other": "{count} tapşırığı köçür"
+      },
+      "undo_hint": "Köçürməni bir düymə ilə geri qaytarmaq olar",
+      "open_gantt": "Diaqramı aç",
+      "more": {
+        "one": "{count} yeni işi köçür",
+        "other": "{count} yeni işi köçür"
+      },
+      "section_aria": "«{name}» bölməsi",
+      "row_aria": "«{name}» köçür"
     },
     "cell": {
-      "edit": "«{name}» üçün {column} dəyiş"
+      "edit": "«{name}» üçün {column} dəyiş",
+      "role_hint": "rol",
+      "effort_hint": "qiymət",
+      "rate_hint": "dərəcə"
+    },
+    "stage": {
+      "title": "Təklifin mərhələləri",
+      "draft": "Qaralama",
+      "sent": "Göndərilib",
+      "agreed": "Razılaşdırılıb",
+      "in_plan": "Plandadır",
+      "in_plan_count": {
+        "one": "{count} işdən {pushed}",
+        "other": "{count} işdən {pushed}"
+      },
+      "mark_sent": "Göndərilmiş kimi qeyd et",
+      "mark_agreed": "Razılaşdırılmış kimi qeyd et",
+      "push": "Plana köçür",
+      "back_to": "«{stage}» mərhələsinə qayıt"
+    },
+    "params": {
+      "open": "Təklif parametrləri",
+      "summary": "{unit} · Vergi {tax} % · {currency}",
+      "unit_hint": "Vahidin dəyişməsi bütün sətirlərin qiymətləndirmə və dərəcələrini yenidən hesablayır: 400-dən iki gün 50-dən on altı saata çevrilir. Yekunlar dəyişmir."
+    },
+    "entry": {
+      "role": "Yeni işin rolu",
+      "effort": "Yeni işin qiymətləndirməsi, {unit}",
+      "rate": "Yeni işin dərəcəsi, {currency}/{unit}",
+      "role_placeholder": "Rol",
+      "effort_placeholder": "Qiymət, {unit}",
+      "rate_placeholder": "Dərəcə, {currency}/{unit}",
+      "hint_enter": "əlavə et və növbətiyə keç",
+      "hint_tab": "növbəti sahə",
+      "hint_esc": "bağla",
+      "hint_rate": "Dərəcə rola görə qoyulur, onu dəyişmək olar",
+      "roles": "Təşkilatın rolları və dərəcələri"
+    },
+    "next": {
+      "title": "Növbəti",
+      "push_note": "İşlər diaqramda tapşırığa çevriləcək, köçürməni geri qaytarmaq olar."
     }
   },
   "scorecard": {

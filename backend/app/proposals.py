@@ -13,18 +13,24 @@
 
 import math
 import uuid
-from decimal import Decimal
+from collections.abc import Iterable
+from datetime import datetime, timezone
+from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
 
+from app.export.labels import term
 from app.models import (
     Category,
+    EffortUnit,
     Project,
     Proposal,
     ProposalCategory,
     ProposalComment,
+    ProposalStatus,
     ProposalTask,
+    Task,
     User,
 )
 from app.mutations import CreateCategory, CreateTask, apply_op
@@ -101,18 +107,104 @@ def add_category(
 
 
 def add_task(
-    db: DbSession, proposal: Proposal, category_id: uuid.UUID, name: str
+    db: DbSession,
+    proposal: Proposal,
+    category_id: uuid.UUID,
+    name: str,
+    *,
+    role: str = "",
+    effort: Decimal = Decimal("0"),
+    rate: Decimal = Decimal("0"),
 ) -> ProposalTask:
+    """Строка сметы — сразу с ролью, оценкой и ставкой, если их назвали.
+
+    Строка ввода в таблице спрашивает все четыре поля разом: смету пишут
+    построчно, и заводить строку одним именем, а деньги дописывать в карточке
+    значило бы открыть, поправить, закрыть — на каждой строке подряд.
+    """
     category = require_category(db, proposal, category_id)
     task = ProposalTask(
         proposal_id=proposal.id,
         category_id=category.id,
         name=name,
+        role=role,
+        effort=effort,
+        rate=rate,
         position=_next_position(db, ProposalTask, ProposalTask.category_id, category.id),
     )
     db.add(task)
     db.flush()
     return task
+
+
+def set_stage(proposal: Proposal, stage: str, *, now: datetime | None = None) -> None:
+    """Отмечает этап сделки: черновик, отправлено клиенту, согласовано.
+
+    Отметка времени ставится при первом достижении этапа и остаётся, пока этап
+    не сняли: «отправлено 27 авг» под полосой этапов — дата события, а не
+    последнего нажатия. Шаг назад снимает более поздние отметки, чтобы полоса
+    не называла дату этапа, которого больше нет. Согласовано сразу из
+    черновика считает отправку пройденной: согласовать можно только то, что
+    клиент видел, — и «отправлено» получает ту же дату.
+
+    Это заметки для себя, а не юридический статус: ходить по этапам можно в
+    любую сторону, и подтверждений здесь нет.
+    """
+    at = now or datetime.now(timezone.utc)
+    if stage == ProposalStatus.DRAFT:
+        proposal.sent_at = None
+        proposal.agreed_at = None
+    elif stage == ProposalStatus.SENT:
+        proposal.sent_at = proposal.sent_at or at
+        proposal.agreed_at = None
+    elif stage == ProposalStatus.AGREED:
+        proposal.sent_at = proposal.sent_at or at
+        proposal.agreed_at = proposal.agreed_at or at
+    else:
+        raise ProposalError("proposal_stage_invalid", f"неизвестный этап {stage!r}")
+    proposal.status = stage
+
+
+#: Ширина колонок Numeric — потолки пересчёта. Те же числа, что у схем
+#: маршрутов: значение шире уехало бы в базу ошибкой усечения.
+MAX_EFFORT = Decimal("999999.99")
+MAX_RATE = Decimal("9999999999.99")
+_CENT = Decimal("0.01")
+
+
+def convert_unit(db: DbSession, proposal: Proposal, unit: str) -> None:
+    """Переводит оценки и ставки всех строк в другую единицу.
+
+    Смена единицы — смена того, чем меряют, а не переименование чисел: два
+    дня по 400 в день — это шестнадцать часов по 50 в час, и итог остаётся
+    тем же. Переводит «часов в дне» на момент смены: это число и определяло,
+    что такое день, когда оценку писали. Округление до копейки — точность
+    колонок; при нецелых частных итог может уйти на копейки, и это честнее,
+    чем хранить бесконечную дробь.
+
+    Сначала считает всё, потом пишет: строка, не поместившаяся в колонку,
+    должна отказать целиком, а не оставить смету наполовину в часах.
+    """
+    if unit == proposal.effort_unit:
+        return
+    factor = Decimal(proposal.hours_per_day)
+    converted = []
+    for row in _proposal_rows(db, proposal):
+        if unit == EffortUnit.HOURS:
+            effort, rate = row.effort * factor, row.rate / factor
+        else:
+            effort, rate = row.effort / factor, row.rate * factor
+        effort = effort.quantize(_CENT, rounding=ROUND_HALF_UP)
+        rate = rate.quantize(_CENT, rounding=ROUND_HALF_UP)
+        if effort > MAX_EFFORT or rate > MAX_RATE:
+            raise ProposalError(
+                "proposal_value_out_of_range", "пересчёт не помещается в колонку"
+            )
+        converted.append((row, effort, rate))
+    for row, effort, rate in converted:
+        row.effort = effort
+        row.rate = rate
+    proposal.effort_unit = unit
 
 
 def list_task_comments(
@@ -141,6 +233,61 @@ def add_task_comment(
     return comment
 
 
+#: Сколько ролей подсказывать при вводе строки. Организация с длинной
+#: историей смет накапливает десятки написаний, а строка ввода вмещает
+#: несколько — и лишние всё равно отсеет набор.
+ROLE_SUGGESTIONS_LIMIT = 20
+
+
+def role_suggestions(db: DbSession, project: Project) -> list[dict]:
+    """Роли, которые организация уже писала в сметах, с последней ставкой каждой.
+
+    По всей организации, а не по проекту: ставка дизайнера одна на студию, и
+    во втором проекте её не должны набирать заново. Свежесть — по created_at
+    строки: последняя написанная ставка и есть действующая. Регистр и
+    пробелы не плодят ролей — «Дизайнер» и « дизайнер » одна роль, показанная
+    самым свежим написанием. Нулевая ставка роль не отбрасывает (имя всё
+    равно стоит подсказать), но ненулевая, если она была, выигрывает.
+    """
+    rows = db.execute(
+        select(ProposalTask.role, ProposalTask.rate)
+        .join(Proposal, Proposal.id == ProposalTask.proposal_id)
+        .join(Project, Project.id == Proposal.project_id)
+        .where(Project.org_id == project.org_id, ProposalTask.role != "")
+        .order_by(ProposalTask.created_at.desc(), ProposalTask.id)
+    ).all()
+    latest: dict[str, dict] = {}
+    for role, rate in rows:
+        name = role.strip()
+        key = name.casefold()
+        if not key:
+            continue
+        known = latest.get(key)
+        if known is None:
+            latest[key] = {"role": name, "rate": float(rate)}
+        elif known["rate"] == 0 and rate:
+            known["rate"] = float(rate)
+    return list(latest.values())[:ROLE_SUGGESTIONS_LIMIT]
+
+
+def plan_facts(db: DbSession, project: Project) -> dict:
+    """Сколько в плане категорий и задач.
+
+    Нужно пустому предложению: оно предлагает собрать смету из плана и обязано
+    назвать, из чего именно, — «3 категории и 9 задач», а не «что-то есть».
+    """
+    return {
+        "categories": db.scalar(
+            select(func.count()).select_from(Category).where(Category.project_id == project.id)
+        )
+        or 0,
+        "tasks": db.scalar(
+            select(func.count()).select_from(Task).where(Task.project_id == project.id)
+        )
+        or 0,
+    }
+
+
 def _comment_counts(db: DbSession, proposal: Proposal) -> dict[uuid.UUID, int]:
     """Сколько реплик у каждой строки — одним запросом на предложение."""
     rows = db.execute(
@@ -162,8 +309,18 @@ def proposal_state(db: DbSession, project: Project) -> dict:
     Итоги (часы, сумма, налог) намеренно не считаются здесь: они — простое
     произведение и сумма показанных чисел, и сервер, пересказывающий их,
     завёл бы второе место, где живёт та же арифметика.
+
+    Счётчики переноса — исключение из этого правила, и оно оправдано: «сколько
+    строк уже в плане» и «сколько можно перенести» клиент мог бы вывести из
+    ссылок сам, но полоса этапов и главная кнопка спрашивают их первыми, ещё
+    до таблицы, и два места с одним правилом «оценённая строка без ссылки»
+    разошлись бы на первой правке правила.
     """
     proposal = get_proposal(db, project)
+    common = {
+        "role_suggestions": role_suggestions(db, project),
+        "plan_facts": plan_facts(db, project),
+    }
     if proposal is None:
         return {
             "effort_unit": "days",
@@ -171,7 +328,13 @@ def proposal_state(db: DbSession, project: Project) -> dict:
             "tax_rate_pct": 0.0,
             "currency": "USD",
             "notes": "",
+            "status": "draft",
+            "sent_at": None,
+            "agreed_at": None,
+            "pushed_count": 0,
+            "pushable_count": 0,
             "categories": [],
+            **common,
         }
 
     categories = db.scalars(
@@ -206,6 +369,8 @@ def proposal_state(db: DbSession, project: Project) -> dict:
                 "assumptions": task.assumptions,
                 "position": task.position,
                 "comment_count": counts.get(task.id, 0),
+                # Задача плана, в которую строка уже перенесена; null — ещё нет.
+                "plan_task_id": str(task.plan_task_id) if task.plan_task_id else None,
             }
         )
 
@@ -215,6 +380,17 @@ def proposal_state(db: DbSession, project: Project) -> dict:
         "tax_rate_pct": float(proposal.tax_rate_pct),
         "currency": proposal.currency,
         "notes": proposal.notes,
+        "status": proposal.status,
+        "sent_at": proposal.sent_at.isoformat() if proposal.sent_at else None,
+        "agreed_at": proposal.agreed_at.isoformat() if proposal.agreed_at else None,
+        "pushed_count": sum(1 for task in tasks if task.plan_task_id is not None),
+        # Переносима строка с оценкой и без ссылки: нулевую оценку в план не
+        # зовут — задача из неё выходит однодневной заглушкой, которой никто
+        # не заказывал.
+        "pushable_count": sum(
+            1 for task in tasks if task.plan_task_id is None and task.effort > 0
+        ),
+        **common,
         "categories": [
             {
                 "id": str(category.id),
@@ -259,8 +435,124 @@ _CATEGORY_COLORS = (
 )
 
 
+def _plan_categories_by_name(db: DbSession, project: Project) -> dict[str, Category]:
+    """Категории плана по имени без учёта регистра и пробелов.
+
+    Раздел сметы находит категорию плана по имени, а не создаёт всегда новую:
+    повторный перенос и смета поверх начатого плана не должны плодить «Дизайн»
+    рядом с «дизайн». Одно правило на предпросмотр и на сам перенос — иначе
+    окно обещало бы одно, а перенос делал другое.
+    """
+    return {
+        category.name.strip().casefold(): category
+        for category in db.scalars(select(Category).where(Category.project_id == project.id)).all()
+    }
+
+
+def _proposal_rows(db: DbSession, proposal: Proposal | None) -> list[ProposalTask]:
+    if proposal is None:
+        return []
+    return list(
+        db.scalars(
+            select(ProposalTask)
+            .where(ProposalTask.proposal_id == proposal.id)
+            .order_by(ProposalTask.position, ProposalTask.id)
+        ).all()
+    )
+
+
+def _proposal_categories(db: DbSession, proposal: Proposal) -> list[ProposalCategory]:
+    return list(
+        db.scalars(
+            select(ProposalCategory)
+            .where(ProposalCategory.proposal_id == proposal.id)
+            .order_by(ProposalCategory.position, ProposalCategory.id)
+        ).all()
+    )
+
+
+def _pushable(row: ProposalTask) -> bool:
+    """Переносится по умолчанию: оценённая строка, которой в плане ещё нет.
+
+    Нулевую оценку в план не зовут: задача из неё выходит однодневной
+    заглушкой, которой никто не заказывал. То же правило считает
+    `pushable_count` в состоянии — см. proposal_state.
+    """
+    return row.plan_task_id is None and row.effort > 0
+
+
+def push_preview(db: DbSession, project: Project) -> dict:
+    """Что случится при переносе: куда ляжет каждый раздел, во сколько дней
+    выйдет каждая строка, что уже в плане, а что без оценки.
+
+    Считается здесь же, где и сам перенос, теми же функциями: клиент мог бы
+    вывести длительности и сопоставление категорий сам, но тогда правило
+    «часы вверх до целого дня» и «категория по имени без регистра» жили бы в
+    двух местах и разошлись бы на первой правке.
+    """
+    proposal = get_proposal(db, project)
+    rows = _proposal_rows(db, proposal)
+    if proposal is None or not rows:
+        return {"categories": []}
+
+    existing = _plan_categories_by_name(db, project)
+    by_category: dict[uuid.UUID, list[ProposalTask]] = {}
+    for row in rows:
+        by_category.setdefault(row.category_id, []).append(row)
+
+    categories = []
+    for category in _proposal_categories(db, proposal):
+        section_rows = by_category.get(category.id, [])
+        if not section_rows:
+            continue
+        plan_category = existing.get(category.name.strip().casefold())
+        categories.append(
+            {
+                "id": str(category.id),
+                "name": category.name,
+                "plan_category": (
+                    {"id": str(plan_category.id), "name": plan_category.name}
+                    if plan_category is not None
+                    else None
+                ),
+                "tasks": [
+                    {
+                        "id": str(row.id),
+                        "name": row.name,
+                        "duration_days": _duration_days(proposal, row.effort),
+                        "in_plan": row.plan_task_id is not None,
+                        "estimated": row.effort > 0,
+                    }
+                    for row in section_rows
+                ],
+            }
+        )
+    return {"categories": categories}
+
+
+def _internal_note(row: ProposalTask, locale: str) -> str:
+    """Заметки, риски и допущения строки — внутренней заметкой задачи.
+
+    Перенос не должен терять того, что команда знала о работе, а внутренняя
+    заметка — ровно то поле, которое клиент не видит (READ_INTERNAL_NOTE).
+    Подписи — из словаря выгрузки на языке организации: текст этот пишет
+    сервер, и по тому же доводу, что у документов (см. export/labels.py),
+    словами его наполняет тот, кто пишет.
+    """
+    parts = []
+    for key, text in (("notes", row.notes), ("risks", row.risks), ("assumptions", row.assumptions)):
+        if text.strip():
+            parts.append(f"{term('proposal_note', key, locale)}\n{text.strip()}")
+    return "\n\n".join(parts)
+
+
 def push_to_plan(
-    db: DbSession, project: Project, actor_id: uuid.UUID | None
+    db: DbSession,
+    project: Project,
+    actor_id: uuid.UUID | None,
+    *,
+    task_ids: Iterable[uuid.UUID] | None = None,
+    locale: str,
 ) -> dict:
     """Переносит строки сметы в задачи диаграммы.
 
@@ -268,49 +560,51 @@ def push_to_plan(
     состояние плана, и перенос обязан оставить след в журнале и сниматься
     одной отменой. Общий batch_id и делает пачку одной записью истории.
 
-    Раздел сметы находит категорию плана по имени, без учёта регистра, а не
-    создаёт всегда новую: повторный перенос и смета поверх начатого плана не
-    должны плодить «Дизайн» рядом с «дизайн». Задачи встают на старт плана —
-    раскладывать их по оси человек будет сам, и любая придуманная здесь
-    последовательность выдавала бы себя за план, которого никто не составлял.
+    Какие строки: названные в `task_ids`, а без списка — все переносимые по
+    умолчанию (см. _pushable). Строка, уже перенесённая раньше, пропускается в
+    любом случае: у неё есть ссылка на задачу, и второй перенос удваивал бы
+    план. Ссылка ставится сразу после создания задачи — под тем же замком
+    проекта, что держит apply_op, так что два одновременных переноса не
+    создадут задачу дважды: второй увидит ссылку первого.
+
+    Задачи встают на старт плана — раскладывать их по оси человек будет сам, и
+    любая придуманная здесь последовательность выдавала бы себя за план,
+    которого никто не составлял.
     """
     proposal = get_proposal(db, project)
-    tasks = (
-        []
-        if proposal is None
-        else db.scalars(
-            select(ProposalTask)
-            .where(ProposalTask.proposal_id == proposal.id)
-            .order_by(ProposalTask.position, ProposalTask.id)
-        ).all()
-    )
-    if not tasks:
+    rows = _proposal_rows(db, proposal)
+    if not rows:
         raise ProposalError("proposal_empty", "в предложении нет ни одной строки")
 
-    categories = db.scalars(
-        select(ProposalCategory)
-        .where(ProposalCategory.proposal_id == proposal.id)
-        .order_by(ProposalCategory.position, ProposalCategory.id)
-    ).all()
-    by_category: dict[uuid.UUID, list[ProposalTask]] = {}
-    for task in tasks:
-        by_category.setdefault(task.category_id, []).append(task)
+    wanted = set(task_ids or ())
+    if wanted:
+        known = {row.id for row in rows}
+        if wanted - known:
+            # Чужая или несуществующая строка неотличима от отсутствующей —
+            # тем же принципом, что у require_task.
+            raise ProposalError("proposal_task_not_found", "строка не найдена в этом предложении")
+        chosen = [row for row in rows if row.id in wanted and row.plan_task_id is None]
+    else:
+        chosen = [row for row in rows if _pushable(row)]
+    if not chosen:
+        raise ProposalError(
+            "proposal_nothing_to_push", "все выбранные строки уже в плане или без оценки"
+        )
 
-    existing = {
-        category.name.strip().casefold(): category.id
-        for category in db.scalars(
-            select(Category).where(Category.project_id == project.id)
-        ).all()
-    }
+    by_category: dict[uuid.UUID, list[ProposalTask]] = {}
+    for row in chosen:
+        by_category.setdefault(row.category_id, []).append(row)
+
+    existing = {key: category.id for key, category in _plan_categories_by_name(db, project).items()}
     taken = len(existing)
 
     start = project.start_date or RELATIVE_EPOCH
     batch_id = uuid.uuid4()
     created = 0
 
-    for category in categories:
-        rows = by_category.get(category.id, [])
-        if not rows:
+    for category in _proposal_categories(db, proposal):
+        section_rows = by_category.get(category.id, [])
+        if not section_rows:
             continue
         plan_category_id = existing.get(category.name.strip().casefold())
         if plan_category_id is None:
@@ -327,8 +621,8 @@ def push_to_plan(
             plan_category_id = uuid.UUID(revision.op["category_id"])
             existing[category.name.strip().casefold()] = plan_category_id
             taken += 1
-        for row in rows:
-            apply_op(
+        for row in section_rows:
+            revision = apply_op(
                 db,
                 project,
                 CreateTask(
@@ -337,10 +631,13 @@ def push_to_plan(
                     start_date=start,
                     duration_days=_duration_days(proposal, row.effort),
                     description=row.description,
+                    internal_note=_internal_note(row, locale),
                 ),
                 actor_id=actor_id,
                 batch_id=batch_id,
             )
+            row.plan_task_id = uuid.UUID(revision.op["task_id"])
             created += 1
+    db.flush()
 
-    return {"created_tasks": created}
+    return {"created_tasks": created, "batch_id": str(batch_id)}

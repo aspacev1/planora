@@ -11,6 +11,15 @@ import type { Comment } from "./comments";
 
 export type EffortUnit = "days" | "hours";
 
+/**
+ * Этап сделки, который отмечают рукой. «В плане» здесь нет: он выводится из
+ * ссылок строк на задачи (`plan_task_id`) и счётчиков ниже.
+ */
+export type ProposalStage = "draft" | "sent" | "agreed";
+
+/** Роль, которую организация уже писала в сметах, с последней её ставкой. */
+export type RoleSuggestion = { role: string; rate: number };
+
 export type ProposalTask = {
   id: string;
   category_id: string;
@@ -29,6 +38,8 @@ export type ProposalTask = {
   assumptions: string;
   position: number;
   comment_count: number;
+  /** Задача плана, в которую строка уже перенесена; `null` — ещё нет. */
+  plan_task_id: string | null;
 };
 
 export type ProposalCategory = {
@@ -49,6 +60,15 @@ export type ProposalState = {
   currency: string;
   /** Допущения и примечания предложения целиком, по пункту на строку. */
   notes: string;
+  status: ProposalStage;
+  sent_at: string | null;
+  agreed_at: string | null;
+  /** Сколько строк уже в плане и сколько оценённых строк ещё можно перенести. */
+  pushed_count: number;
+  pushable_count: number;
+  role_suggestions: RoleSuggestion[];
+  /** Сколько в плане категорий и задач — пустому предложению, чтобы предложить собрать смету из плана. */
+  plan_facts: { categories: number; tasks: number };
   categories: ProposalCategory[];
 };
 
@@ -127,14 +147,26 @@ export function deleteProposalCategory(projectId: string, categoryId: string): P
   });
 }
 
+/** Новая строка: имя обязательно, остальное — если назвали сразу. */
+export type NewProposalTask = { name: string; role?: string; effort?: number; rate?: number };
+
 export function createProposalTask(
   projectId: string,
   categoryId: string,
-  name: string,
+  input: NewProposalTask,
 ): Promise<{ id: string; category_id: string; name: string }> {
   return request(`/api/projects/${projectId}/proposal/categories/${categoryId}/tasks`, {
     method: "POST",
-    body: JSON.stringify({ name }),
+    // Неназванные поля не уезжают вовсе: JSON.stringify опускает undefined.
+    body: JSON.stringify(input),
+  });
+}
+
+/** Отметить этап сделки — в любую сторону; отметки времени ставит сервер. */
+export function setProposalStage(projectId: string, stage: ProposalStage): Promise<ProposalState> {
+  return request<ProposalState>(`/api/projects/${projectId}/proposal/stage`, {
+    method: "POST",
+    body: JSON.stringify({ stage }),
   });
 }
 
@@ -171,11 +203,47 @@ export function addProposalComment(
   });
 }
 
+/** Что случится при переносе: куда ляжет раздел, во сколько дней выйдет строка. */
+export type PushPreview = {
+  categories: {
+    id: string;
+    name: string;
+    /** Категория плана, найденная по имени; `null` — будет создана новая. */
+    plan_category: { id: string; name: string } | null;
+    tasks: {
+      id: string;
+      name: string;
+      duration_days: number;
+      /** Уже перенесена раньше: второй раз в план не идёт. */
+      in_plan: boolean;
+      /** Оценка больше нуля; без оценки строка по умолчанию не переносится. */
+      estimated: boolean;
+    }[];
+  }[];
+};
+
+/** Внутри ключа сметы: ревизия из сокета сбрасывает и его. */
+export function pushPreviewQueryKey(projectId: string) {
+  return ["project", projectId, "proposal", "push-plan"] as const;
+}
+
+export function pushPlanPreview(projectId: string): Promise<PushPreview> {
+  return request<PushPreview>(`/api/projects/${projectId}/proposal/push-plan`);
+}
+
 /**
  * Перенос сметы в план: раздел — категорией, строка — задачей на старте
  * плана. На сервере это пачка обычных ревизий с общим batch_id — в истории
- * читается одной записью и снимается одной отменой.
+ * читается одной записью и снимается одной отменой; `batch_id` в ответе и
+ * есть ручка для «Вернуть» в тосте. Переносятся названные строки; уже
+ * перенесённые сервер пропускает сам.
  */
-export function pushProposalToPlan(projectId: string): Promise<{ created_tasks: number }> {
-  return request(`/api/projects/${projectId}/proposal/push-to-plan`, { method: "POST" });
+export function pushProposalToPlan(
+  projectId: string,
+  taskIds: string[],
+): Promise<{ created_tasks: number; batch_id: string }> {
+  return request(`/api/projects/${projectId}/proposal/push-to-plan`, {
+    method: "POST",
+    body: JSON.stringify({ task_ids: taskIds }),
+  });
 }
