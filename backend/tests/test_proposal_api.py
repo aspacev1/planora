@@ -318,6 +318,12 @@ def test_deleting_a_category_takes_its_rows_along(authed, project_id):
     assert authed.get(f"/api/projects/{project_id}/proposal").json()["categories"] == []
 
 
+def _estimated_task(authed, project_id: str, category_id: str, name: str, effort: float) -> str:
+    task_id = _task_id(authed, project_id, category_id, name=name)
+    authed.patch(f"/api/projects/{project_id}/proposal/tasks/{task_id}", json={"effort": effort})
+    return task_id
+
+
 def test_push_to_plan_turns_rows_into_tasks_as_one_batch(authed, project_id):
     """Перенос: раздел — категорией, строка — задачей, часы — днями вверх."""
     authed.patch(
@@ -330,11 +336,11 @@ def test_push_to_plan_turns_rows_into_tasks_as_one_batch(authed, project_id):
         f"/api/projects/{project_id}/proposal/tasks/{logo}",
         json={"effort": 20, "description": "Знак"},
     )
-    _task_id(authed, project_id, category_id, name="Гайдлайн")
+    _estimated_task(authed, project_id, category_id, "Гайдлайн", effort=1)
 
     response = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
     assert response.status_code == 201
-    assert response.json() == {"created_tasks": 2}
+    assert response.json()["created_tasks"] == 2
 
     state = authed.get(f"/api/projects/{project_id}").json()
     assert [category["name"] for category in state["categories"]] == ["Дизайн"]
@@ -343,20 +349,21 @@ def test_push_to_plan_turns_rows_into_tasks_as_one_batch(authed, project_id):
     # работы всё равно занимают день в ленте.
     assert by_name["Логотип"]["duration_days"] == 3
     assert by_name["Логотип"]["description"] == "Знак"
-    # Нулевая оценка — день: задач короче дня у диаграммы нет.
+    # Час работы — тоже день: задач короче дня у диаграммы нет.
     assert by_name["Гайдлайн"]["duration_days"] == 1
-    # Пачка отменяется одной кнопкой: у всех ревизий общий batch_id.
+    # Пачка отменяется одной кнопкой: у всех ревизий общий batch_id, и он же
+    # назван в ответе — ради кнопки «Вернуть» в тосте.
     revisions = authed.get(f"/api/projects/{project_id}/revisions").json()
     batches = {entry["batch_id"] for entry in revisions}
-    assert len(batches) == 1 and batches != {None}
+    assert batches == {response.json()["batch_id"]}
 
 
 def test_second_push_reuses_the_plan_category_by_name(authed, project_id):
     category_id = _category_id(authed, project_id, name="Дизайн")
-    _task_id(authed, project_id, category_id, name="Логотип")
+    _estimated_task(authed, project_id, category_id, "Логотип", effort=2)
     authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
 
-    _task_id(authed, project_id, category_id, name="Гайдлайн")
+    _estimated_task(authed, project_id, category_id, "Гайдлайн", effort=3)
     authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
 
     state = authed.get(f"/api/projects/{project_id}").json()
@@ -364,7 +371,195 @@ def test_second_push_reuses_the_plan_category_by_name(authed, project_id):
     assert [category["name"] for category in state["categories"]] == ["Дизайн"]
 
 
+def test_second_push_skips_rows_already_in_plan(authed, project_id):
+    """Перенесённая строка помнит свою задачу и второй раз в план не идёт:
+    прежде два нажатия подряд удваивали план."""
+    category_id = _category_id(authed, project_id, name="Дизайн")
+    logo = _estimated_task(authed, project_id, category_id, "Логотип", effort=2)
+    first = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan").json()
+    assert first["created_tasks"] == 1
+
+    _estimated_task(authed, project_id, category_id, "Гайдлайн", effort=3)
+    second = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan").json()
+    assert second["created_tasks"] == 1
+
+    plan = authed.get(f"/api/projects/{project_id}").json()
+    assert sorted(task["name"] for task in plan["tasks"]) == ["Гайдлайн", "Логотип"]
+    state = authed.get(f"/api/projects/{project_id}/proposal").json()
+    rows = {row["name"]: row for row in state["categories"][0]["tasks"]}
+    plan_ids = {task["name"]: task["id"] for task in plan["tasks"]}
+    assert rows["Логотип"]["plan_task_id"] == plan_ids["Логотип"]
+    assert rows["Гайдлайн"]["plan_task_id"] == plan_ids["Гайдлайн"]
+    assert state["pushed_count"] == 2 and state["pushable_count"] == 0
+    # Всё в плане — переносить нечего, и это отказ, а не тихий ноль.
+    third = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    assert third.status_code == 422
+    assert third.json()["detail"] == "proposal_nothing_to_push"
+    assert logo == rows["Логотип"]["id"]
+
+
+def test_push_takes_only_the_named_rows(authed, project_id):
+    """Окно переноса даёт снять галочку: переносятся названные строки, и
+    только они. Чужая строка в списке — 404, как везде."""
+    category_id = _category_id(authed, project_id, name="Дизайн")
+    logo = _estimated_task(authed, project_id, category_id, "Логотип", effort=2)
+    _estimated_task(authed, project_id, category_id, "Гайдлайн", effort=3)
+
+    response = authed.post(
+        f"/api/projects/{project_id}/proposal/push-to-plan", json={"task_ids": [logo]}
+    )
+    assert response.status_code == 201
+    assert response.json()["created_tasks"] == 1
+    plan = authed.get(f"/api/projects/{project_id}").json()
+    assert [task["name"] for task in plan["tasks"]] == ["Логотип"]
+
+    other_id = authed.post("/api/projects", json={"name": "Other"}).json()["id"]
+    stranger = _estimated_task(
+        authed, other_id, _category_id(authed, other_id), "Чужая", effort=1
+    )
+    refused = authed.post(
+        f"/api/projects/{project_id}/proposal/push-to-plan", json={"task_ids": [stranger]}
+    )
+    assert refused.status_code == 404
+    assert refused.json()["detail"] == "proposal_task_not_found"
+
+
+def test_rows_without_estimate_stay_behind_unless_named(authed, project_id):
+    """Нулевая оценка в план по умолчанию не идёт — задача из неё вышла бы
+    однодневной заглушкой. Названная явно, она переносится: решает человек."""
+    category_id = _category_id(authed, project_id, name="Дизайн")
+    _estimated_task(authed, project_id, category_id, "Логотип", effort=2)
+    blank = _task_id(authed, project_id, category_id, name="Анимации")
+
+    by_default = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan").json()
+    assert by_default["created_tasks"] == 1
+
+    named = authed.post(
+        f"/api/projects/{project_id}/proposal/push-to-plan", json={"task_ids": [blank]}
+    )
+    assert named.status_code == 201
+    plan = authed.get(f"/api/projects/{project_id}").json()
+    assert {task["name"]: task["duration_days"] for task in plan["tasks"]} == {
+        "Логотип": 2,
+        "Анимации": 1,
+    }
+
+
+def test_undoing_the_batch_frees_the_rows_for_another_push(authed, project_id):
+    """«Вернуть» в тосте снимает пачку целиком: задачи исчезают, ссылки строк
+    обнуляются базой (SET NULL), и строки снова переносимы."""
+    category_id = _category_id(authed, project_id, name="Дизайн")
+    _estimated_task(authed, project_id, category_id, "Логотип", effort=2)
+    pushed = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan").json()
+
+    undone = authed.post(f"/api/projects/{project_id}/batches/{pushed['batch_id']}/undo")
+    assert undone.status_code == 201
+
+    assert authed.get(f"/api/projects/{project_id}").json()["tasks"] == []
+    state = authed.get(f"/api/projects/{project_id}/proposal").json()
+    assert state["categories"][0]["tasks"][0]["plan_task_id"] is None
+    assert state["pushable_count"] == 1
+    again = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    assert again.status_code == 201
+
+
+def test_push_carries_team_notes_into_the_internal_note(authed, project_id):
+    """Заметки, риски и допущения строки не теряются при переносе: они уходят
+    во внутреннюю заметку задачи — поле, которого клиент не видит."""
+    category_id = _category_id(authed, project_id, name="Дизайн")
+    logo = _estimated_task(authed, project_id, category_id, "Логотип", effort=2)
+    authed.patch(
+        f"/api/projects/{project_id}/proposal/tasks/{logo}",
+        json={"risks": "Правки затянутся", "assumptions": "Брендбук есть"},
+    )
+
+    authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+
+    task = authed.get(f"/api/projects/{project_id}").json()["tasks"][0]
+    # Организация Acme создана регистрацией с языком по умолчанию установки
+    # (в тестах — азербайджанским), подписи берутся из словаря выгрузки.
+    assert task["internal_note"] == "Risklər\nПравки затянутся\n\nFərziyyələr\nБрендбук есть"
+
+
+def test_push_preview_tells_what_will_happen(authed, project_id):
+    """Окно переноса показывает, куда ляжет раздел и во сколько дней выйдет
+    строка, и отмечает то, что переносить не будет."""
+    authed.patch(
+        f"/api/projects/{project_id}/proposal",
+        json={"effort_unit": "hours", "hours_per_day": 8},
+    )
+    authed.post(
+        f"/api/projects/{project_id}/mutations",
+        json={"op": {"type": "create_category", "name": "дизайн", "color": "#3b82f6"}},
+    )
+    design = _category_id(authed, project_id, name="Дизайн")
+    logo = _estimated_task(authed, project_id, design, "Логотип", effort=20)
+    blank = _task_id(authed, project_id, design, name="Анимации")
+    dev = _category_id(authed, project_id, name="Разработка")
+    layout = _estimated_task(authed, project_id, dev, "Вёрстка", effort=8)
+    _category_id(authed, project_id, name="Пустой раздел")
+    authed.post(
+        f"/api/projects/{project_id}/proposal/push-to-plan", json={"task_ids": [layout]}
+    )
+
+    preview = authed.get(f"/api/projects/{project_id}/proposal/push-plan").json()
+
+    plan_category = authed.get(f"/api/projects/{project_id}").json()["categories"][0]
+    assert preview == {
+        "categories": [
+            {
+                "id": design,
+                "name": "Дизайн",
+                # Категория плана найдена по имени без учёта регистра.
+                "plan_category": {"id": plan_category["id"], "name": "дизайн"},
+                "tasks": [
+                    {
+                        "id": logo,
+                        "name": "Логотип",
+                        "duration_days": 3,
+                        "in_plan": False,
+                        "estimated": True,
+                    },
+                    {
+                        "id": blank,
+                        "name": "Анимации",
+                        "duration_days": 1,
+                        "in_plan": False,
+                        "estimated": False,
+                    },
+                ],
+            },
+            {
+                "id": dev,
+                "name": "Разработка",
+                "plan_category": {"id": plan_category_id_of(authed, project_id, "Разработка"), "name": "Разработка"},
+                "tasks": [
+                    {
+                        "id": layout,
+                        "name": "Вёрстка",
+                        "duration_days": 1,
+                        "in_plan": True,
+                        "estimated": True,
+                    }
+                ],
+            },
+        ]
+    }
+    # Раздел без строк в окне не показывается: переносить из него нечего.
+
+
+def plan_category_id_of(authed, project_id: str, name: str) -> str:
+    return next(
+        category["id"]
+        for category in authed.get(f"/api/projects/{project_id}").json()["categories"]
+        if category["name"] == name
+    )
+
+
 def test_empty_proposal_refuses_to_push(authed, project_id):
     response = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
     assert response.status_code == 422
     assert response.json()["detail"] == "proposal_empty"
+    assert authed.get(f"/api/projects/{project_id}/proposal/push-plan").json() == {
+        "categories": []
+    }

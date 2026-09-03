@@ -1236,6 +1236,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/proposal/push-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Push To Plan
+         * @description Что случится при переносе — до того, как он случился.
+         *
+         *     Окно переноса показывает, куда ляжет каждый раздел и во сколько дней
+         *     выйдет каждая строка, и отмечает то, что переносить не будет: уже
+         *     перенесённое и строки без оценки. Считает это сервер теми же функциями,
+         *     что и перенос, — см. proposals.push_preview.
+         */
+        get: operations["preview_push_to_plan_api_projects__project_id__proposal_push_plan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/proposal/push-to-plan": {
         parameters: {
             query?: never;
@@ -1250,8 +1275,10 @@ export interface paths {
          * @description Переносит смету в план: раздел — категорией, строка — задачей.
          *
          *     Пачка ревизий с общим batch_id: в истории перенос читается одной записью
-         *     и снимается одной отменой. Задачи встают на старт плана — раскладку по
-         *     оси человек делает сам.
+         *     и снимается одной отменой — batch_id уходит в ответ ради кнопки «Вернуть»
+         *     в тосте. Задачи встают на старт плана — раскладку по оси человек делает
+         *     сам. Заметки, риски и допущения строки уходят во внутреннюю заметку
+         *     задачи на языке организации: её читает команда, а не клиент.
          */
         post: operations["push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post"];
         delete?: never;
@@ -2644,6 +2671,18 @@ export interface components {
              * Format: uuid
              */
             user_id: string;
+        };
+        /**
+         * PushToPlanIn
+         * @description Какие строки переносить. Пустой список — все переносимые по умолчанию:
+         *     оценённые и ещё не перенесённые (см. proposals._pushable).
+         */
+        PushToPlanIn: {
+            /**
+             * Task Ids
+             * @default []
+             */
+            task_ids: string[];
         };
         /** RegisterIn */
         RegisterIn: {
@@ -5197,7 +5236,7 @@ export interface operations {
             };
         };
     };
-    push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post: {
+    preview_push_to_plan_api_projects__project_id__proposal_push_plan_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -5209,6 +5248,43 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PushToPlanIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             201: {

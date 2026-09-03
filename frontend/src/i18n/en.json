@@ -256,7 +256,8 @@
     "jira_token_required": "A token is required for the first connection",
     "jira_url_not_https": "The Jira address must be https",
     "jira_url_invalid": "The Jira address is invalid",
-    "jira_url_private": "The Jira address does not resolve to a public host"
+    "jira_url_private": "The Jira address does not resolve to a public host",
+    "proposal_nothing_to_push": "Nothing to move: the selected work items are already in the plan or have no estimate"
   },
   "live": {
     "offline": "No connection to the server. Editing is unavailable",
@@ -1009,7 +1010,9 @@
       "delete_warning": "The work item “{name}” will be deleted with its discussion",
       "delete_confirm": "Delete work item",
       "edit": "Edit work item “{name}”",
-      "remove": "Delete work item “{name}”"
+      "remove": "Delete work item “{name}”",
+      "in_plan": "in the plan",
+      "in_plan_aria": "“{name}” is already in the plan: open the task"
     },
     "notes": {
       "title": "Assumptions & Notes",
@@ -1029,7 +1032,25 @@
       "done": {
         "one": "{count} task added to the plan",
         "other": "{count} tasks added to the plan"
-      }
+      },
+      "title": "Move the proposal into the plan",
+      "lead": "Sections become categories, work items become tasks. Every task starts at the plan start with a duration taken from the estimate; you can arrange them on the chart afterwards.",
+      "new_category": "new category",
+      "into_category": "into category “{name}”",
+      "already": "already in the plan",
+      "unestimated": "no estimate",
+      "confirm": {
+        "one": "Move {count} task",
+        "other": "Move {count} tasks"
+      },
+      "undo_hint": "The move can be undone with one click",
+      "open_gantt": "Open the chart",
+      "more": {
+        "one": "Move {count} new work item",
+        "other": "Move {count} new work items"
+      },
+      "section_aria": "Section “{name}”",
+      "row_aria": "Move “{name}”"
     },
     "cell": {
       "edit": "Change {column} for “{name}”"

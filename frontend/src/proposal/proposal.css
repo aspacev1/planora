@@ -367,3 +367,112 @@ th.proposal-table__num {
     position: static;
   }
 }
+
+/* --- Отметка «в плане» ---------------------------------------------------- */
+
+/* Пилюля рядом с именем строки: ссылка на задачу плана. Зелёная, а не
+   акцентная: это состояние («сделано»), а не действие. */
+.proposal-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.proposal-chip--plan {
+  background: var(--ok-soft);
+  color: #187448;
+}
+
+.screen .proposal-chip--plan {
+  color: #187448;
+  text-decoration: none;
+}
+
+.proposal-chip--plan:hover {
+  text-decoration: underline;
+}
+
+.proposal-chip--muted {
+  background: var(--tag-gray);
+  color: var(--text-muted);
+}
+
+/* --- Окно переноса в план -------------------------------------------------- */
+
+.push-pick {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.push-pick__group,
+.push-pick__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.push-pick__group {
+  background: var(--bg-subtle);
+  font-weight: 600;
+}
+
+/* Строка отступает под свой раздел — на ширину его чекбокса с просветом. */
+.push-pick__row {
+  padding-left: 34px;
+}
+
+.push-pick__group:last-child,
+.push-pick__row:last-child {
+  border-bottom: 0;
+}
+
+/* Выключенная строка — уже в плане или без оценки: сама не переносится и
+   читается тише, но остаётся в списке, иначе человек искал бы её. */
+.push-pick__row--off {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.push-pick__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.push-pick__right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.push-dialog__lead {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+}
+
+/* Подпись про отмену — в строке кнопок, справа: обещание относится к тому
+   действию, рядом с которым стоит. */
+.push-dialog__hint {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+}

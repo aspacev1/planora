@@ -36,6 +36,7 @@ from app.proposals import (
     require_category,
     list_task_comments,
     proposal_state,
+    push_preview,
     push_to_plan,
     require_task,
 )
@@ -89,6 +90,13 @@ class ProposalTaskPatch(BaseModel):
 
 class ProposalCommentIn(BaseModel):
     body: str = Field(min_length=1)
+
+
+class PushToPlanIn(BaseModel):
+    """Какие строки переносить. Пустой список — все переносимые по умолчанию:
+    оценённые и ещё не перенесённые (см. proposals._pushable)."""
+
+    task_ids: list[uuid.UUID] = []
 
 
 def _refuse(error: ProposalError | MutationError) -> HTTPException:
@@ -341,21 +349,45 @@ def _comment_out(comment: ProposalComment, names: dict[uuid.UUID, str]) -> dict:
     }
 
 
+@router.get("/{project_id}/proposal/push-plan")
+def preview_push_to_plan(
+    context: ProjectContext = Depends(project_context), db: DbSession = Depends(get_db)
+):
+    """Что случится при переносе — до того, как он случился.
+
+    Окно переноса показывает, куда ляжет каждый раздел и во сколько дней
+    выйдет каждая строка, и отмечает то, что переносить не будет: уже
+    перенесённое и строки без оценки. Считает это сервер теми же функциями,
+    что и перенос, — см. proposals.push_preview.
+    """
+    context.require(Action.PROPOSAL_READ)
+    return push_preview(db, context.project)
+
+
 @router.post("/{project_id}/proposal/push-to-plan", status_code=201)
 def push_proposal_to_plan(
     background: BackgroundTasks,
+    payload: PushToPlanIn | None = None,
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
     """Переносит смету в план: раздел — категорией, строка — задачей.
 
     Пачка ревизий с общим batch_id: в истории перенос читается одной записью
-    и снимается одной отменой. Задачи встают на старт плана — раскладку по
-    оси человек делает сам.
+    и снимается одной отменой — batch_id уходит в ответ ради кнопки «Вернуть»
+    в тосте. Задачи встают на старт плана — раскладку по оси человек делает
+    сам. Заметки, риски и допущения строки уходят во внутреннюю заметку
+    задачи на языке организации: её читает команда, а не клиент.
     """
     context.require(Action.PROJECT_WRITE)
     try:
-        result = push_to_plan(db, context.project, context.user.id)
+        result = push_to_plan(
+            db,
+            context.project,
+            context.user.id,
+            task_ids=payload.task_ids if payload else None,
+            locale=context.org.default_locale,
+        )
     except (ProposalError, MutationError) as error:
         raise _refuse(error)
     # Ревизии уже в журнале — соседям достаточно факта «план изменился»:

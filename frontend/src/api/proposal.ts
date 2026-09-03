@@ -191,11 +191,47 @@ export function addProposalComment(
   });
 }
 
+/** Что случится при переносе: куда ляжет раздел, во сколько дней выйдет строка. */
+export type PushPreview = {
+  categories: {
+    id: string;
+    name: string;
+    /** Категория плана, найденная по имени; `null` — будет создана новая. */
+    plan_category: { id: string; name: string } | null;
+    tasks: {
+      id: string;
+      name: string;
+      duration_days: number;
+      /** Уже перенесена раньше: второй раз в план не идёт. */
+      in_plan: boolean;
+      /** Оценка больше нуля; без оценки строка по умолчанию не переносится. */
+      estimated: boolean;
+    }[];
+  }[];
+};
+
+/** Внутри ключа сметы: ревизия из сокета сбрасывает и его. */
+export function pushPreviewQueryKey(projectId: string) {
+  return ["project", projectId, "proposal", "push-plan"] as const;
+}
+
+export function pushPlanPreview(projectId: string): Promise<PushPreview> {
+  return request<PushPreview>(`/api/projects/${projectId}/proposal/push-plan`);
+}
+
 /**
  * Перенос сметы в план: раздел — категорией, строка — задачей на старте
  * плана. На сервере это пачка обычных ревизий с общим batch_id — в истории
- * читается одной записью и снимается одной отменой.
+ * читается одной записью и снимается одной отменой; `batch_id` в ответе и
+ * есть ручка для «Вернуть» в тосте. Переносятся названные строки; уже
+ * перенесённые сервер пропускает сам.
  */
-export function pushProposalToPlan(projectId: string): Promise<{ created_tasks: number }> {
-  return request(`/api/projects/${projectId}/proposal/push-to-plan`, { method: "POST" });
+export function pushProposalToPlan(
+  projectId: string,
+  taskIds: string[],
+): Promise<{ created_tasks: number; batch_id: string }> {
+  return request(`/api/projects/${projectId}/proposal/push-to-plan`, {
+    method: "POST",
+    body: JSON.stringify({ task_ids: taskIds }),
+  });
 }

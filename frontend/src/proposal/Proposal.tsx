@@ -9,7 +9,6 @@ import {
   deleteProposalTask,
   getProposal,
   proposalQueryKey,
-  pushProposalToPlan,
   updateProposalCategory,
   updateProposalSettings,
   updateProposalTask,
@@ -22,6 +21,8 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { formatAmount, formatMoney } from "./money";
 import { ProposalCategoryForm } from "./ProposalCategoryForm";
 import { ProposalNotes } from "./ProposalNotes";
+import { PushDone } from "./PushDone";
+import { PushToPlanDialog } from "./PushToPlanDialog";
 import { ProposalSummary } from "./ProposalSummary";
 import { CategoryRows } from "./ProposalTable";
 import type { EffortMath, Formats } from "./ProposalTable";
@@ -77,6 +78,8 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
   // Свёрнутые разделы. Пустое множество — всё развёрнуто: смету читают
   // целиком, и прятать что-то по умолчанию не за чем.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  // Открыто ли окно переноса в план.
+  const [pushing, setPushing] = useState(false);
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: proposalQueryKey(projectId) });
@@ -122,18 +125,17 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
     onSuccess: invalidate,
   });
 
-  const push = useMutation({
-    mutationFn: () => pushProposalToPlan(projectId),
-    onSuccess: async (result) => {
-      toast({ message: t("proposal.push.done", { count: result.created_tasks }) });
-      // Перенос рождает ревизии плана: перечитывается проект целиком, и
-      // вложенный ключ сметы сбрасывается тем же вызовом.
-      await queryClient.invalidateQueries({ queryKey: projectQueryKey(projectId) });
-    },
-    onError: (refusal: unknown) => {
-      toast({ message: t(errorKey(refusal)), tone: "error" });
-    },
-  });
+  // Перенос случился в окне; здесь — что после него: тост с дорогой к
+  // диаграмме и кнопкой «Вернуть», и перечитанный проект целиком — перенос
+  // рождает ревизии плана, а вложенный ключ сметы сбрасывается тем же вызовом.
+  const pushed = async (result: { created_tasks: number; batch_id: string }) => {
+    setPushing(false);
+    toast({
+      message: t("proposal.push.done", { count: result.created_tasks }),
+      action: <PushDone projectId={projectId} batchId={result.batch_id} />,
+    });
+    await queryClient.invalidateQueries({ queryKey: projectQueryKey(projectId) });
+  };
 
   if (query.isPending) {
     return <p role="status">{t("common.loading")}</p>;
@@ -308,6 +310,7 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
                 {proposal.categories.map((category) => (
                   <CategoryRows
                     key={category.id}
+                    projectId={projectId}
                     category={category}
                     open={!collapsed.has(category.id)}
                     canWrite={canWrite}
@@ -351,6 +354,7 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
       </div>
 
       <ProposalSummary
+        projectId={projectId}
         currency={proposal.currency}
         taxRatePct={proposal.tax_rate_pct}
         totalHours={totalHours}
@@ -359,10 +363,14 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
         tax={tax}
         formats={formats}
         canWrite={canWrite}
-        canPush={tasks.length > 0}
-        pushing={push.isPending}
-        onPush={() => push.mutate()}
+        pushedCount={proposal.pushed_count}
+        pushableCount={proposal.pushable_count}
+        onPush={() => setPushing(true)}
       />
+
+      {pushing && (
+        <PushToPlanDialog projectId={projectId} onClose={() => setPushing(false)} onDone={pushed} />
+      )}
 
       {selectedTask && (
         <ProposalTaskPanel

@@ -2419,6 +2419,22 @@
         "title": "PublicUnassignUser",
         "type": "object"
       },
+      "PushToPlanIn": {
+        "description": "Какие строки переносить. Пустой список — все переносимые по умолчанию:\nоценённые и ещё не перенесённые (см. proposals._pushable).",
+        "properties": {
+          "task_ids": {
+            "default": [],
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Task Ids",
+            "type": "array"
+          }
+        },
+        "title": "PushToPlanIn",
+        "type": "object"
+      },
       "RegisterIn": {
         "properties": {
           "company_name": {
@@ -7013,9 +7029,67 @@
         ]
       }
     },
+    "/api/projects/{project_id}/proposal/push-plan": {
+      "get": {
+        "description": "Что случится при переносе — до того, как он случился.\n\nОкно переноса показывает, куда ляжет каждый раздел и во сколько дней\nвыйдет каждая строка, и отмечает то, что переносить не будет: уже\nперенесённое и строки без оценки. Считает это сервер теми же функциями,\nчто и перенос, — см. proposals.push_preview.",
+        "operationId": "preview_push_to_plan_api_projects__project_id__proposal_push_plan_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Push To Plan",
+        "tags": [
+          "proposal"
+        ]
+      }
+    },
     "/api/projects/{project_id}/proposal/push-to-plan": {
       "post": {
-        "description": "Переносит смету в план: раздел — категорией, строка — задачей.\n\nПачка ревизий с общим batch_id: в истории перенос читается одной записью\nи снимается одной отменой. Задачи встают на старт плана — раскладку по\nоси человек делает сам.",
+        "description": "Переносит смету в план: раздел — категорией, строка — задачей.\n\nПачка ревизий с общим batch_id: в истории перенос читается одной записью\nи снимается одной отменой — batch_id уходит в ответ ради кнопки «Вернуть»\nв тосте. Задачи встают на старт плана — раскладку по оси человек делает\nсам. Заметки, риски и допущения строки уходят во внутреннюю заметку\nзадачи на языке организации: её читает команда, а не клиент.",
         "operationId": "push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post",
         "parameters": [
           {
@@ -7045,6 +7119,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PushToPlanIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "content": {

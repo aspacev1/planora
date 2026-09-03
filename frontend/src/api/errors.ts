@@ -39,6 +39,8 @@ const PLAIN_CODES = new Set([
   "proposal_category_not_found",
   "proposal_task_not_found",
   "proposal_empty",
+  // Все выбранные строки уже в плане или без оценки: переносить нечего.
+  "proposal_nothing_to_push",
   "task_limit_reached",
   "duration_too_short",
   "user_not_in_organization",

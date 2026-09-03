@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import { useLocale } from "../i18n/LocaleProvider";
 import type { Formats } from "./ProposalTable";
 
@@ -10,6 +12,7 @@ import type { Formats } from "./ProposalTable";
  * арифметикой разошлось бы с колонкой цены на первой же правке.
  */
 export function ProposalSummary({
+  projectId,
   currency,
   taxRatePct,
   totalHours,
@@ -18,10 +21,11 @@ export function ProposalSummary({
   tax,
   formats,
   canWrite,
-  canPush,
-  pushing,
+  pushedCount,
+  pushableCount,
   onPush,
 }: {
+  projectId: string;
   currency: string;
   taxRatePct: number;
   totalHours: number;
@@ -30,12 +34,23 @@ export function ProposalSummary({
   tax: number;
   formats: Formats;
   canWrite: boolean;
-  /** Есть что переносить: без единой строки кнопка погашена. */
-  canPush: boolean;
-  pushing: boolean;
+  /** Сколько строк уже в плане и сколько оценённых ещё можно перенести. */
+  pushedCount: number;
+  pushableCount: number;
+  /** Открыть окно переноса. */
   onPush: () => void;
 }) {
   const { t } = useLocale();
+
+  // Главная кнопка отвечает на «что дальше», и ответ меняется по ходу дела:
+  // пока в плане ничего нет — перенести; перенесли часть — перенести только
+  // новое, счётом; перенесли всё — смотреть диаграмму. Кнопка, зовущая
+  // переносить то, что уже перенесено, вернула бы прежние дубли на словах.
+  const everythingPushed = pushedCount > 0 && pushableCount === 0;
+  const pushLabel =
+    pushedCount > 0
+      ? t("proposal.push.more", { count: pushableCount })
+      : t("proposal.push.action");
 
   return (
     <aside className="proposal-summary" aria-label={t("proposal.summary.title")}>
@@ -65,14 +80,19 @@ export function ProposalSummary({
           <dd className="proposal-summary__amount">{formats.money(subtotal + tax)}</dd>
         </div>
       </dl>
-      {canWrite && (
+      {canWrite && everythingPushed && (
+        <Link className="button-link proposal-summary__push" to={`/projects/${projectId}`}>
+          {t("proposal.push.open_gantt")}
+        </Link>
+      )}
+      {canWrite && !everythingPushed && (
         <button
           type="button"
           className="button--primary proposal-summary__push"
-          disabled={!canPush || pushing}
+          disabled={pushableCount === 0}
           onClick={onPush}
         >
-          {t("proposal.push.action")}
+          {pushLabel}
         </button>
       )}
     </aside>

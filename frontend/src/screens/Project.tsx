@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, NavLink, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, NavLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { commentCounts, commentCountsQueryKey } from "../api/comments";
 import { errorKey } from "../api/errors";
@@ -117,7 +117,24 @@ export function Project({
   // Задача, карточка которой открыта. Держится идентификатором, а не самой
   // задачей: после каждого изменения состояние приходит с сервера заново, и
   // карточка, помнящая объект, показывала бы устаревшие данные.
+  //
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // Карточку открывают и адресом: отметка «в плане» на строке сметы ведёт
+  // сюда с `?task=<id>`, и карточка обязана открыться сразу, а не после
+  // поиска строки в ленте. Слежкой за адресом, а не начальным значением
+  // состояния: между вкладками проекта экран не перемонтируется, и начальное
+  // значение, прочитанное на смете, к диаграмме бы не дожило. Параметр
+  // снимается тут же: перезагрузка страницы не должна открывать карточку
+  // заново — открыть её просили однажды.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const taskFromAddress = searchParams.get("task");
+  useEffect(() => {
+    if (taskFromAddress === null) return;
+    setSelectedTaskId(taskFromAddress);
+    const next = new URLSearchParams(searchParams);
+    next.delete("task");
+    setSearchParams(next, { replace: true });
+  }, [taskFromAddress, searchParams, setSearchParams]);
   // С какого раздела открыть карточку. Со строки ленты в неё ведут два пути:
   // по имени и полоске — к свойствам, по счётчику реплик — сразу в обсуждение.
   // Дальше вкладками управляет сама карточка.

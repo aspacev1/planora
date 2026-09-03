@@ -256,7 +256,8 @@
     "jira_token_required": "İlk qoşulmada token lazımdır",
     "jira_url_not_https": "Jira ünvanı https olmalıdır",
     "jira_url_invalid": "Jira ünvanı düzgün deyil",
-    "jira_url_private": "Jira ünvanı ictimai host ilə həll olunmur"
+    "jira_url_private": "Jira ünvanı ictimai host ilə həll olunmur",
+    "proposal_nothing_to_push": "Köçürməyə heç nə yoxdur: seçilmiş işlər artıq plandadır və ya qiymətləndirilməyib"
   },
   "live": {
     "offline": "Serverlə əlaqə yoxdur. Redaktə mümkün deyil",
@@ -1009,7 +1010,9 @@
       "delete_warning": "«{name}» işi müzakirəsi ilə birlikdə silinəcək",
       "delete_confirm": "İşi sil",
       "edit": "«{name}» işini redaktə et",
-      "remove": "«{name}» işini sil"
+      "remove": "«{name}» işini sil",
+      "in_plan": "plandadır",
+      "in_plan_aria": "«{name}» artıq plandadır: tapşırığı aç"
     },
     "notes": {
       "title": "Fərziyyələr və qeydlər",
@@ -1029,7 +1032,25 @@
       "done": {
         "one": "{count} tapşırıq plana əlavə olundu",
         "other": "{count} tapşırıq plana əlavə olundu"
-      }
+      },
+      "title": "Təklifi plana köçür",
+      "lead": "Bölmələr kateqoriyaya, işlər tapşırığa çevriləcək. Bütün tapşırıqlar planın başlanğıcına düşəcək, müddət qiymətləndirmədən götürüləcək. Sonra onları diaqramda tarixlərə görə yerləşdirmək olar.",
+      "new_category": "yeni kateqoriya",
+      "into_category": "«{name}» kateqoriyasına",
+      "already": "artıq plandadır",
+      "unestimated": "qiymətləndirmə yoxdur",
+      "confirm": {
+        "one": "{count} tapşırığı köçür",
+        "other": "{count} tapşırığı köçür"
+      },
+      "undo_hint": "Köçürməni bir düymə ilə geri qaytarmaq olar",
+      "open_gantt": "Diaqramı aç",
+      "more": {
+        "one": "{count} yeni işi köçür",
+        "other": "{count} yeni işi köçür"
+      },
+      "section_aria": "«{name}» bölməsi",
+      "row_aria": "«{name}» köçür"
     },
     "cell": {
       "edit": "«{name}» üçün {column} dəyiş"

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { ProposalState } from "../api/proposal";
+import type { ProposalState, PushPreview } from "../api/proposal";
 import { projectFixtures, renderProject } from "../test/project";
 import { server } from "../test/server";
 
@@ -87,10 +87,34 @@ function money(value: number): string {
     .replace(/\s/g, " ");
 }
 
-function proposalFixtures(state: ProposalState = PROPOSAL) {
+/**
+ * Предпросмотр переноса: «Дизайн» ляжет в одноимённую категорию плана, две
+ * строки оценены, третья («Анимации») без оценки и по умолчанию не идёт.
+ */
+const PREVIEW: PushPreview = {
+  categories: [
+    {
+      id: "pc1",
+      name: "Дизайн",
+      plan_category: { id: "c1", name: "Дизайн" },
+      tasks: [
+        { id: "pt1", name: "Логотип", duration_days: 2, in_plan: false, estimated: true },
+        { id: "pt2", name: "Гайдлайн", duration_days: 3, in_plan: false, estimated: true },
+        { id: "pt3", name: "Анимации", duration_days: 1, in_plan: false, estimated: false },
+      ],
+    },
+  ],
+};
+
+function proposalFixtures(state: ProposalState = PROPOSAL, preview: PushPreview = PREVIEW) {
   const sent: { method: string; path: string; body: unknown }[] = [];
   server.use(
     http.get("/api/projects/p1/proposal", () => HttpResponse.json(state)),
+    http.get("/api/projects/p1/proposal/push-plan", () => HttpResponse.json(preview)),
+    http.post("/api/projects/p1/batches/:batchId/undo", ({ params }) => {
+      sent.push({ method: "POST", path: `undo:${params.batchId as string}`, body: null });
+      return HttpResponse.json({ undone: 2, seq: 3 }, { status: 201 });
+    }),
     http.get("/api/projects/p1/proposal/tasks/:taskId/comments", () =>
       HttpResponse.json([
         {
@@ -152,9 +176,13 @@ function proposalFixtures(state: ProposalState = PROPOSAL) {
       });
       return new HttpResponse(null, { status: 204 });
     }),
-    http.post("/api/projects/p1/proposal/push-to-plan", () => {
-      sent.push({ method: "POST", path: "push-to-plan", body: null });
-      return HttpResponse.json({ created_tasks: 2 }, { status: 201 });
+    http.post("/api/projects/p1/proposal/push-to-plan", async ({ request }) => {
+      const body = (await request.json()) as { task_ids: string[] };
+      sent.push({ method: "POST", path: "push-to-plan", body });
+      return HttpResponse.json(
+        { created_tasks: body.task_ids.length, batch_id: "b1" },
+        { status: 201 },
+      );
     }),
   );
   return sent;
@@ -469,16 +497,82 @@ describe("вкладка предложения", () => {
     );
   });
 
-  it("кнопка переноса отдаёт смету в план", async () => {
+  it("перенос идёт через окно: что случится, что выбрано, что не переносится", async () => {
     const sent = proposalFixtures();
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
     await userEvent.click(screen.getByRole("button", { name: "Добавить в план" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Перенести предложение в план")).toBeInTheDocument();
+    // Раздел найдёт свою категорию плана, а не заведёт вторую.
+    expect(within(dialog).getByText("в категорию «Дизайн»")).toBeInTheDocument();
+    // Строка без оценки выключена и названа: спрятанную искали бы.
+    const blank = within(dialog).getByRole("checkbox", { name: "Перенести «Анимации»" });
+    expect(blank).toBeDisabled();
+    expect(within(dialog).getByText("без оценки")).toBeInTheDocument();
+    // По умолчанию выбрано всё оценённое: две задачи на пять дней.
+    expect(within(dialog).getByText("2 задачи · 5 дней")).toBeInTheDocument();
+
+    // Снять галочку с одной строки: счёт и кнопка пересчитываются.
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: "Перенести «Гайдлайн»" }));
+    expect(within(dialog).getByText("1 задача · 2 дня")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Перенести 1 задачу" }));
 
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "POST", path: "push-to-plan", body: null }),
+      expect(sent).toContainEqual({
+        method: "POST",
+        path: "push-to-plan",
+        body: { task_ids: ["pt1"] },
+      }),
     );
+    // Тост говорит, что случилось, и предлагает две дороги: посмотреть и
+    // отменить. «Отменить» снимает ту самую пачку, что назвал сервер.
+    expect(await screen.findByText("1 задача добавлена в план")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Открыть диаграмму" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Отменить" }));
+    await waitFor(() =>
+      expect(sent).toContainEqual({ method: "POST", path: "undo:b1", body: null }),
+    );
+  });
+
+  it("перенесённая строка помечена и ведёт к своей задаче на диаграмме", async () => {
+    proposalFixtures({
+      ...PROPOSAL,
+      pushed_count: 1,
+      pushable_count: 1,
+      categories: [
+        {
+          ...PROPOSAL.categories[0],
+          tasks: [
+            { ...PROPOSAL.categories[0].tasks[0], plan_task_id: "t1" },
+            PROPOSAL.categories[0].tasks[1],
+          ],
+        },
+      ],
+    });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    // Главная кнопка зовёт перенести только новое — счётом.
+    expect(screen.getByRole("button", { name: "Перенести 1 новую работу" })).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("link", { name: "«Логотип» уже в плане: открыть задачу" }),
+    );
+    // Диаграмма открылась с карточкой той самой задачи, параметр из адреса снят.
+    expect(await screen.findByRole("complementary", { name: /Логотип/ })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/projects/p1"));
+    expect(screen.getByTestId("location")).not.toHaveTextContent("task=");
+  });
+
+  it("когда всё уже в плане, вместо переноса предлагается диаграмма", async () => {
+    proposalFixtures({ ...PROPOSAL, pushed_count: 2, pushable_count: 0 });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    expect(screen.getByRole("link", { name: "Открыть диаграмму" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Добавить в план" })).not.toBeInTheDocument();
   });
 
   it("клиенту вкладка не показывается, а адрес сметы уводит на диаграмму", async () => {

@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import type { ProposalCategory, ProposalTask, ProposalTaskPatch } from "../api/proposal";
 import { ConfirmAction } from "../components/ConfirmAction";
 import { CommentIcon, EditableCell, PencilIcon, RowBadge, RowIcon } from "../components/rows";
@@ -41,6 +43,7 @@ export type Formats = {
  * попавшееся врёт.
  */
 export function CategoryRows({
+  projectId,
   category,
   open,
   canWrite,
@@ -59,6 +62,7 @@ export function CategoryRows({
   onOpenTask,
   t,
 }: {
+  projectId: string;
   category: ProposalCategory;
   open: boolean;
   canWrite: boolean;
@@ -177,6 +181,7 @@ export function CategoryRows({
         category.tasks.map((task) => (
           <TaskRow
             key={task.id}
+            projectId={projectId}
             task={task}
             canWrite={canWrite}
             math={math}
@@ -215,6 +220,7 @@ export function CategoryRows({
  * путь туда с клавиатуры: ячейки открываются щелчком (см. components/rows).
  */
 function TaskRow({
+  projectId,
   task,
   canWrite,
   math,
@@ -224,6 +230,7 @@ function TaskRow({
   onDelete,
   t,
 }: {
+  projectId: string;
   task: ProposalTask;
   canWrite: boolean;
   math: EffortMath;
@@ -285,6 +292,18 @@ function TaskRow({
               </button>
             )}
           </span>
+          {/* Строка уже в плане: отметка ведёт к её задаче на диаграмме.
+              Ссылкой, а не текстом, — «где она теперь» и есть вопрос, который
+              задают этой отметке. */}
+          {task.plan_task_id && (
+            <Link
+              className="proposal-chip proposal-chip--plan"
+              to={`/projects/${projectId}?task=${task.plan_task_id}`}
+              aria-label={t("proposal.task.in_plan_aria", { name: task.name })}
+            >
+              {t("proposal.task.in_plan")}
+            </Link>
+          )}
           <span className="row-icons">
             {(task.comment_count > 0 || canWrite) && (
               <RowBadge
