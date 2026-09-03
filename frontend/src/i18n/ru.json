@@ -261,7 +261,8 @@
     "jira_url_not_https": "Адрес Jira обязан быть https",
     "jira_url_invalid": "Адрес Jira указан неверно",
     "jira_url_private": "Адрес Jira не резолвится в публичный хост",
-    "proposal_nothing_to_push": "Переносить нечего: выбранные работы уже в плане или без оценки"
+    "proposal_nothing_to_push": "Переносить нечего: выбранные работы уже в плане или без оценки",
+    "proposal_value_out_of_range": "Пересчёт не помещается в допустимые пределы: уменьшите оценки или ставки"
   },
   "live": {
     "offline": "Нет связи с сервером. Редактирование недоступно",
@@ -989,13 +990,18 @@
       "effort_days": "Оценка, дни",
       "effort_hours": "Оценка, часы",
       "rate": "Ставка",
-      "price": "Цена"
+      "price": "Цена",
+      "role": "Роль",
+      "rate_unit": "Ставка, {currency}/{unit}",
+      "price_unit": "Цена, {currency}"
     },
     "format": {
       "days": "{value}д",
       "hours": "{value}ч",
       "per_day": "{rate}/д",
-      "per_hour": "{rate}/ч"
+      "per_hour": "{rate}/ч",
+      "day_letter": "д",
+      "hour_letter": "ч"
     },
     "category": {
       "create": "Новый раздел",
@@ -1077,7 +1083,49 @@
       "row_aria": "Перенести «{name}»"
     },
     "cell": {
-      "edit": "Изменить: {column} у «{name}»"
+      "edit": "Изменить: {column} у «{name}»",
+      "role_hint": "роль",
+      "effort_hint": "оценка",
+      "rate_hint": "ставка"
+    },
+    "stage": {
+      "title": "Этапы предложения",
+      "draft": "Черновик",
+      "sent": "Отправлено",
+      "agreed": "Согласовано",
+      "in_plan": "В плане",
+      "in_plan_count": {
+        "one": "{pushed} из {count} работы",
+        "few": "{pushed} из {count} работ",
+        "many": "{pushed} из {count} работ",
+        "other": "{pushed} из {count} работ"
+      },
+      "mark_sent": "Отметить отправленным",
+      "mark_agreed": "Отметить согласованным",
+      "push": "Перенести в план",
+      "back_to": "Вернуть на этап «{stage}»"
+    },
+    "params": {
+      "open": "Параметры предложения",
+      "summary": "{unit} · Налог {tax} % · {currency}",
+      "unit_hint": "Смена единицы пересчитает оценки и ставки всех строк: два дня по 400 станут шестнадцатью часами по 50. Итоги не изменятся."
+    },
+    "entry": {
+      "role": "Роль новой работы",
+      "effort": "Оценка новой работы, {unit}",
+      "rate": "Ставка новой работы, {currency}/{unit}",
+      "role_placeholder": "Роль",
+      "effort_placeholder": "Оценка, {unit}",
+      "rate_placeholder": "Ставка, {currency}/{unit}",
+      "hint_enter": "добавить и начать следующую",
+      "hint_tab": "к следующему полю",
+      "hint_esc": "закрыть",
+      "hint_rate": "Ставка подставится по роли, её можно поправить",
+      "roles": "Роли и ставки организации"
+    },
+    "next": {
+      "title": "Дальше",
+      "push_note": "Работы станут задачами на диаграмме, перенос можно отменить."
     }
   },
   "scorecard": {

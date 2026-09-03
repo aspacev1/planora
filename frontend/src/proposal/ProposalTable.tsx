@@ -1,11 +1,18 @@
 import { Link } from "react-router-dom";
 
-import type { ProposalCategory, ProposalTask, ProposalTaskPatch } from "../api/proposal";
+import type {
+  EffortUnit,
+  NewProposalTask,
+  ProposalCategory,
+  ProposalTask,
+  ProposalTaskPatch,
+  RoleSuggestion,
+} from "../api/proposal";
 import { ConfirmAction } from "../components/ConfirmAction";
 import { CommentIcon, EditableCell, PencilIcon, RowBadge, RowIcon } from "../components/rows";
 import { NewProposalTaskRow } from "./NewProposalTaskRow";
 
-/** Колонки таблицы: работа, описание, оценка, часы, ставка, цена. */
+/** Колонки таблицы: работа, роль, описание, оценка, ставка, цена. */
 export const COLUMNS = 6;
 
 /** Подпись, переведённая экраном: таблица сама словарь не открывает. */
@@ -27,12 +34,18 @@ export type EffortMath = {
   effortOfHours: (value: number) => number;
 };
 
-/** Числа словами и деньгами — форматтеры экрана, знающие язык и валюту. */
+/**
+ * Числа словами и деньгами — форматтеры экрана, знающие язык и валюту.
+ *
+ * В ячейках таблицы деньги без валюты (`amount`): валюта названа в шапке
+ * колонки один раз, и «$» в каждой из сорока ячеек только теснил бы числа.
+ * В итогах — с валютой (`money`): итог читают отдельно от шапки.
+ */
 export type Formats = {
   days: (value: number) => string;
   hoursLabel: (value: number) => string;
+  amount: (value: number) => string;
   money: (value: number) => string;
-  rate: (value: number) => string;
 };
 
 /**
@@ -47,6 +60,9 @@ export function CategoryRows({
   category,
   open,
   canWrite,
+  unit,
+  currency,
+  suggestions,
   math,
   formats,
   addingTask,
@@ -66,13 +82,16 @@ export function CategoryRows({
   category: ProposalCategory;
   open: boolean;
   canWrite: boolean;
+  unit: EffortUnit;
+  currency: string;
+  suggestions: RoleSuggestion[];
   math: EffortMath;
   formats: Formats;
   addingTask: boolean;
   onToggle: () => void;
   onAddTask: () => void;
   onCloseNewTask: () => void;
-  onCreateTask: (name: string) => void;
+  onCreateTask: (input: NewProposalTask) => void;
   onDelete: () => void;
   /** Открыть окно раздела: имя и описание с клавиатуры правятся там. */
   onEdit: () => void;
@@ -82,8 +101,7 @@ export function CategoryRows({
   onOpenTask: (taskId: string) => void;
   t: Translate;
 }) {
-  const categoryDays = category.tasks.reduce((sum, task) => sum + math.toDays(task.effort), 0);
-  const categoryHours = category.tasks.reduce((sum, task) => sum + math.toHours(task.effort), 0);
+  const categoryEffort = category.tasks.reduce((sum, task) => sum + task.effort, 0);
   const categoryPrice = category.tasks.reduce(
     (sum, task) => sum + task.effort * task.rate,
     0,
@@ -128,14 +146,9 @@ export function CategoryRows({
               // Знаки строки — те же, что у строки ленты, и молчат так же:
               // постоянное удаление возле каждого раздела читается как угроза.
               // Подпись каждого включает название раздела — на десятке
-              // разделов безымянные «плюсы» при чтении с экрана неразличимы.
+              // разделов безымянные знаки при чтении с экрана неразличимы.
+              // «Плюса» здесь нет: работу заводят строкой в конце раздела.
               <span className="row-icons">
-                <RowIcon
-                  label={t("proposal.category.add_task", { name: category.name })}
-                  onClick={onAddTask}
-                >
-                  +
-                </RowIcon>
                 <RowIcon
                   label={t("proposal.category.edit", { name: category.name })}
                   onClick={onEdit}
@@ -154,6 +167,7 @@ export function CategoryRows({
             )}
           </span>
         </td>
+        <td></td>
         <td className="proposal-table__desc">
           <EditableCell
             type="text"
@@ -167,13 +181,14 @@ export function CategoryRows({
         </td>
         {/* Числа раздела — сводка его строк, а не значения: править их значило
             бы менять неизвестно какую из работ. Как строка категории в ленте. */}
-        <td className="proposal-table__num">{formats.days(categoryDays)}</td>
-        <td className="proposal-table__num">{formats.hoursLabel(categoryHours)}</td>
+        <td className="proposal-table__num">
+          <Estimate effort={categoryEffort} unit={unit} math={math} formats={formats} />
+        </td>
         <td className="proposal-table__num muted">
-          {uniformRate !== null && uniformRate > 0 ? formats.rate(uniformRate) : ""}
+          {uniformRate !== null && uniformRate > 0 ? formats.amount(uniformRate) : ""}
         </td>
         <td className="proposal-table__num proposal-table__price">
-          {formats.money(categoryPrice)}
+          {categoryPrice > 0 ? formats.amount(categoryPrice) : ""}
         </td>
       </tr>
 
@@ -184,6 +199,7 @@ export function CategoryRows({
             projectId={projectId}
             task={task}
             canWrite={canWrite}
+            unit={unit}
             math={math}
             formats={formats}
             onOpen={() => onOpenTask(task.id)}
@@ -198,24 +214,75 @@ export function CategoryRows({
           columns={COLUMNS}
           label={t("proposal.task.new_label", { name: category.name })}
           placeholder={t("proposal.task.new_placeholder")}
+          unit={unit}
+          currency={currency}
+          suggestions={suggestions}
           onCreate={onCreateTask}
           onClose={onCloseNewTask}
         />
+      )}
+
+      {/* Работу заводят строкой в конце её раздела — как задачу в ленте: у
+          каждого уровня списка свой «плюс», и тулбару кнопки не нужны. В
+          свёрнутом разделе строки нет: класть работу в то, чего не видно,
+          не за чем. */}
+      {open && canWrite && !addingTask && (
+        <tr className="proposal-row proposal-row--add">
+          <td colSpan={COLUMNS}>
+            <button type="button" className="proposal-add" onClick={onAddTask}>
+              <span className="proposal-add__plus" aria-hidden="true">
+                +
+              </span>
+              {t("proposal.category.add_task", { name: category.name })}
+            </button>
+          </td>
+        </tr>
       )}
     </>
   );
 }
 
 /**
+ * Оценка в единице сметы и рядом — в другой, мелко: обе нужны, но одна из
+ * них главная, и вторая не должна читаться как ещё одна колонка.
+ */
+function Estimate({
+  effort,
+  unit,
+  math,
+  formats,
+}: {
+  effort: number;
+  unit: EffortUnit;
+  math: EffortMath;
+  formats: Formats;
+}) {
+  if (effort === 0) return <span className="cell-value faint">—</span>;
+  const days = math.toDays(effort);
+  const hours = math.toHours(effort);
+  return (
+    <span className="proposal-estimate">
+      <span className="cell-value">
+        {unit === "hours" ? formats.hoursLabel(hours) : formats.days(days)}
+      </span>
+      <span className="proposal-hours">
+        {unit === "hours" ? formats.days(days) : formats.hoursLabel(hours)}
+      </span>
+    </span>
+  );
+}
+
+/**
  * Строка работы: каждая ячейка правится на месте.
  *
- * Оценка живёт в трудоёмкости строки, а показана двумя колонками — днями и
- * часами; правится любая, и написанное переводится обратно тем же «часов в
- * дне». Цена — произведение оценки на ставку, и правка её меняет ставку: «эта
- * строка стоит пять тысяч» говорят именно так, а оценку в этот момент не
- * пересматривают. У строки без оценки множителя нет, и цену ей задать нечем.
+ * Оценка живёт в трудоёмкости строки и правится в единице сметы; вторая
+ * единица стоит рядом мелко, для сверки. Цена — произведение оценки на
+ * ставку, и правка её меняет ставку: «эта строка стоит пять тысяч» говорят
+ * именно так, а оценку в этот момент не пересматривают. У строки без оценки
+ * множителя нет, и цену ей задать нечем. Пустые роль, оценка и ставка
+ * подсказывают, что в них пишут: прочерк говорил бы «пусто», а не «сюда».
  *
- * Карточка остаётся для того, чего в таблице нет: роли, подробностей, рисков,
+ * Карточка остаётся для того, чего в таблице нет: подробностей, рисков,
  * допущений и разговора. Её открывает знак «править» — и он же единственный
  * путь туда с клавиатуры: ячейки открываются щелчком (см. components/rows).
  */
@@ -223,6 +290,7 @@ function TaskRow({
   projectId,
   task,
   canWrite,
+  unit,
   math,
   formats,
   onOpen,
@@ -233,6 +301,7 @@ function TaskRow({
   projectId: string;
   task: ProposalTask;
   canWrite: boolean;
+  unit: EffortUnit;
   math: EffortMath;
   formats: Formats;
   onOpen: () => void;
@@ -335,6 +404,18 @@ function TaskRow({
           </span>
         </span>
       </td>
+      <td className="role">
+        <EditableCell
+          type="text"
+          value={task.role}
+          display={task.role}
+          disabled={!canWrite}
+          allowEmpty
+          placeholder={t("proposal.cell.role_hint")}
+          label={label("proposal.columns.role")}
+          onCommit={(role) => onPatch({ role: role.trim() })}
+        />
+      </td>
       <td className="proposal-table__desc">
         <EditableCell
           type="text"
@@ -347,34 +428,32 @@ function TaskRow({
         />
       </td>
       <td className="proposal-table__num">
-        <EditableCell
-          type="number"
-          step="any"
-          min={0}
-          value={String(math.toDays(task.effort))}
-          display={formats.days(math.toDays(task.effort))}
-          disabled={!canWrite}
-          label={label("proposal.columns.effort")}
-          onCommit={(value) => {
-            const parsed = amount(value);
-            commit.effort(parsed === null ? null : math.effortOfDays(parsed));
-          }}
-        />
-      </td>
-      <td className="proposal-table__num">
-        <EditableCell
-          type="number"
-          step="any"
-          min={0}
-          value={String(math.toHours(task.effort))}
-          display={formats.hoursLabel(math.toHours(task.effort))}
-          disabled={!canWrite}
-          label={label("proposal.columns.hours")}
-          onCommit={(value) => {
-            const parsed = amount(value);
-            commit.effort(parsed === null ? null : math.effortOfHours(parsed));
-          }}
-        />
+        <span className="proposal-estimate">
+          <EditableCell
+            type="number"
+            step="any"
+            min={0}
+            value={String(task.effort)}
+            display={
+              task.effort > 0
+                ? unit === "hours"
+                  ? formats.hoursLabel(task.effort)
+                  : formats.days(task.effort)
+                : ""
+            }
+            placeholder={t("proposal.cell.effort_hint")}
+            disabled={!canWrite}
+            label={label("proposal.columns.effort")}
+            onCommit={(value) => commit.effort(amount(value))}
+          />
+          {task.effort > 0 && (
+            <span className="proposal-hours">
+              {unit === "hours"
+                ? formats.days(math.toDays(task.effort))
+                : formats.hoursLabel(math.toHours(task.effort))}
+            </span>
+          )}
+        </span>
       </td>
       <td className="proposal-table__num muted">
         <EditableCell
@@ -382,7 +461,8 @@ function TaskRow({
           step="any"
           min={0}
           value={String(task.rate)}
-          display={task.rate > 0 ? formats.rate(task.rate) : ""}
+          display={task.rate > 0 ? formats.amount(task.rate) : ""}
+          placeholder={t("proposal.cell.rate_hint")}
           disabled={!canWrite}
           label={label("proposal.columns.rate")}
           onCommit={commit.rate}
@@ -394,7 +474,7 @@ function TaskRow({
           step="any"
           min={0}
           value={String(task.effort * task.rate)}
-          display={formats.money(task.effort * task.rate)}
+          display={task.effort * task.rate > 0 ? formats.amount(task.effort * task.rate) : ""}
           disabled={!canWrite || task.effort === 0}
           label={label("proposal.columns.price")}
           onCommit={commit.price}

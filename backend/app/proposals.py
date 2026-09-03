@@ -14,19 +14,21 @@
 import math
 import uuid
 from collections.abc import Iterable
-from decimal import Decimal
+from datetime import datetime, timezone
+from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
 
 from app.export.labels import term
-
 from app.models import (
     Category,
+    EffortUnit,
     Project,
     Proposal,
     ProposalCategory,
     ProposalComment,
+    ProposalStatus,
     ProposalTask,
     Task,
     User,
@@ -105,18 +107,104 @@ def add_category(
 
 
 def add_task(
-    db: DbSession, proposal: Proposal, category_id: uuid.UUID, name: str
+    db: DbSession,
+    proposal: Proposal,
+    category_id: uuid.UUID,
+    name: str,
+    *,
+    role: str = "",
+    effort: Decimal = Decimal("0"),
+    rate: Decimal = Decimal("0"),
 ) -> ProposalTask:
+    """Строка сметы — сразу с ролью, оценкой и ставкой, если их назвали.
+
+    Строка ввода в таблице спрашивает все четыре поля разом: смету пишут
+    построчно, и заводить строку одним именем, а деньги дописывать в карточке
+    значило бы открыть, поправить, закрыть — на каждой строке подряд.
+    """
     category = require_category(db, proposal, category_id)
     task = ProposalTask(
         proposal_id=proposal.id,
         category_id=category.id,
         name=name,
+        role=role,
+        effort=effort,
+        rate=rate,
         position=_next_position(db, ProposalTask, ProposalTask.category_id, category.id),
     )
     db.add(task)
     db.flush()
     return task
+
+
+def set_stage(proposal: Proposal, stage: str, *, now: datetime | None = None) -> None:
+    """Отмечает этап сделки: черновик, отправлено клиенту, согласовано.
+
+    Отметка времени ставится при первом достижении этапа и остаётся, пока этап
+    не сняли: «отправлено 27 авг» под полосой этапов — дата события, а не
+    последнего нажатия. Шаг назад снимает более поздние отметки, чтобы полоса
+    не называла дату этапа, которого больше нет. Согласовано сразу из
+    черновика считает отправку пройденной: согласовать можно только то, что
+    клиент видел, — и «отправлено» получает ту же дату.
+
+    Это заметки для себя, а не юридический статус: ходить по этапам можно в
+    любую сторону, и подтверждений здесь нет.
+    """
+    at = now or datetime.now(timezone.utc)
+    if stage == ProposalStatus.DRAFT:
+        proposal.sent_at = None
+        proposal.agreed_at = None
+    elif stage == ProposalStatus.SENT:
+        proposal.sent_at = proposal.sent_at or at
+        proposal.agreed_at = None
+    elif stage == ProposalStatus.AGREED:
+        proposal.sent_at = proposal.sent_at or at
+        proposal.agreed_at = proposal.agreed_at or at
+    else:
+        raise ProposalError("proposal_stage_invalid", f"неизвестный этап {stage!r}")
+    proposal.status = stage
+
+
+#: Ширина колонок Numeric — потолки пересчёта. Те же числа, что у схем
+#: маршрутов: значение шире уехало бы в базу ошибкой усечения.
+MAX_EFFORT = Decimal("999999.99")
+MAX_RATE = Decimal("9999999999.99")
+_CENT = Decimal("0.01")
+
+
+def convert_unit(db: DbSession, proposal: Proposal, unit: str) -> None:
+    """Переводит оценки и ставки всех строк в другую единицу.
+
+    Смена единицы — смена того, чем меряют, а не переименование чисел: два
+    дня по 400 в день — это шестнадцать часов по 50 в час, и итог остаётся
+    тем же. Переводит «часов в дне» на момент смены: это число и определяло,
+    что такое день, когда оценку писали. Округление до копейки — точность
+    колонок; при нецелых частных итог может уйти на копейки, и это честнее,
+    чем хранить бесконечную дробь.
+
+    Сначала считает всё, потом пишет: строка, не поместившаяся в колонку,
+    должна отказать целиком, а не оставить смету наполовину в часах.
+    """
+    if unit == proposal.effort_unit:
+        return
+    factor = Decimal(proposal.hours_per_day)
+    converted = []
+    for row in _proposal_rows(db, proposal):
+        if unit == EffortUnit.HOURS:
+            effort, rate = row.effort * factor, row.rate / factor
+        else:
+            effort, rate = row.effort / factor, row.rate * factor
+        effort = effort.quantize(_CENT, rounding=ROUND_HALF_UP)
+        rate = rate.quantize(_CENT, rounding=ROUND_HALF_UP)
+        if effort > MAX_EFFORT or rate > MAX_RATE:
+            raise ProposalError(
+                "proposal_value_out_of_range", "пересчёт не помещается в колонку"
+            )
+        converted.append((row, effort, rate))
+    for row, effort, rate in converted:
+        row.effort = effort
+        row.rate = rate
+    proposal.effort_unit = unit
 
 
 def list_task_comments(

@@ -9,24 +9,31 @@ import {
   deleteProposalTask,
   getProposal,
   proposalQueryKey,
+  setProposalStage,
   updateProposalCategory,
   updateProposalSettings,
   updateProposalTask,
 } from "../api/proposal";
-import type { ProposalSettingsPatch, ProposalTaskPatch } from "../api/proposal";
-import { SelectField, TextField, ValueField } from "../components/autosave";
+import type {
+  NewProposalTask,
+  ProposalSettingsPatch,
+  ProposalStage,
+  ProposalTaskPatch,
+} from "../api/proposal";
 import { useFieldSaves } from "../components/autosave";
 import { useToast } from "../components/toast";
 import { useLocale } from "../i18n/LocaleProvider";
 import { formatAmount, formatMoney } from "./money";
 import { ProposalCategoryForm } from "./ProposalCategoryForm";
 import { ProposalNotes } from "./ProposalNotes";
-import { PushDone } from "./PushDone";
-import { PushToPlanDialog } from "./PushToPlanDialog";
+import { ProposalParams } from "./ProposalParams";
+import { ProposalStepper } from "./ProposalStepper";
 import { ProposalSummary } from "./ProposalSummary";
-import { CategoryRows } from "./ProposalTable";
+import { COLUMNS, CategoryRows } from "./ProposalTable";
 import type { EffortMath, Formats } from "./ProposalTable";
 import { ProposalTaskPanel } from "./ProposalTaskPanel";
+import { PushDone } from "./PushDone";
+import { PushToPlanDialog } from "./PushToPlanDialog";
 
 import "./proposal.css";
 
@@ -40,8 +47,9 @@ import "./proposal.css";
  * местом с той же арифметикой (см. api/proposal.ts).
  *
  * Разделы и строки заводятся теми же движениями, что категории и задачи в
- * ленте: раздел — окном из тулбара, строка — полем прямо в таблице, по
- * «плюсу» на строке раздела или кнопкой тулбара (см. NewProposalTaskRow).
+ * ленте: у каждого уровня списка свой «плюс» в таблице — строка «Добавить
+ * работу» в конце раздела и «Новый раздел» внизу (см. NewProposalTaskRow),
+ * а тулбар держит только этапы сделки и параметры.
  *
  * И правятся тем же движением: любая ячейка открывается щелчком по ней и
  * уходит на сервер потерей фокуса — как ячейки закреплённой таблицы ленты
@@ -90,9 +98,19 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
   );
 
   const addTask = useMutation({
-    mutationFn: (input: { categoryId: string; name: string }) =>
-      createProposalTask(projectId, input.categoryId, input.name),
+    mutationFn: (input: { categoryId: string; task: NewProposalTask }) =>
+      createProposalTask(projectId, input.categoryId, input.task),
     onSuccess: invalidate,
+  });
+
+  // Этап сделки — отметка рукой, в любую сторону. Отказ — тостом: полоса
+  // этапов стоит над таблицей, и строке ошибки под ней места нет.
+  const mark = useMutation({
+    mutationFn: (stage: ProposalStage) => setProposalStage(projectId, stage),
+    onSuccess: invalidate,
+    onError: (refusal: unknown) => {
+      toast({ message: t(errorKey(refusal)), tone: "error" });
+    },
   });
 
   const removeCategory = useMutation({
@@ -167,16 +185,15 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
     effortOfHours: (value) => (hours ? value : value / proposal.hours_per_day),
   };
 
-  const money = (value: number) => formatMoney(locale, proposal.currency, value);
   const formats: Formats = {
     days: (value) => t("proposal.format.days", { value: formatAmount(locale, value) }),
     hoursLabel: (value) => t("proposal.format.hours", { value: formatAmount(locale, value) }),
-    money,
-    // Ставка — за день или за час, и подпись обязана это говорить: голое
-    // «$100» не отвечает на вопрос «за что».
-    rate: (value) =>
-      t(hours ? "proposal.format.per_hour" : "proposal.format.per_day", { rate: money(value) }),
+    amount: (value) => formatAmount(locale, value),
+    money: (value) => formatMoney(locale, proposal.currency, value),
   };
+  // Ставка — за день или за час, и шапка колонки обязана это говорить: голое
+  // «Ставка» не отвечает на вопрос «за что».
+  const unitLetter = t(hours ? "proposal.format.hour_letter" : "proposal.format.day_letter");
 
   const subtotal = tasks.reduce((sum, task) => sum + task.effort * task.rate, 0);
   const tax = (subtotal * proposal.tax_rate_pct) / 100;
@@ -191,8 +208,8 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
       return next;
     });
 
-  const createTask = (categoryId: string) => (name: string) =>
-    addTask.mutate({ categoryId, name });
+  const createTask = (categoryId: string) => (task: NewProposalTask) =>
+    addTask.mutate({ categoryId, task });
 
   const failure =
     addTask.error ?? removeCategory.error ?? patchCategory.error ?? patchTask.error ?? removeTask.error;
@@ -201,73 +218,25 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
     <div className="proposal">
       <div className="proposal__main">
         <div className="proposal__toolbar">
-          <div className="proposal__settings">
-            <SelectField
-              id="proposal-unit"
-              label={t("proposal.settings.unit")}
-              value={proposal.effort_unit}
-              disabled={!canWrite}
-              options={[
-                { value: "days", label: t("proposal.settings.unit_days") },
-                { value: "hours", label: t("proposal.settings.unit_hours") },
-              ]}
-              save={saves.at("unit")}
-              onCommit={(value) =>
-                saves.commit("unit", { effort_unit: value as "days" | "hours" })
-              }
-            />
-            <ValueField
-              id="proposal-hours-per-day"
-              label={t("proposal.settings.hours_per_day")}
-              type="number"
-              value={String(proposal.hours_per_day)}
-              disabled={!canWrite}
-              resetToken={proposal.hours_per_day}
-              save={saves.at("hours_per_day")}
-              onCommit={(value) =>
-                saves.commitNumber("hours_per_day", value, (hoursPerDay) => ({
-                  hours_per_day: hoursPerDay,
-                }))
-              }
-            />
-            <ValueField
-              id="proposal-tax"
-              label={t("proposal.settings.tax_rate")}
-              type="number"
-              value={String(proposal.tax_rate_pct)}
-              disabled={!canWrite}
-              resetToken={proposal.tax_rate_pct}
-              save={saves.at("tax")}
-              onCommit={(value) =>
-                saves.commitNumber("tax", value, (taxRate) => ({ tax_rate_pct: taxRate }))
-              }
-            />
-            <TextField
-              id="proposal-currency"
-              label={t("proposal.settings.currency")}
-              value={proposal.currency}
-              disabled={!canWrite}
-              resetToken={proposal.currency}
-              save={saves.at("currency")}
-              onCommit={(value) => {
-                const code = value.trim().toUpperCase();
-                // До сервера не доходит: код валюты — ровно три буквы, и
-                // сказать об этом можно у поля, не спрашивая никого.
-                if (!/^[A-Z]{3}$/.test(code)) {
-                  saves.refuse("currency", "proposal.settings.currency_invalid");
-                  return;
-                }
-                saves.commit("currency", { currency: code });
-              }}
-            />
-          </div>
-          {canWrite && (
-            <div className="proposal__actions">
-              {/* Тот же порядок, что в тулбаре ленты: сначала раздел, потом
-                  строка — работу некуда класть, пока нет ни одного раздела,
-                  и кнопка строки до первого раздела не показывается. Дальше
-                  она открывает поле в первом разделе: положить работу в любой
-                  другой — «плюс» на его строке. */}
+          <ProposalStepper
+            status={proposal.status}
+            sentAt={proposal.sent_at}
+            agreedAt={proposal.agreed_at}
+            pushedCount={proposal.pushed_count}
+            pushableCount={proposal.pushable_count}
+            totalRows={tasks.length}
+            canWrite={canWrite}
+            marking={mark.isPending}
+            onMark={(stage) => mark.mutate(stage)}
+            onPush={() => setPushing(true)}
+          />
+          <ProposalParams proposal={proposal} canWrite={canWrite} saves={saves} />
+        </div>
+
+        {proposal.categories.length === 0 ? (
+          <div className="proposal__empty">
+            <p className="muted">{t("proposal.empty")}</p>
+            {canWrite && (
               <button
                 type="button"
                 className="button--quiet"
@@ -275,20 +244,8 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
               >
                 {t("proposal.category.create")}
               </button>
-              {proposal.categories.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setNewTaskIn(proposal.categories[0].id)}
-                >
-                  {t("proposal.task.create")}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {proposal.categories.length === 0 ? (
-          <p className="muted proposal__empty">{t("proposal.empty")}</p>
+            )}
+          </div>
         ) : (
           // Таблица прокручивается вбок в своих берегах: шесть колонок с
           // именами, описаниями и деньгами на узком экране уже, чем есть, не
@@ -299,11 +256,18 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
               <thead>
                 <tr>
                   <th>{t("proposal.columns.work_item")}</th>
+                  <th>{t("proposal.columns.role")}</th>
                   <th>{t("proposal.columns.description")}</th>
                   <th className="proposal-table__num">{t("proposal.columns.effort")}</th>
-                  <th className="proposal-table__num">{t("proposal.columns.hours")}</th>
-                  <th className="proposal-table__num">{t("proposal.columns.rate")}</th>
-                  <th className="proposal-table__num">{t("proposal.columns.price")}</th>
+                  <th className="proposal-table__num">
+                    {t("proposal.columns.rate_unit", {
+                      currency: proposal.currency,
+                      unit: unitLetter,
+                    })}
+                  </th>
+                  <th className="proposal-table__num">
+                    {t("proposal.columns.price_unit", { currency: proposal.currency })}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -314,6 +278,9 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
                     category={category}
                     open={!collapsed.has(category.id)}
                     canWrite={canWrite}
+                    unit={proposal.effort_unit}
+                    currency={proposal.currency}
+                    suggestions={proposal.role_suggestions}
                     math={math}
                     formats={formats}
                     addingTask={newTaskIn === category.id}
@@ -334,6 +301,25 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
                     t={t}
                   />
                 ))}
+                {/* Раздел заводят строкой внизу таблицы — окном, как категорию
+                    в ленте: у раздела есть описание, и одной строкой ввода его
+                    не спросить. */}
+                {canWrite && (
+                  <tr className="proposal-row proposal-row--add">
+                    <td colSpan={COLUMNS}>
+                      <button
+                        type="button"
+                        className="proposal-add proposal-add--section"
+                        onClick={() => setAddingCategory(true)}
+                      >
+                        <span className="proposal-add__plus" aria-hidden="true">
+                          +
+                        </span>
+                        {t("proposal.category.create")}
+                      </button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

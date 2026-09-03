@@ -147,14 +147,26 @@ export function deleteProposalCategory(projectId: string, categoryId: string): P
   });
 }
 
+/** Новая строка: имя обязательно, остальное — если назвали сразу. */
+export type NewProposalTask = { name: string; role?: string; effort?: number; rate?: number };
+
 export function createProposalTask(
   projectId: string,
   categoryId: string,
-  name: string,
+  input: NewProposalTask,
 ): Promise<{ id: string; category_id: string; name: string }> {
   return request(`/api/projects/${projectId}/proposal/categories/${categoryId}/tasks`, {
     method: "POST",
-    body: JSON.stringify({ name }),
+    // Неназванные поля не уезжают вовсе: JSON.stringify опускает undefined.
+    body: JSON.stringify(input),
+  });
+}
+
+/** Отметить этап сделки — в любую сторону; отметки времени ставит сервер. */
+export function setProposalStage(projectId: string, stage: ProposalStage): Promise<ProposalState> {
+  return request<ProposalState>(`/api/projects/${projectId}/proposal/stage`, {
+    method: "POST",
+    body: JSON.stringify({ stage }),
   });
 }
 

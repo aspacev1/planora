@@ -18,36 +18,320 @@
   min-width: 0;
 }
 
-/* Настройки сметы — одной строкой над таблицей, а не отдельным экраном:
-   единица, налог и валюта меняют то, что написано прямо под ними. */
+/* Шапка сметы — одной строкой над таблицей: слева этапы сделки, справа
+   параметры. Параметры сложены в поповер: единица, норма часов, налог и
+   валюта нужны раз в проект, а четыре поля на виду спорили бы с таблицей за
+   первый взгляд. */
 .proposal__toolbar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.proposal__settings {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.proposal__settings .field {
-  margin: 0;
-  max-width: 132px;
-}
-
-.proposal__actions {
-  display: flex;
-  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .proposal__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
   margin: 24px 0;
+}
+
+/* --- Этапы сделки --------------------------------------------------------- */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 0;
+}
+
+.stepper__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Пройденный этап — кнопка возврата к нему: снять отметку можно тем же
+   движением, каким её поставили. Без кнопочной рамки и роста: это подпись
+   этапа, а не действие при содержимом. */
+.stepper__back {
+  height: auto;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stepper__back:hover {
+  background: var(--hover);
+  color: inherit;
+}
+
+.stepper__mark {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: #fff;
+}
+
+.stepper__step--done .stepper__mark {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.stepper__step--current .stepper__mark {
+  border: 2px solid var(--accent);
+}
+
+.stepper__step--current .stepper__mark::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.stepper__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.stepper__label {
+  font-size: 12px;
+  font-weight: 620;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.stepper__step--done .stepper__label {
+  color: var(--text);
+}
+
+.stepper__step--current .stepper__label {
+  color: var(--accent);
+}
+
+.stepper__sub {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.stepper__line {
+  width: 22px;
+  height: 1px;
+  margin: 0 8px;
+  background: var(--border-strong);
+}
+
+.stepper__line--done {
+  background: var(--accent);
+}
+
+.stepper__next {
+  margin-left: 14px;
+}
+
+/* --- Параметры в поповере ------------------------------------------------- */
+
+.proposal-params .menu__pop {
+  min-width: 320px;
+  padding: 14px;
+}
+
+.proposal-params__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+
+.proposal-params__grid .field {
+  margin-bottom: 12px;
+}
+
+.proposal-params__hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* --- Подсказки и оценка в ячейках ---------------------------------------- */
+
+/* Подсказка в пустой ячейке: тише значения и с пунктиром, как поле, в
+   которое пишут, — прочерк говорил бы «пусто», а не «сюда». */
+.cell-value--hint {
+  color: var(--text-faint);
+  text-decoration: underline dashed;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+
+/* Оценка в единице сметы и рядом — в другой, мелко: обе нужны, но одна из
+   них главная, и вторая не должна читаться как ещё одна колонка. */
+.proposal-estimate {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: 100%;
+}
+
+.proposal-estimate .cell-value {
+  display: inline-block;
+}
+
+.proposal-hours {
+  color: var(--text-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* --- Заведение строк прямо в таблице ------------------------------------- */
+
+/* «+ Добавить работу в „…“» в конце раздела и «+ Новый раздел» внизу — как
+   в ленте: у каждого уровня списка свой плюс, и кнопок в тулбаре не нужно. */
+.proposal-row--add td {
+  padding: 0;
+}
+
+.proposal-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px 0 31px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.proposal-add:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.proposal-add--section {
+  padding-left: 12px;
+  font-weight: 600;
+}
+
+.proposal-add__plus {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.proposal-add:hover .proposal-add__plus {
+  color: var(--accent);
+}
+
+/* Строка ввода: четыре поля в ряд на подложке цвета действия. */
+.proposal-entry td {
+  padding: 8px 12px;
+  background: var(--accent-soft);
+}
+
+.proposal-entry__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px 96px 112px;
+  gap: 8px;
+  align-items: center;
+}
+
+.proposal-entry__field {
+  position: relative;
+  min-width: 0;
+}
+
+.proposal-entry input {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 13px;
+}
+
+.proposal-entry__hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.proposal-entry__hint b {
+  color: var(--text-muted);
+  font-weight: 620;
+}
+
+/* Подсказки ролей — списком под полем роли, как меню. */
+.proposal-suggest {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  z-index: 5;
+  min-width: 240px;
+  margin: 0;
+  padding: 7px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.proposal-suggest__head {
+  padding: 4px 9px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.proposal-suggest__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.proposal-suggest__item.is-active,
+.proposal-suggest__item:hover {
+  background: var(--hover);
+}
+
+.proposal-suggest__rate {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- Таблица работ ------------------------------------------------------- */
@@ -350,11 +634,36 @@ th.proposal-table__num {
   color: var(--accent);
 }
 
+/* Блок «Дальше»: главное действие этапа и что за ним последует. Отделён
+   чертой от чисел: вопрос «сколько» и вопрос «что теперь» — разные. */
+.proposal-summary__next {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.proposal-summary__next-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.proposal-summary__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 /* Перенос в план — главное действие вкладки, на месте главной кнопки
    макета: смета пишется, чтобы стать планом. */
 .proposal-summary__push {
   width: 100%;
-  margin-top: 14px;
 }
 
 @media (max-width: 900px) {
@@ -475,4 +784,9 @@ th.proposal-table__num {
   margin-left: auto;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+.stepper__mark .glyph {
+  width: 11px;
+  height: 11px;
 }

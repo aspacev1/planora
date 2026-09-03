@@ -238,6 +238,111 @@ def test_settings_patch_changes_only_named_fields(authed, project_id):
     assert state["hours_per_day"] == 8
 
 
+def test_stage_marks_carry_dates_and_a_step_back_clears_them(authed, db, project_id):
+    """Полоса этапов: отметка ставится при первом достижении этапа и живёт,
+    пока этап не сняли; шаг назад снимает более поздние отметки."""
+    stage = f"/api/projects/{project_id}/proposal/stage"
+
+    sent = authed.post(stage, json={"stage": "sent"})
+    assert sent.status_code == 200
+    assert sent.json()["status"] == "sent"
+    sent_at = sent.json()["sent_at"]
+    assert sent_at is not None and sent.json()["agreed_at"] is None
+
+    agreed = authed.post(stage, json={"stage": "agreed"}).json()
+    assert agreed["status"] == "agreed"
+    # Дата отправки — дата события, а не последнего нажатия.
+    assert agreed["sent_at"] == sent_at and agreed["agreed_at"] is not None
+
+    back = authed.post(stage, json={"stage": "sent"}).json()
+    assert (back["status"], back["sent_at"], back["agreed_at"]) == ("sent", sent_at, None)
+
+    draft = authed.post(stage, json={"stage": "draft"}).json()
+    assert (draft["status"], draft["sent_at"], draft["agreed_at"]) == ("draft", None, None)
+
+    # Согласовано сразу из черновика: отправка считается пройденной — той же
+    # датой, ведь согласовать можно только то, что клиент видел.
+    leap = authed.post(stage, json={"stage": "agreed"}).json()
+    assert leap["sent_at"] is not None and leap["sent_at"] == leap["agreed_at"]
+
+    assert authed.post(stage, json={"stage": "signed"}).status_code == 422
+    _demote(authed, db, "viewer")
+    assert authed.post(stage, json={"stage": "draft"}).status_code == 403
+
+
+def test_switching_the_unit_converts_rows_and_keeps_the_totals(authed, project_id):
+    """Смена единицы — смена того, чем меряют, а не переименование чисел: два
+    дня по 400 в день становятся шестнадцатью часами по 50, итог тот же."""
+    category_id = _category_id(authed, project_id)
+    for name, effort, rate in (("Логотип", 2, 400), ("Гайдлайн", 3, 200)):
+        task_id = _task_id(authed, project_id, category_id, name=name)
+        authed.patch(
+            f"/api/projects/{project_id}/proposal/tasks/{task_id}",
+            json={"effort": effort, "rate": rate},
+        )
+
+    hours = authed.patch(f"/api/projects/{project_id}/proposal", json={"effort_unit": "hours"})
+    assert hours.status_code == 200
+    rows = {row["name"]: row for row in hours.json()["categories"][0]["tasks"]}
+    assert (rows["Логотип"]["effort"], rows["Логотип"]["rate"]) == (16.0, 50.0)
+    assert (rows["Гайдлайн"]["effort"], rows["Гайдлайн"]["rate"]) == (24.0, 25.0)
+
+    # Обратно — старой нормой часов в дне, даже если новая пришла тем же
+    # запросом: оценки писались при восьми, и переводить их надо восемью.
+    days = authed.patch(
+        f"/api/projects/{project_id}/proposal", json={"effort_unit": "days", "hours_per_day": 6}
+    ).json()
+    rows = {row["name"]: row for row in days["categories"][0]["tasks"]}
+    assert (rows["Логотип"]["effort"], rows["Логотип"]["rate"]) == (2.0, 400.0)
+    assert days["hours_per_day"] == 6
+    # Та же единица второй раз ничего не трогает.
+    same = authed.patch(f"/api/projects/{project_id}/proposal", json={"effort_unit": "days"}).json()
+    assert same["categories"][0]["tasks"][0]["effort"] == 2.0
+
+
+def test_unit_switch_rounds_to_cents_and_refuses_what_does_not_fit(authed, project_id):
+    category_id = _category_id(authed, project_id)
+    task_id = _task_id(authed, project_id, category_id)
+    authed.patch(f"/api/projects/{project_id}/proposal", json={"hours_per_day": 3})
+    authed.patch(f"/api/projects/{project_id}/proposal/tasks/{task_id}", json={"effort": 1, "rate": 100})
+
+    hours = authed.patch(f"/api/projects/{project_id}/proposal", json={"effort_unit": "hours"}).json()
+    row = hours["categories"][0]["tasks"][0]
+    # Треть сотни — 33,33: точность колонки, а не бесконечная дробь.
+    assert (row["effort"], row["rate"]) == (3.0, 33.33)
+
+    # Оценка у потолка колонки в часах не помещается: отказ целиком, смета
+    # остаётся в прежней единице.
+    authed.patch(f"/api/projects/{project_id}/proposal", json={"effort_unit": "days"})
+    authed.patch(f"/api/projects/{project_id}/proposal/tasks/{task_id}", json={"effort": 999_999})
+    refused = authed.patch(f"/api/projects/{project_id}/proposal", json={"effort_unit": "hours"})
+    assert refused.status_code == 422
+    assert refused.json()["detail"] == "proposal_value_out_of_range"
+    assert authed.get(f"/api/projects/{project_id}/proposal").json()["effort_unit"] == "days"
+
+
+def test_a_row_is_created_with_role_estimate_and_rate_at_once(authed, project_id):
+    """Строка ввода спрашивает четыре поля разом — и всё это доезжает одним
+    запросом, без правки в карточке. Одного имени по-прежнему достаточно."""
+    category_id = _category_id(authed, project_id)
+    created = authed.post(
+        f"/api/projects/{project_id}/proposal/categories/{category_id}/tasks",
+        json={"name": "Логотип", "role": " Дизайнер ", "effort": 2, "rate": 400},
+    )
+    assert created.status_code == 201
+    bare = authed.post(
+        f"/api/projects/{project_id}/proposal/categories/{category_id}/tasks",
+        json={"name": "Без полей"},
+    )
+    assert bare.status_code == 201
+
+    state = authed.get(f"/api/projects/{project_id}/proposal").json()
+    full, empty = state["categories"][0]["tasks"]
+    assert (full["role"], full["effort"], full["rate"]) == ("Дизайнер", 2.0, 400.0)
+    assert (empty["role"], empty["effort"], empty["rate"]) == ("", 0.0, 0.0)
+    assert state["pushable_count"] == 1
+
+
 def test_category_carries_description_and_takes_patches(authed, project_id):
     """Описание раздела стоит на его строке в таблице — и правится отдельно
     от имени: patch меняет только присланные поля."""

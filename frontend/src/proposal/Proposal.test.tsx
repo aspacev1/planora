@@ -111,6 +111,10 @@ function proposalFixtures(state: ProposalState = PROPOSAL, preview: PushPreview 
   server.use(
     http.get("/api/projects/p1/proposal", () => HttpResponse.json(state)),
     http.get("/api/projects/p1/proposal/push-plan", () => HttpResponse.json(preview)),
+    http.post("/api/projects/p1/proposal/stage", async ({ request }) => {
+      sent.push({ method: "POST", path: "stage", body: await request.json() });
+      return HttpResponse.json(state);
+    }),
     http.post("/api/projects/p1/batches/:batchId/undo", ({ params }) => {
       sent.push({ method: "POST", path: `undo:${params.batchId as string}`, body: null });
       return HttpResponse.json({ undone: 2, seq: 3 }, { status: 201 });
@@ -202,15 +206,23 @@ describe("вкладка предложения", () => {
     proposalFixtures();
     renderProject(undefined, { route: "/projects/p1/proposal" });
 
-    // Строка работы: роль в карточке, а в таблице — оценка в днях и часах,
-    // ставка за день и цена. У «Гайдлайна» цена 600 не совпадает ни с одной
-    // ставкой — совпавшая строка прятала бы ошибку.
+    // Строка работы: роль, оценка в днях и рядом часы, ставка и цена без
+    // валюты — она названа в шапке колонки. У «Гайдлайна» цена 600 не
+    // совпадает ни с одной ставкой — совпавшая строка прятала бы ошибку.
     expect(await screen.findByText("Логотип")).toBeInTheDocument();
     expect(screen.getByText("Знак")).toBeInTheDocument();
+    expect(screen.getByText("Дизайнер")).toBeInTheDocument();
     expect(screen.getByText("2д")).toBeInTheDocument();
     expect(screen.getByText("16ч")).toBeInTheDocument();
-    expect(screen.getByText(`${money(100)}/д`)).toBeInTheDocument();
-    expect(screen.getByText(money(600))).toBeInTheDocument();
+    expect(screen.getByText("100")).toBeInTheDocument();
+    expect(screen.getByText("600")).toBeInTheDocument();
+    expect(screen.getByText("Ставка, USD/д")).toBeInTheDocument();
+    // Пустая роль подсказывает, что в неё пишут, а не молчит прочерком.
+    expect(screen.getByText("роль")).toBeInTheDocument();
+    // Параметры сложены в поповер, но подпись кнопки говорит главное.
+    expect(screen.getByRole("button", { name: "Параметры предложения" })).toHaveTextContent(
+      "Дни · Налог 10 % · USD",
+    );
 
     // Строка раздела — сводка своих работ и описание.
     expect(screen.getByText("Понять и нарисовать")).toBeInTheDocument();
@@ -309,7 +321,20 @@ describe("вкладка предложения", () => {
       }),
     );
 
-    // Оценка в днях — в единицах сметы она же и есть.
+    // Роль — тоже ячейка: пустую подсказывает, заполненную правит.
+    await openCell("Дизайнер");
+    const role = screen.getByLabelText("Изменить: Роль у «Логотип»");
+    await userEvent.clear(role);
+    await userEvent.type(role, "Арт-директор{Enter}");
+    await waitFor(() =>
+      expect(sent).toContainEqual({
+        method: "PATCH",
+        path: "task:pt1",
+        body: { role: "Арт-директор" },
+      }),
+    );
+
+    // Оценка — в единице сметы; часы рядом только для сверки.
     await openCell("2д");
     const effort = screen.getByLabelText("Изменить: Оценка у «Логотип»");
     await userEvent.clear(effort);
@@ -318,18 +343,8 @@ describe("вкладка предложения", () => {
       expect(sent).toContainEqual({ method: "PATCH", path: "task:pt1", body: { effort: 4 } }),
     );
 
-    // Часы правятся своей колонкой и переводятся обратно в дни сметы: 24 часа
-    // при восьмичасовом дне — три дня.
-    await openCell("16ч");
-    const hours = screen.getByLabelText("Изменить: Часы у «Логотип»");
-    await userEvent.clear(hours);
-    await userEvent.type(hours, "24{Enter}");
-    await waitFor(() =>
-      expect(sent).toContainEqual({ method: "PATCH", path: "task:pt1", body: { effort: 3 } }),
-    );
-
     // Ставка.
-    await openCell(`${money(100)}/д`);
+    await openCell("100");
     const rate = screen.getByLabelText("Изменить: Ставка у «Логотип»");
     await userEvent.clear(rate);
     await userEvent.type(rate, "150{Enter}");
@@ -339,7 +354,7 @@ describe("вкладка предложения", () => {
 
     // Цена — произведение, и правка её меняет ставку: 900 за три дня «Гайдлайна»
     // это 300 за день.
-    await openCell(money(600));
+    await openCell("600");
     const price = screen.getByLabelText("Изменить: Цена у «Гайдлайн»");
     await userEvent.clear(price);
     await userEvent.type(price, "900{Enter}");
@@ -427,16 +442,17 @@ describe("вкладка предложения", () => {
     );
   });
 
-  it("работа заводится строкой в таблице: Enter отправляет и оставляет поле", async () => {
+  it("работа заводится строкой в конце раздела: имя, роль со ставкой, оценка", async () => {
     const sent = proposalFixtures();
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // Кнопка тулбара открывает строку в первом разделе — как в ленте.
-    await userEvent.click(screen.getByRole("button", { name: "Новая работа" }));
+    // «Добавить работу» в конце раздела открывает строку ввода — как в ленте.
+    await userEvent.click(screen.getByRole("button", { name: "Добавить работу в «Дизайн»" }));
     const input = screen.getByLabelText("Новая работа в «Дизайн»");
     await userEvent.type(input, "Вёрстка{Enter}");
 
+    // Одного имени по-прежнему достаточно — и уезжает только оно.
     await waitFor(() =>
       expect(sent).toContainEqual({
         method: "POST",
@@ -447,12 +463,87 @@ describe("вкладка предложения", () => {
     // Enter не закрывает строку: следующую работу пишут сразу.
     expect(screen.getByLabelText("Новая работа в «Дизайн»")).toHaveValue("");
 
-    // «Плюс» на строке раздела открывает ту же строку в этом разделе.
-    await userEvent.click(screen.getByRole("button", { name: "Добавить работу в «Дизайн»" }));
-    expect(screen.getByLabelText("Новая работа в «Дизайн»")).toBeInTheDocument();
+    // Роль подсказывается из справочника организации и тянет за собой ставку.
+    await userEvent.type(screen.getByLabelText("Новая работа в «Дизайн»"), "Макет");
+    await userEvent.type(screen.getByLabelText("Роль новой работы"), "диз");
+    await userEvent.click(await screen.findByRole("option", { name: /Дизайнер/ }));
+    expect(screen.getByLabelText("Ставка новой работы, USD/д")).toHaveValue(100);
+    await userEvent.type(screen.getByLabelText("Оценка новой работы, д"), "3{Enter}");
+
+    await waitFor(() =>
+      expect(sent).toContainEqual({
+        method: "POST",
+        path: "tasks:pc1",
+        body: { name: "Макет", role: "Дизайнер", effort: 3, rate: 100 },
+      }),
+    );
   });
 
-  it("раздел заводится окном из тулбара — как категория в ленте", async () => {
+  it("полоса этапов: следующий шаг уходит на сервер, пройденный снимается щелчком", async () => {
+    const sent = proposalFixtures({
+      ...PROPOSAL,
+      status: "sent",
+      sent_at: "2026-08-27T10:00:00+00:00",
+    });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    // Пройденный этап подписан датой, текущий назван, следующий — кнопкой.
+    const stages = screen.getByRole("list", { name: "Этапы предложения" });
+    expect(within(stages).getByText("27 авг")).toBeInTheDocument();
+    expect(within(stages).getByText("Отправлено").closest("[aria-current]")).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Отметить согласованным" }));
+    await waitFor(() =>
+      expect(sent).toContainEqual({ method: "POST", path: "stage", body: { stage: "agreed" } }),
+    );
+
+    // Назад — щелчком по пройденному этапу.
+    await userEvent.click(screen.getByRole("button", { name: "Вернуть на этап «Черновик»" }));
+    await waitFor(() =>
+      expect(sent).toContainEqual({ method: "POST", path: "stage", body: { stage: "draft" } }),
+    );
+  });
+
+  it("согласованное предложение зовёт в план прямо с полосы этапов", async () => {
+    proposalFixtures({
+      ...PROPOSAL,
+      status: "agreed",
+      sent_at: "2026-08-27T10:00:00+00:00",
+      agreed_at: "2026-09-02T10:00:00+00:00",
+    });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    const stages = screen.getByRole("list", { name: "Этапы предложения" });
+    await userEvent.click(within(stages).getByRole("button", { name: "Перенести в план" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("параметры правятся в поповере и уходят на сервер по одному", async () => {
+    const sent = proposalFixtures();
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    await userEvent.click(screen.getByRole("button", { name: "Параметры предложения" }));
+    // Число уходит на сервер с каждым нажатием, как и всякое число в полях
+    // автосохранения, — поэтому одна цифра: заглушка сервера не запоминает
+    // правку, и вторая цифра легла бы поверх возвращённого старого значения.
+    const tax = screen.getByLabelText("Налог, %");
+    await userEvent.clear(tax);
+    await userEvent.type(tax, "5");
+    await waitFor(() =>
+      expect(sent).toContainEqual({
+        method: "PATCH",
+        path: "proposal",
+        body: { tax_rate_pct: 5 },
+      }),
+    );
+  });
+
+  it("раздел заводится окном из строки внизу таблицы — как категория в ленте", async () => {
     const sent = proposalFixtures();
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
@@ -618,7 +709,14 @@ describe("вкладка предложения", () => {
     expect(
       screen.queryByLabelText("Описание раздела «Дизайн»"),
     ).not.toBeInTheDocument();
-    // Настройки сметы показываются, но выключены.
+    // Строк заведения нет, полоса этапов без кнопок, параметры выключены.
+    expect(
+      screen.queryByRole("button", { name: "Добавить работу в «Дизайн»" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Отметить отправленным" }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Параметры предложения" }));
     expect(screen.getByLabelText("Налог, %")).toBeDisabled();
   });
 });

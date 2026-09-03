@@ -1633,12 +1633,63 @@
         "title": "ProposalSettingsIn",
         "type": "object"
       },
-      "ProposalTaskIn": {
+      "ProposalStageIn": {
         "properties": {
+          "stage": {
+            "enum": [
+              "draft",
+              "sent",
+              "agreed"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage"
+        ],
+        "title": "ProposalStageIn",
+        "type": "object"
+      },
+      "ProposalTaskIn": {
+        "description": "Новая строка: имя обязательно, роль, оценка и ставка — если назвали\nсразу. Потолки чисел те же, что у правки, — ширина колонок Numeric.",
+        "properties": {
+          "effort": {
+            "anyOf": [
+              {
+                "maximum": 999999.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effort"
+          },
           "name": {
             "maxLength": 300,
             "minLength": 1,
             "title": "Name",
+            "type": "string"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "maximum": 9999999999.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "role": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Role",
             "type": "string"
           }
         },
@@ -7157,6 +7208,74 @@
           }
         },
         "summary": "Push Proposal To Plan",
+        "tags": [
+          "proposal"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/proposal/stage": {
+      "post": {
+        "description": "Отметить этап сделки — в любую сторону (см. proposals.set_stage).",
+        "operationId": "set_proposal_stage_api_projects__project_id__proposal_stage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalStageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Proposal Stage",
         "tags": [
           "proposal"
         ]

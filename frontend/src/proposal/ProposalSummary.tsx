@@ -80,20 +80,29 @@ export function ProposalSummary({
           <dd className="proposal-summary__amount">{formats.money(subtotal + tax)}</dd>
         </div>
       </dl>
-      {canWrite && everythingPushed && (
-        <Link className="button-link proposal-summary__push" to={`/projects/${projectId}`}>
-          {t("proposal.push.open_gantt")}
-        </Link>
-      )}
-      {canWrite && !everythingPushed && (
-        <button
-          type="button"
-          className="button--primary proposal-summary__push"
-          disabled={pushableCount === 0}
-          onClick={onPush}
-        >
-          {pushLabel}
-        </button>
+      {/* «Дальше» — главное действие этапа и что за ним последует. Отделено
+          чертой от чисел: «сколько» и «что теперь» — разные вопросы. */}
+      {canWrite && (
+        <div className="proposal-summary__next">
+          <span className="proposal-summary__next-label">{t("proposal.next.title")}</span>
+          {everythingPushed ? (
+            <Link className="button-link proposal-summary__push" to={`/projects/${projectId}`}>
+              {t("proposal.push.open_gantt")}
+            </Link>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="button--primary proposal-summary__push"
+                disabled={pushableCount === 0}
+                onClick={onPush}
+              >
+                {pushLabel}
+              </button>
+              <p className="proposal-summary__note">{t("proposal.next.push_note")}</p>
+            </>
+          )}
+        </div>
       )}
     </aside>
   );

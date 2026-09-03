@@ -31,6 +31,7 @@ from app.proposals import (
     add_category,
     add_task,
     add_task_comment,
+    convert_unit,
     ensure_proposal,
     get_proposal,
     require_category,
@@ -39,6 +40,7 @@ from app.proposals import (
     push_preview,
     push_to_plan,
     require_task,
+    set_stage,
 )
 
 router = APIRouter(prefix="/api/projects", tags=["proposal"])
@@ -67,7 +69,17 @@ class ProposalCategoryPatch(BaseModel):
 
 
 class ProposalTaskIn(BaseModel):
+    """Новая строка: имя обязательно, роль, оценка и ставка — если назвали
+    сразу. Потолки чисел те же, что у правки, — ширина колонок Numeric."""
+
     name: str = Field(min_length=1, max_length=300)
+    role: str = Field(default="", max_length=120)
+    effort: float | None = Field(default=None, ge=0, le=999_999)
+    rate: float | None = Field(default=None, ge=0, le=9_999_999_999)
+
+
+class ProposalStageIn(BaseModel):
+    stage: Literal["draft", "sent", "agreed"]
 
 
 class ProposalTaskPatch(BaseModel):
@@ -149,7 +161,12 @@ def update_proposal_settings(
     proposal = ensure_proposal(db, context.project)
     changes = payload.model_dump(exclude_unset=True, exclude_none=True)
     if "effort_unit" in changes:
-        proposal.effort_unit = changes["effort_unit"]
+        # Пересчёт строк — до новой нормы часов, если она пришла тем же
+        # запросом: оценки писались при старой, и переводить их надо ею.
+        try:
+            convert_unit(db, proposal, changes["effort_unit"])
+        except ProposalError as error:
+            raise _refuse(error)
     if "hours_per_day" in changes:
         proposal.hours_per_day = changes["hours_per_day"]
     if "tax_rate_pct" in changes:
@@ -160,6 +177,25 @@ def update_proposal_settings(
         proposal.currency = changes["currency"].upper()
     if "notes" in changes:
         proposal.notes = changes["notes"]
+    db.flush()
+    _publish(background, db, context.project.id, _CHANGED)
+    return proposal_state(db, context.project)
+
+
+@router.post("/{project_id}/proposal/stage")
+def set_proposal_stage(
+    payload: ProposalStageIn,
+    background: BackgroundTasks,
+    context: ProjectContext = Depends(project_context),
+    db: DbSession = Depends(get_db),
+):
+    """Отметить этап сделки — в любую сторону (см. proposals.set_stage)."""
+    context.require(Action.PROJECT_WRITE)
+    proposal = ensure_proposal(db, context.project)
+    try:
+        set_stage(proposal, payload.stage)
+    except ProposalError as error:
+        raise _refuse(error)
     db.flush()
     _publish(background, db, context.project.id, _CHANGED)
     return proposal_state(db, context.project)
@@ -242,7 +278,16 @@ def create_proposal_task(
     if not name:
         raise HTTPException(status_code=422, detail="validation_error")
     try:
-        task = add_task(db, ensure_proposal(db, context.project), category_id, name)
+        task = add_task(
+            db,
+            ensure_proposal(db, context.project),
+            category_id,
+            name,
+            role=payload.role.strip(),
+            # Decimal из строки, а не из float — по той же причине, что у налога.
+            effort=Decimal(str(payload.effort)) if payload.effort is not None else Decimal("0"),
+            rate=Decimal(str(payload.rate)) if payload.rate is not None else Decimal("0"),
+        )
     except ProposalError as error:
         raise _refuse(error)
     response = {"id": str(task.id), "category_id": str(task.category_id), "name": task.name}

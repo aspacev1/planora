@@ -1287,6 +1287,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/proposal/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Proposal Stage
+         * @description Отметить этап сделки — в любую сторону (см. proposals.set_stage).
+         */
+        post: operations["set_proposal_stage_api_projects__project_id__proposal_stage_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/proposal/tasks/{task_id}": {
         parameters: {
             query?: never;
@@ -2241,10 +2261,31 @@ export interface components {
             /** Tax Rate Pct */
             tax_rate_pct?: number | null;
         };
-        /** ProposalTaskIn */
+        /** ProposalStageIn */
+        ProposalStageIn: {
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "draft" | "sent" | "agreed";
+        };
+        /**
+         * ProposalTaskIn
+         * @description Новая строка: имя обязательно, роль, оценка и ставка — если назвали
+         *     сразу. Потолки чисел те же, что у правки, — ширина колонок Numeric.
+         */
         ProposalTaskIn: {
+            /** Effort */
+            effort?: number | null;
             /** Name */
             name: string;
+            /** Rate */
+            rate?: number | null;
+            /**
+             * Role
+             * @default
+             */
+            role: string;
         };
         /**
          * ProposalTaskPatch
@@ -5288,6 +5329,43 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_proposal_stage_api_projects__project_id__proposal_stage_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalStageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
