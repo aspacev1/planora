@@ -7013,6 +7013,83 @@
         ]
       }
     },
+    "/api/projects/{project_id}/proposal/export.pdf": {
+      "get": {
+        "description": "Предложение целиком одним файлом — тем, что уйдёт клиенту.\n\nНе раздел общей выгрузки, а свой документ: у него другой читатель и другой\nсостав (см. app/export/proposal_pdf.py). Два права: читать предложение —\nу клиента и гостя его нет, им обещаны сроки, а не ставки; и выносить\nфайлом — тот же рычаг, что у выгрузки проекта. Счётчик выгрузок общий:\nдля сервера это такая же сборка PDF.",
+        "operationId": "export_proposal_pdf_api_projects__project_id__proposal_export_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locale"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Скачать коммерческое предложение документом для клиента",
+        "tags": [
+          "export"
+        ]
+      }
+    },
     "/api/projects/{project_id}/proposal/push-to-plan": {
       "post": {
         "description": "Переносит смету в план: раздел — категорией, строка — задачей.\n\nПачка ревизий с общим batch_id: в истории перенос читается одной записью\nи снимается одной отменой. Задачи встают на старт плана — раскладку по\nоси человек делает сам.",

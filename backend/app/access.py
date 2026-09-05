@@ -32,6 +32,14 @@ class Action(StrEnum):
     # существующие READ_INTERNAL_NOTE и правило показа исполнителей, ровно те
     # же, что действуют на публичной странице.
     PROJECT_EXPORT = "project_export"
+    # Чтение коммерческого предложения — ставок, себестоимости и документа
+    # для клиента. Отдельное от PROJECT_READ право: клиенту и гостю по ссылке
+    # обещаны сроки и объём, а не то, из чего сложилась цена, — то же
+    # правило, что уже прячет от них раздел сметы в выгрузке проекта
+    # (см. app/export/document.py INTERNAL_SECTIONS). Документ для клиента
+    # клиент получает от исполнителя письмом, а не скачивает сам: пока
+    # предложение правится, его черновик — внутренняя работа.
+    PROPOSAL_READ = "proposal_read"
 
 
 _MATRIX: dict[Role | None, frozenset[Action]] = {
@@ -45,6 +53,7 @@ _MATRIX: dict[Role | None, frozenset[Action]] = {
             Action.READ_INTERNAL_NOTE,
             Action.PLAN_APPROVE,
             Action.PROJECT_EXPORT,
+            Action.PROPOSAL_READ,
         }
     ),
     Role.VIEWER: frozenset(
@@ -53,6 +62,7 @@ _MATRIX: dict[Role | None, frozenset[Action]] = {
             Action.COMMENT,
             Action.READ_INTERNAL_NOTE,
             Action.PROJECT_EXPORT,
+            Action.PROPOSAL_READ,
         }
     ),
     # Клиент и гость по ссылке выгружают клиентский экземпляр: тот же урез,

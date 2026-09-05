@@ -1031,6 +1031,10 @@
         "other": "{count} tapşırıq plana əlavə olundu"
       }
     },
+    "next": {
+      "title": "Növbəti",
+      "download_pdf": "Müştəri üçün PDF yüklə"
+    },
     "cell": {
       "edit": "«{name}» üçün {column} dəyiş"
     }

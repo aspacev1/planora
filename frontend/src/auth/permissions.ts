@@ -18,6 +18,18 @@ export function roleCanWrite(role: string | undefined | null): boolean {
 }
 
 /**
+ * Роли, которым сервер отдаёт коммерческое предложение — ставки и документ
+ * для клиента (`Action.PROPOSAL_READ`). Клиенту обещаны сроки и объём, а не
+ * то, из чего сложилась цена, и кнопку документа ему не предлагают: она всё
+ * равно кончилась бы отказом.
+ */
+const PROPOSAL_READERS = new Set(["owner", "editor", "viewer"]);
+
+export function roleCanReadProposal(role: string | undefined | null): boolean {
+  return typeof role === "string" && PROPOSAL_READERS.has(role);
+}
+
+/**
  * Может ли текущий человек менять проекты своей организации.
  *
  * Ключ запроса тот же, что и у шапки, — состав организации не запрашивается

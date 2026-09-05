@@ -23,7 +23,7 @@
     "tasks": "Задачи",
     "gantt": "Диаграмма Ганта",
     "links": "Связи",
-    "proposal": "Смета",
+    "proposal": "Предложение",
     "scorecard": "Скоркард",
     "comments": "Обсуждение",
     "history": "История правок"
@@ -95,6 +95,23 @@
     "tax": "Налог {p}%",
     "total": "Итого",
     "no_data": "нет данных"
+  },
+  "proposal_doc": {
+    "title": "Коммерческое предложение",
+    "number": "№ {n}",
+    "issued": "Дата",
+    "valid_until": "Действительно до",
+    "project": "Проект",
+    "scope": "Состав работ",
+    "col_n": "№",
+    "col_work": "Работа",
+    "col_effort_days": "Объём, дн.",
+    "col_effort_hours": "Объём, ч",
+    "col_rate_days": "Ставка, {c}/дн.",
+    "col_rate_hours": "Ставка, {c}/ч",
+    "col_amount": "Сумма, {c}",
+    "notes": "Допущения и примечания",
+    "prepared_by": "Исполнитель"
   },
   "comment": {
     "internal": "внутренняя",

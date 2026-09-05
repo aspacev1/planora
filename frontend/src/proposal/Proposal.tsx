@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { errorKey } from "../api/errors";
+import { proposalPdfUrl } from "../api/export";
 import { projectQueryKey } from "../api/projects";
 import {
   createProposalTask,
@@ -56,7 +57,16 @@ const COLUMNS = 6;
  * каждой строке подряд. Карточка остаётся для того, чего в таблице нет:
  * подробностей, рисков, допущений и разговора.
  */
-export function Proposal({ projectId, canWrite }: { projectId: string; canWrite: boolean }) {
+export function Proposal({
+  projectId,
+  canWrite,
+  canExport,
+}: {
+  projectId: string;
+  canWrite: boolean;
+  /** Вправе ли смотрящий получить документ для клиента (см. permissions). */
+  canExport: boolean;
+}) {
   const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -434,15 +444,38 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
             <dd className="proposal-summary__amount">{money(subtotal + tax)}</dd>
           </div>
         </dl>
-        {canWrite && (
-          <button
-            type="button"
-            className="button--primary proposal-summary__push"
-            disabled={tasks.length === 0 || push.isPending}
-            onClick={() => push.mutate()}
-          >
-            {t("proposal.push.action")}
-          </button>
+        {/* «Дальше» — что делать с предложением, когда итоги прочитаны.
+            Документ для клиента — главное действие черновика: смета пишется,
+            чтобы уйти клиенту. Перенос в план — следующий шаг, уже после
+            согласования, и стоит тихой кнопкой под ним.
+
+            Документ — ссылка с `download`, а не запрос из скрипта: файл
+            собирает сервер, и браузер сохраняет его сам под именем из ответа.
+            Пустая смета ссылку гасит: адреса у неё нет, и документа тоже. */}
+        {(canExport || canWrite) && (
+          <section className="proposal-next" aria-label={t("proposal.next.title")}>
+            <h4 className="proposal-next__title">{t("proposal.next.title")}</h4>
+            {canExport && (
+              <a
+                className="button-link proposal-next__action proposal-next__pdf"
+                href={tasks.length > 0 ? proposalPdfUrl(projectId, locale) : undefined}
+                download
+                aria-disabled={tasks.length === 0}
+              >
+                {t("proposal.next.download_pdf")}
+              </a>
+            )}
+            {canWrite && (
+              <button
+                type="button"
+                className="button--quiet proposal-next__action"
+                disabled={tasks.length === 0 || push.isPending}
+                onClick={() => push.mutate()}
+              >
+                {t("proposal.push.action")}
+              </button>
+            )}
+          </section>
         )}
       </aside>
 

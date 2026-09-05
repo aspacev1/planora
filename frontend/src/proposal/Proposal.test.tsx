@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { ProposalState } from "../api/proposal";
 import { projectFixtures, renderProject } from "../test/project";
 import { server } from "../test/server";
+import { ORG } from "../test/utils";
 
 /**
  * Смета с двумя строками: 2д × 100 и 3д × 200 — сумма 800, налог 10% — 80,
@@ -470,6 +471,45 @@ describe("вкладка предложения", () => {
     await waitFor(() =>
       expect(sent).toContainEqual({ method: "POST", path: "push-to-plan", body: null }),
     );
+  });
+
+  it("документ для клиента — ссылка с download на PDF предложения", async () => {
+    proposalFixtures();
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    const link = screen.getByRole("link", { name: "Скачать PDF для клиента" });
+    // Язык — тот, на котором смотрят на предложение: документ придёт на нём же.
+    expect(link).toHaveAttribute("href", "/api/projects/p1/proposal/export.pdf?locale=ru");
+    // Браузер сохраняет файл сам, под именем из ответа сервера.
+    expect(link).toHaveAttribute("download");
+    // Перенос в план остаётся рядом, тихой кнопкой того же блока.
+    const next = screen.getByRole("region", { name: "Дальше" });
+    expect(within(next).getByRole("button", { name: "Добавить в план" })).toBeInTheDocument();
+  });
+
+  it("пустая смета гасит ссылку на документ: адреса у неё нет", async () => {
+    proposalFixtures({ ...PROPOSAL, categories: [] });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText(/Разделов пока нет/);
+
+    // Без href это уже не ссылка — и найти её можно только текстом.
+    expect(screen.queryByRole("link", { name: "Скачать PDF для клиента" })).toBeNull();
+    const dimmed = screen.getByText("Скачать PDF для клиента");
+    expect(dimmed).not.toHaveAttribute("href");
+    expect(dimmed).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("клиенту документ не предлагается: сервер его и не отдаст", async () => {
+    proposalFixtures();
+    // Роль клиента — поверх оснастки: renderProject знает только «пишет или
+    // читает», а клиент — третье: читает проект, но не предложение.
+    server.use(http.get("/api/org", () => HttpResponse.json({ ...ORG, role: "client" })));
+    renderProject(undefined, { canWrite: false, route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    expect(screen.queryByText("Скачать PDF для клиента")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Дальше" })).toBeNull();
   });
 
   it("читателю смета видна, а правка — нет", async () => {
