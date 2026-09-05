@@ -240,6 +240,9 @@
     "proposal_empty": "Təklifdə plana keçiriləcək tapşırıq yoxdur",
     "proposal_category_not_found": "Bu təklifdə belə bölmə yoxdur",
     "proposal_task_not_found": "Bu təklifdə belə tapşırıq yoxdur",
+    "proposal_not_empty": "Təklifdə artıq sətirlər var — plandan yalnız boş təklif yığıla bilər",
+    "plan_empty": "Planda tapşırıq yoxdur — təklifi yığmağa əsas yoxdur",
+    "proposal_in_plan": "Təklifin bütün sətirləri artıq plandadır — əlavə ediləcək heç nə yoxdur",
     "rate_limited": "Çox tez-tez: yenidən hesablama dəqiqədə bir dəfə mümkündür",
     "metric_not_found": "Belə metrika yoxdur",
     "week_in_future": "Bu həftə hələ başlamayıb",
@@ -951,7 +954,51 @@
     }
   },
   "proposal": {
-    "empty": "Hələ bölmə yoxdur — birincisini «Yeni bölmə» düyməsi ilə yaradın",
+    "start": {
+      "eyebrow": "Təklif",
+      "title": "Plandan əvvəl layihənin smetası",
+      "lead": "Kommersiya təklifi burada yığılır: iş bölmələri, hər sətir üzrə həcm və tarif, vergi ilə yekun. Razılaşdırılmış smeta bir düymə ilə plana çevrilir — hər iş diaqramda tapşırıq olur.",
+      "steps": {
+        "sections": {
+          "title": "Bölmələr və işlər",
+          "hint": "Layihəni bölmələrə — mərhələlər kimi — ayırın və işləri sətirlərlə yazın."
+        },
+        "estimate": {
+          "title": "Həcm və tarif",
+          "hint": "Hər sətirdə gün və ya saatla həcm və tarif var. Qiymət və yekunlar özü hesablanır."
+        },
+        "plan": {
+          "title": "Plana",
+          "hint": "Smeta razılaşdırılanda «Plana əlavə et» düyməsi onu diaqramda tapşırıqlara çevirir."
+        }
+      },
+      "manual": {
+        "title": "Yeni bölmə",
+        "hint": "Sıfırdan başlamaq: bölmələr və işlər əl ilə yazılır."
+      },
+      "build": {
+        "title": "Plandan yığ",
+        "hint": "Planda {categories} üzrə {tasks} var — hər biri müddətinə görə qiymətləndirilmiş sətrə çevriləcək.",
+        "empty": "Planda hələ tapşırıq yoxdur — yığmağa əsas yoxdur. Onları diaqramda yaradın və ya bölmə ilə başlayın.",
+        "done": {
+          "one": "Plandan {count} sətir yığıldı",
+          "other": "Plandan {count} sətir yığıldı"
+        }
+      },
+      "tasks": {
+        "one": "{count} tapşırıq",
+        "other": "{count} tapşırıq"
+      },
+      "categories": {
+        "one": "{count} kateqoriya",
+        "other": "{count} kateqoriya"
+      },
+      "settings": "Parametrlər: {unit}, gündə {hours} saat, vergi {tax} %, {currency}",
+      "unit_days": "günlər",
+      "unit_hours": "saatlar",
+      "edit": "Dəyiş",
+      "readonly": "Smeta hələ tərtib olunmayıb — onu layihəni redaktə edə bilən şəxs başlayacaq."
+    },
     "settings": {
       "unit": "Qiymətləndirmə vahidi",
       "unit_days": "Günlər",
@@ -1026,6 +1073,7 @@
     },
     "push": {
       "action": "Plana əlavə et",
+      "all_in_plan": "Bütün sətirlər artıq plandadır",
       "done": {
         "one": "{count} tapşırıq plana əlavə olundu",
         "other": "{count} tapşırıq plana əlavə olundu"

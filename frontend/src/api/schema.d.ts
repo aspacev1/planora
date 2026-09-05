@@ -1180,6 +1180,31 @@ export interface paths {
         patch: operations["update_proposal_settings_api_projects__project_id__proposal_patch"];
         trace?: never;
     };
+    "/api/projects/{project_id}/proposal/build-from-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build Proposal From Plan
+         * @description Собирает пустую смету из плана: категория — разделом, задача — строкой.
+         *
+         *     Под тем же замком проекта, что и остальные правки (ensure_proposal): две
+         *     одновременные сборки иначе обе застали бы смету пустой и собрали её
+         *     дважды. Отказы — 422 кодом: `proposal_not_empty`, если строки уже есть,
+         *     и `plan_empty`, если собирать не из чего.
+         */
+        post: operations["build_proposal_from_plan_api_projects__project_id__proposal_build_from_plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/proposal/categories": {
         parameters: {
             query?: never;
@@ -5034,6 +5059,39 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    build_proposal_from_plan_api_projects__project_id__proposal_build_from_plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

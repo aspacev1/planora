@@ -6731,6 +6731,64 @@
         ]
       }
     },
+    "/api/projects/{project_id}/proposal/build-from-plan": {
+      "post": {
+        "description": "Собирает пустую смету из плана: категория — разделом, задача — строкой.\n\nПод тем же замком проекта, что и остальные правки (ensure_proposal): две\nодновременные сборки иначе обе застали бы смету пустой и собрали её\nдважды. Отказы — 422 кодом: `proposal_not_empty`, если строки уже есть,\nи `plan_empty`, если собирать не из чего.",
+        "operationId": "build_proposal_from_plan_api_projects__project_id__proposal_build_from_plan_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Build Proposal From Plan",
+        "tags": [
+          "proposal"
+        ]
+      }
+    },
     "/api/projects/{project_id}/proposal/categories": {
       "post": {
         "operationId": "create_proposal_category_api_projects__project_id__proposal_categories_post",

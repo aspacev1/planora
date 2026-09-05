@@ -240,6 +240,9 @@
     "proposal_empty": "The proposal has no tasks to add to the plan",
     "proposal_category_not_found": "No such section in this proposal",
     "proposal_task_not_found": "No such task in this proposal",
+    "proposal_not_empty": "The proposal already has lines — only an empty one can be built from the plan",
+    "plan_empty": "The plan has no tasks — there is nothing to build the proposal from",
+    "proposal_in_plan": "Every line of the proposal is already in the plan — nothing to add",
     "rate_limited": "Too often: recalculation is available once a minute",
     "metric_not_found": "No such metric",
     "week_in_future": "That week has not started yet",
@@ -951,7 +954,51 @@
     }
   },
   "proposal": {
-    "empty": "No sections yet — add the first one with “New section”",
+    "start": {
+      "eyebrow": "Proposal",
+      "title": "The project estimate, before the plan",
+      "lead": "This is where the commercial proposal takes shape: sections of work, an effort and a rate per line, a total with tax. Once agreed, one button turns the estimate into the plan — every work item becomes a task on the chart.",
+      "steps": {
+        "sections": {
+          "title": "Sections and work items",
+          "hint": "Split the project into sections — like stages — and list the work as lines."
+        },
+        "estimate": {
+          "title": "Effort and rate",
+          "hint": "Each line carries an effort in days or hours and a rate. Prices and totals add up on their own."
+        },
+        "plan": {
+          "title": "Into the plan",
+          "hint": "Once the estimate is agreed, “Add to plan” turns it into tasks on the chart."
+        }
+      },
+      "manual": {
+        "title": "New section",
+        "hint": "Start from a blank sheet: sections and work items are typed in by hand."
+      },
+      "build": {
+        "title": "Build from the plan",
+        "hint": "The plan has {tasks} in {categories} — each becomes a line with its duration as the estimate.",
+        "empty": "The plan has no tasks yet — there is nothing to build from. Add them on the chart, or start with a section.",
+        "done": {
+          "one": "{count} line built from the plan",
+          "other": "{count} lines built from the plan"
+        }
+      },
+      "tasks": {
+        "one": "{count} task",
+        "other": "{count} tasks"
+      },
+      "categories": {
+        "one": "{count} category",
+        "other": "{count} categories"
+      },
+      "settings": "Settings: {unit}, {hours} h per day, tax {tax} %, {currency}",
+      "unit_days": "days",
+      "unit_hours": "hours",
+      "edit": "Change",
+      "readonly": "No estimate yet — someone who can edit the project will start it."
+    },
     "settings": {
       "unit": "Estimate in",
       "unit_days": "Days",
@@ -1026,6 +1073,7 @@
     },
     "push": {
       "action": "Add to plan",
+      "all_in_plan": "Every line is already in the plan",
       "done": {
         "one": "{count} task added to the plan",
         "other": "{count} tasks added to the plan"
