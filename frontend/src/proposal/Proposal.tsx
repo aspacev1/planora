@@ -4,6 +4,7 @@ import { useState } from "react";
 import { errorKey } from "../api/errors";
 import { projectQueryKey } from "../api/projects";
 import {
+  buildProposalFromPlan,
   createProposalTask,
   deleteProposalCategory,
   deleteProposalTask,
@@ -20,8 +21,7 @@ import type {
   ProposalTask,
   ProposalTaskPatch,
 } from "../api/proposal";
-import { SaveMark, SelectField, TextField, ValueField } from "../components/autosave";
-import { useFieldSaves } from "../components/autosave";
+import { SaveMark, useFieldSaves } from "../components/autosave";
 import { ConfirmAction } from "../components/ConfirmAction";
 import { CommentIcon, EditableCell, PencilIcon, RowBadge, RowIcon } from "../components/rows";
 import { useToast } from "../components/toast";
@@ -29,6 +29,8 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { formatAmount, formatMoney } from "./money";
 import { NewProposalTaskRow } from "./NewProposalTaskRow";
 import { ProposalCategoryForm } from "./ProposalCategoryForm";
+import { ProposalEmptyState } from "./ProposalEmptyState";
+import { ProposalSettingsFields } from "./ProposalSettingsFields";
 import { ProposalTaskPanel } from "./ProposalTaskPanel";
 
 import "./proposal.css";
@@ -55,6 +57,11 @@ const COLUMNS = 6;
  * карточка ради одной ставки означала бы открыть, поправить, закрыть — на
  * каждой строке подряд. Карточка остаётся для того, чего в таблице нет:
  * подробностей, рисков, допущений и разговора.
+ *
+ * Пока разделов нет, вместо таблицы стоит объяснение с двумя стартами
+ * (ProposalEmptyState): пустая таблица с шестью заголовками не говорит
+ * новичку ни что это, ни с чего начать. Карточка итогов до первой строки
+ * тоже не показывается — нули в ней были бы ответом на незаданный вопрос.
  */
 export function Proposal({ projectId, canWrite }: { projectId: string; canWrite: boolean }) {
   const { t, locale } = useLocale();
@@ -139,6 +146,21 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
     },
   });
 
+  // Сборка из плана — обратный путь: строки рождаются в смете, план не
+  // трогается, и перечитывается только смета. Отказ тоже перечитывает её:
+  // «уже не пустая» значит, что кто-то успел раньше, и таблица уже есть.
+  const build = useMutation({
+    mutationFn: () => buildProposalFromPlan(projectId),
+    onSuccess: async (result) => {
+      toast({ message: t("proposal.start.build.done", { count: result.created_tasks }) });
+      await invalidate();
+    },
+    onError: async (refusal: unknown) => {
+      toast({ message: t(errorKey(refusal)), tone: "error" });
+      await invalidate();
+    },
+  });
+
   if (query.isPending) {
     return <p role="status">{t("common.loading")}</p>;
   }
@@ -152,7 +174,31 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
   }
 
   const proposal = query.data;
+
+  if (proposal.categories.length === 0) {
+    return (
+      <div className="proposal proposal--start">
+        <div className="proposal__main">
+          <ProposalEmptyState
+            proposal={proposal}
+            canWrite={canWrite}
+            saves={saves}
+            onNewCategory={() => setAddingCategory(true)}
+            onBuild={() => build.mutate()}
+            building={build.isPending}
+          />
+        </div>
+        {addingCategory && (
+          <ProposalCategoryForm projectId={projectId} onClose={() => setAddingCategory(false)} />
+        )}
+      </div>
+    );
+  }
+
   const tasks = proposal.categories.flatMap((category) => category.tasks);
+  // Строки, которых в плане ещё нет, — те, что перенос заведёт. Связанные
+  // он пропускает, и кнопка не должна звать переносить то, что перенесено.
+  const unplanned = tasks.filter((task) => task.plan_task_id === null);
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
   const editingCategory =
     proposal.categories.find((category) => category.id === editingCategoryId) ?? null;
@@ -201,72 +247,15 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
       <div className="proposal__main">
         <div className="proposal__toolbar">
           <div className="proposal__settings">
-            <SelectField
-              id="proposal-unit"
-              label={t("proposal.settings.unit")}
-              value={proposal.effort_unit}
-              disabled={!canWrite}
-              options={[
-                { value: "days", label: t("proposal.settings.unit_days") },
-                { value: "hours", label: t("proposal.settings.unit_hours") },
-              ]}
-              save={saves.at("unit")}
-              onCommit={(value) =>
-                saves.commit("unit", { effort_unit: value as "days" | "hours" })
-              }
-            />
-            <ValueField
-              id="proposal-hours-per-day"
-              label={t("proposal.settings.hours_per_day")}
-              type="number"
-              value={String(proposal.hours_per_day)}
-              disabled={!canWrite}
-              resetToken={proposal.hours_per_day}
-              save={saves.at("hours_per_day")}
-              onCommit={(value) =>
-                saves.commitNumber("hours_per_day", value, (hoursPerDay) => ({
-                  hours_per_day: hoursPerDay,
-                }))
-              }
-            />
-            <ValueField
-              id="proposal-tax"
-              label={t("proposal.settings.tax_rate")}
-              type="number"
-              value={String(proposal.tax_rate_pct)}
-              disabled={!canWrite}
-              resetToken={proposal.tax_rate_pct}
-              save={saves.at("tax")}
-              onCommit={(value) =>
-                saves.commitNumber("tax", value, (taxRate) => ({ tax_rate_pct: taxRate }))
-              }
-            />
-            <TextField
-              id="proposal-currency"
-              label={t("proposal.settings.currency")}
-              value={proposal.currency}
-              disabled={!canWrite}
-              resetToken={proposal.currency}
-              save={saves.at("currency")}
-              onCommit={(value) => {
-                const code = value.trim().toUpperCase();
-                // До сервера не доходит: код валюты — ровно три буквы, и
-                // сказать об этом можно у поля, не спрашивая никого.
-                if (!/^[A-Z]{3}$/.test(code)) {
-                  saves.refuse("currency", "proposal.settings.currency_invalid");
-                  return;
-                }
-                saves.commit("currency", { currency: code });
-              }}
-            />
+            <ProposalSettingsFields proposal={proposal} canWrite={canWrite} saves={saves} />
           </div>
           {canWrite && (
             <div className="proposal__actions">
               {/* Тот же порядок, что в тулбаре ленты: сначала раздел, потом
-                  строка — работу некуда класть, пока нет ни одного раздела,
-                  и кнопка строки до первого раздела не показывается. Дальше
-                  она открывает поле в первом разделе: положить работу в любой
-                  другой — «плюс» на его строке. */}
+                  строка. Кнопка строки открывает поле в первом разделе —
+                  он здесь всегда есть, до первого раздела вместо таблицы
+                  стоит пустое состояние. Положить работу в любой другой
+                  раздел — «плюс» на его строке. */}
               <button
                 type="button"
                 className="button--quiet"
@@ -274,74 +263,65 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
               >
                 {t("proposal.category.create")}
               </button>
-              {proposal.categories.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setNewTaskIn(proposal.categories[0].id)}
-                >
-                  {t("proposal.task.create")}
-                </button>
-              )}
+              <button type="button" onClick={() => setNewTaskIn(proposal.categories[0].id)}>
+                {t("proposal.task.create")}
+              </button>
             </div>
           )}
         </div>
 
-        {proposal.categories.length === 0 ? (
-          <p className="muted proposal__empty">{t("proposal.empty")}</p>
-        ) : (
-          // Таблица прокручивается вбок в своих берегах: шесть колонок с
-          // именами, описаниями и деньгами на узком экране уже, чем есть, не
-          // становятся — а без этого они уезжали бы под карточку итогов, и
-          // колонка цены пропадала бы вовсе.
-          <div className="proposal-table__scroll">
-            <table className="proposal-table">
-              <thead>
-                <tr>
-                  <th>{t("proposal.columns.work_item")}</th>
-                  <th>{t("proposal.columns.description")}</th>
-                  <th className="proposal-table__num">{t("proposal.columns.effort")}</th>
-                  <th className="proposal-table__num">{t("proposal.columns.hours")}</th>
-                  <th className="proposal-table__num">{t("proposal.columns.rate")}</th>
-                  <th className="proposal-table__num">{t("proposal.columns.price")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {proposal.categories.map((category) => (
-                  <CategoryRows
-                    key={category.id}
-                    category={category}
-                    open={!collapsed.has(category.id)}
-                    canWrite={canWrite}
-                    toDays={toDays}
-                    toHours={toHours}
-                    effortOfDays={effortOfDays}
-                    effortOfHours={effortOfHours}
-                    days={days}
-                    hoursLabel={hoursLabel}
-                    money={money}
-                    rate={rate}
-                    addingTask={newTaskIn === category.id}
-                    onToggle={() => toggle(category.id)}
-                    onAddTask={() => setNewTaskIn(category.id)}
-                    onCloseNewTask={() => setNewTaskIn(null)}
-                    onCreateTask={createTask(category.id)}
-                    onDelete={() => removeCategory.mutate(category.id)}
-                    onEdit={() => setEditingCategoryId(category.id)}
-                    onPatch={(patch) => patchCategory.mutate({ categoryId: category.id, patch })}
-                    onPatchTask={(taskId, patch) => patchTask.mutate({ taskId, patch })}
-                    onDeleteTask={(taskId) => removeTask.mutate(taskId)}
-                    onOpenTask={(taskId) =>
-                      // Повторный щелчок по той же строке закрывает карточку —
-                      // тем же движением, что открыл. Как у карточки задачи.
-                      setSelectedTaskId((current) => (current === taskId ? null : taskId))
-                    }
-                    t={t}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* Таблица прокручивается вбок в своих берегах: шесть колонок с
+            именами, описаниями и деньгами на узком экране уже, чем есть, не
+            становятся — а без этого они уезжали бы под карточку итогов, и
+            колонка цены пропадала бы вовсе. */}
+        <div className="proposal-table__scroll">
+          <table className="proposal-table">
+            <thead>
+              <tr>
+                <th>{t("proposal.columns.work_item")}</th>
+                <th>{t("proposal.columns.description")}</th>
+                <th className="proposal-table__num">{t("proposal.columns.effort")}</th>
+                <th className="proposal-table__num">{t("proposal.columns.hours")}</th>
+                <th className="proposal-table__num">{t("proposal.columns.rate")}</th>
+                <th className="proposal-table__num">{t("proposal.columns.price")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {proposal.categories.map((category) => (
+                <CategoryRows
+                  key={category.id}
+                  category={category}
+                  open={!collapsed.has(category.id)}
+                  canWrite={canWrite}
+                  toDays={toDays}
+                  toHours={toHours}
+                  effortOfDays={effortOfDays}
+                  effortOfHours={effortOfHours}
+                  days={days}
+                  hoursLabel={hoursLabel}
+                  money={money}
+                  rate={rate}
+                  addingTask={newTaskIn === category.id}
+                  onToggle={() => toggle(category.id)}
+                  onAddTask={() => setNewTaskIn(category.id)}
+                  onCloseNewTask={() => setNewTaskIn(null)}
+                  onCreateTask={createTask(category.id)}
+                  onDelete={() => removeCategory.mutate(category.id)}
+                  onEdit={() => setEditingCategoryId(category.id)}
+                  onPatch={(patch) => patchCategory.mutate({ categoryId: category.id, patch })}
+                  onPatchTask={(taskId, patch) => patchTask.mutate({ taskId, patch })}
+                  onDeleteTask={(taskId) => removeTask.mutate(taskId)}
+                  onOpenTask={(taskId) =>
+                    // Повторный щелчок по той же строке закрывает карточку —
+                    // тем же движением, что открыл. Как у карточки задачи.
+                    setSelectedTaskId((current) => (current === taskId ? null : taskId))
+                  }
+                  t={t}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {(addTask.error ||
           removeCategory.error ||
@@ -406,45 +386,53 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
       </div>
 
       {/* Итоги — карточкой сбоку, на виду при любой прокрутке: «сколько
-          всего» спрашивают, не дочитав смету. */}
-      <aside className="proposal-summary" aria-label={t("proposal.summary.title")}>
-        <h3 className="proposal-summary__title">{t("proposal.summary.title")}</h3>
-        <dl>
-          <div className="proposal-summary__row">
-            <dt>{t("proposal.summary.total_hours")}</dt>
-            <dd>{hoursLabel(totalHours)}</dd>
-          </div>
-          <div className="proposal-summary__row">
-            <dt>{t("proposal.summary.total_duration")}</dt>
-            <dd>{days(totalDays)}</dd>
-          </div>
-          <div className="proposal-summary__row proposal-summary__row--first">
-            <dt>{t("proposal.summary.subtotal")}</dt>
-            <dd>{money(subtotal)}</dd>
-          </div>
-          <div className="proposal-summary__row">
-            <dt>{t("proposal.summary.tax", { rate: proposal.tax_rate_pct })}</dt>
-            <dd>{money(tax)}</dd>
-          </div>
-          <div className="proposal-summary__row proposal-summary__total">
-            <dt>
-              {t("proposal.summary.total")}
-              <span className="proposal-summary__currency">{proposal.currency}</span>
-            </dt>
-            <dd className="proposal-summary__amount">{money(subtotal + tax)}</dd>
-          </div>
-        </dl>
-        {canWrite && (
-          <button
-            type="button"
-            className="button--primary proposal-summary__push"
-            disabled={tasks.length === 0 || push.isPending}
-            onClick={() => push.mutate()}
-          >
-            {t("proposal.push.action")}
-          </button>
-        )}
-      </aside>
+          всего» спрашивают, не дочитав смету. Но не раньше первой строки:
+          карточка из одних нулей отвечала бы на вопрос, которого ещё нет. */}
+      {tasks.length > 0 && (
+        <aside className="proposal-summary" aria-label={t("proposal.summary.title")}>
+          <h3 className="proposal-summary__title">{t("proposal.summary.title")}</h3>
+          <dl>
+            <div className="proposal-summary__row">
+              <dt>{t("proposal.summary.total_hours")}</dt>
+              <dd>{hoursLabel(totalHours)}</dd>
+            </div>
+            <div className="proposal-summary__row">
+              <dt>{t("proposal.summary.total_duration")}</dt>
+              <dd>{days(totalDays)}</dd>
+            </div>
+            <div className="proposal-summary__row proposal-summary__row--first">
+              <dt>{t("proposal.summary.subtotal")}</dt>
+              <dd>{money(subtotal)}</dd>
+            </div>
+            <div className="proposal-summary__row">
+              <dt>{t("proposal.summary.tax", { rate: proposal.tax_rate_pct })}</dt>
+              <dd>{money(tax)}</dd>
+            </div>
+            <div className="proposal-summary__row proposal-summary__total">
+              <dt>
+                {t("proposal.summary.total")}
+                <span className="proposal-summary__currency">{proposal.currency}</span>
+              </dt>
+              <dd className="proposal-summary__amount">{money(subtotal + tax)}</dd>
+            </div>
+          </dl>
+          {canWrite && (
+            <button
+              type="button"
+              className="button--primary proposal-summary__push"
+              disabled={unplanned.length === 0 || push.isPending}
+              onClick={() => push.mutate()}
+            >
+              {t("proposal.push.action")}
+            </button>
+          )}
+          {canWrite && unplanned.length === 0 && (
+            // Погасшая кнопка без слов читается как поломка: почему нельзя,
+            // говорится рядом.
+            <p className="muted proposal-summary__note">{t("proposal.push.all_in_plan")}</p>
+          )}
+        </aside>
+      )}
 
       {selectedTask && (
         <ProposalTaskPanel

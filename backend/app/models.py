@@ -1012,6 +1012,18 @@ class ProposalTask(Base):
     risks: Mapped[str] = mapped_column(Text, default="")
     assumptions: Mapped[str] = mapped_column(Text, default="")
     position: Mapped[int] = mapped_column(Integer, default=0)
+    # Задача плана, из которой строка собрана («Собрать из плана») или в
+    # которую перенесена («Добавить в план», см. app.proposals). Пока ссылка
+    # жива, перенос строку пропускает: задача в плане уже есть, и вторая
+    # копия ничего бы не добавила — смета, собранная из плана, иначе удвоила
+    # бы план первым же переносом. SET NULL, а не CASCADE: строка сметы —
+    # свой черновик и переживает удаление задачи (в том числе отмену
+    # переноса); ссылка просто гаснет, и следующий перенос заводит задачу
+    # заново. Индекс — ради самого SET NULL: без него каждое удаление задачи
+    # перебирало бы все строки всех смет в поисках ссылающихся.
+    plan_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="SET NULL"), index=True
+    )
 
 
 class ProposalComment(Base):

@@ -2,8 +2,8 @@
 
 Свой файл, а не хвост project_routes: у предложения свой слой домена
 (app/proposals) и свой характер записи — правки без журнала ревизий, как у
-комментариев. Единственный маршрут, который трогает план, — перенос строк в
-задачи, и он один ходит в слой мутаций.
+комментариев. План трогают два маршрута: сборка сметы из плана только читает
+его, а перенос строк в задачи меняет — и он один ходит в слой мутаций.
 """
 
 import uuid
@@ -26,6 +26,7 @@ from app.proposals import (
     add_category,
     add_task,
     add_task_comment,
+    build_from_plan,
     ensure_proposal,
     get_proposal,
     require_category,
@@ -329,6 +330,28 @@ def _comment_out(comment: ProposalComment, names: dict[uuid.UUID, str]) -> dict:
         "body": comment.body,
         "created_at": comment.created_at.isoformat(),
     }
+
+
+@router.post("/{project_id}/proposal/build-from-plan", status_code=201)
+def build_proposal_from_plan(
+    background: BackgroundTasks,
+    context: ProjectContext = Depends(project_context),
+    db: DbSession = Depends(get_db),
+):
+    """Собирает пустую смету из плана: категория — разделом, задача — строкой.
+
+    Под тем же замком проекта, что и остальные правки (ensure_proposal): две
+    одновременные сборки иначе обе застали бы смету пустой и собрали её
+    дважды. Отказы — 422 кодом: `proposal_not_empty`, если строки уже есть,
+    и `plan_empty`, если собирать не из чего.
+    """
+    context.require(Action.PROJECT_WRITE)
+    try:
+        result = build_from_plan(db, context.project, ensure_proposal(db, context.project))
+    except ProposalError as error:
+        raise _refuse(error)
+    _publish(background, db, context.project.id, _CHANGED)
+    return result
 
 
 @router.post("/{project_id}/proposal/push-to-plan", status_code=201)

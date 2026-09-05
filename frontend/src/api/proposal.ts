@@ -29,6 +29,11 @@ export type ProposalTask = {
   assumptions: string;
   position: number;
   comment_count: number;
+  /**
+   * Задача плана, из которой строка собрана или в которую перенесена.
+   * `null` — в плане её ещё нет: перенос заведёт её, а связанные пропустит.
+   */
+  plan_task_id: string | null;
 };
 
 export type ProposalCategory = {
@@ -50,6 +55,12 @@ export type ProposalState = {
   /** Допущения и примечания предложения целиком, по пункту на строку. */
   notes: string;
   categories: ProposalCategory[];
+  /**
+   * Чем наполнен план — для карточки «Собрать из плана» на пустой смете.
+   * Категории считаются те, в которых есть задачи: столько разделов сборка
+   * и заведёт.
+   */
+  plan: { tasks: number; categories: number };
 };
 
 export type ProposalSettingsPatch = Partial<{
@@ -178,4 +189,16 @@ export function addProposalComment(
  */
 export function pushProposalToPlan(projectId: string): Promise<{ created_tasks: number }> {
   return request(`/api/projects/${projectId}/proposal/push-to-plan`, { method: "POST" });
+}
+
+/**
+ * Сборка пустой сметы из плана — обратный путь к переносу: категория —
+ * разделом, задача — строкой с оценкой из длительности и ссылкой на задачу,
+ * чтобы перенос потом не завёл её второй раз. План сборка только читает, и
+ * ревизий не рождает. Отказы: `proposal_not_empty`, `plan_empty`.
+ */
+export function buildProposalFromPlan(
+  projectId: string,
+): Promise<{ created_categories: number; created_tasks: number }> {
+  return request(`/api/projects/${projectId}/proposal/build-from-plan`, { method: "POST" });
 }
