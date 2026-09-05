@@ -350,11 +350,55 @@ th.proposal-table__num {
   color: var(--accent);
 }
 
-/* Перенос в план — главное действие вкладки, на месте главной кнопки
-   макета: смета пишется, чтобы стать планом. */
-.proposal-summary__push {
-  width: 100%;
+/* --- «Дальше» ------------------------------------------------------------ */
+
+/* Действия под итогами, отчёркнутые от чисел: числа отвечают «сколько», блок
+   «Дальше» — «что теперь». Документ для клиента — главная кнопка черновика,
+   перенос в план — тихая под ней; оба во всю ширину карточки, как в макете. */
+.proposal-next {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.proposal-next__title {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.proposal-next__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ссылка-кнопка в цвете главной кнопки. Два класса в селекторе — чтобы
+   перевесить `.screen .button-link`, красящий ссылки-кнопки в тихий вид. */
+.proposal-summary .proposal-next__pdf {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: 0 2px 5px rgb(83 103 232 / 20%);
+}
+
+.proposal-summary .proposal-next__pdf:hover {
+  background: var(--accent-hover);
+  color: var(--accent-text);
+}
+
+/* Без строк документа нет: ссылка без адреса выглядит выключенной кнопкой и
+   на щелчок не отвечает — как соседняя кнопка переноса без строк. */
+.proposal-summary .proposal-next__pdf[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 @media (max-width: 900px) {

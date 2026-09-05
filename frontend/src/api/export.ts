@@ -98,4 +98,17 @@ export function exportPublicProject(
   );
 }
 
+/**
+ * Адрес PDF коммерческого предложения — документа для клиента.
+ *
+ * Адрес, а не загрузка: кнопка на экране — обычная ссылка с атрибутом
+ * `download`, и браузер сохраняет файл сам, под именем из ответа сервера.
+ * Язык передаётся тот, на котором человек сейчас смотрит на предложение, —
+ * как и у выгрузки проекта.
+ */
+export function proposalPdfUrl(projectId: string, locale: string): string {
+  const params = new URLSearchParams({ locale });
+  return `/api/projects/${projectId}/proposal/export.pdf?${params}`;
+}
+
 export { saveFile };

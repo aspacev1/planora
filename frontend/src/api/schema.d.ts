@@ -1236,6 +1236,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/proposal/export.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Скачать коммерческое предложение документом для клиента
+         * @description Предложение целиком одним файлом — тем, что уйдёт клиенту.
+         *
+         *     Не раздел общей выгрузки, а свой документ: у него другой читатель и другой
+         *     состав (см. app/export/proposal_pdf.py). Два права: читать предложение —
+         *     у клиента и гостя его нет, им обещаны сроки, а не ставки; и выносить
+         *     файлом — тот же рычаг, что у выгрузки проекта. Счётчик выгрузок общий:
+         *     для сервера это такая же сборка PDF.
+         */
+        get: operations["export_proposal_pdf_api_projects__project_id__proposal_export_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/proposal/push-to-plan": {
         parameters: {
             query?: never;
@@ -5184,6 +5210,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_proposal_pdf_api_projects__project_id__proposal_export_pdf_get: {
+        parameters: {
+            query?: {
+                locale?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
                 };
             };
             /** @description Validation Error */

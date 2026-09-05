@@ -7,7 +7,7 @@ import { errorKey } from "../api/errors";
 import { MEMBERS_QUERY_KEY, members } from "../api/org";
 import { getProject, projectQueryKey } from "../api/projects";
 import type { Category } from "../api/projects";
-import { useCanWrite, useOrgRole } from "../auth/permissions";
+import { roleCanReadProposal, useCanWrite, useOrgRole } from "../auth/permissions";
 import {
   IconCalendar,
   IconDownload,
@@ -491,7 +491,13 @@ export function Project({
               <ProjectHistory projectId={projectId} state={query.data} canUndo={editable} />
             )}
 
-            {tab === "proposal" && <Proposal projectId={projectId} canWrite={editable} />}
+            {tab === "proposal" && (
+              <Proposal
+                projectId={projectId}
+                canWrite={editable}
+                canExport={roleCanReadProposal(role)}
+              />
+            )}
 
             {/* Скоркарду отдаётся «кому можно», а не «можно ли сейчас»:
                 обрыв связи он учитывает сам — пересчёт гаснет, а чтение

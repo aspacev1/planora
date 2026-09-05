@@ -1031,6 +1031,10 @@
         "other": "{count} tasks added to the plan"
       }
     },
+    "next": {
+      "title": "Next",
+      "download_pdf": "Download client PDF"
+    },
     "cell": {
       "edit": "Change {column} for “{name}”"
     }

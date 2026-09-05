@@ -21,7 +21,7 @@ from app.access import Action
 from app.api.deps import ProjectContext, project_context
 from app.config import get_settings
 from app.db import get_db
-from app.export import pdf, xlsx
+from app.export import pdf, proposal_pdf, xlsx
 from app.export.budget import Orientation, Period, Zoom
 from app.export.document import (
     INTERNAL_SECTIONS,
@@ -343,3 +343,49 @@ router.add_api_route(
     responses=FILE_RESPONSES["pdf"],
     response_class=Response,
 )
+
+
+@router.get(
+    "/{project_id}/proposal/export.pdf",
+    summary="Скачать коммерческое предложение документом для клиента",
+    responses=FILE_RESPONSES["pdf"],
+    response_class=Response,
+)
+def export_proposal_pdf(
+    request: Request,
+    locale: str | None = Query(default=None),
+    context: ProjectContext = Depends(project_context),
+    db: DbSession = Depends(get_db),
+) -> Response:
+    """Предложение целиком одним файлом — тем, что уйдёт клиенту.
+
+    Не раздел общей выгрузки, а свой документ: у него другой читатель и другой
+    состав (см. app/export/proposal_pdf.py). Два права: читать предложение —
+    у клиента и гостя его нет, им обещаны сроки, а не ставки; и выносить
+    файлом — тот же рычаг, что у выгрузки проекта. Счётчик выгрузок общий:
+    для сервера это такая же сборка PDF.
+    """
+    context.require(Action.PROPOSAL_READ)
+    context.require(Action.PROJECT_EXPORT)
+    if not export_limiter().allow(client_key(request)):
+        raise HTTPException(status_code=429, detail="rate_limited")
+    try:
+        document = proposal_pdf.build_document(
+            db,
+            context.project,
+            context.org,
+            locale=_locale(request, locale, context.user.locale),
+            # Дата документа — сегодня по таймзоне проекта: собственной даты
+            # отправки у предложения нет.
+            issued=_today(context.project, context.org),
+        )
+    except ExportError as error:
+        raise refuse(error) from error
+    return Response(
+        content=proposal_pdf.render(document),
+        media_type=PDF_MIME,
+        headers={
+            "Content-Disposition": _disposition(document.file_stem(), "pdf"),
+            "Cache-Control": "private, no-store",
+        },
+    )
