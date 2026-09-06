@@ -237,9 +237,9 @@
     "empty_shift": "A shift of zero days changes nothing",
     "category_empty": "There are no tasks in this category to move",
     "date_out_of_range": "That shift takes a task past the supported date range",
-    "proposal_empty": "The proposal has no tasks to add to the plan",
+    "proposal_empty": "The proposal has no work items to add to the plan",
     "proposal_category_not_found": "No such section in this proposal",
-    "proposal_task_not_found": "No such task in this proposal",
+    "proposal_task_not_found": "No such work item in this proposal",
     "proposal_not_empty": "The proposal already has lines — only an empty one can be built from the plan",
     "plan_empty": "The plan has no tasks — there is nothing to build the proposal from",
     "rate_limited": "Too often: recalculation is available once a minute",
@@ -1086,8 +1086,8 @@
     "push": {
       "action": "Add to plan",
       "done": {
-        "one": "{count} task added to the plan",
-        "other": "{count} tasks added to the plan"
+        "one": "{count} work item added to the plan",
+        "other": "{count} work items added to the plan"
       },
       "title": "Move the proposal into the plan",
       "lead": "Sections become categories, work items become tasks. Every task starts at the plan start with a duration taken from the estimate; you can arrange them on the chart afterwards.",
@@ -1096,8 +1096,12 @@
       "already": "already in the plan",
       "unestimated": "no estimate",
       "confirm": {
-        "one": "Move {count} task",
-        "other": "Move {count} tasks"
+        "one": "Move {count} work item",
+        "other": "Move {count} work items"
+      },
+      "rows": {
+        "one": "{count} work item",
+        "other": "{count} work items"
       },
       "undo_hint": "The move can be undone with one click",
       "open_gantt": "Open the chart",
@@ -1271,7 +1275,7 @@
       },
       "proposal": {
         "name": "Proposal",
-        "note": "Line items: {n}"
+        "note": "Work items: {n}"
       },
       "scorecard": {
         "name": "Scorecard",

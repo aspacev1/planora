@@ -51,7 +51,7 @@ describe("окно экспорта", () => {
   it("предлагает разделы с тем, сколько в них содержимого", () => {
     show();
     expect(screen.getByText("Связей: 19")).toBeInTheDocument();
-    expect(screen.getByText("Позиций: 9")).toBeInTheDocument();
+    expect(screen.getByText("Работ: 9")).toBeInTheDocument();
   });
 
   it("пустой раздел недоступен — и объясняет, почему", () => {

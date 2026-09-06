@@ -114,7 +114,7 @@ export function PushToPlanDialog({
                       : t("proposal.push.new_category")}
                   </span>
                   <span className="push-pick__right">
-                    {t("common.tasks", { count: on.length })} · {t("common.days", { count: days })}
+                    {t("proposal.push.rows", { count: on.length })} · {t("common.days", { count: days })}
                   </span>
                 </label>
                 {category.tasks.map((task) => (

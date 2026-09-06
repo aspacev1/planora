@@ -237,9 +237,9 @@
     "empty_shift": "Sıfır günlük sürüşmə heç nəyi dəyişmir",
     "category_empty": "Bu kateqoriyada tapşırıq yoxdur: sürüşdürüləcək bir şey yoxdur",
     "date_out_of_range": "Bu sürüşmə tapşırığı dəstəklənən tarix hüdudundan çıxarır",
-    "proposal_empty": "Təklifdə plana keçiriləcək tapşırıq yoxdur",
+    "proposal_empty": "Təklifdə plana keçiriləcək iş yoxdur",
     "proposal_category_not_found": "Bu təklifdə belə bölmə yoxdur",
-    "proposal_task_not_found": "Bu təklifdə belə tapşırıq yoxdur",
+    "proposal_task_not_found": "Bu təklifdə belə iş yoxdur",
     "proposal_not_empty": "Təklifdə artıq sətirlər var — plandan yalnız boş təklif yığıla bilər",
     "plan_empty": "Planda tapşırıq yoxdur — təklifi yığmağa əsas yoxdur",
     "rate_limited": "Çox tez-tez: yenidən hesablama dəqiqədə bir dəfə mümkündür",
@@ -1086,8 +1086,8 @@
     "push": {
       "action": "Plana əlavə et",
       "done": {
-        "one": "{count} tapşırıq plana əlavə olundu",
-        "other": "{count} tapşırıq plana əlavə olundu"
+        "one": "{count} iş plana əlavə olundu",
+        "other": "{count} iş plana əlavə olundu"
       },
       "title": "Təklifi plana köçür",
       "lead": "Bölmələr kateqoriyaya, işlər tapşırığa çevriləcək. Bütün tapşırıqlar planın başlanğıcına düşəcək, müddət qiymətləndirmədən götürüləcək. Sonra onları diaqramda tarixlərə görə yerləşdirmək olar.",
@@ -1096,8 +1096,12 @@
       "already": "artıq plandadır",
       "unestimated": "qiymətləndirmə yoxdur",
       "confirm": {
-        "one": "{count} tapşırığı köçür",
-        "other": "{count} tapşırığı köçür"
+        "one": "{count} işi köçür",
+        "other": "{count} işi köçür"
+      },
+      "rows": {
+        "one": "{count} iş",
+        "other": "{count} iş"
       },
       "undo_hint": "Köçürməni bir düymə ilə geri qaytarmaq olar",
       "open_gantt": "Diaqramı aç",
@@ -1270,8 +1274,8 @@
         "note": "Əlaqə: {n}"
       },
       "proposal": {
-        "name": "Qiymət təklifi",
-        "note": "Sətir: {n}"
+        "name": "Təklif",
+        "note": "İş: {n}"
       },
       "scorecard": {
         "name": "Skorkart",

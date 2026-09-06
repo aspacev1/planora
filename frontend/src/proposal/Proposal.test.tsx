@@ -652,12 +652,12 @@ describe("вкладка предложения", () => {
     expect(blank).toBeDisabled();
     expect(within(dialog).getByText("без оценки")).toBeInTheDocument();
     // По умолчанию выбрано всё оценённое: две задачи на пять дней.
-    expect(within(dialog).getByText("2 задачи · 5 дней")).toBeInTheDocument();
+    expect(within(dialog).getByText("2 работы · 5 дней")).toBeInTheDocument();
 
     // Снять галочку с одной строки: счёт и кнопка пересчитываются.
     await userEvent.click(within(dialog).getByRole("checkbox", { name: "Перенести «Гайдлайн»" }));
-    expect(within(dialog).getByText("1 задача · 2 дня")).toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Перенести 1 задачу" }));
+    expect(within(dialog).getByText("1 работа · 2 дня")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Перенести 1 работу" }));
 
     await waitFor(() =>
       expect(sent).toContainEqual({
@@ -668,7 +668,7 @@ describe("вкладка предложения", () => {
     );
     // Тост говорит, что случилось, и предлагает две дороги: посмотреть и
     // отменить. «Отменить» снимает ту самую пачку, что назвал сервер.
-    expect(await screen.findByText("1 задача добавлена в план")).toBeInTheDocument();
+    expect(await screen.findByText("1 работа добавлена в план")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Открыть диаграмму" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Отменить" }));
     await waitFor(() =>
