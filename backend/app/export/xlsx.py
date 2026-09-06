@@ -113,6 +113,7 @@ def _overview(wb: Workbook, doc: ExportDocument) -> None:
     if doc.deadline:
         period += f"   ·   {t('doc', 'deadline')}: {doc.deadline:%d.%m.%Y}"
     period += f"   ·   {t('doc', 'generated')}: {doc.generated_at:%d.%m.%Y}"
+    period += f"   ·   {t('doc', 'valid_until')}: {doc.valid_until:%d.%m.%Y}"
     ws["B4"] = period
     ws["B4"].style = "x-muted"
     if doc.client_copy:

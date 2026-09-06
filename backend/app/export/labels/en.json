@@ -6,6 +6,7 @@
     "period": "Period",
     "deadline": "Deadline",
     "generated": "Exported",
+    "valid_until": "Valid until",
     "page": "page {n} of {total}",
     "org": "Organization",
     "client_copy": "Client copy"
