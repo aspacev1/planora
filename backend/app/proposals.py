@@ -181,18 +181,30 @@ def set_stage(proposal: Proposal, stage: str, *, now: datetime | None = None) ->
 #: маршрутов: значение шире уехало бы в базу ошибкой усечения.
 MAX_EFFORT = Decimal("999999.99")
 MAX_RATE = Decimal("9999999999.99")
+#: Те же потолки целой частью — для схем маршрутов: одно место на ввод и на
+#: пересчёт, чтобы ограничения не разъехались.
+EFFORT_MAX = int(MAX_EFFORT)
+RATE_MAX = int(MAX_RATE)
 _CENT = Decimal("0.01")
 
 
 def convert_unit(db: DbSession, proposal: Proposal, unit: str) -> None:
-    """Переводит оценки и ставки всех строк в другую единицу.
+    """Переводит оценки и ставки всех строк в другую единицу, не меняя цен.
 
     Смена единицы — смена того, чем меряют, а не переименование чисел: два
     дня по 400 в день — это шестнадцать часов по 50 в час, и итог остаётся
     тем же. Переводит «часов в дне» на момент смены: это число и определяло,
-    что такое день, когда оценку писали. Округление до копейки — точность
-    колонок; при нецелых частных итог может уйти на копейки, и это честнее,
-    чем хранить бесконечную дробь.
+    что такое день, когда оценку писали.
+
+    Трудоёмкость переводится и округляется до копейки — точности колонки, —
+    а ставка выводится заново из прежней цены строки, а не делится сама по
+    себе: когда деление трудоёмкости не сходится в двух знаках (7 часов — это
+    0.875 дня, в колонке 0.88), ошибку округления забирает ставка, и итог
+    предложения остаётся прежним с точностью до копейки. Строка без
+    трудоёмкости цены не имеет — её ставка просто переводится тем же
+    множителем, чтобы не пропасть при заполнении оценки. Строка, чья
+    трудоёмкость округлилась бы в ноль, получает минимальную сотую: иначе её
+    цена исчезла бы вместе с нулём.
 
     Сначала считает всё, потом пишет: строка, не поместившаяся в колонку,
     должна отказать целиком, а не оставить смету наполовину в часах.
@@ -200,13 +212,18 @@ def convert_unit(db: DbSession, proposal: Proposal, unit: str) -> None:
     if unit == proposal.effort_unit:
         return
     factor = Decimal(proposal.hours_per_day)
+    to_hours = unit == EffortUnit.HOURS
     converted = []
     for row in _proposal_rows(db, proposal):
-        if unit == EffortUnit.HOURS:
-            effort, rate = row.effort * factor, row.rate / factor
-        else:
-            effort, rate = row.effort / factor, row.rate * factor
+        price = row.effort * row.rate
+        effort = row.effort * factor if to_hours else row.effort / factor
         effort = effort.quantize(_CENT, rounding=ROUND_HALF_UP)
+        if row.effort > 0:
+            effort = max(effort, _CENT)
+        if effort > 0:
+            rate = price / effort
+        else:
+            rate = row.rate / factor if to_hours else row.rate * factor
         rate = rate.quantize(_CENT, rounding=ROUND_HALF_UP)
         if effort > MAX_EFFORT or rate > MAX_RATE:
             raise ProposalError(
@@ -217,7 +234,6 @@ def convert_unit(db: DbSession, proposal: Proposal, unit: str) -> None:
         row.effort = effort
         row.rate = rate
     proposal.effort_unit = unit
-
 
 def list_task_comments(
     db: DbSession, proposal: Proposal | None, task_id: uuid.UUID

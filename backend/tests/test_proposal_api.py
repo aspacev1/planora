@@ -345,6 +345,71 @@ def test_a_row_is_created_with_role_estimate_and_rate_at_once(authed, project_id
     assert (full["role"], full["effort"], full["rate"]) == ("Дизайнер", 2.0, 400.0)
     assert (empty["role"], empty["effort"], empty["rate"]) == ("", 0.0, 0.0)
     assert state["pushable_count"] == 1
+def _set_row(authed, project_id: str, task_id: str, effort: float, rate: float) -> None:
+    response = authed.patch(
+        f"/api/projects/{project_id}/proposal/tasks/{task_id}",
+        json={"effort": effort, "rate": rate},
+    )
+    assert response.status_code == 200
+
+
+def _efforts_and_rates(authed, project_id: str) -> list[tuple[float, float]]:
+    state = authed.get(f"/api/projects/{project_id}/proposal").json()
+    return [
+        (task["effort"], task["rate"])
+        for category in state["categories"]
+        for task in category["tasks"]
+    ]
+
+
+def test_switching_unit_recalculates_rows_and_keeps_prices(authed, project_id):
+    """Два дня по 400 — это шестнадцать часов по 50: смета в других единицах
+    стоит столько же, а не в восемь раз дороже."""
+    category_id = _category_id(authed, project_id)
+    logo = _task_id(authed, project_id, category_id, name="Логотип")
+    guide = _task_id(authed, project_id, category_id, name="Гайдлайн")
+    _set_row(authed, project_id, logo, effort=2, rate=400)
+    _set_row(authed, project_id, guide, effort=0.5, rate=1000)
+
+    response = authed.patch(
+        f"/api/projects/{project_id}/proposal", json={"effort_unit": "hours"}
+    )
+    assert response.status_code == 200
+    assert response.json()["effort_unit"] == "hours"
+    assert _efforts_and_rates(authed, project_id) == [(16.0, 50.0), (4.0, 125.0)]
+
+    # Обратно — те же дни и те же ставки: перевод туда и назад не дрейфует.
+    authed.patch(f"/api/projects/{project_id}/proposal", json={"effort_unit": "days"})
+    assert _efforts_and_rates(authed, project_id) == [(2.0, 400.0), (0.5, 1000.0)]
+
+
+def test_rate_absorbs_rounding_so_the_total_survives(authed, project_id):
+    """7 часов — это 0.875 дня, в двух знаках — 0.88. Ставка выводится из
+    прежней цены (350), а не умножается сама: 0.88 × 400 дало бы 352."""
+    authed.patch(f"/api/projects/{project_id}/proposal", json={"effort_unit": "hours"})
+    category_id = _category_id(authed, project_id)
+    task_id = _task_id(authed, project_id, category_id)
+    _set_row(authed, project_id, task_id, effort=7, rate=50)
+
+    authed.patch(f"/api/projects/{project_id}/proposal", json={"effort_unit": "days"})
+
+    [(effort, rate)] = _efforts_and_rates(authed, project_id)
+    assert (effort, rate) == (0.88, 397.73)
+    assert effort * rate == pytest.approx(350, abs=0.01)
+
+
+def test_row_without_effort_converts_its_rate_by_the_factor(authed, project_id):
+    """У строки без оценки цены нет, выводить ставку не из чего — она просто
+    переводится «часами в дне», чтобы не пропасть при заполнении оценки."""
+    category_id = _category_id(authed, project_id)
+    task_id = _task_id(authed, project_id, category_id)
+    _set_row(authed, project_id, task_id, effort=0, rate=400)
+
+    authed.patch(f"/api/projects/{project_id}/proposal", json={"effort_unit": "hours"})
+
+    assert _efforts_and_rates(authed, project_id) == [(0.0, 50.0)]
+
+
 
 
 def test_category_carries_description_and_takes_patches(authed, project_id):

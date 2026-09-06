@@ -27,6 +27,8 @@ from app.live import hub
 from app.models import ProposalComment, User
 from app.mutations import MutationError, NotFoundInProject
 from app.proposals import (
+    EFFORT_MAX,
+    RATE_MAX,
     ProposalError,
     add_category,
     add_task,
@@ -94,8 +96,8 @@ class ProposalTaskPatch(BaseModel):
     description: str | None = None
     details: str | None = None
     role: str | None = Field(default=None, max_length=120)
-    effort: float | None = Field(default=None, ge=0, le=999_999)
-    rate: float | None = Field(default=None, ge=0, le=9_999_999_999)
+    effort: float | None = Field(default=None, ge=0, le=EFFORT_MAX)
+    rate: float | None = Field(default=None, ge=0, le=RATE_MAX)
     notes: str | None = None
     risks: str | None = None
     assumptions: str | None = None
