@@ -1180,6 +1180,31 @@ export interface paths {
         patch: operations["update_proposal_settings_api_projects__project_id__proposal_patch"];
         trace?: never;
     };
+    "/api/projects/{project_id}/proposal/build-from-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build Proposal From Plan
+         * @description Собирает пустую смету из плана: категория — разделом, задача — строкой.
+         *
+         *     Под тем же замком проекта, что и остальные правки (ensure_proposal): две
+         *     одновременные сборки иначе обе застали бы смету пустой и собрали её
+         *     дважды. Отказы — 422 кодом: `proposal_not_empty`, если строки уже есть,
+         *     и `plan_empty`, если собирать не из чего.
+         */
+        post: operations["build_proposal_from_plan_api_projects__project_id__proposal_build_from_plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/proposal/categories": {
         parameters: {
             query?: never;
@@ -1236,6 +1261,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/proposal/export.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Скачать коммерческое предложение документом для клиента
+         * @description Предложение целиком одним файлом — тем, что уйдёт клиенту.
+         *
+         *     Не раздел общей выгрузки, а свой документ: у него другой читатель и другой
+         *     состав (см. app/export/proposal_pdf.py). Два права: читать предложение —
+         *     у клиента и гостя его нет, им обещаны сроки, а не ставки; и выносить
+         *     файлом — тот же рычаг, что у выгрузки проекта. Счётчик выгрузок общий:
+         *     для сервера это такая же сборка PDF.
+         */
+        get: operations["export_proposal_pdf_api_projects__project_id__proposal_export_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/proposal/push-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Push To Plan
+         * @description Что случится при переносе — до того, как он случился.
+         *
+         *     Окно переноса показывает, куда ляжет каждый раздел и во сколько дней
+         *     выйдет каждая строка, и отмечает то, что переносить не будет: уже
+         *     перенесённое и строки без оценки. Считает это сервер теми же функциями,
+         *     что и перенос, — см. proposals.push_preview.
+         */
+        get: operations["preview_push_to_plan_api_projects__project_id__proposal_push_plan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/proposal/push-to-plan": {
         parameters: {
             query?: never;
@@ -1250,10 +1326,32 @@ export interface paths {
          * @description Переносит смету в план: раздел — категорией, строка — задачей.
          *
          *     Пачка ревизий с общим batch_id: в истории перенос читается одной записью
-         *     и снимается одной отменой. Задачи встают на старт плана — раскладку по
-         *     оси человек делает сам.
+         *     и снимается одной отменой — batch_id уходит в ответ ради кнопки «Вернуть»
+         *     в тосте. Задачи встают на старт плана — раскладку по оси человек делает
+         *     сам. Заметки, риски и допущения строки уходят во внутреннюю заметку
+         *     задачи на языке организации: её читает команда, а не клиент.
          */
         post: operations["push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/proposal/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Proposal Stage
+         * @description Отметить этап сделки — в любую сторону (см. proposals.set_stage).
+         */
+        post: operations["set_proposal_stage_api_projects__project_id__proposal_stage_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2214,10 +2312,31 @@ export interface components {
             /** Tax Rate Pct */
             tax_rate_pct?: number | null;
         };
-        /** ProposalTaskIn */
+        /** ProposalStageIn */
+        ProposalStageIn: {
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "draft" | "sent" | "agreed";
+        };
+        /**
+         * ProposalTaskIn
+         * @description Новая строка: имя обязательно, роль, оценка и ставка — если назвали
+         *     сразу. Потолки чисел те же, что у правки, — ширина колонок Numeric.
+         */
         ProposalTaskIn: {
+            /** Effort */
+            effort?: number | null;
             /** Name */
             name: string;
+            /** Rate */
+            rate?: number | null;
+            /**
+             * Role
+             * @default
+             */
+            role: string;
         };
         /**
          * ProposalTaskPatch
@@ -2644,6 +2763,18 @@ export interface components {
              * Format: uuid
              */
             user_id: string;
+        };
+        /**
+         * PushToPlanIn
+         * @description Какие строки переносить. Пустой список — все переносимые по умолчанию:
+         *     оценённые и ещё не перенесённые (см. proposals._pushable).
+         */
+        PushToPlanIn: {
+            /**
+             * Task Ids
+             * @default []
+             */
+            task_ids: string[];
         };
         /** RegisterIn */
         RegisterIn: {
@@ -5052,6 +5183,39 @@ export interface operations {
             };
         };
     };
+    build_proposal_from_plan_api_projects__project_id__proposal_build_from_plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_proposal_category_api_projects__project_id__proposal_categories_post: {
         parameters: {
             query?: never;
@@ -5197,7 +5361,42 @@ export interface operations {
             };
         };
     };
-    push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post: {
+    export_proposal_pdf_api_projects__project_id__proposal_export_pdf_get: {
+        parameters: {
+            query?: {
+                locale?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_push_to_plan_api_projects__project_id__proposal_push_plan_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -5211,7 +5410,81 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PushToPlanIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_proposal_stage_api_projects__project_id__proposal_stage_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                planora_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalStageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -237,9 +237,11 @@
     "empty_shift": "Sıfır günlük sürüşmə heç nəyi dəyişmir",
     "category_empty": "Bu kateqoriyada tapşırıq yoxdur: sürüşdürüləcək bir şey yoxdur",
     "date_out_of_range": "Bu sürüşmə tapşırığı dəstəklənən tarix hüdudundan çıxarır",
-    "proposal_empty": "Təklifdə plana keçiriləcək tapşırıq yoxdur",
+    "proposal_empty": "Təklifdə plana keçiriləcək iş yoxdur",
     "proposal_category_not_found": "Bu təklifdə belə bölmə yoxdur",
-    "proposal_task_not_found": "Bu təklifdə belə tapşırıq yoxdur",
+    "proposal_task_not_found": "Bu təklifdə belə iş yoxdur",
+    "proposal_not_empty": "Təklifdə artıq sətirlər var — plandan yalnız boş təklif yığıla bilər",
+    "plan_empty": "Planda tapşırıq yoxdur — təklifi yığmağa əsas yoxdur",
     "rate_limited": "Çox tez-tez: yenidən hesablama dəqiqədə bir dəfə mümkündür",
     "metric_not_found": "Belə metrika yoxdur",
     "week_in_future": "Bu həftə hələ başlamayıb",
@@ -256,7 +258,9 @@
     "jira_token_required": "İlk qoşulmada token lazımdır",
     "jira_url_not_https": "Jira ünvanı https olmalıdır",
     "jira_url_invalid": "Jira ünvanı düzgün deyil",
-    "jira_url_private": "Jira ünvanı ictimai host ilə həll olunmur"
+    "jira_url_private": "Jira ünvanı ictimai host ilə həll olunmur",
+    "proposal_nothing_to_push": "Köçürməyə heç nə yoxdur: seçilmiş işlər artıq plandadır və ya qiymətləndirilməyib",
+    "proposal_value_out_of_range": "Yenidən hesablama icazə verilən hədlərə sığmır: qiymətləndirmə və ya dərəcələri azaldın"
   },
   "live": {
     "offline": "Serverlə əlaqə yoxdur. Redaktə mümkün deyil",
@@ -550,7 +554,7 @@
       "late": "Layihə {end} tarixində bitir — son tarixdən ({deadline}) {days} gec",
       "fits": "{deadline} tarixinə çatırıq — ehtiyat {days}"
     },
-    "beyond_plan": "İlkin plandan əlavə",
+    "beyond_plan": "Plandan əlavə",
     "baseline": "Plan üzrə: {from} — {to}",
     "deviation_late": "+{days}",
     "deviation_early": "−{days}",
@@ -951,7 +955,48 @@
     }
   },
   "proposal": {
-    "empty": "Hələ bölmə yoxdur — birincisini «Yeni bölmə» düyməsi ilə yaradın",
+    "start": {
+      "eyebrow": "Təklif",
+      "title": "Plandan əvvəl layihənin smetası",
+      "lead": "Kommersiya təklifi burada yığılır: iş bölmələri, hər sətir üzrə həcm və tarif, vergi ilə yekun. Razılaşdırılmış smeta bir düymə ilə plana çevrilir — hər iş diaqramda tapşırıq olur.",
+      "steps": {
+        "sections": {
+          "title": "Bölmələr və işlər",
+          "hint": "Layihəni bölmələrə — mərhələlər kimi — ayırın və işləri sətirlərlə yazın."
+        },
+        "estimate": {
+          "title": "Həcm və tarif",
+          "hint": "Hər sətirdə gün və ya saatla həcm və tarif var. Qiymət və yekunlar özü hesablanır."
+        },
+        "plan": {
+          "title": "Plana",
+          "hint": "Smeta razılaşdırılanda «Plana əlavə et» düyməsi onu diaqramda tapşırıqlara çevirir."
+        }
+      },
+      "manual": {
+        "title": "Yeni bölmə",
+        "hint": "Sıfırdan başlamaq: bölmələr və işlər əl ilə yazılır."
+      },
+      "build": {
+        "title": "Plandan yığ",
+        "hint": "Planda {categories} üzrə {tasks} var — hər biri müddətinə görə qiymətləndirilmiş sətrə çevriləcək.",
+        "empty": "Planda hələ tapşırıq yoxdur — yığmağa əsas yoxdur. Onları diaqramda yaradın və ya bölmə ilə başlayın.",
+        "done": {
+          "one": "Plandan {count} sətir yığıldı",
+          "other": "Plandan {count} sətir yığıldı"
+        }
+      },
+      "tasks": {
+        "one": "{count} tapşırıq",
+        "other": "{count} tapşırıq"
+      },
+      "categories": {
+        "one": "{count} kateqoriya",
+        "other": "{count} kateqoriya"
+      },
+      "settings": "Smeta parametrləri:",
+      "readonly": "Smeta hələ tərtib olunmayıb — onu layihəni redaktə edə bilən şəxs başlayacaq."
+    },
     "settings": {
       "unit": "Qiymətləndirmə vahidi",
       "unit_days": "Günlər",
@@ -963,20 +1008,24 @@
     },
     "columns": {
       "work_item": "İş",
-      "task": "Tapşırıq",
       "description": "Təsvir",
       "effort": "Həcm",
       "hours": "Saatlar",
       "effort_days": "Həcm, gün",
       "effort_hours": "Həcm, saat",
       "rate": "Tarif",
-      "price": "Qiymət"
+      "price": "Qiymət",
+      "role": "Rol",
+      "rate_unit": "Dərəcə, {currency}/{unit}",
+      "price_unit": "Qiymət, {currency}"
     },
     "format": {
       "days": "{value}g",
       "hours": "{value}s",
       "per_day": "{rate}/g",
-      "per_hour": "{rate}/s"
+      "per_hour": "{rate}/s",
+      "day_letter": "g",
+      "hour_letter": "s"
     },
     "category": {
       "create": "Yeni bölmə",
@@ -1005,11 +1054,21 @@
       "notes": "Qeydlər",
       "risks": "Risklər",
       "assumptions": "Fərziyyələr",
+      "section_client": "Müştəri sənədində",
+      "section_internal": "Yalnız komanda üçün",
+      "section_discussion": "Müzakirə",
+      "discussion_note": "yalnız komandaya görünür",
+      "formula_day": "{effort} × {rate} gündə",
+      "formula_hour": "{effort} × {rate} saatda",
+      "rate_per_day": "Günlük tarif",
+      "rate_per_hour": "Saatlıq tarif",
       "delete": "İşi sil",
       "delete_warning": "«{name}» işi müzakirəsi ilə birlikdə silinəcək",
       "delete_confirm": "İşi sil",
       "edit": "«{name}» işini redaktə et",
-      "remove": "«{name}» işini sil"
+      "remove": "«{name}» işini sil",
+      "in_plan": "plandadır",
+      "in_plan_aria": "«{name}» artıq plandadır: tapşırığı aç"
     },
     "notes": {
       "title": "Fərziyyələr və qeydlər",
@@ -1025,14 +1084,76 @@
       "total": "Yekun"
     },
     "push": {
-      "action": "Plana əlavə et",
+      "action": "Plana köçür…",
       "done": {
-        "one": "{count} tapşırıq plana əlavə olundu",
-        "other": "{count} tapşırıq plana əlavə olundu"
-      }
+        "one": "{count} iş plana əlavə olundu",
+        "other": "{count} iş plana əlavə olundu"
+      },
+      "title": "Təklifi plana köçür",
+      "lead": "Bölmələr kateqoriyaya, işlər tapşırığa çevriləcək. Bütün tapşırıqlar planın başlanğıcına düşəcək, müddət qiymətləndirmədən götürüləcək. Sonra onları diaqramda tarixlərə görə yerləşdirmək olar.",
+      "new_category": "yeni kateqoriya",
+      "into_category": "«{name}» kateqoriyasına",
+      "already": "artıq plandadır",
+      "unestimated": "qiymətləndirmə yoxdur",
+      "confirm": {
+        "one": "{count} işi köçür",
+        "other": "{count} işi köçür"
+      },
+      "rows": {
+        "one": "{count} iş",
+        "other": "{count} iş"
+      },
+      "undo_hint": "Köçürməni bir düymə ilə geri qaytarmaq olar",
+      "open_gantt": "Diaqramı aç",
+      "more": {
+        "one": "{count} yeni işi köçür…",
+        "other": "{count} yeni işi köçür…"
+      },
+      "section_aria": "«{name}» bölməsi",
+      "row_aria": "«{name}» köçür"
     },
     "cell": {
-      "edit": "«{name}» üçün {column} dəyiş"
+      "edit": "«{name}» üçün {column} dəyiş",
+      "role_hint": "rol",
+      "effort_hint": "qiymət",
+      "rate_hint": "dərəcə"
+    },
+    "stage": {
+      "title": "Təklifin mərhələləri",
+      "draft": "Qaralama",
+      "sent": "Göndərilib",
+      "agreed": "Razılaşdırılıb",
+      "in_plan": "Plandadır",
+      "in_plan_count": {
+        "one": "{count} işdən {pushed}",
+        "other": "{count} işdən {pushed}"
+      },
+      "mark_sent": "Göndərilmiş kimi qeyd et",
+      "mark_agreed": "Razılaşdırılmış kimi qeyd et",
+      "back_to": "«{stage}» mərhələsinə qayıt"
+    },
+    "params": {
+      "open": "Təklif parametrləri",
+      "summary": "{unit} · Vergi {tax} % · {currency}",
+      "unit_hint": "Vahidin dəyişməsi bütün sətirlərin qiymətləndirmə və dərəcələrini yenidən hesablayır: 400-dən iki gün 50-dən on altı saata çevrilir. Yekunlar dəyişmir."
+    },
+    "entry": {
+      "role": "Yeni işin rolu",
+      "effort": "Yeni işin qiymətləndirməsi, {unit}",
+      "rate": "Yeni işin dərəcəsi, {currency}/{unit}",
+      "role_placeholder": "Rol",
+      "effort_placeholder": "Qiymət, {unit}",
+      "rate_placeholder": "Dərəcə, {currency}/{unit}",
+      "hint_enter": "əlavə et və növbətiyə keç",
+      "hint_tab": "növbəti sahə",
+      "hint_esc": "bağla",
+      "hint_rate": "Dərəcə rola görə qoyulur, onu dəyişmək olar",
+      "roles": "Təşkilatın rolları və dərəcələri"
+    },
+    "next": {
+      "title": "Növbəti",
+      "download_pdf": "Müştəri üçün PDF yüklə",
+      "push_note": "İşlər diaqramda tapşırığa çevriləcək, köçürməni geri qaytarmaq olar."
     }
   },
   "scorecard": {
@@ -1152,8 +1273,8 @@
         "note": "Əlaqə: {n}"
       },
       "proposal": {
-        "name": "Qiymət təklifi",
-        "note": "Sətir: {n}"
+        "name": "Təklif",
+        "note": "İş: {n}"
       },
       "scorecard": {
         "name": "Skorkart",

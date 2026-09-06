@@ -185,3 +185,14 @@ export function IconCalendar({ className }: IconProps) {
     </Icon>
   );
 }
+
+/* Замок: раздел «только для команды» в карточке строки сметы. Дужка и корпус,
+   без скважины — на четырнадцати пикселях она читалась бы как пятно. */
+export function IconLock({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+    </Icon>
+  );
+}

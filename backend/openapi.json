@@ -1633,12 +1633,63 @@
         "title": "ProposalSettingsIn",
         "type": "object"
       },
-      "ProposalTaskIn": {
+      "ProposalStageIn": {
         "properties": {
+          "stage": {
+            "enum": [
+              "draft",
+              "sent",
+              "agreed"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage"
+        ],
+        "title": "ProposalStageIn",
+        "type": "object"
+      },
+      "ProposalTaskIn": {
+        "description": "Новая строка: имя обязательно, роль, оценка и ставка — если назвали\nсразу. Потолки чисел те же, что у правки, — ширина колонок Numeric.",
+        "properties": {
+          "effort": {
+            "anyOf": [
+              {
+                "maximum": 999999.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effort"
+          },
           "name": {
             "maxLength": 300,
             "minLength": 1,
             "title": "Name",
+            "type": "string"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "maximum": 9999999999.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "role": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Role",
             "type": "string"
           }
         },
@@ -2417,6 +2468,22 @@
           "user_id"
         ],
         "title": "PublicUnassignUser",
+        "type": "object"
+      },
+      "PushToPlanIn": {
+        "description": "Какие строки переносить. Пустой список — все переносимые по умолчанию:\nоценённые и ещё не перенесённые (см. proposals._pushable).",
+        "properties": {
+          "task_ids": {
+            "default": [],
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Task Ids",
+            "type": "array"
+          }
+        },
+        "title": "PushToPlanIn",
         "type": "object"
       },
       "RegisterIn": {
@@ -6731,6 +6798,64 @@
         ]
       }
     },
+    "/api/projects/{project_id}/proposal/build-from-plan": {
+      "post": {
+        "description": "Собирает пустую смету из плана: категория — разделом, задача — строкой.\n\nПод тем же замком проекта, что и остальные правки (ensure_proposal): две\nодновременные сборки иначе обе застали бы смету пустой и собрали её\nдважды. Отказы — 422 кодом: `proposal_not_empty`, если строки уже есть,\nи `plan_empty`, если собирать не из чего.",
+        "operationId": "build_proposal_from_plan_api_projects__project_id__proposal_build_from_plan_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Build Proposal From Plan",
+        "tags": [
+          "proposal"
+        ]
+      }
+    },
     "/api/projects/{project_id}/proposal/categories": {
       "post": {
         "operationId": "create_proposal_category_api_projects__project_id__proposal_categories_post",
@@ -7013,10 +7138,87 @@
         ]
       }
     },
-    "/api/projects/{project_id}/proposal/push-to-plan": {
-      "post": {
-        "description": "Переносит смету в план: раздел — категорией, строка — задачей.\n\nПачка ревизий с общим batch_id: в истории перенос читается одной записью\nи снимается одной отменой. Задачи встают на старт плана — раскладку по\nоси человек делает сам.",
-        "operationId": "push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post",
+    "/api/projects/{project_id}/proposal/export.pdf": {
+      "get": {
+        "description": "Предложение целиком одним файлом — тем, что уйдёт клиенту.\n\nНе раздел общей выгрузки, а свой документ: у него другой читатель и другой\nсостав (см. app/export/proposal_pdf.py). Два права: читать предложение —\nу клиента и гостя его нет, им обещаны сроки, а не ставки; и выносить\nфайлом — тот же рычаг, что у выгрузки проекта. Счётчик выгрузок общий:\nдля сервера это такая же сборка PDF.",
+        "operationId": "export_proposal_pdf_api_projects__project_id__proposal_export_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locale"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Скачать коммерческое предложение документом для клиента",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/proposal/push-plan": {
+      "get": {
+        "description": "Что случится при переносе — до того, как он случился.\n\nОкно переноса показывает, куда ляжет каждый раздел и во сколько дней\nвыйдет каждая строка, и отмечает то, что переносить не будет: уже\nперенесённое и строки без оценки. Считает это сервер теми же функциями,\nчто и перенос, — см. proposals.push_preview.",
+        "operationId": "preview_push_to_plan_api_projects__project_id__proposal_push_plan_get",
         "parameters": [
           {
             "in": "path",
@@ -7046,6 +7248,81 @@
           }
         ],
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Push To Plan",
+        "tags": [
+          "proposal"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/proposal/push-to-plan": {
+      "post": {
+        "description": "Переносит смету в план: раздел — категорией, строка — задачей.\n\nПачка ревизий с общим batch_id: в истории перенос читается одной записью\nи снимается одной отменой — batch_id уходит в ответ ради кнопки «Вернуть»\nв тосте. Задачи встают на старт плана — раскладку по оси человек делает\nсам. Заметки, риски и допущения строки уходят во внутреннюю заметку\nзадачи на языке организации: её читает команда, а не клиент.",
+        "operationId": "push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PushToPlanIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
           "201": {
             "content": {
               "application/json": {
@@ -7066,6 +7343,74 @@
           }
         },
         "summary": "Push Proposal To Plan",
+        "tags": [
+          "proposal"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/proposal/stage": {
+      "post": {
+        "description": "Отметить этап сделки — в любую сторону (см. proposals.set_stage).",
+        "operationId": "set_proposal_stage_api_projects__project_id__proposal_stage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "planora_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Planora Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalStageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Proposal Stage",
         "tags": [
           "proposal"
         ]

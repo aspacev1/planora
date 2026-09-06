@@ -6,6 +6,7 @@
     "period": "Dövr",
     "deadline": "Son tarix",
     "generated": "İxrac edilib",
+    "valid_until": "Etibarlılıq müddəti",
     "page": "səh. {n} / {total}",
     "org": "Təşkilat",
     "client_copy": "Müştəri nüsxəsi"
@@ -23,7 +24,7 @@
     "tasks": "Tapşırıqlar",
     "gantt": "Qant diaqramı",
     "links": "Əlaqələr",
-    "proposal": "Qiymət təklifi",
+    "proposal": "Təklif",
     "scorecard": "Skorkart",
     "comments": "Müzakirə",
     "history": "Dəyişikliklər tarixçəsi"
@@ -96,6 +97,23 @@
     "total": "Cəmi",
     "no_data": "məlumat yoxdur"
   },
+  "proposal_doc": {
+    "title": "Kommersiya təklifi",
+    "number": "№ {n}",
+    "issued": "Tarix",
+    "valid_until": "Etibarlıdır",
+    "project": "Layihə",
+    "scope": "İşlərin tərkibi",
+    "col_n": "№",
+    "col_work": "İş",
+    "col_effort_days": "Həcm, gün",
+    "col_effort_hours": "Həcm, saat",
+    "col_rate_days": "Dərəcə, {c}/gün",
+    "col_rate_hours": "Dərəcə, {c}/saat",
+    "col_amount": "Məbləğ, {c}",
+    "notes": "Fərziyyələr və qeydlər",
+    "prepared_by": "İcraçı"
+  },
   "comment": {
     "internal": "daxili",
     "public": "ümumi"
@@ -165,5 +183,10 @@
     "day": "Gün {n}",
     "week": "Həftə {n}",
     "month": "Ay {n}"
+  },
+  "proposal_note": {
+    "notes": "Qeydlər",
+    "risks": "Risklər",
+    "assumptions": "Fərziyyələr"
   }
 }

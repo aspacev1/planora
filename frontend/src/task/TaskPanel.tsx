@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 
 import { errorKey } from "../api/errors";
 import { MEMBERS_QUERY_KEY, members as fetchMembers } from "../api/org";
@@ -29,6 +28,7 @@ import { addDays } from "../gantt/timescale";
 import { formatShortDate } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
 import { Comments } from "./Comments";
+import { PanelSection } from "./PanelSection";
 import { SelectField, TextField, ValueField } from "./fields";
 import { History } from "./History";
 import { TaskProgress } from "./TaskProgress";
@@ -298,7 +298,7 @@ export function TaskPanel({
           {/* Свойства собраны аккордеонами, как в макете. Все раскрыты с
               порога: аккордеон здесь — оглавление длинной карточки и способ
               убрать с глаз лишнее, а не спрятать поля по умолчанию. */}
-          <Section title={t("task.panel.section_main")}>
+          <PanelSection title={t("task.panel.section_main")}>
           <div className="panel__fields">
             <TextField
               id="panel-name"
@@ -471,14 +471,14 @@ export function TaskPanel({
               />
             )}
           </div>
-          </Section>
+          </PanelSection>
 
-          <Section title={t("task.panel.section_links")}>
+          <PanelSection title={t("task.panel.section_links")}>
             <Dependencies task={task} state={state} canWrite={canWrite} send={send} />
-          </Section>
+          </PanelSection>
 
           {membersQuery.data && membersQuery.data.length > 0 && (
-            <Section title={t("task.panel.assignees")}>
+            <PanelSection title={t("task.panel.assignees")}>
               {/* Группа с подписью: заголовок аккордеона — украшение, а имя
                   списку исполнителей нужно и на слух. */}
               <div
@@ -505,7 +505,7 @@ export function TaskPanel({
                   </button>
                 ))}
               </div>
-            </Section>
+            </PanelSection>
           )}
         </div>
       )}
@@ -589,21 +589,6 @@ export function TaskPanel({
   );
 }
 
-/**
- * Аккордеон карточки: заголовок-створка и содержимое под ней.
- *
- * Нативный `details`: створка доступна с клавиатуры и читается вслух без
- * единой строки скрипта. Раскрыт с порога — аккордеон здесь способ свернуть
- * прочитанное, а не спрятать поля по умолчанию.
- */
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <details className="panel__section" open>
-      <summary className="panel__section-head">{title}</summary>
-      {children}
-    </details>
-  );
-}
 
 /**
  * Связи задачи: «зависит от» и «блокирует», с правкой из карточки.

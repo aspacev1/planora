@@ -34,6 +34,7 @@ export function EditableCell({
   editTrigger,
   className,
   id,
+  placeholder,
   onCommit,
 }: {
   /** Значение в том виде, в каком его примет поле ввода. */
@@ -69,6 +70,12 @@ export function EditableCell({
   className?: string;
   /** Узел, на который ссылаются описанием — например, кнопка «⋯» строки. */
   id?: string;
+  /**
+   * Что показать вместо прочерка, пока значения нет: «роль», «ставка».
+   * Прочерк говорит «пусто», подсказка — «сюда пишут вот это», и у строки,
+   * которую только что завели, второе полезнее.
+   */
+  placeholder?: string;
   onCommit: (value: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -99,14 +106,15 @@ export function EditableCell({
   }, [editing]);
 
   if (!editing || disabled) {
+    const hint = display === "" && placeholder !== undefined && !disabled;
     return (
       <span
         id={id}
-        className={`cell-value${disabled ? "" : " cell-value--editable"}${className ? ` ${className}` : ""}`}
+        className={`cell-value${disabled ? "" : " cell-value--editable"}${hint ? " cell-value--hint" : ""}${className ? ` ${className}` : ""}`}
         title={display === "" ? undefined : display}
         onClick={disabled ? undefined : () => setEditing(true)}
       >
-        {display === "" ? "—" : display}
+        {display === "" ? (hint ? placeholder : "—") : display}
       </span>
     );
   }

@@ -40,10 +40,30 @@ def test_client_and_guest_never_see_the_internal_note():
     assert can(Role.VIEWER, Action.READ_INTERNAL_NOTE) is True
 
 
+def test_client_and_guest_never_read_the_proposal():
+    """Клиенту и гостю обещаны сроки и объём, а не ставки: предложение и
+    документ для клиента — у участников, включая наблюдателя."""
+    assert can(Role.CLIENT, Action.PROPOSAL_READ, project_granted=True) is False
+    assert can(None, Action.PROPOSAL_READ, project_granted=True) is False
+    assert can(Role.VIEWER, Action.PROPOSAL_READ) is True
+    assert can(Role.EDITOR, Action.PROPOSAL_READ) is True
+
+
 def test_guest_reads_the_shared_project_and_comments():
     assert can(None, Action.PROJECT_READ, project_granted=True) is True
     assert can(None, Action.COMMENT, project_granted=True) is True
     assert can(None, Action.PROJECT_WRITE, project_granted=True) is False
+
+
+def test_the_proposal_is_internal_to_the_team():
+    """Смета — ставки, себестоимость и разговор о клиенте: читатель проекта
+    внутри команды её видит, клиент и гость по ссылке — нет, даже с грантом
+    на проект. Тот же урез, что уже действует у выгрузки."""
+    assert can(Role.OWNER, Action.PROPOSAL_READ) is True
+    assert can(Role.EDITOR, Action.PROPOSAL_READ) is True
+    assert can(Role.VIEWER, Action.PROPOSAL_READ) is True
+    assert can(Role.CLIENT, Action.PROPOSAL_READ, project_granted=True) is False
+    assert can(None, Action.PROPOSAL_READ, project_granted=True) is False
 
 
 def test_require_raises_for_a_forbidden_action():

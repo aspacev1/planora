@@ -51,13 +51,13 @@ describe("окно экспорта", () => {
   it("предлагает разделы с тем, сколько в них содержимого", () => {
     show();
     expect(screen.getByText("Связей: 19")).toBeInTheDocument();
-    expect(screen.getByText("Позиций: 9")).toBeInTheDocument();
+    expect(screen.getByText("Работ: 9")).toBeInTheDocument();
   });
 
   it("пустой раздел недоступен — и объясняет, почему", () => {
     show({ proposalLines: 0 });
 
-    const checkbox = screen.getByRole("checkbox", { name: /Смета/ });
+    const checkbox = screen.getByRole("checkbox", { name: /Предложение/ });
     expect(checkbox).toBeDisabled();
     // Не молча выключенная галочка, а причина: иначе человек решит, что
     // выгрузка сломана.

@@ -181,6 +181,7 @@ def _head(sheet: _Sheet) -> float:
     if doc.deadline:
         parts.append(f"{t('doc', 'deadline')}: {_day(doc, doc.deadline)}")
     parts.append(f"{t('doc', 'generated')}: {_day(doc, doc.generated_at)}")
+    parts.append(f"{t('doc', 'valid_until')}: {_day(doc, doc.valid_until)}")
     _text(c, MARGIN, top - 36, "  ·  ".join(parts), theme.FONT, 8.5, theme.TEXT_MUTED,
           width=sheet.content_width)
 

@@ -12,6 +12,7 @@
 """
 
 import io
+import uuid
 
 import pytest
 from alembic import command
@@ -96,3 +97,98 @@ def test_downgrade_walks_back_to_empty(migrations_db_url):
     assert leftovers == set(), (
         f"после `alembic downgrade base` в базе остались таблицы: {sorted(leftovers)}"
     )
+
+
+#: Миграция этапа предложения и ссылки строки на задачу — и ревизия перед ней.
+#: Тест ниже накатывает её на непустые таблицы, как это случится на живой базе.
+PLAN_LINKS = "c4d8e2f1a9b7"
+BEFORE_PLAN_LINKS = "a1b2c3d4e5f6"
+
+
+def test_proposal_migration_survives_rows_that_predate_it(migrations_db_url):
+    """Накат на живой базе: строки, заведённые до миграции, получают умолчания,
+    а откат их не теряет.
+
+    Два теста выше проходят и без server_default: у пустой таблицы нет строк,
+    которым нечего подставить в NOT NULL. Ошибка вылезает только на базе с
+    данными — здесь она и воспроизводится: предложение и строка сметы
+    заводятся на ревизии до миграции, затем накат до головы, откат на шаг и
+    накат снова.
+    """
+    config = _alembic_config(migrations_db_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, BEFORE_PLAN_LINKS)
+
+    ids = {name: uuid.uuid4() for name in ("org", "project", "proposal", "section", "row")}
+    engine = create_engine(migrations_db_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO organizations (id, name, slug, default_locale, "
+                    "default_timezone, working_days, week_start, holiday_calendar, "
+                    "default_shift_threshold_days, public_sharing_enabled, "
+                    "default_comments_enabled) VALUES (:org, 'Acme', 'acme', 'ru', "
+                    "'UTC', 31, 0, '[]', 2, true, true)"
+                ),
+                ids,
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, org_id, name, slug, plan_version, "
+                    "holidays_extra, workdays_extra) VALUES (:project, :org, 'Redesign', "
+                    "'redesign', 0, '[]', '[]')"
+                ),
+                ids,
+            )
+            conn.execute(
+                text("INSERT INTO proposals (id, project_id) VALUES (:proposal, :project)"),
+                ids,
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO proposal_categories (id, proposal_id, name, position) "
+                    "VALUES (:section, :proposal, 'Дизайн', 0)"
+                ),
+                ids,
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO proposal_tasks (id, proposal_id, category_id, name, "
+                    "description, details, role, notes, risks, assumptions, position) "
+                    "VALUES (:row, :proposal, :section, 'Логотип', '', '', '', '', '', "
+                    "'', 0)"
+                ),
+                ids,
+            )
+
+        command.upgrade(config, "head")
+        with engine.connect() as conn:
+            proposal = conn.execute(
+                text("SELECT status, sent_at, agreed_at FROM proposals WHERE id = :proposal"),
+                ids,
+            ).one()
+            assert tuple(proposal) == ("draft", None, None)
+            row = conn.execute(
+                text("SELECT plan_task_id, created_at FROM proposal_tasks WHERE id = :row"),
+                ids,
+            ).one()
+            assert row.plan_task_id is None
+            assert row.created_at is not None
+
+        command.downgrade(config, BEFORE_PLAN_LINKS)
+        with engine.connect() as conn:
+            columns = {column["name"] for column in inspect(conn).get_columns("proposal_tasks")}
+            assert not columns & {"plan_task_id", "created_at"}
+            columns = {column["name"] for column in inspect(conn).get_columns("proposals")}
+            assert not columns & {"status", "sent_at", "agreed_at"}
+            rows = conn.scalar(text("SELECT count(*) FROM proposal_tasks"))
+            assert rows == 1
+
+        # Второй накат на ту же непустую базу — та же дорога, что у отката
+        # релиза и повторного выката.
+        command.upgrade(config, "head")
+        with engine.connect() as conn:
+            assert conn.scalar(text("SELECT status FROM proposals WHERE id = :proposal"), ids) == "draft"
+    finally:
+        engine.dispose()
