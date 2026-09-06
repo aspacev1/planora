@@ -345,7 +345,7 @@ def push_proposal_to_plan(
     """
     context.require(Action.PROJECT_WRITE)
     try:
-        result = push_to_plan(db, context.project, context.user.id)
+        result = push_to_plan(db, context.project, context.org, context.user.id)
     except (ProposalError, MutationError) as error:
         raise _refuse(error)
     # Ревизии уже в журнале — соседям достаточно факта «план изменился»:

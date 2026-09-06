@@ -233,6 +233,58 @@ def test_push_to_plan_turns_rows_into_tasks_as_one_batch(authed, project_id):
     assert len(batches) == 1 and batches != {None}
 
 
+def test_push_carries_risks_and_assumptions_into_the_internal_note(authed, project_id):
+    """Риски и допущения строки не теряются при переносе: они складываются во
+    внутреннюю заметку задачи под заголовками на языке организации. Описание
+    при этом остаётся описанием — клиенту его показывать можно."""
+    authed.patch("/api/org", json={"default_locale": "ru"})
+    category_id = _category_id(authed, project_id, name="Дизайн")
+    logo = _task_id(authed, project_id, category_id, name="Логотип")
+    authed.patch(
+        f"/api/projects/{project_id}/proposal/tasks/{logo}",
+        json={
+            "description": "Знак",
+            "risks": "Правки затянутся",
+            "assumptions": "Брендбук уже есть",
+        },
+    )
+    # Одно поле пустое — заголовок пустого раздела не пишется.
+    guide = _task_id(authed, project_id, category_id, name="Гайдлайн")
+    authed.patch(
+        f"/api/projects/{project_id}/proposal/tasks/{guide}",
+        json={"assumptions": "  Шрифты куплены  "},
+    )
+    # Оба пустые — заметка пустая, а не пара голых заголовков.
+    _task_id(authed, project_id, category_id, name="Иконки")
+
+    response = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    assert response.status_code == 201
+
+    state = authed.get(f"/api/projects/{project_id}").json()
+    by_name = {task["name"]: task for task in state["tasks"]}
+    assert by_name["Логотип"]["description"] == "Знак"
+    assert by_name["Логотип"]["internal_note"] == (
+        "Риски:\nПравки затянутся\n\nДопущения:\nБрендбук уже есть"
+    )
+    assert by_name["Гайдлайн"]["internal_note"] == "Допущения:\nШрифты куплены"
+    assert by_name["Иконки"]["internal_note"] == ""
+
+
+def test_the_transferred_note_speaks_the_language_of_the_organization(authed, project_id):
+    """Организация без выбранного языка пишет по-азербайджански — как правило
+    скоркарда и письма: переводит тот, кто пишет, а пишет сервер."""
+    category_id = _category_id(authed, project_id, name="Design")
+    logo = _task_id(authed, project_id, category_id, name="Logo")
+    authed.patch(
+        f"/api/projects/{project_id}/proposal/tasks/{logo}",
+        json={"risks": "Vendor is slow"},
+    )
+    authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+
+    state = authed.get(f"/api/projects/{project_id}").json()
+    assert state["tasks"][0]["internal_note"] == "Risklər:\nVendor is slow"
+
+
 def test_second_push_reuses_the_plan_category_by_name(authed, project_id):
     category_id = _category_id(authed, project_id, name="Дизайн")
     _task_id(authed, project_id, category_id, name="Логотип")

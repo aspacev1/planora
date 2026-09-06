@@ -527,6 +527,44 @@ def test_a_client_does_not_see_the_internal_note_of_a_project_they_may_read(owne
     assert all("internal_note" not in revision["op"] for revision in revisions)
 
 
+def test_a_client_does_not_see_risks_and_assumptions_transferred_from_the_proposal(
+    owner, clients
+):
+    """Перенос сметы кладёт риски и допущения во внутреннюю заметку задачи —
+    и правило READ_INTERNAL_NOTE прячет её от клиента везде, где заметка
+    бывает: в состоянии проекта и в журнале, куда create_task её уносит."""
+    project = owner.post("/api/projects", json={"name": "Redesign"}).json()
+    category = owner.post(
+        f"/api/projects/{project['id']}/proposal/categories", json={"name": "Design"}
+    ).json()
+    row = owner.post(
+        f"/api/projects/{project['id']}/proposal/categories/{category['id']}/tasks",
+        json={"name": "Logo"},
+    ).json()
+    owner.patch(
+        f"/api/projects/{project['id']}/proposal/tasks/{row['id']}",
+        json={"risks": "подрядчик ненадёжен", "assumptions": "доступы дадут к среде"},
+    )
+    assert owner.post(f"/api/projects/{project['id']}/proposal/push-to-plan").status_code == 201
+
+    [issued] = _invite(owner, role="client", project_ids=[project["id"]]).json()
+    guest = clients()
+    _register(guest, "Guest", "guest@example.com")
+    guest.post(f"/api/invitations/{_token(issued['url'])}/accept")
+
+    state = guest.get(f"/api/projects/{project['id']}").json()
+    assert state["tasks"][0]["name"] == "Logo"
+    assert "internal_note" not in state["tasks"][0]
+    revisions = guest.get(f"/api/projects/{project['id']}/revisions").json()
+    assert all("internal_note" not in revision["op"] for revision in revisions)
+    assert "подрядчик" not in guest.get(f"/api/projects/{project['id']}").text
+
+    # Владельцу заметка видна целиком: перенос ничего не потерял.
+    mine = owner.get(f"/api/projects/{project['id']}").json()
+    assert "подрядчик ненадёжен" in mine["tasks"][0]["internal_note"]
+    assert "доступы дадут к среде" in mine["tasks"][0]["internal_note"]
+
+
 def test_a_granted_project_is_still_read_only_for_a_client(owner, clients):
     project = owner.post("/api/projects", json={"name": "Redesign"}).json()
     [issued] = _invite(owner, role="client", project_ids=[project["id"]]).json()

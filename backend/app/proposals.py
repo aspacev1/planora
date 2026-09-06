@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.models import (
     Category,
+    Organization,
     Project,
     Proposal,
     ProposalCategory,
@@ -259,8 +260,46 @@ _CATEGORY_COLORS = (
 )
 
 
+# Заголовки разделов внутренней заметки, которую перенос собирает из рисков и
+# допущений строки. Словарь здесь, а не в клиенте, по тому же доводу, что у
+# _METRIC_LABELS в app/scorecard.py: текст ложится в базу, и переводит его тот,
+# кто пишет, — на языке организации.
+_NOTE_HEADINGS = {
+    "risks": {"ru": "Риски", "en": "Risks", "az": "Risklər"},
+    "assumptions": {"ru": "Допущения", "en": "Assumptions", "az": "Fərziyyələr"},
+}
+
+
+def _note_locale(org: Organization) -> str:
+    """Язык заметки — язык организации; незнакомый откатывается к az, как в
+    правиле скоркарда: словарь заголовков обязан знать этот язык."""
+    return org.default_locale if org.default_locale in _NOTE_HEADINGS["risks"] else "az"
+
+
+def internal_note_for(row: ProposalTask, locale: str) -> str:
+    """Внутренняя заметка задачи из рисков и допущений строки.
+
+    Именно во внутреннюю заметку, а не в описание: риски и допущения — разговор
+    команды с самой собой («подрядчик ненадёжен», «клиент ещё не дал доступы»),
+    и клиент, которому открыли план, читать их не должен. Заметку от него уже
+    прячет READ_INTERNAL_NOTE — и в состоянии проекта, и в журнале, и в
+    выгрузке, — так что переносу не нужно отдельного правила видимости.
+
+    Оба текста складываются в одно поле под своими заголовками, а не в два
+    новых поля задачи: у задачи одно место для внутреннего, и второе
+    завело бы ещё одно поле с той же видимостью. Пустой раздел не пишется:
+    заголовок без текста только мешал бы читать. Пустые оба — пустая заметка.
+    """
+    sections = []
+    for field in ("risks", "assumptions"):
+        text = getattr(row, field).strip()
+        if text:
+            sections.append(f"{_NOTE_HEADINGS[field][locale]}:\n{text}")
+    return "\n\n".join(sections)
+
+
 def push_to_plan(
-    db: DbSession, project: Project, actor_id: uuid.UUID | None
+    db: DbSession, project: Project, org: Organization, actor_id: uuid.UUID | None
 ) -> dict:
     """Переносит строки сметы в задачи диаграммы.
 
@@ -273,6 +312,10 @@ def push_to_plan(
     должны плодить «Дизайн» рядом с «дизайн». Задачи встают на старт плана —
     раскладывать их по оси человек будет сам, и любая придуманная здесь
     последовательность выдавала бы себя за план, которого никто не составлял.
+
+    Описание строки становится описанием задачи, риски и допущения — её
+    внутренней заметкой (см. internal_note_for): перенос ничего из них не
+    теряет, но и клиенту не показывает.
     """
     proposal = get_proposal(db, project)
     tasks = (
@@ -305,6 +348,7 @@ def push_to_plan(
     taken = len(existing)
 
     start = project.start_date or RELATIVE_EPOCH
+    locale = _note_locale(org)
     batch_id = uuid.uuid4()
     created = 0
 
@@ -337,6 +381,7 @@ def push_to_plan(
                     start_date=start,
                     duration_days=_duration_days(proposal, row.effort),
                     description=row.description,
+                    internal_note=internal_note_for(row, locale),
                 ),
                 actor_id=actor_id,
                 batch_id=batch_id,
