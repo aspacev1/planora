@@ -180,11 +180,20 @@ describe("базовый план на диаграмме", () => {
   it("помечает задачу, добавленную после согласования", async () => {
     renderProject(APPROVED_WITH_EXTRA);
 
-    expect(
-      await screen.findByRole("img", { name: "Сверх первоначального плана" }),
-    ).toBeInTheDocument();
+    // Метка стоит у полоски и объясняет себя подсказкой: почему у этой задачи
+    // нет призрака базового плана.
+    const badge = await screen.findByTestId("beyond-t2");
+    expect(badge).toHaveTextContent("Сверх плана");
+    expect(badge).toHaveAttribute(
+      "title",
+      "Задача добавлена после согласования плана: сравнивать не с чем",
+    );
     // Помечена ровно одна: у первой задачи базовый план есть.
-    expect(screen.getAllByRole("img", { name: "Сверх первоначального плана" })).toHaveLength(1);
+    expect(screen.queryByTestId("beyond-t1")).not.toBeInTheDocument();
+    // Метка не делит имя класса с полосой «вне плана» за краем шкалы: та
+    // стоит ровно дважды — в шапке и в теле — и однажды своей рамкой со
+    // штриховкой перекрасила и метку, носившую то же имя.
+    expect(document.querySelectorAll(".gantt__beyond")).toHaveLength(2);
   });
 
   it("в карточке показывает даты плана и отклонение", async () => {
