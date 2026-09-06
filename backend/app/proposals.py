@@ -206,6 +206,10 @@ def proposal_state(db: DbSession, project: Project) -> dict:
                 "assumptions": task.assumptions,
                 "position": task.position,
                 "comment_count": counts.get(task.id, 0),
+                # Этап строки клиент выводит отсюда: ссылка есть — «в плане»,
+                # нет — переносима. Отдельного поля-статуса нет намеренно:
+                # оно было бы копией этого же условия (см. ProposalTask.task_id).
+                "task_id": str(task.task_id) if task.task_id else None,
             }
         )
 
@@ -273,19 +277,28 @@ def push_to_plan(
     должны плодить «Дизайн» рядом с «дизайн». Задачи встают на старт плана —
     раскладывать их по оси человек будет сам, и любая придуманная здесь
     последовательность выдавала бы себя за план, которого никто не составлял.
+
+    Переносятся только строки, которых в плане ещё нет: строка помнит свою
+    задачу (ProposalTask.task_id), и повторный перенос дописывает к плану
+    новые строки, а не удваивает старые. Строка, чью задачу удалили или чей
+    перенос отменили, ссылки уже не имеет — база стёрла её вместе с задачей —
+    и переносится заново как впервые.
     """
     proposal = get_proposal(db, project)
-    tasks = (
-        []
-        if proposal is None
-        else db.scalars(
-            select(ProposalTask)
-            .where(ProposalTask.proposal_id == proposal.id)
-            .order_by(ProposalTask.position, ProposalTask.id)
-        ).all()
-    )
-    if not tasks:
+    if proposal is None:
         raise ProposalError("proposal_empty", "в предложении нет ни одной строки")
+    all_tasks = db.scalars(
+        select(ProposalTask)
+        .where(ProposalTask.proposal_id == proposal.id)
+        .order_by(ProposalTask.position, ProposalTask.id)
+    ).all()
+    if not all_tasks:
+        raise ProposalError("proposal_empty", "в предложении нет ни одной строки")
+    tasks = [task for task in all_tasks if task.task_id is None]
+    if not tasks:
+        # Свой код, а не proposal_empty: смета не пуста, она вся уже в плане,
+        # и человеку нужно услышать именно это.
+        raise ProposalError("proposal_all_in_plan", "все строки предложения уже в плане")
 
     categories = db.scalars(
         select(ProposalCategory)
@@ -328,7 +341,7 @@ def push_to_plan(
             existing[category.name.strip().casefold()] = plan_category_id
             taken += 1
         for row in rows:
-            apply_op(
+            revision = apply_op(
                 db,
                 project,
                 CreateTask(
@@ -341,6 +354,10 @@ def push_to_plan(
                 actor_id=actor_id,
                 batch_id=batch_id,
             )
+            # Ссылка на созданную задачу — и есть этап «в плане». Обратно её
+            # никто не сбрасывает: это сделает база, когда задача исчезнет.
+            row.task_id = uuid.UUID(revision.op["task_id"])
             created += 1
+    db.flush()
 
     return {"created_tasks": created}

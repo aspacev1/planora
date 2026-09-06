@@ -40,6 +40,7 @@ const PROPOSAL: ProposalState = {
           assumptions: "Брендбук уже есть",
           position: 0,
           comment_count: 1,
+          task_id: null,
         },
         {
           id: "pt2",
@@ -55,6 +56,7 @@ const PROPOSAL: ProposalState = {
           assumptions: "",
           position: 1,
           comment_count: 0,
+          task_id: null,
         },
       ],
     },
@@ -470,6 +472,43 @@ describe("вкладка предложения", () => {
     await waitFor(() =>
       expect(sent).toContainEqual({ method: "POST", path: "push-to-plan", body: null }),
     );
+  });
+
+  it("строка со ссылкой на задачу плана помечена «В плане», а без неё — нет", async () => {
+    const [category] = PROPOSAL.categories;
+    const [logo, guideline] = category.tasks;
+    proposalFixtures({
+      ...PROPOSAL,
+      categories: [{ ...category, tasks: [{ ...logo, task_id: "t1" }, guideline] }],
+    });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    // Этап выводится из ссылки: у «Логотипа» она есть, у «Гайдлайна» нет.
+    expect(screen.getByRole("img", { name: "«Логотип» уже в плане" })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "«Гайдлайн» уже в плане" })).not.toBeInTheDocument();
+    // Кнопка переносит остаток — и говорит, сколько его.
+    expect(screen.getByText("Ещё не в плане: 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Добавить в план" })).toBeEnabled();
+  });
+
+  it("смете, целиком перенесённой в план, переносить нечего", async () => {
+    const [category] = PROPOSAL.categories;
+    proposalFixtures({
+      ...PROPOSAL,
+      categories: [
+        {
+          ...category,
+          tasks: category.tasks.map((task, index) => ({ ...task, task_id: `t${index}` })),
+        },
+      ],
+    });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    expect(screen.getByRole("button", { name: "Добавить в план" })).toBeDisabled();
+    // Остаток нулевой — подпись под кнопкой молчит, погашенная кнопка сказала всё.
+    expect(screen.queryByText(/Ещё не в плане/)).not.toBeInTheDocument();
   });
 
   it("читателю смета видна, а правка — нет", async () => {

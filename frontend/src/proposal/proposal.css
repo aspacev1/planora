@@ -144,13 +144,65 @@
   opacity: 1;
 }
 
+/* Плашка «В плане» на строке: тем же кеглем и скруглением, что значки строки,
+   но с заливкой и без прозрачности — это состояние, а не действие, и видно
+   оно должно быть без наведения. Не сжимается: имя рядом обрезается
+   многоточием, а плашка целиком — иначе от неё оставалось бы «В п…». */
+.proposal-stage {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Остаток к переносу — подпись под кнопкой, мельче неё: это пояснение к
+   действию, а не ещё одна строка итогов. */
+.proposal-summary__remaining {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
 .proposal-table__num {
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-th.proposal-table__num {
+th/* Плашка «В плане» на строке: тем же кеглем и скруглением, что значки строки,
+   но с заливкой и без прозрачности — это состояние, а не действие, и видно
+   оно должно быть без наведения. Не сжимается: имя рядом обрезается
+   многоточием, а плашка целиком — иначе от неё оставалось бы «В п…». */
+.proposal-stage {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Остаток к переносу — подпись под кнопкой, мельче неё: это пояснение к
+   действию, а не ещё одна строка итогов. */
+.proposal-summary__remaining {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.proposal-table__num {
   text-align: right;
 }
 

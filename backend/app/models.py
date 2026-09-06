@@ -1012,6 +1012,17 @@ class ProposalTask(Base):
     risks: Mapped[str] = mapped_column(Text, default="")
     assumptions: Mapped[str] = mapped_column(Text, default="")
     position: Mapped[int] = mapped_column(Integer, default=0)
+    # Задача плана, в которую строка перенесена. «В плане» — не хранимый
+    # статус, а следствие этой ссылки: строка в плане ровно тогда, когда
+    # задача, созданная переносом, ещё существует. SET NULL — вся логика
+    # возврата: удаление задачи или отмена пачки переноса сносит задачу,
+    # база стирает ссылку, и строка снова переносима — без флага, который
+    # пришлось бы сбрасывать в каждом из этих мест и который в одном из них
+    # однажды забыли бы. Индекс не нужен: ссылку читают от строки к задаче,
+    # а не наоборот.
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="SET NULL")
+    )
 
 
 class ProposalComment(Base):

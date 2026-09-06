@@ -238,6 +238,7 @@
     "category_empty": "Bu kateqoriyada tapşırıq yoxdur: sürüşdürüləcək bir şey yoxdur",
     "date_out_of_range": "Bu sürüşmə tapşırığı dəstəklənən tarix hüdudundan çıxarır",
     "proposal_empty": "Təklifdə plana keçiriləcək tapşırıq yoxdur",
+    "proposal_all_in_plan": "Təklifin bütün sətirləri artıq plandadır",
     "proposal_category_not_found": "Bu təklifdə belə bölmə yoxdur",
     "proposal_task_not_found": "Bu təklifdə belə tapşırıq yoxdur",
     "rate_limited": "Çox tez-tez: yenidən hesablama dəqiqədə bir dəfə mümkündür",
@@ -1029,10 +1030,15 @@
       "done": {
         "one": "{count} tapşırıq plana əlavə olundu",
         "other": "{count} tapşırıq plana əlavə olundu"
-      }
+      },
+      "remaining": "Hələ planda deyil: {count}"
     },
     "cell": {
       "edit": "«{name}» üçün {column} dəyiş"
+    },
+    "stage": {
+      "in_plan": "Planda",
+      "aria": "«{name}» artıq plandadır"
     }
   },
   "scorecard": {

@@ -238,6 +238,7 @@
     "category_empty": "There are no tasks in this category to move",
     "date_out_of_range": "That shift takes a task past the supported date range",
     "proposal_empty": "The proposal has no tasks to add to the plan",
+    "proposal_all_in_plan": "Every row of the proposal is already in the plan",
     "proposal_category_not_found": "No such section in this proposal",
     "proposal_task_not_found": "No such task in this proposal",
     "rate_limited": "Too often: recalculation is available once a minute",
@@ -1029,10 +1030,15 @@
       "done": {
         "one": "{count} task added to the plan",
         "other": "{count} tasks added to the plan"
-      }
+      },
+      "remaining": "Not in plan yet: {count}"
     },
     "cell": {
       "edit": "Change {column} for “{name}”"
+    },
+    "stage": {
+      "in_plan": "In plan",
+      "aria": "“{name}” is already in the plan"
     }
   },
   "scorecard": {

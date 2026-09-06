@@ -153,6 +153,9 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
 
   const proposal = query.data;
   const tasks = proposal.categories.flatMap((category) => category.tasks);
+  // Переносимые — те, у кого ссылки на задачу плана нет. Этап не хранится:
+  // строка в плане ровно до тех пор, пока жива её задача (см. api/proposal.ts).
+  const transferable = tasks.filter((task) => task.task_id === null);
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
   const editingCategory =
     proposal.categories.find((category) => category.id === editingCategoryId) ?? null;
@@ -438,11 +441,20 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
           <button
             type="button"
             className="button--primary proposal-summary__push"
-            disabled={tasks.length === 0 || push.isPending}
+            disabled={transferable.length === 0 || push.isPending}
             onClick={() => push.mutate()}
           >
             {t("proposal.push.action")}
           </button>
+        )}
+        {/* Когда часть сметы уже в плане, кнопка переносит не всё — и об этом
+            сказано рядом с ней: иначе «добавить в план» обещает всю смету, а
+            добавляет остаток. Полностью перенесённой смете кнопка молчит —
+            остаток нулевой, и сама она погашена. */}
+        {transferable.length > 0 && transferable.length < tasks.length && (
+          <p className="proposal-summary__remaining muted">
+            {t("proposal.push.remaining", { count: transferable.length })}
+          </p>
         )}
       </aside>
 
@@ -757,6 +769,20 @@ function TaskRow({
               </button>
             )}
           </span>
+          {/* Этап строки — плашка, видимая всегда, а не по наведению: «что из
+              сметы уже в плане» — вопрос, который задают, глядя на таблицу
+              целиком, а не водя мышью по строкам. Переносимой строке плашки
+              нет: это состояние по умолчанию, и подписывать его — шум. */}
+          {task.task_id !== null && (
+            <span
+              className="proposal-stage"
+              role="img"
+              aria-label={t("proposal.stage.aria", { name: task.name })}
+              title={t("proposal.stage.aria", { name: task.name })}
+            >
+              {t("proposal.stage.in_plan")}
+            </span>
+          )}
           <span className="row-icons">
             {(task.comment_count > 0 || canWrite) && (
               <RowBadge

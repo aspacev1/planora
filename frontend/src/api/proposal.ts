@@ -29,6 +29,13 @@ export type ProposalTask = {
   assumptions: string;
   position: number;
   comment_count: number;
+  /**
+   * Задача плана, в которую строка перенесена, — или null. «В плане» не
+   * хранится, а выводится отсюда: ссылка есть — строка в плане, нет —
+   * переносима. Удаление задачи или отмена пачки переноса стирает ссылку на
+   * стороне базы, и строка возвращается в переносимые сама.
+   */
+  task_id: string | null;
 };
 
 export type ProposalCategory = {

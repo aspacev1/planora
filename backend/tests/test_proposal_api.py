@@ -246,6 +246,99 @@ def test_second_push_reuses_the_plan_category_by_name(authed, project_id):
     assert [category["name"] for category in state["categories"]] == ["Дизайн"]
 
 
+def _rows(authed, project_id: str) -> dict[str, dict]:
+    proposal = authed.get(f"/api/projects/{project_id}/proposal").json()
+    return {
+        row["name"]: row for category in proposal["categories"] for row in category["tasks"]
+    }
+
+
+def test_push_links_rows_to_their_tasks_and_skips_rows_already_in_plan(authed, project_id):
+    """«В плане» выводится из ссылки строки на задачу, а не хранится флагом.
+
+    Повторный перенос дописывает к плану только новые строки: та, что уже в
+    плане, второй задачей не становится.
+    """
+    category_id = _category_id(authed, project_id, name="Дизайн")
+    _task_id(authed, project_id, category_id, name="Логотип")
+    assert _rows(authed, project_id)["Логотип"]["task_id"] is None
+
+    authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    plan = authed.get(f"/api/projects/{project_id}").json()
+    (logo,) = plan["tasks"]
+    assert _rows(authed, project_id)["Логотип"]["task_id"] == logo["id"]
+
+    _task_id(authed, project_id, category_id, name="Гайдлайн")
+    response = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    assert response.json() == {"created_tasks": 1}
+    plan = authed.get(f"/api/projects/{project_id}").json()
+    assert sorted(task["name"] for task in plan["tasks"]) == ["Гайдлайн", "Логотип"]
+    rows = _rows(authed, project_id)
+    assert rows["Логотип"]["task_id"] == logo["id"]
+    assert rows["Гайдлайн"]["task_id"] is not None
+
+
+def test_push_refuses_when_every_row_is_already_in_plan(authed, project_id):
+    category_id = _category_id(authed, project_id)
+    _task_id(authed, project_id, category_id)
+    authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+
+    response = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    assert response.status_code == 422
+    # Не proposal_empty: смета не пуста, она вся уже в плане.
+    assert response.json()["detail"] == "proposal_all_in_plan"
+
+
+def test_deleting_the_plan_task_returns_the_row_to_transferable(authed, project_id):
+    """Ссылку стирает база (ON DELETE SET NULL) — отдельной логики возврата нет."""
+    category_id = _category_id(authed, project_id)
+    _task_id(authed, project_id, category_id, name="Логотип")
+    authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    (logo,) = authed.get(f"/api/projects/{project_id}").json()["tasks"]
+
+    response = authed.post(
+        f"/api/projects/{project_id}/mutations",
+        json={"op": {"type": "delete_task", "task_id": logo["id"]}},
+    )
+    assert response.status_code == 201
+    assert _rows(authed, project_id)["Логотип"]["task_id"] is None
+
+    # Строка снова переносима — и переносится как впервые.
+    response = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    assert response.json() == {"created_tasks": 1}
+    (again,) = authed.get(f"/api/projects/{project_id}").json()["tasks"]
+    assert _rows(authed, project_id)["Логотип"]["task_id"] == again["id"]
+
+
+def test_undoing_the_push_batch_returns_the_rows_to_transferable(authed, project_id):
+    category_id = _category_id(authed, project_id)
+    _task_id(authed, project_id, category_id, name="Логотип")
+    _task_id(authed, project_id, category_id, name="Гайдлайн")
+    authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    (batch_id,) = {
+        entry["batch_id"] for entry in authed.get(f"/api/projects/{project_id}/revisions").json()
+    }
+
+    response = authed.post(f"/api/projects/{project_id}/batches/{batch_id}/undo")
+    assert response.status_code == 201
+    assert authed.get(f"/api/projects/{project_id}").json()["tasks"] == []
+    rows = _rows(authed, project_id)
+    assert rows["Логотип"]["task_id"] is None
+    assert rows["Гайдлайн"]["task_id"] is None
+
+
+def test_deleting_a_row_in_plan_leaves_the_plan_task_alone(authed, project_id):
+    """Смета — черновик сделки, план — не её тень: строка уходит, задача остаётся."""
+    category_id = _category_id(authed, project_id)
+    row_id = _task_id(authed, project_id, category_id, name="Логотип")
+    authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+
+    assert authed.delete(f"/api/projects/{project_id}/proposal/tasks/{row_id}").status_code == 204
+    assert [task["name"] for task in authed.get(f"/api/projects/{project_id}").json()["tasks"]] == [
+        "Логотип"
+    ]
+
+
 def test_empty_proposal_refuses_to_push(authed, project_id):
     response = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
     assert response.status_code == 422
