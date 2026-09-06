@@ -49,15 +49,24 @@ def get_proposal(db: DbSession, project: Project) -> Proposal | None:
     return db.scalar(select(Proposal).where(Proposal.project_id == project.id))
 
 
+def lock_project(db: DbSession, project: Project) -> None:
+    """Замок строки проекта до конца транзакции — тот же, что держит apply_op.
+
+    Предложение принадлежит проекту, и второго замка для него не нужно; но
+    брать этот надо раньше любого чтения, по которому принимается решение:
+    прочитанное до замка — снимок из-под чужой незакоммиченной транзакции.
+    """
+    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+
+
 def ensure_proposal(db: DbSession, project: Project) -> Proposal:
     """Строка предложения — при первом изменении, а не при создании проекта.
 
     Гонку двух первых правок разрешает блокировка строки проекта: обе правки
     берут её раньше, чем спрашивают о предложении, и вторая находит строку,
-    созданную первой. Тот же замок, что у мутаций, — предложение принадлежит
-    проекту, и второго замка для него не нужно.
+    созданную первой.
     """
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    lock_project(db, project)
     proposal = get_proposal(db, project)
     if proposal is None:
         proposal = Proposal(project_id=project.id)
@@ -452,11 +461,16 @@ def _plan_categories_by_name(db: DbSession, project: Project) -> dict[str, Categ
 def _proposal_rows(db: DbSession, proposal: Proposal | None) -> list[ProposalTask]:
     if proposal is None:
         return []
+    # populate_existing: строку, уже загруженную в эту сессию, перечитать из
+    # базы, а не отдать из кэша сессии. Перенос читает строки сразу после
+    # замка проекта именно ради свежих ссылок на задачи — кэш вернул бы
+    # снимок, сделанный до того, как соперник закоммитил свои.
     return list(
         db.scalars(
             select(ProposalTask)
             .where(ProposalTask.proposal_id == proposal.id)
             .order_by(ProposalTask.position, ProposalTask.id)
+            .execution_options(populate_existing=True)
         ).all()
     )
 
@@ -563,14 +577,18 @@ def push_to_plan(
     Какие строки: названные в `task_ids`, а без списка — все переносимые по
     умолчанию (см. _pushable). Строка, уже перенесённая раньше, пропускается в
     любом случае: у неё есть ссылка на задачу, и второй перенос удваивал бы
-    план. Ссылка ставится сразу после создания задачи — под тем же замком
-    проекта, что держит apply_op, так что два одновременных переноса не
-    создадут задачу дважды: второй увидит ссылку первого.
+    план. Замок проекта берётся до чтения строк, а не только внутри apply_op:
+    два одновременных переноса встают в очередь у самого входа, и второй,
+    дождавшись, читает строки уже со ссылками первого — переносить ему
+    нечего. Прочитай строки до замка, и обе стороны увидели бы пустые ссылки,
+    обе прошли бы проверку «уже в плане», и план удвоился бы
+    (tests/test_proposal_push_race.py).
 
     Задачи встают на старт плана — раскладывать их по оси человек будет сам, и
     любая придуманная здесь последовательность выдавала бы себя за план,
     которого никто не составлял.
     """
+    lock_project(db, project)
     proposal = get_proposal(db, project)
     rows = _proposal_rows(db, proposal)
     if not rows:
