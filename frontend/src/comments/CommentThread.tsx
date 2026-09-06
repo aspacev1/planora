@@ -28,6 +28,7 @@ export function CommentThread({
   onSend,
   sending = false,
   sendError,
+  embedded = false,
 }: {
   comments: Comment[];
   loading?: boolean;
@@ -44,6 +45,12 @@ export function CommentThread({
   onSend: (input: { body: string; name: string }) => void | Promise<unknown>;
   sending?: boolean;
   sendError?: unknown;
+  /**
+   * Лента внутри створки карточки: заголовок и черту сверху даёт створка, и
+   * второй заголовок «Комментарии» под «Обсуждением» читался бы как ещё один
+   * раздел.
+   */
+  embedded?: boolean;
 }) {
   const { t, locale } = useLocale();
   const [body, setBody] = useState("");
@@ -56,8 +63,11 @@ export function CommentThread({
   const ready = trimmedBody !== "" && (!askName || trimmedName !== "");
 
   return (
-    <section className="comments" aria-label={t("comments.title")}>
-      <h2 className="comments__title">{t("comments.title")}</h2>
+    <section
+      className={embedded ? "comments comments--embedded" : "comments"}
+      aria-label={t("comments.title")}
+    >
+      {!embedded && <h2 className="comments__title">{t("comments.title")}</h2>}
 
       {loading && <p role="status">{t("common.loading")}</p>}
 

@@ -266,7 +266,7 @@ describe("вкладка предложения", () => {
     expect(screen.getAllByText(money(800)).length).toBeGreaterThan(0);
   });
 
-  it("знак «править» на строке открывает карточку с подробностями и обсуждением", async () => {
+  it("знак «править» на строке открывает карточку: поля по адресату, обсуждение внизу", async () => {
     proposalFixtures();
     renderProject(undefined, { route: "/projects/p1/proposal" });
 
@@ -275,11 +275,45 @@ describe("вкладка предложения", () => {
     );
     const panel = await screen.findByRole("complementary", { name: /Логотип/ });
 
+    // Шапка: раздел, формула цены и сама цена — из чего сложилась строка.
+    expect(within(panel).getByText("Дизайн")).toBeInTheDocument();
+    expect(within(panel).getByText(`2д × ${money(100)} в день`)).toBeInTheDocument();
+    expect(within(panel).getByText(money(200))).toBeInTheDocument();
+
+    // Три створки: что увидит заказчик, что останется внутри, разговор.
+    expect(within(panel).getByText("В документе клиента")).toBeInTheDocument();
+    expect(within(panel).getByText("Только для команды")).toBeInTheDocument();
+    expect(within(panel).getByText("Обсуждение")).toBeInTheDocument();
+    expect(within(panel).getByText("видно только команде")).toBeInTheDocument();
+
+    // Клиентская часть: работа, роль, оценка и ставка с единицами, описания.
+    expect(within(panel).getByLabelText("Работа")).toHaveValue("Логотип");
+    expect(within(panel).getByLabelText("Ответственная роль")).toHaveValue("Дизайнер");
+    expect(within(panel).getByLabelText("Оценка, дни")).toHaveValue(2);
+    expect(within(panel).getByLabelText("Ставка в день")).toHaveValue(100);
+    expect(within(panel).getByLabelText("Описание")).toHaveValue("Знак");
     expect(within(panel).getByLabelText("Подробное описание")).toHaveValue("Три варианта");
+
+    // Внутренняя часть: заметки, риски, допущения.
     expect(within(panel).getByLabelText("Заметки")).toHaveValue("Шрифт покупает клиент");
     expect(within(panel).getByLabelText("Риски")).toHaveValue("Правки затянутся");
     expect(within(panel).getByLabelText("Допущения")).toHaveValue("Брендбук уже есть");
+
     expect(await within(panel).findByText("Ставку согласовали")).toBeInTheDocument();
+  });
+
+  it("в почасовой смете подписи оценки и ставки — часовые", async () => {
+    proposalFixtures({ ...PROPOSAL, effort_unit: "hours" });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Править работу «Логотип»" }),
+    );
+    const panel = await screen.findByRole("complementary", { name: /Логотип/ });
+
+    expect(within(panel).getByText(`2ч × ${money(100)} в час`)).toBeInTheDocument();
+    expect(within(panel).getByLabelText("Оценка, часы")).toHaveValue(2);
+    expect(within(panel).getByLabelText("Ставка в час")).toHaveValue(100);
   });
 
   it("правка поля в карточке уходит на сервер при потере фокуса", async () => {
