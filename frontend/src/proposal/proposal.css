@@ -799,8 +799,10 @@ th.proposal-table__num {
   color: var(--accent);
 }
 
-/* Блок «Дальше»: главное действие этапа и что за ним последует. Отделён
-   чертой от чисел: вопрос «сколько» и вопрос «что теперь» — разные. */
+/* Блок «Дальше»: что делать с предложением, когда итоги прочитаны. Отделён
+   чертой от чисел: вопрос «сколько» и вопрос «что теперь» — разные. Документ
+   для клиента — главная кнопка, перенос в план — тихая под ней; обе во всю
+   ширину карточки, как в макете. */
 .proposal-summary__next {
   display: flex;
   flex-direction: column;
@@ -818,23 +820,33 @@ th.proposal-table__num {
   color: var(--text-muted);
 }
 
+.proposal-summary__push {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ссылка-кнопка в цвете главной кнопки. Два класса в селекторе — чтобы
+   перевесить `.screen .button-link`, красящий ссылки-кнопки в тихий вид. */
+.proposal-summary .proposal-summary__pdf {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: 0 2px 5px rgb(83 103 232 / 20%);
+}
+
+.proposal-summary .proposal-summary__pdf:hover {
+  background: var(--accent-hover);
+  color: var(--accent-text);
+}
+
 .proposal-summary__note {
   margin: 0;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--text-muted);
-}
-
-/* Перенос в план — главное действие вкладки, на месте главной кнопки
-   макета: смета пишется, чтобы стать планом. */
-.proposal-summary__push {
-  width: 100%;
-}
-
-.proposal-summary__note {
-  margin: 8px 0 0;
-  font-size: 12px;
   text-align: center;
+  color: var(--text-muted);
 }
 
 @media (max-width: 900px) {

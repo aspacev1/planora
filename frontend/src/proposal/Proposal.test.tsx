@@ -693,6 +693,21 @@ describe("вкладка предложения", () => {
     expect(screen.getByTestId("location")).toHaveTextContent("/projects/p1");
   });
 
+  it("документ для клиента — ссылка с download на PDF предложения", async () => {
+    proposalFixtures();
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    const link = screen.getByRole("link", { name: "Скачать PDF для клиента" });
+    // Язык — тот, на котором смотрят на предложение: документ придёт на нём же.
+    expect(link).toHaveAttribute("href", "/api/projects/p1/proposal/export.pdf?locale=ru");
+    // Браузер сохраняет файл сам, под именем из ответа сервера.
+    expect(link).toHaveAttribute("download");
+    // Перенос в план остаётся рядом, тихой кнопкой того же блока.
+    const next = screen.getByRole("region", { name: "Дальше" });
+    expect(within(next).getByRole("button", { name: "Добавить в план" })).toBeInTheDocument();
+  });
+
   it("читателю смета видна, а правка — нет", async () => {
     proposalFixtures();
     renderProject(undefined, { canWrite: false, route: "/projects/p1/proposal" });

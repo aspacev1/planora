@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 
+import { proposalPdfUrl } from "../api/export";
 import { useLocale } from "../i18n/LocaleProvider";
 import type { Formats } from "./ProposalTable";
 
@@ -21,6 +22,7 @@ export function ProposalSummary({
   tax,
   formats,
   canWrite,
+  canExport,
   pushedCount,
   pushableCount,
   onPush,
@@ -34,13 +36,15 @@ export function ProposalSummary({
   tax: number;
   formats: Formats;
   canWrite: boolean;
+  /** Вправе ли смотрящий получить документ для клиента (см. permissions). */
+  canExport: boolean;
   /** Сколько строк уже в плане и сколько оценённых ещё можно перенести. */
   pushedCount: number;
   pushableCount: number;
   /** Открыть окно переноса. */
   onPush: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   // Главная кнопка отвечает на «что дальше», и ответ меняется по ходу дела:
   // пока в плане ничего нет — перенести; перенесли часть — перенести только
@@ -80,29 +84,45 @@ export function ProposalSummary({
           <dd className="proposal-summary__amount">{formats.money(subtotal + tax)}</dd>
         </div>
       </dl>
-      {/* «Дальше» — главное действие этапа и что за ним последует. Отделено
-          чертой от чисел: «сколько» и «что теперь» — разные вопросы. */}
-      {canWrite && (
-        <div className="proposal-summary__next">
+      {/* «Дальше» — что делать с предложением, когда итоги прочитаны.
+          Отделено чертой от чисел: «сколько» и «что теперь» — разные
+          вопросы. Документ для клиента — главное действие: смета пишется,
+          чтобы уйти клиенту. Перенос в план — следующий шаг, уже после
+          согласования, и стоит тихой кнопкой под ним.
+
+          Документ — ссылка с `download`, а не запрос из скрипта: файл
+          собирает сервер, и браузер сохраняет его сам под именем из ответа. */}
+      {(canExport || canWrite) && (
+        <section className="proposal-summary__next" aria-label={t("proposal.next.title")}>
           <span className="proposal-summary__next-label">{t("proposal.next.title")}</span>
-          {everythingPushed ? (
-            <Link className="button-link proposal-summary__push" to={`/projects/${projectId}`}>
-              {t("proposal.push.open_gantt")}
-            </Link>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="button--primary proposal-summary__push"
-                disabled={pushableCount === 0}
-                onClick={onPush}
-              >
-                {pushLabel}
-              </button>
-              <p className="proposal-summary__note">{t("proposal.next.push_note")}</p>
-            </>
+          {canExport && (
+            <a
+              className="button-link proposal-summary__push proposal-summary__pdf"
+              href={proposalPdfUrl(projectId, locale)}
+              download
+            >
+              {t("proposal.next.download_pdf")}
+            </a>
           )}
-        </div>
+          {canWrite &&
+            (everythingPushed ? (
+              <Link className="button-link proposal-summary__push" to={`/projects/${projectId}`}>
+                {t("proposal.push.open_gantt")}
+              </Link>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="button--quiet proposal-summary__push"
+                  disabled={pushableCount === 0}
+                  onClick={onPush}
+                >
+                  {pushLabel}
+                </button>
+                <p className="proposal-summary__note">{t("proposal.next.push_note")}</p>
+              </>
+            ))}
+        </section>
       )}
     </aside>
   );

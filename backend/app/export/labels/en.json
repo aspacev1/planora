@@ -96,6 +96,23 @@
     "total": "Total",
     "no_data": "no data"
   },
+  "proposal_doc": {
+    "title": "Commercial proposal",
+    "number": "No. {n}",
+    "issued": "Date",
+    "valid_until": "Valid until",
+    "project": "Project",
+    "scope": "Scope of work",
+    "col_n": "#",
+    "col_work": "Work item",
+    "col_effort_days": "Effort, days",
+    "col_effort_hours": "Effort, hours",
+    "col_rate_days": "Rate, {c}/day",
+    "col_rate_hours": "Rate, {c}/hour",
+    "col_amount": "Amount, {c}",
+    "notes": "Assumptions and notes",
+    "prepared_by": "Prepared by"
+  },
   "comment": {
     "internal": "internal",
     "public": "public"

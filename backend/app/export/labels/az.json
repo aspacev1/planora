@@ -96,6 +96,23 @@
     "total": "Cəmi",
     "no_data": "məlumat yoxdur"
   },
+  "proposal_doc": {
+    "title": "Kommersiya təklifi",
+    "number": "№ {n}",
+    "issued": "Tarix",
+    "valid_until": "Etibarlıdır",
+    "project": "Layihə",
+    "scope": "İşlərin tərkibi",
+    "col_n": "№",
+    "col_work": "İş",
+    "col_effort_days": "Həcm, gün",
+    "col_effort_hours": "Həcm, saat",
+    "col_rate_days": "Dərəcə, {c}/gün",
+    "col_rate_hours": "Dərəcə, {c}/saat",
+    "col_amount": "Məbləğ, {c}",
+    "notes": "Fərziyyələr və qeydlər",
+    "prepared_by": "İcraçı"
+  },
   "comment": {
     "internal": "daxili",
     "public": "ümumi"

@@ -1142,6 +1142,7 @@
     },
     "next": {
       "title": "Növbəti",
+      "download_pdf": "Müştəri üçün PDF yüklə",
       "push_note": "İşlər diaqramda tapşırığa çevriləcək, köçürməni geri qaytarmaq olar."
     }
   },

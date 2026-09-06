@@ -70,7 +70,16 @@ import "./proposal.css";
  * первой строки тоже не показываются — нули в них были бы ответом на
  * незаданный вопрос.
  */
-export function Proposal({ projectId, canWrite }: { projectId: string; canWrite: boolean }) {
+export function Proposal({
+  projectId,
+  canWrite,
+  canExport,
+}: {
+  projectId: string;
+  canWrite: boolean;
+  /** Вправе ли смотрящий получить документ для клиента (см. permissions). */
+  canExport: boolean;
+}) {
   const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -376,6 +385,7 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
         tax={tax}
         formats={formats}
         canWrite={canWrite}
+        canExport={canExport}
         pushedCount={proposal.pushed_count}
         pushableCount={proposal.pushable_count}
         onPush={() => setPushing(true)}

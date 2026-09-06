@@ -216,7 +216,7 @@ def test_the_proposal_totals_are_formulas_so_a_rate_can_be_edited(authed):
     )
 
     body = authed.get(f"/api/projects/{project_id}/export.xlsx?include=proposal&locale=ru").content
-    sheet = load_workbook(io.BytesIO(body))["Смета"]
+    sheet = load_workbook(io.BytesIO(body))["Предложение"]
     formulas = [
         cell.value
         for row in sheet.iter_rows()
@@ -337,7 +337,7 @@ def test_the_guest_copy_hides_notes_people_and_the_baseline(authed, shared, clie
     # позвали: ни сметы со ставками, ни скоркарда, ни журнала правок публичная
     # страница гостю не отдаёт.
     assert "История правок" not in wb.sheetnames
-    assert "Смета" not in wb.sheetnames
+    assert "Предложение" not in wb.sheetnames
     assert "Скоркард" not in wb.sheetnames
 
     header = [cell.value for cell in wb["Задачи"][1]]
@@ -370,7 +370,7 @@ def test_the_member_copy_still_carries_what_the_guest_may_not_see(authed, shared
     wb = load_workbook(io.BytesIO(body))
 
     assert "История правок" in wb.sheetnames
-    assert "Смета" in wb.sheetnames
+    assert "Предложение" in wb.sheetnames
     dump = json.dumps(
         [[cell.value for cell in row] for ws in wb.worksheets for row in ws.iter_rows()],
         ensure_ascii=False,
@@ -378,6 +378,196 @@ def test_the_member_copy_still_carries_what_the_guest_may_not_see(authed, shared
     )
     assert "СЕКРЕТ-ЗАМЕТКА" in dump
     assert "СЕКРЕТ-РЕПЛИКА" in dump
+
+
+# --- документ для клиента ------------------------------------------------------
+#
+# Коммерческое предложение одним PDF: только то, что клиент вправе прочитать.
+# Проверяется не вёрстка, а обещание: имена работ, итог и примечания в файле
+# есть, а роли, риски, заметки и обсуждение — нет по построению.
+
+
+def _demote_own_membership(authed, db, role: str) -> None:
+    """Меняет роль зарегистрированного пользователя прямо в записи членства —
+    тем же приёмом, что в tests/test_project_api.py."""
+    from sqlalchemy import select
+
+    from app.models import Membership
+
+    user_id = authed.get("/api/auth/me").json()["id"]
+    membership = db.scalar(select(Membership).where(Membership.user_id == user_id))
+    membership.role = role
+    db.flush()
+
+
+def _grant_project_access(authed, db, project_id: str) -> None:
+    import uuid
+
+    from app.models import ProjectAccess
+
+    user_id = authed.get("/api/auth/me").json()["id"]
+    db.add(ProjectAccess(project_id=uuid.UUID(project_id), user_id=uuid.UUID(user_id)))
+    db.flush()
+
+
+@pytest.fixture
+def quoted(authed):
+    """Проект с предложением, где у строки заполнено всё — и клиентское, и
+    внутреннее, — и есть реплика обсуждения."""
+    project_id, _, _ = _make_project(authed, name="Переезд офиса")
+    authed.patch(
+        f"/api/projects/{project_id}/proposal",
+        json={"tax_rate_pct": 18, "currency": "eur", "notes": "Оценки по объёму.\nСтавки без лицензий."},
+    )
+    design = authed.post(
+        f"/api/projects/{project_id}/proposal/categories",
+        json={"name": "Дизайн", "description": "Понять и нарисовать"},
+    ).json()["id"]
+    build = authed.post(
+        f"/api/projects/{project_id}/proposal/categories", json={"name": "Разработка"}
+    ).json()["id"]
+    logo = authed.post(
+        f"/api/projects/{project_id}/proposal/categories/{design}/tasks",
+        json={"name": "Логотип"},
+    ).json()["id"]
+    authed.patch(
+        f"/api/projects/{project_id}/proposal/tasks/{logo}",
+        json={
+            "description": "Знак и начертание",
+            "details": "СЕКРЕТ-ПОДРОБНОСТИ",
+            "role": "СЕКРЕТ-РОЛЬ",
+            "effort": 2,
+            "rate": 100,
+            "notes": "СЕКРЕТ-ЗАМЕТКА",
+            "risks": "СЕКРЕТ-РИСК",
+            "assumptions": "СЕКРЕТ-ДОПУЩЕНИЕ",
+        },
+    )
+    authed.post(
+        f"/api/projects/{project_id}/proposal/tasks/{logo}/comments",
+        json={"body": "СЕКРЕТ-РЕПЛИКА"},
+    )
+    layout = authed.post(
+        f"/api/projects/{project_id}/proposal/categories/{build}/tasks",
+        json={"name": "Вёрстка"},
+    ).json()["id"]
+    authed.patch(
+        f"/api/projects/{project_id}/proposal/tasks/{layout}", json={"effort": 3, "rate": 200}
+    )
+    return project_id
+
+
+def test_the_client_document_reads_as_a_commercial_proposal(authed, quoted):
+    response = authed.get(f"/api/projects/{quoted}/proposal/export.pdf?locale=ru")
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("application/pdf")
+    assert response.content.startswith(b"%PDF-")
+    assert "no-store" in response.headers["cache-control"]
+
+    disposition = response.headers["content-disposition"]
+    assert disposition.startswith("attachment;")
+    # Имя проекта — в имени файла, кириллицей через RFC 5987.
+    assert "%D0%9F%D0%B5%D1%80%D0%B5%D0%B5%D0%B7%D0%B4" in disposition
+
+    text = _pdf_text(response.content)
+    assert "Коммерческое предложение" in text
+    assert "Acme" in text
+    assert "Переезд офиса" in text
+    # Разделы с описанием, работы с описанием.
+    assert "Дизайн" in text and "Понять и нарисовать" in text
+    assert "Логотип" in text and "Знак и начертание" in text
+    assert "Вёрстка" in text
+    # 2 × 100 + 3 × 200 = 800; налог 18% — 144; итого 944.
+    assert "800 EUR" in text
+    assert "Налог 18%" in text and "144 EUR" in text
+    assert "944 EUR" in text
+    # Примечания — по пункту на строку.
+    assert "Оценки по объёму." in text
+    assert "Ставки без лицензий." in text
+    # Действительно тридцать дней с даты документа.
+    assert "Действительно до" in text
+
+
+def test_the_client_document_carries_nothing_marked_internal(authed, quoted):
+    """Роль, подробности, заметки, риски, допущения строки и обсуждение —
+    внутренняя кухня; у строк документа для них нет полей."""
+    text = _pdf_text(
+        authed.get(f"/api/projects/{quoted}/proposal/export.pdf?locale=ru").content
+    )
+    assert "СЕКРЕТ" not in text
+
+
+@pytest.mark.parametrize(
+    "locale,title",
+    [("az", "Kommersiya təklifi"), ("en", "Commercial proposal"), ("ru", "Коммерческое предложение")],
+)
+def test_the_client_document_speaks_the_asked_language(authed, quoted, locale, title):
+    body = authed.get(f"/api/projects/{quoted}/proposal/export.pdf?locale={locale}").content
+    assert title in _pdf_text(body)
+
+
+def test_the_client_document_is_refused_to_a_client(authed, quoted, db):
+    """Клиенту обещаны сроки и объём, а не ставки: документ для него готовит
+    исполнитель. Проект он видит (грант есть), а документ — 403, не 404."""
+    _demote_own_membership(authed, db, "client")
+    _grant_project_access(authed, db, quoted)
+
+    assert authed.get(f"/api/projects/{quoted}").status_code == 200
+    response = authed.get(f"/api/projects/{quoted}/proposal/export.pdf")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "forbidden"
+
+
+def test_a_viewer_still_gets_the_client_document(authed, quoted, db):
+    """Обратная сторона: право читать предложение есть у всякого участника, а
+    не только у пишущих — наблюдатель отправляет документ так же."""
+    _demote_own_membership(authed, db, "viewer")
+    assert authed.get(f"/api/projects/{quoted}/proposal/export.pdf").status_code == 200
+
+
+def test_an_empty_proposal_is_refused_rather_than_rendered_blank(authed):
+    project_id, _, _ = _make_project(authed)
+    response = authed.get(f"/api/projects/{project_id}/proposal/export.pdf")
+    assert response.status_code == 422
+    assert response.json()["detail"] == "proposal_empty"
+
+
+def test_the_client_document_counts_against_the_export_limit(authed, quoted, monkeypatch):
+    """Счётчик один на все выгрузки: для сервера это такая же сборка PDF."""
+    from app.api import export_routes
+
+    monkeypatch.setattr(export_routes, "EXPORTS_PER_MINUTE", 1)
+    assert authed.get(f"/api/projects/{quoted}/export.pdf?include=tasks").status_code == 200
+    refused = authed.get(f"/api/projects/{quoted}/proposal/export.pdf")
+    assert refused.status_code == 429
+    assert refused.json()["detail"] == "rate_limited"
+
+
+def test_a_long_proposal_spans_pages_without_losing_a_row(authed):
+    """Таблица переносится на следующую страницу, а не обрезается: последняя
+    работа есть в файле, а шапка таблицы повторяется на каждой странице."""
+    project_id, _, _ = _make_project(authed)
+    category_id = authed.post(
+        f"/api/projects/{project_id}/proposal/categories", json={"name": "Работы"}
+    ).json()["id"]
+    for i in range(70):
+        task_id = authed.post(
+            f"/api/projects/{project_id}/proposal/categories/{category_id}/tasks",
+            json={"name": f"Работа {i + 1}"},
+        ).json()["id"]
+        authed.patch(
+            f"/api/projects/{project_id}/proposal/tasks/{task_id}",
+            json={"effort": 1, "rate": 10, "description": "Описание строки"},
+        )
+
+    body = authed.get(f"/api/projects/{project_id}/proposal/export.pdf?locale=ru").content
+    from pypdf import PdfReader
+
+    pages = [page.extract_text() or "" for page in PdfReader(io.BytesIO(body)).pages]
+    assert len(pages) > 1
+    assert any("Работа 70" in page for page in pages)
+    assert all("Сумма" in page for page in pages)
+    assert "700 USD" in pages[-1]
 
 
 # --- отказы --------------------------------------------------------------------

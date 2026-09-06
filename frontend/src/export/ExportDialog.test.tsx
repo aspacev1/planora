@@ -57,7 +57,7 @@ describe("окно экспорта", () => {
   it("пустой раздел недоступен — и объясняет, почему", () => {
     show({ proposalLines: 0 });
 
-    const checkbox = screen.getByRole("checkbox", { name: /Смета/ });
+    const checkbox = screen.getByRole("checkbox", { name: /Предложение/ });
     expect(checkbox).toBeDisabled();
     // Не молча выключенная галочка, а причина: иначе человек решит, что
     // выгрузка сломана.

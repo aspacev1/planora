@@ -1142,6 +1142,7 @@
     },
     "next": {
       "title": "Next",
+      "download_pdf": "Download client PDF",
       "push_note": "Work items become tasks on the chart; the move can be undone."
     }
   },
