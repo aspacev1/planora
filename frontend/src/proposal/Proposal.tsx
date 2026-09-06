@@ -388,6 +388,7 @@ export function Proposal({
         formats={formats}
         canWrite={canWrite}
         canExport={canExport}
+        status={proposal.status}
         pushedCount={proposal.pushed_count}
         pushableCount={proposal.pushable_count}
         onPush={() => setPushing(true)}

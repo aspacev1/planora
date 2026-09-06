@@ -109,25 +109,52 @@ const PREVIEW: PushPreview = {
       name: "Дизайн",
       plan_category: { id: "c1", name: "Дизайн" },
       tasks: [
-        { id: "pt1", name: "Логотип", duration_days: 2, in_plan: false, estimated: true },
-        { id: "pt2", name: "Гайдлайн", duration_days: 3, in_plan: false, estimated: true },
-        { id: "pt3", name: "Анимации", duration_days: 1, in_plan: false, estimated: false },
+        {
+          id: "pt1",
+          name: "Логотип",
+          duration_days: 2,
+          in_plan: false,
+          estimated: true,
+        },
+        {
+          id: "pt2",
+          name: "Гайдлайн",
+          duration_days: 3,
+          in_plan: false,
+          estimated: true,
+        },
+        {
+          id: "pt3",
+          name: "Анимации",
+          duration_days: 1,
+          in_plan: false,
+          estimated: false,
+        },
       ],
     },
   ],
 };
 
-function proposalFixtures(state: ProposalState = PROPOSAL, preview: PushPreview = PREVIEW) {
+function proposalFixtures(
+  state: ProposalState = PROPOSAL,
+  preview: PushPreview = PREVIEW,
+) {
   const sent: { method: string; path: string; body: unknown }[] = [];
   server.use(
     http.get("/api/projects/p1/proposal", () => HttpResponse.json(state)),
-    http.get("/api/projects/p1/proposal/push-plan", () => HttpResponse.json(preview)),
+    http.get("/api/projects/p1/proposal/push-plan", () =>
+      HttpResponse.json(preview),
+    ),
     http.post("/api/projects/p1/proposal/stage", async ({ request }) => {
       sent.push({ method: "POST", path: "stage", body: await request.json() });
       return HttpResponse.json(state);
     }),
     http.post("/api/projects/p1/batches/:batchId/undo", ({ params }) => {
-      sent.push({ method: "POST", path: `undo:${params.batchId as string}`, body: null });
+      sent.push({
+        method: "POST",
+        path: `undo:${params.batchId as string}`,
+        body: null,
+      });
       return HttpResponse.json({ undone: 2, seq: 3 }, { status: 201 });
     }),
     http.get("/api/projects/p1/proposal/tasks/:taskId/comments", () =>
@@ -156,41 +183,69 @@ function proposalFixtures(state: ProposalState = PROPOSAL, preview: PushPreview 
       },
     ),
     http.post("/api/projects/p1/proposal/categories", async ({ request }) => {
-      sent.push({ method: "POST", path: "categories", body: await request.json() });
-      return HttpResponse.json({ id: "pc-new", name: "Ещё", position: 1 }, { status: 201 });
-    }),
-    http.patch("/api/projects/p1/proposal/tasks/:taskId", async ({ request, params }) => {
       sent.push({
-        method: "PATCH",
-        path: `task:${params.taskId as string}`,
+        method: "POST",
+        path: "categories",
         body: await request.json(),
       });
-      return HttpResponse.json(state);
+      return HttpResponse.json(
+        { id: "pc-new", name: "Ещё", position: 1 },
+        { status: 201 },
+      );
     }),
+    http.patch(
+      "/api/projects/p1/proposal/tasks/:taskId",
+      async ({ request, params }) => {
+        sent.push({
+          method: "PATCH",
+          path: `task:${params.taskId as string}`,
+          body: await request.json(),
+        });
+        return HttpResponse.json(state);
+      },
+    ),
     http.patch("/api/projects/p1/proposal", async ({ request }) => {
-      sent.push({ method: "PATCH", path: "proposal", body: await request.json() });
-      return HttpResponse.json(state);
-    }),
-    http.patch("/api/projects/p1/proposal/categories/:categoryId", async ({ request, params }) => {
       sent.push({
         method: "PATCH",
-        path: `category:${params.categoryId as string}`,
+        path: "proposal",
         body: await request.json(),
       });
-      return HttpResponse.json({ id: params.categoryId, name: "Дизайн", position: 0 });
+      return HttpResponse.json(state);
     }),
+    http.patch(
+      "/api/projects/p1/proposal/categories/:categoryId",
+      async ({ request, params }) => {
+        sent.push({
+          method: "PATCH",
+          path: `category:${params.categoryId as string}`,
+          body: await request.json(),
+        });
+        return HttpResponse.json({
+          id: params.categoryId,
+          name: "Дизайн",
+          position: 0,
+        });
+      },
+    ),
     http.delete("/api/projects/p1/proposal/tasks/:taskId", ({ params }) => {
-      sent.push({ method: "DELETE", path: `task:${params.taskId as string}`, body: null });
-      return new HttpResponse(null, { status: 204 });
-    }),
-    http.delete("/api/projects/p1/proposal/categories/:categoryId", ({ params }) => {
       sent.push({
         method: "DELETE",
-        path: `category:${params.categoryId as string}`,
+        path: `task:${params.taskId as string}`,
         body: null,
       });
       return new HttpResponse(null, { status: 204 });
     }),
+    http.delete(
+      "/api/projects/p1/proposal/categories/:categoryId",
+      ({ params }) => {
+        sent.push({
+          method: "DELETE",
+          path: `category:${params.categoryId as string}`,
+          body: null,
+        });
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
     http.post("/api/projects/p1/proposal/push-to-plan", async ({ request }) => {
       const body = (await request.json()) as { task_ids: string[] };
       sent.push({ method: "POST", path: "push-to-plan", body });
@@ -201,7 +256,10 @@ function proposalFixtures(state: ProposalState = PROPOSAL, preview: PushPreview 
     }),
     http.post("/api/projects/p1/proposal/build-from-plan", () => {
       sent.push({ method: "POST", path: "build-from-plan", body: null });
-      return HttpResponse.json({ created_categories: 1, created_tasks: 2 }, { status: 201 });
+      return HttpResponse.json(
+        { created_categories: 1, created_tasks: 2 },
+        { status: 201 },
+      );
     }),
   );
   return sent;
@@ -235,14 +293,16 @@ describe("вкладка предложения", () => {
     // Пустая роль подсказывает, что в неё пишут, а не молчит прочерком.
     expect(screen.getByText("роль")).toBeInTheDocument();
     // Параметры сложены в поповер, но подпись кнопки говорит главное.
-    expect(screen.getByRole("button", { name: "Параметры предложения" })).toHaveTextContent(
-      "Дни · Налог 10 % · USD",
-    );
+    expect(
+      screen.getByRole("button", { name: "Параметры предложения" }),
+    ).toHaveTextContent("Дни · Налог 10 % · USD");
 
     // Строка раздела — сводка своих работ и описание.
     expect(screen.getByText("Понять и нарисовать")).toBeInTheDocument();
 
-    const summary = screen.getByRole("complementary", { name: "Итоги предложения" });
+    const summary = screen.getByRole("complementary", {
+      name: "Итоги предложения",
+    });
     expect(within(summary).getByText("40ч")).toBeInTheDocument();
     expect(within(summary).getByText("5д")).toBeInTheDocument();
     expect(within(summary).getByText(money(800))).toBeInTheDocument();
@@ -277,7 +337,9 @@ describe("вкладка предложения", () => {
 
     // Шапка: раздел, формула цены и сама цена — из чего сложилась строка.
     expect(within(panel).getByText("Дизайн")).toBeInTheDocument();
-    expect(within(panel).getByText(`2д × ${money(100)} в день`)).toBeInTheDocument();
+    expect(
+      within(panel).getByText(`2д × ${money(100)} в день`),
+    ).toBeInTheDocument();
     expect(within(panel).getByText(money(200))).toBeInTheDocument();
 
     // Три створки: что увидит заказчик, что останется внутри, разговор.
@@ -288,18 +350,30 @@ describe("вкладка предложения", () => {
 
     // Клиентская часть: работа, роль, оценка и ставка с единицами, описания.
     expect(within(panel).getByLabelText("Работа")).toHaveValue("Логотип");
-    expect(within(panel).getByLabelText("Ответственная роль")).toHaveValue("Дизайнер");
+    expect(within(panel).getByLabelText("Ответственная роль")).toHaveValue(
+      "Дизайнер",
+    );
     expect(within(panel).getByLabelText("Оценка, дни")).toHaveValue(2);
     expect(within(panel).getByLabelText("Ставка в день")).toHaveValue(100);
     expect(within(panel).getByLabelText("Описание")).toHaveValue("Знак");
-    expect(within(panel).getByLabelText("Подробное описание")).toHaveValue("Три варианта");
+    expect(within(panel).getByLabelText("Подробное описание")).toHaveValue(
+      "Три варианта",
+    );
 
     // Внутренняя часть: заметки, риски, допущения.
-    expect(within(panel).getByLabelText("Заметки")).toHaveValue("Шрифт покупает клиент");
-    expect(within(panel).getByLabelText("Риски")).toHaveValue("Правки затянутся");
-    expect(within(panel).getByLabelText("Допущения")).toHaveValue("Брендбук уже есть");
+    expect(within(panel).getByLabelText("Заметки")).toHaveValue(
+      "Шрифт покупает клиент",
+    );
+    expect(within(panel).getByLabelText("Риски")).toHaveValue(
+      "Правки затянутся",
+    );
+    expect(within(panel).getByLabelText("Допущения")).toHaveValue(
+      "Брендбук уже есть",
+    );
 
-    expect(await within(panel).findByText("Ставку согласовали")).toBeInTheDocument();
+    expect(
+      await within(panel).findByText("Ставку согласовали"),
+    ).toBeInTheDocument();
   });
 
   it("в почасовой смете подписи оценки и ставки — часовые", async () => {
@@ -311,7 +385,9 @@ describe("вкладка предложения", () => {
     );
     const panel = await screen.findByRole("complementary", { name: /Логотип/ });
 
-    expect(within(panel).getByText(`2ч × ${money(100)} в час`)).toBeInTheDocument();
+    expect(
+      within(panel).getByText(`2ч × ${money(100)} в час`),
+    ).toBeInTheDocument();
     expect(within(panel).getByLabelText("Оценка, часы")).toHaveValue(2);
     expect(within(panel).getByLabelText("Ставка в час")).toHaveValue(100);
   });
@@ -389,7 +465,11 @@ describe("вкладка предложения", () => {
     await userEvent.clear(effort);
     await userEvent.type(effort, "4{Enter}");
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "PATCH", path: "task:pt1", body: { effort: 4 } }),
+      expect(sent).toContainEqual({
+        method: "PATCH",
+        path: "task:pt1",
+        body: { effort: 4 },
+      }),
     );
 
     // Ставка.
@@ -398,7 +478,11 @@ describe("вкладка предложения", () => {
     await userEvent.clear(rate);
     await userEvent.type(rate, "150{Enter}");
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "PATCH", path: "task:pt1", body: { rate: 150 } }),
+      expect(sent).toContainEqual({
+        method: "PATCH",
+        path: "task:pt1",
+        body: { rate: 150 },
+      }),
     );
 
     // Цена — произведение, и правка её меняет ставку: 900 за три дня «Гайдлайна»
@@ -408,7 +492,11 @@ describe("вкладка предложения", () => {
     await userEvent.clear(price);
     await userEvent.type(price, "900{Enter}");
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "PATCH", path: "task:pt2", body: { rate: 300 } }),
+      expect(sent).toContainEqual({
+        method: "PATCH",
+        path: "task:pt2",
+        body: { rate: 300 },
+      }),
     );
   });
 
@@ -452,19 +540,37 @@ describe("вкладка предложения", () => {
     expect(
       screen.getByText("Работа «Логотип» удалится вместе с обсуждением"),
     ).toBeInTheDocument();
-    expect(sent).not.toContainEqual({ method: "DELETE", path: "task:pt1", body: null });
+    expect(sent).not.toContainEqual({
+      method: "DELETE",
+      path: "task:pt1",
+      body: null,
+    });
 
-    await userEvent.click(screen.getByRole("button", { name: "Удалить работу" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Удалить работу" }),
+    );
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "DELETE", path: "task:pt1", body: null }),
+      expect(sent).toContainEqual({
+        method: "DELETE",
+        path: "task:pt1",
+        body: null,
+      }),
     );
 
     // Тот же крестик и на строке раздела — со своим предупреждением: раздел
     // уносит с собой все работы.
-    await userEvent.click(screen.getByRole("button", { name: "Удалить раздел «Дизайн»" }));
-    await userEvent.click(screen.getByRole("button", { name: "Удалить раздел" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Удалить раздел «Дизайн»" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Удалить раздел" }),
+    );
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "DELETE", path: "category:pc1", body: null }),
+      expect(sent).toContainEqual({
+        method: "DELETE",
+        path: "category:pc1",
+        body: null,
+      }),
     );
   });
 
@@ -479,8 +585,13 @@ describe("вкладка предложения", () => {
     expect(within(modal).getByLabelText("Название")).toHaveValue("Дизайн");
 
     await userEvent.clear(within(modal).getByLabelText("Описание"));
-    await userEvent.type(within(modal).getByLabelText("Описание"), "Смыслы и картинки");
-    await userEvent.click(within(modal).getByRole("button", { name: "Сохранить" }));
+    await userEvent.type(
+      within(modal).getByLabelText("Описание"),
+      "Смыслы и картинки",
+    );
+    await userEvent.click(
+      within(modal).getByRole("button", { name: "Сохранить" }),
+    );
 
     await waitFor(() =>
       expect(sent).toContainEqual({
@@ -497,7 +608,9 @@ describe("вкладка предложения", () => {
     await screen.findByText("Логотип");
 
     // «Добавить работу» в конце раздела открывает строку ввода — как в ленте.
-    await userEvent.click(screen.getByRole("button", { name: "Добавить работу в «Дизайн»" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Добавить работу в «Дизайн»" }),
+    );
     const input = screen.getByLabelText("Новая работа в «Дизайн»");
     await userEvent.type(input, "Вёрстка{Enter}");
 
@@ -513,11 +626,21 @@ describe("вкладка предложения", () => {
     expect(screen.getByLabelText("Новая работа в «Дизайн»")).toHaveValue("");
 
     // Роль подсказывается из справочника организации и тянет за собой ставку.
-    await userEvent.type(screen.getByLabelText("Новая работа в «Дизайн»"), "Макет");
+    await userEvent.type(
+      screen.getByLabelText("Новая работа в «Дизайн»"),
+      "Макет",
+    );
     await userEvent.type(screen.getByLabelText("Роль новой работы"), "диз");
-    await userEvent.click(await screen.findByRole("option", { name: /Дизайнер/ }));
-    expect(screen.getByLabelText("Ставка новой работы, USD/д")).toHaveValue(100);
-    await userEvent.type(screen.getByLabelText("Оценка новой работы, д"), "3{Enter}");
+    await userEvent.click(
+      await screen.findByRole("option", { name: /Дизайнер/ }),
+    );
+    expect(screen.getByLabelText("Ставка новой работы, USD/д")).toHaveValue(
+      100,
+    );
+    await userEvent.type(
+      screen.getByLabelText("Оценка новой работы, д"),
+      "3{Enter}",
+    );
 
     await waitFor(() =>
       expect(sent).toContainEqual({
@@ -540,23 +663,62 @@ describe("вкладка предложения", () => {
     // Пройденный этап подписан датой, текущий назван, следующий — кнопкой.
     const stages = screen.getByRole("list", { name: "Этапы предложения" });
     expect(within(stages).getByText("27 авг")).toBeInTheDocument();
-    expect(within(stages).getByText("Отправлено").closest("[aria-current]")).toHaveAttribute(
-      "aria-current",
-      "step",
+    expect(
+      within(stages).getByText("Отправлено").closest("[aria-current]"),
+    ).toHaveAttribute("aria-current", "step");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Отметить согласованным" }),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Отметить согласованным" }));
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "POST", path: "stage", body: { stage: "agreed" } }),
+      expect(sent).toContainEqual({
+        method: "POST",
+        path: "stage",
+        body: { stage: "agreed" },
+      }),
     );
 
     // Назад — щелчком по пройденному этапу.
-    await userEvent.click(screen.getByRole("button", { name: "Вернуть на этап «Черновик»" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Вернуть на этап «Черновик»" }),
+    );
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "POST", path: "stage", body: { stage: "draft" } }),
+      expect(sent).toContainEqual({
+        method: "POST",
+        path: "stage",
+        body: { stage: "draft" },
+      }),
     );
   });
 
-  it("согласованное предложение зовёт в план прямо с полосы этапов", async () => {
+  it("перенос доступен из черновика — тихой кнопкой рядом с шагом сделки", async () => {
+    proposalFixtures();
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    // Не все отправляют документ клиенту: перенос стоит рядом с отметкой
+    // отправки, а не за ней. Но пока сделка не согласована, он тихий — и
+    // на полосе этапов, и в карточке итогов; главной кнопки в черновике нет.
+    const stages = screen.getByRole("list", { name: "Этапы предложения" });
+    expect(
+      within(stages).getByRole("button", { name: "Отметить отправленным" }),
+    ).toHaveClass("button--quiet");
+    const fromStages = within(stages).getByRole("button", {
+      name: "Перенести в план…",
+    });
+    expect(fromStages).toHaveClass("button--quiet");
+    expect(fromStages).not.toHaveClass("button--primary");
+    const summary = screen.getByRole("complementary", {
+      name: "Итоги предложения",
+    });
+    expect(
+      within(summary).getByRole("button", { name: "Перенести в план…" }),
+    ).toHaveClass("button--quiet");
+
+    await userEvent.click(fromStages);
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("после согласования перенос становится главной кнопкой", async () => {
     proposalFixtures({
       ...PROPOSAL,
       status: "agreed",
@@ -566,8 +728,24 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
+    // Шага сделки больше нет — перенос остаётся один и залитым, в обоих
+    // местах. Многоточие при этом остаётся: за нажатием то же окно.
     const stages = screen.getByRole("list", { name: "Этапы предложения" });
-    await userEvent.click(within(stages).getByRole("button", { name: "Перенести в план" }));
+    expect(
+      within(stages).queryByRole("button", { name: /Отметить/ }),
+    ).not.toBeInTheDocument();
+    const fromStages = within(stages).getByRole("button", {
+      name: "Перенести в план…",
+    });
+    expect(fromStages).toHaveClass("button--primary");
+    const summary = screen.getByRole("complementary", {
+      name: "Итоги предложения",
+    });
+    expect(
+      within(summary).getByRole("button", { name: "Перенести в план…" }),
+    ).toHaveClass("button--primary");
+
+    await userEvent.click(fromStages);
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
@@ -576,7 +754,9 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    await userEvent.click(screen.getByRole("button", { name: "Параметры предложения" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Параметры предложения" }),
+    );
     // Число уходит на сервер с каждым нажатием, как и всякое число в полях
     // автосохранения, — поэтому одна цифра: заглушка сервера не запоминает
     // правку, и вторая цифра легла бы поверх возвращённого старого значения.
@@ -599,9 +779,17 @@ describe("вкладка предложения", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Новый раздел" }));
     const modal = await screen.findByRole("dialog");
-    await userEvent.type(within(modal).getByLabelText("Название"), "Разработка");
-    await userEvent.type(within(modal).getByLabelText("Описание"), "Собрать приложение");
-    await userEvent.click(within(modal).getByRole("button", { name: "Создать" }));
+    await userEvent.type(
+      within(modal).getByLabelText("Название"),
+      "Разработка",
+    );
+    await userEvent.type(
+      within(modal).getByLabelText("Описание"),
+      "Собрать приложение",
+    );
+    await userEvent.click(
+      within(modal).getByRole("button", { name: "Создать" }),
+    );
 
     await waitFor(() =>
       expect(sent).toContainEqual({
@@ -619,11 +807,17 @@ describe("вкладка предложения", () => {
 
     // Пункт на строку — списком.
     expect(screen.getByText("Оценки по текущему объёму.")).toBeInTheDocument();
-    expect(screen.getByText("Ставки без стоимости лицензий.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Ставки без стоимости лицензий."),
+    ).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Править примечания" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Править примечания" }),
+    );
     // Роль сужает поиск: той же подписью подписана и сама карточка примечаний.
-    const editor = screen.getByRole("textbox", { name: "Допущения и примечания" });
+    const editor = screen.getByRole("textbox", {
+      name: "Допущения и примечания",
+    });
     await userEvent.clear(editor);
     await userEvent.type(editor, "Смета действительна месяц.");
     await userEvent.tab();
@@ -642,22 +836,37 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    await userEvent.click(screen.getByRole("button", { name: "Добавить в план" }));
+    const summary = screen.getByRole("complementary", {
+      name: "Итоги предложения",
+    });
+    await userEvent.click(
+      within(summary).getByRole("button", { name: "Перенести в план…" }),
+    );
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Перенести предложение в план")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Перенести предложение в план"),
+    ).toBeInTheDocument();
     // Раздел найдёт свою категорию плана, а не заведёт вторую.
-    expect(within(dialog).getByText("в категорию «Дизайн»")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("в категорию «Дизайн»"),
+    ).toBeInTheDocument();
     // Строка без оценки выключена и названа: спрятанную искали бы.
-    const blank = within(dialog).getByRole("checkbox", { name: "Перенести «Анимации»" });
+    const blank = within(dialog).getByRole("checkbox", {
+      name: "Перенести «Анимации»",
+    });
     expect(blank).toBeDisabled();
     expect(within(dialog).getByText("без оценки")).toBeInTheDocument();
     // По умолчанию выбрано всё оценённое: две задачи на пять дней.
     expect(within(dialog).getByText("2 работы · 5 дней")).toBeInTheDocument();
 
     // Снять галочку с одной строки: счёт и кнопка пересчитываются.
-    await userEvent.click(within(dialog).getByRole("checkbox", { name: "Перенести «Гайдлайн»" }));
+    await userEvent.click(
+      within(dialog).getByRole("checkbox", { name: "Перенести «Гайдлайн»" }),
+    );
     expect(within(dialog).getByText("1 работа · 2 дня")).toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Перенести 1 работу" }));
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Перенести 1 работу" }),
+    );
 
     await waitFor(() =>
       expect(sent).toContainEqual({
@@ -668,11 +877,19 @@ describe("вкладка предложения", () => {
     );
     // Тост говорит, что случилось, и предлагает две дороги: посмотреть и
     // отменить. «Отменить» снимает ту самую пачку, что назвал сервер.
-    expect(await screen.findByText("1 работа добавлена в план")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Открыть диаграмму" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("1 работа добавлена в план"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Открыть диаграмму" }),
+    ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Отменить" }));
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "POST", path: "undo:b1", body: null }),
+      expect(sent).toContainEqual({
+        method: "POST",
+        path: "undo:b1",
+        body: null,
+      }),
     );
   });
 
@@ -694,15 +911,23 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // Главная кнопка зовёт перенести только новое — счётом.
-    expect(screen.getByRole("button", { name: "Перенести 1 новую работу" })).toBeInTheDocument();
+    // Кнопка переноса зовёт перенести только новое — счётом, в обоих местах.
+    expect(
+      screen.getAllByRole("button", { name: "Перенести 1 новую работу…" }),
+    ).toHaveLength(2);
 
     await userEvent.click(
-      screen.getByRole("link", { name: "«Логотип» уже в плане: открыть задачу" }),
+      screen.getByRole("link", {
+        name: "«Логотип» уже в плане: открыть задачу",
+      }),
     );
     // Диаграмма открылась с карточкой той самой задачи, параметр из адреса снят.
-    expect(await screen.findByRole("complementary", { name: /Логотип/ })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/projects/p1"));
+    expect(
+      await screen.findByRole("complementary", { name: /Логотип/ }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent("/projects/p1"),
+    );
     expect(screen.getByTestId("location")).not.toHaveTextContent("task=");
   });
 
@@ -711,19 +936,32 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    expect(screen.getByRole("link", { name: "Открыть диаграмму" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Добавить в план" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Открыть диаграмму" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Перенести/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("клиенту вкладка не показывается, а адрес сметы уводит на диаграмму", async () => {
     proposalFixtures();
-    renderProject(undefined, { role: "client", route: "/projects/p1/proposal" });
+    renderProject(undefined, {
+      role: "client",
+      route: "/projects/p1/proposal",
+    });
 
     // Диаграмма открылась вместо сметы: сервер клиенту смету не отдаёт, и
     // дорога к заведомому отказу никому не нужна.
-    expect(await screen.findByRole("link", { name: "Диаграмма" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Предложение" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("complementary", { name: "Итоги предложения" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: "Диаграмма" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Предложение" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("complementary", { name: "Итоги предложения" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("location")).toHaveTextContent("/projects/p1");
   });
 
@@ -734,24 +972,63 @@ describe("вкладка предложения", () => {
 
     const link = screen.getByRole("link", { name: "Скачать PDF для клиента" });
     // Язык — тот, на котором смотрят на предложение: документ придёт на нём же.
-    expect(link).toHaveAttribute("href", "/api/projects/p1/proposal/export.pdf?locale=ru");
+    expect(link).toHaveAttribute(
+      "href",
+      "/api/projects/p1/proposal/export.pdf?locale=ru",
+    );
     // Браузер сохраняет файл сам, под именем из ответа сервера.
     expect(link).toHaveAttribute("download");
-    // Перенос в план остаётся рядом, тихой кнопкой того же блока.
+    // До согласования документ — главная кнопка, перенос в план остаётся
+    // рядом, тихой кнопкой того же блока.
+    expect(link).toHaveClass("proposal-summary__pdf");
     const next = screen.getByRole("region", { name: "Дальше" });
-    expect(within(next).getByRole("button", { name: "Добавить в план" })).toBeInTheDocument();
+    expect(
+      within(next).getByRole("button", { name: "Перенести в план…" }),
+    ).toHaveClass("button--quiet");
+  });
+
+  it("после согласования документ уходит в тихий вид, главной остаётся кнопка переноса", async () => {
+    proposalFixtures({
+      ...PROPOSAL,
+      status: "agreed",
+      sent_at: "2026-08-27T10:00:00+00:00",
+      agreed_at: "2026-09-02T10:00:00+00:00",
+    });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    // Документ уже ушёл и согласован: единственный оставшийся шаг — перенос,
+    // и залитой в блоке «Дальше» должна быть одна кнопка — его.
+    const next = screen.getByRole("region", { name: "Дальше" });
+    expect(
+      within(next).getByRole("link", { name: "Скачать PDF для клиента" }),
+    ).not.toHaveClass("proposal-summary__pdf");
+    expect(
+      within(next).getByRole("button", { name: "Перенести в план…" }),
+    ).toHaveClass("button--primary");
   });
 
   it("читателю смета видна, а правка — нет", async () => {
     proposalFixtures();
-    renderProject(undefined, { canWrite: false, route: "/projects/p1/proposal" });
+    renderProject(undefined, {
+      canWrite: false,
+      route: "/projects/p1/proposal",
+    });
 
     // Имя у читателя — по-прежнему кнопка, открывающая карточку: правкой
     // щелчок по нему быть не может, а карточка для чтения открыта и ему.
-    expect(await screen.findByRole("button", { name: /Логотип/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Добавить в план" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Новая работа" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Новый раздел" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /Логотип/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Перенести в план…" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Новая работа" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Новый раздел" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Править примечания" }),
     ).not.toBeInTheDocument();
@@ -780,7 +1057,9 @@ describe("вкладка предложения", () => {
     expect(
       screen.queryByRole("button", { name: "Отметить отправленным" }),
     ).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Параметры предложения" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Параметры предложения" }),
+    );
     expect(screen.getByLabelText("Налог, %")).toBeDisabled();
   });
 });
@@ -800,7 +1079,10 @@ describe("пустая смета", () => {
       http.post("/api/projects/p1/proposal/build-from-plan", () => {
         sent.push({ method: "POST", path: "build-from-plan", body: null });
         state = PROPOSAL;
-        return HttpResponse.json({ created_categories: 1, created_tasks: 2 }, { status: 201 });
+        return HttpResponse.json(
+          { created_categories: 1, created_tasks: 2 },
+          { status: 201 },
+        );
       }),
     );
     renderProject(undefined, { route: "/projects/p1/proposal" });
@@ -808,15 +1090,17 @@ describe("пустая смета", () => {
     expect(
       await screen.findByRole("heading", { name: "Смета проекта до плана" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Новый раздел/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Новый раздел/ }),
+    ).toBeInTheDocument();
     const build = screen.getByRole("button", { name: /Собрать из плана/ });
     expect(build).toBeEnabled();
     // Счётчики плана — в подписи карточки, склонённые по числу.
     expect(build).toHaveTextContent("В плане 3 задачи в 2 категориях");
     // Параметры — той же кнопкой-поповером, что в тулбаре таблицы.
-    expect(screen.getByRole("button", { name: "Параметры предложения" })).toHaveTextContent(
-      "Дни · Налог 10 % · USD",
-    );
+    expect(
+      screen.getByRole("button", { name: "Параметры предложения" }),
+    ).toHaveTextContent("Дни · Налог 10 % · USD");
     // Ни таблицы, ни итогов: нули в карточке отвечали бы на незаданный вопрос.
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(
@@ -826,18 +1110,26 @@ describe("пустая смета", () => {
     await userEvent.click(build);
 
     await waitFor(() =>
-      expect(sent).toContainEqual({ method: "POST", path: "build-from-plan", body: null }),
+      expect(sent).toContainEqual({
+        method: "POST",
+        path: "build-from-plan",
+        body: null,
+      }),
     );
     // Собранная смета — уже таблица с итогами.
     expect(await screen.findByText("Логотип")).toBeInTheDocument();
-    expect(screen.getByRole("complementary", { name: "Итоги предложения" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("complementary", { name: "Итоги предложения" }),
+    ).toBeInTheDocument();
   });
 
   it("при пустом плане карточка сборки приглушена и объясняет почему", async () => {
     proposalFixtures({ ...EMPTY, plan_facts: { tasks: 0, categories: 0 } });
     renderProject(undefined, { route: "/projects/p1/proposal" });
 
-    const build = await screen.findByRole("button", { name: /Собрать из плана/ });
+    const build = await screen.findByRole("button", {
+      name: /Собрать из плана/,
+    });
     expect(build).toBeDisabled();
     expect(build).toHaveTextContent("В плане пока нет задач");
     // Второй старт открыт: раздел заводится руками при любом плане.
@@ -848,13 +1140,19 @@ describe("пустая смета", () => {
     const sent = proposalFixtures(EMPTY);
     renderProject(undefined, { route: "/projects/p1/proposal" });
 
-    await userEvent.click(await screen.findByRole("button", { name: /Новый раздел/ }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Новый раздел/ }),
+    );
     const modal = await screen.findByRole("dialog");
     expect(within(modal).getByLabelText("Название")).toBeInTheDocument();
-    await userEvent.click(within(modal).getByRole("button", { name: "Отмена" }));
+    await userEvent.click(
+      within(modal).getByRole("button", { name: "Отмена" }),
+    );
 
     // Те же поля, что в тулбаре таблицы, и тот же способ сохранения.
-    await userEvent.click(screen.getByRole("button", { name: "Параметры предложения" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Параметры предложения" }),
+    );
     const tax = screen.getByLabelText("Налог, %");
     await userEvent.clear(tax);
     await userEvent.type(tax, "5");
@@ -869,16 +1167,25 @@ describe("пустая смета", () => {
 
   it("читателю старты не предлагаются, а параметры видны", async () => {
     proposalFixtures(EMPTY);
-    renderProject(undefined, { canWrite: false, route: "/projects/p1/proposal" });
+    renderProject(undefined, {
+      canWrite: false,
+      route: "/projects/p1/proposal",
+    });
 
     expect(
       await screen.findByRole("heading", { name: "Смета проекта до плана" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Собрать из плана/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Новый раздел/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Собрать из плана/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Новый раздел/ }),
+    ).not.toBeInTheDocument();
     // Параметры видны и читателю: в чём считают смету, знать вправе и он —
     // но поля внутри поповера у него выключены.
-    await userEvent.click(screen.getByRole("button", { name: "Параметры предложения" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Параметры предложения" }),
+    );
     expect(screen.getByLabelText("Налог, %")).toBeDisabled();
   });
 });

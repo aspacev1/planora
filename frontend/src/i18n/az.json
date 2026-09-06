@@ -1084,7 +1084,7 @@
       "total": "Yekun"
     },
     "push": {
-      "action": "Plana əlavə et",
+      "action": "Plana köçür…",
       "done": {
         "one": "{count} iş plana əlavə olundu",
         "other": "{count} iş plana əlavə olundu"
@@ -1106,8 +1106,8 @@
       "undo_hint": "Köçürməni bir düymə ilə geri qaytarmaq olar",
       "open_gantt": "Diaqramı aç",
       "more": {
-        "one": "{count} yeni işi köçür",
-        "other": "{count} yeni işi köçür"
+        "one": "{count} yeni işi köçür…",
+        "other": "{count} yeni işi köçür…"
       },
       "section_aria": "«{name}» bölməsi",
       "row_aria": "«{name}» köçür"
@@ -1130,7 +1130,6 @@
       },
       "mark_sent": "Göndərilmiş kimi qeyd et",
       "mark_agreed": "Razılaşdırılmış kimi qeyd et",
-      "push": "Plana köçür",
       "back_to": "«{stage}» mərhələsinə qayıt"
     },
     "params": {

@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import type { ProposalStage } from "../api/proposal";
 import { formatShortDate } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
+import { PushPlanButton } from "./PushPlanButton";
 
 type StepKey = ProposalStage | "in_plan";
 
@@ -10,9 +11,15 @@ type StepKey = ProposalStage | "in_plan";
  * Полоса этапов сделки: черновик → отправлено → согласовано → в плане.
  *
  * Отвечает на «где я» и «что дальше» одним взглядом: пройденные этапы с
- * датами, текущий выделен, а справа одна кнопка следующего шага. Три первых
- * этапа отмечает человек, четвёртый выводится из ссылок строк на задачи —
- * его не отмечают, он случается переносом.
+ * датами, текущий выделен, а справа — кнопка следующего шага и кнопка
+ * переноса в план. Три первых этапа отмечает человек, четвёртый выводится из
+ * ссылок строк на задачи — его не отмечают, он случается переносом.
+ *
+ * Перенос стоит рядом с шагом, а не вместо него, с самого черновика: не все
+ * отправляют документ клиенту, и смете, написанной для себя, незачем
+ * проходить «отправлено» и «согласовано», чтобы стать планом. Пока сделка не
+ * согласована, он тихий — следующий шаг всё же отметка; после согласования
+ * шага больше нет, и перенос остаётся один, главным (см. PushPlanButton).
  *
  * Пройденный этап — кнопка возврата к нему: снять отметку можно тем же
  * движением, каким её поставили. Это заметки для себя, а не юридический
@@ -70,15 +77,18 @@ export function ProposalStepper({
   // отправку, которой не было.
   const current = steps.reduce((last, step, index) => (step.reached ? index : last), 0);
 
+  // Следующий шаг сделки — отметка, и только она: перенос шагом не считается,
+  // у него своя кнопка рядом, на любом этапе.
   const next = !canWrite
     ? null
     : status === "draft"
       ? { label: t("proposal.stage.mark_sent"), run: () => onMark("sent") }
       : status === "sent"
         ? { label: t("proposal.stage.mark_agreed"), run: () => onMark("agreed") }
-        : pushableCount > 0
-          ? { label: t("proposal.stage.push"), run: onPush }
-          : null;
+        : null;
+  // Переносить нечего — кнопки нет: полоса сообщает, что всё уже в плане,
+  // подписью у последнего этапа, и выключенная кнопка рядом повторяла бы её.
+  const pushable = canWrite && pushableCount > 0;
 
   return (
     <div className="stepper" role="list" aria-label={t("proposal.stage.title")}>
@@ -135,15 +145,22 @@ export function ProposalStepper({
           </Fragment>
         );
       })}
-      {next && (
-        <button
-          type="button"
-          className="button--quiet stepper__next"
-          disabled={marking}
-          onClick={next.run}
-        >
-          {next.label}
-        </button>
+      {(next || pushable) && (
+        <span className="stepper__actions">
+          {next && (
+            <button type="button" className="button--quiet" disabled={marking} onClick={next.run}>
+              {next.label}
+            </button>
+          )}
+          {pushable && (
+            <PushPlanButton
+              status={status}
+              pushedCount={pushedCount}
+              pushableCount={pushableCount}
+              onPush={onPush}
+            />
+          )}
+        </span>
       )}
     </div>
   );

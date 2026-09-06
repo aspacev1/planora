@@ -308,7 +308,12 @@
   background: var(--accent);
 }
 
-.stepper__next {
+/* Действия справа от этапов: шаг сделки и перенос в план, в один ряд. Оба
+   могут стоять тихими — тогда их разводит зазор, а не рамка. */
+.stepper__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-left: 14px;
 }
 
