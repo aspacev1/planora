@@ -13,7 +13,7 @@
 
 import math
 import uuid
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
@@ -39,6 +39,21 @@ class ProposalError(Exception):
         self.code = code
 
 
+#: Потолки чисел строки — ширина колонок Numeric(8,2) и Numeric(12,2) без
+#: дробной части. Одно место на маршрут и на пересчёт: значение шире уехало
+#: бы в базу ошибкой усечения — пятисоткой вместо честного отказа.
+EFFORT_MAX = 999_999
+RATE_MAX = 9_999_999_999
+
+_CENT = Decimal("0.01")
+
+
+def _round2(value: Decimal) -> Decimal:
+    # HALF_UP, а не банковское округление по умолчанию: 12.345 в смете — это
+    # 12.35, как посчитал бы человек с калькулятором.
+    return value.quantize(_CENT, rounding=ROUND_HALF_UP)
+
+
 def get_proposal(db: DbSession, project: Project) -> Proposal | None:
     return db.scalar(select(Proposal).where(Proposal.project_id == project.id))
 
@@ -58,6 +73,46 @@ def ensure_proposal(db: DbSession, project: Project) -> Proposal:
         db.add(proposal)
         db.flush()
     return proposal
+
+
+def convert_effort_unit(db: DbSession, proposal: Proposal, unit: str) -> None:
+    """Переводит смету в другую единицу, не меняя цен строк.
+
+    Два дня по 400 становятся шестнадцатью часами по 50: единица — свойство
+    предложения целиком, и человек, переключивший её, ждёт ту же смету в
+    других числах, а не смету, подорожавшую в восемь раз. Трудоёмкость
+    переводится через «часов в дне», ставка выводится из прежней цены строки
+    заново, а не делится сама по себе: когда деление трудоёмкости не сходится
+    в двух знаках (7 часов — это 0.875 дня), ошибку округления забирает
+    ставка, и итог предложения остаётся прежним с точностью до копейки.
+
+    Строка без трудоёмкости цены не имеет — её ставка просто переводится тем
+    же множителем. Строка, чья трудоёмкость округлилась бы в ноль, получает
+    минимальную сотую: иначе её цена исчезла бы вместе с нулём.
+    """
+    if unit == proposal.effort_unit:
+        return
+    factor = Decimal(proposal.hours_per_day)
+    to_hours = unit == "hours"
+    tasks = db.scalars(select(ProposalTask).where(ProposalTask.proposal_id == proposal.id)).all()
+    for task in tasks:
+        price = task.effort * task.rate
+        effort = _round2(task.effort * factor if to_hours else task.effort / factor)
+        if task.effort > 0:
+            effort = max(effort, _CENT)
+        if effort > 0:
+            rate = _round2(price / effort)
+        else:
+            rate = _round2(task.rate / factor if to_hours else task.rate * factor)
+        if effort > EFFORT_MAX or rate > RATE_MAX:
+            raise ProposalError(
+                "proposal_number_too_large",
+                "после пересчёта число не помещается в строку сметы",
+            )
+        task.effort = effort
+        task.rate = rate
+    proposal.effort_unit = unit
+    db.flush()
 
 
 def require_category(

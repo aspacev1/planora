@@ -240,6 +240,7 @@
     "proposal_empty": "Təklifdə plana keçiriləcək tapşırıq yoxdur",
     "proposal_category_not_found": "Bu təklifdə belə bölmə yoxdur",
     "proposal_task_not_found": "Bu təklifdə belə tapşırıq yoxdur",
+    "proposal_number_too_large": "Yenidən hesablamadan sonra rəqəm smeta sətrinə sığmır: qiymətləndirməni və ya tarifi azaldın",
     "rate_limited": "Çox tez-tez: yenidən hesablama dəqiqədə bir dəfə mümkündür",
     "metric_not_found": "Belə metrika yoxdur",
     "week_in_future": "Bu həftə hələ başlamayıb",

@@ -201,6 +201,10 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
       <div className="proposal__main">
         <div className="proposal__toolbar">
           <div className="proposal__settings">
+            {/* Смена единицы пересчитывает строки на сервере (два дня по
+                400 — шестнадцать часов по 50), и ответ перечитывается
+                целиком: таблица не переводит числа сама, иначе у неё и у
+                сервера было бы по своему округлению. */}
             <SelectField
               id="proposal-unit"
               label={t("proposal.settings.unit")}

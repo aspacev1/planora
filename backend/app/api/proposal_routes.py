@@ -22,10 +22,13 @@ from app.live import hub
 from app.models import ProposalComment, User
 from app.mutations import MutationError, NotFoundInProject
 from app.proposals import (
+    EFFORT_MAX,
+    RATE_MAX,
     ProposalError,
     add_category,
     add_task,
     add_task_comment,
+    convert_effort_unit,
     ensure_proposal,
     get_proposal,
     require_category,
@@ -75,8 +78,8 @@ class ProposalTaskPatch(BaseModel):
     description: str | None = None
     details: str | None = None
     role: str | None = Field(default=None, max_length=120)
-    effort: float | None = Field(default=None, ge=0, le=999_999)
-    rate: float | None = Field(default=None, ge=0, le=9_999_999_999)
+    effort: float | None = Field(default=None, ge=0, le=EFFORT_MAX)
+    rate: float | None = Field(default=None, ge=0, le=RATE_MAX)
     notes: str | None = None
     risks: str | None = None
     assumptions: str | None = None
@@ -134,10 +137,18 @@ def update_proposal_settings(
     context.require(Action.PROJECT_WRITE)
     proposal = ensure_proposal(db, context.project)
     changes = payload.model_dump(exclude_unset=True, exclude_none=True)
-    if "effort_unit" in changes:
-        proposal.effort_unit = changes["effort_unit"]
+    # «Часов в дне» — раньше единицы: запрос с обоими полями описывает одну
+    # смету («в часах, по десять в дне»), и переводить строки надо тем
+    # числом, которое в ней и останется, а не тем, что было до запроса.
     if "hours_per_day" in changes:
         proposal.hours_per_day = changes["hours_per_day"]
+    if "effort_unit" in changes:
+        # Строки пересчитываются вместе с единицей: смета в новых единицах
+        # обязана стоить столько же, сколько в прежних (см. app.proposals).
+        try:
+            convert_effort_unit(db, proposal, changes["effort_unit"])
+        except ProposalError as error:
+            raise _refuse(error)
     if "tax_rate_pct" in changes:
         # Decimal из строки, а не из float: Decimal(0.1) — это
         # 0.1000000000000000055…, и налог перестал бы быть круглым.

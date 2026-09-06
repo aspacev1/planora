@@ -460,6 +460,54 @@ describe("вкладка предложения", () => {
     );
   });
 
+  it("смена единицы отправляет одно поле и показывает пересчитанную сервером смету", async () => {
+    // Сервер пересчитывает строки сам: 2д × 100 становятся 16ч × 12.5, а
+    // 3д × 200 — 24ч × 25. Экран лишь перечитывает ответ — и итоги обязаны
+    // сойтись с прежними: 800, налог 80, всего 880.
+    const inHours: ProposalState = {
+      ...PROPOSAL,
+      effort_unit: "hours",
+      categories: PROPOSAL.categories.map((category) => ({
+        ...category,
+        tasks: category.tasks.map((task) => ({
+          ...task,
+          effort: task.effort * 8,
+          rate: task.rate / 8,
+        })),
+      })),
+    };
+    let current = PROPOSAL;
+    const sent = proposalFixtures();
+    server.use(
+      http.get("/api/projects/p1/proposal", () => HttpResponse.json(current)),
+      http.patch("/api/projects/p1/proposal", async ({ request }) => {
+        sent.push({ method: "PATCH", path: "proposal", body: await request.json() });
+        current = inHours;
+        return HttpResponse.json(current);
+      }),
+    );
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    await userEvent.selectOptions(screen.getByLabelText("Оценка в"), "hours");
+
+    await waitFor(() =>
+      expect(sent).toContainEqual({
+        method: "PATCH",
+        path: "proposal",
+        body: { effort_unit: "hours" },
+      }),
+    );
+    // Оценка и ставка — в часах, цена та же.
+    expect(await screen.findByText(`${money(12.5)}/ч`)).toBeInTheDocument();
+    expect(screen.getByText(`${money(25)}/ч`)).toBeInTheDocument();
+    expect(screen.getByText(money(600))).toBeInTheDocument();
+    const summary = screen.getByRole("complementary", { name: "Итоги предложения" });
+    expect(within(summary).getByText("40ч")).toBeInTheDocument();
+    expect(within(summary).getByText("5д")).toBeInTheDocument();
+    expect(within(summary).getByText(money(880))).toBeInTheDocument();
+  });
+
   it("кнопка переноса отдаёт смету в план", async () => {
     const sent = proposalFixtures();
     renderProject(undefined, { route: "/projects/p1/proposal" });

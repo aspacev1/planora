@@ -240,6 +240,7 @@
     "proposal_empty": "The proposal has no tasks to add to the plan",
     "proposal_category_not_found": "No such section in this proposal",
     "proposal_task_not_found": "No such task in this proposal",
+    "proposal_number_too_large": "After conversion a number no longer fits an estimate row: lower the effort or the rate",
     "rate_limited": "Too often: recalculation is available once a minute",
     "metric_not_found": "No such metric",
     "week_in_future": "That week has not started yet",
