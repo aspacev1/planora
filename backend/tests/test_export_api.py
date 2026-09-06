@@ -16,6 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
+from app.config import get_settings
 from app.db import get_db
 from app.export import budget, theme
 from app.export.budget import Orientation, Period, Zoom
@@ -136,6 +137,54 @@ def test_a_cyrillic_project_name_survives_the_header(authed):
     # процентной кодировке — иначе браузер сохранит файл под «____».
     assert "%D0%9F%D0%B5%D1%80%D0%B5%D0%B5%D0%B7%D0%B4" in disposition
     assert disposition.split(";")[1].strip().isascii()
+
+
+# --- срок действия --------------------------------------------------------------
+
+
+def _cover_line(body: bytes) -> str:
+    """Строка обложки листа «Обзор» — та, где стоят период, дата выгрузки и
+    срок действия."""
+    return load_workbook(io.BytesIO(body))["Обзор"]["B4"].value
+
+
+def _exported_on(cover_line: str) -> date:
+    """Дата выгрузки берётся из самого документа, а не из date.today():
+    «сегодня» документа считается по таймзоне проекта, и на границе суток
+    тест иначе разошёлся бы с ним."""
+    day, month, year = cover_line.split("Выгружено: ")[1].split()[0].split(".")
+    return date(int(year), int(month), int(day))
+
+
+def test_the_document_is_valid_for_the_configured_days_from_its_export_date(
+    authed, monkeypatch
+):
+    """«Действительно до» — настройка установки, а не поле формы: считается на
+    сервере от даты выгрузки (она же дата отправки заказчику), и обе формы
+    называют один и тот же день."""
+    monkeypatch.setenv("EXPORT_VALIDITY_DAYS", "10")
+    get_settings.cache_clear()
+    try:
+        project_id, _, _ = _make_project(authed)
+        xlsx = authed.get(f"/api/projects/{project_id}/export.xlsx?{ALL}&locale=ru").content
+        pdf = authed.get(f"/api/projects/{project_id}/export.pdf?{ALL}&locale=ru").content
+    finally:
+        get_settings.cache_clear()
+
+    line = _cover_line(xlsx)
+    expected = _exported_on(line) + timedelta(days=10)
+    assert f"Действительно до: {expected:%d.%m.%Y}" in line
+
+    month = dictionary("ru")["month_short"][str(expected.month)]
+    assert f"Действительно до: {expected.day} {month} {expected.year}" in _pdf_text(pdf)
+
+
+def test_thirty_days_is_the_default_validity(authed):
+    project_id, _, _ = _make_project(authed)
+    line = _cover_line(
+        authed.get(f"/api/projects/{project_id}/export.xlsx?{ALL}&locale=ru").content
+    )
+    assert f"Действительно до: {_exported_on(line) + timedelta(days=30):%d.%m.%Y}" in line
 
 
 # --- книга Excel --------------------------------------------------------------

@@ -6,6 +6,7 @@
     "period": "Dövr",
     "deadline": "Son tarix",
     "generated": "İxrac edilib",
+    "valid_until": "Etibarlılıq müddəti",
     "page": "səh. {n} / {total}",
     "org": "Təşkilat",
     "client_copy": "Müştəri nüsxəsi"

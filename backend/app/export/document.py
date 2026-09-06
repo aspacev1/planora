@@ -12,7 +12,7 @@ XLSX однажды разойдутся ровно там, где расхож�
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 
@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.api.serialization import project_state
 from app.comments import author_names, list_comments
+from app.config import get_settings
 from app.export import budget
 from app.export.budget import Orientation, Period, Window, Zoom
 from app.export.labels import Labels, has_group_key
@@ -235,6 +236,10 @@ class ExportDocument:
     deadline: date | None
     today: date
     generated_at: date
+    #: До какого дня документ действителен. Считается на сервере от даты
+    #: выгрузки по EXPORT_VALIDITY_DAYS, а не в рисовальщике: PDF и XLSX
+    #: обязаны назвать один и тот же день.
+    valid_until: date
     client_copy: bool
     sections: frozenset[ExportSection]
     layout: Layout
@@ -331,6 +336,7 @@ def build_document(
         deadline=project.deadline,
         today=today,
         generated_at=today,
+        valid_until=today + timedelta(days=get_settings().export_validity_days),
         client_copy=client_copy,
         sections=sections,
         layout=layout,
