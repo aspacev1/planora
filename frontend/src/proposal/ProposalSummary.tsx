@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 
+import type { ProposalStage } from "../api/proposal";
 import { useLocale } from "../i18n/LocaleProvider";
 import type { Formats } from "./ProposalTable";
+import { PushPlanButton } from "./PushPlanButton";
 
 /**
  * Итоги — карточкой сбоку, на виду при любой прокрутке: «сколько всего»
@@ -21,6 +23,7 @@ export function ProposalSummary({
   tax,
   formats,
   canWrite,
+  status,
   pushedCount,
   pushableCount,
   onPush,
@@ -34,6 +37,8 @@ export function ProposalSummary({
   tax: number;
   formats: Formats;
   canWrite: boolean;
+  /** Этап сделки: от него зависит, главная кнопка переноса или тихая. */
+  status: ProposalStage;
   /** Сколько строк уже в плане и сколько оценённых ещё можно перенести. */
   pushedCount: number;
   pushableCount: number;
@@ -42,15 +47,10 @@ export function ProposalSummary({
 }) {
   const { t } = useLocale();
 
-  // Главная кнопка отвечает на «что дальше», и ответ меняется по ходу дела:
-  // пока в плане ничего нет — перенести; перенесли часть — перенести только
-  // новое, счётом; перенесли всё — смотреть диаграмму. Кнопка, зовущая
-  // переносить то, что уже перенесено, вернула бы прежние дубли на словах.
+  // Блок отвечает на «что дальше», и ответ меняется по ходу дела: пока в
+  // плане не всё — перенести (см. PushPlanButton: тихо до согласования,
+  // главной после); перенесли всё — смотреть диаграмму.
   const everythingPushed = pushedCount > 0 && pushableCount === 0;
-  const pushLabel =
-    pushedCount > 0
-      ? t("proposal.push.more", { count: pushableCount })
-      : t("proposal.push.action");
 
   return (
     <aside className="proposal-summary" aria-label={t("proposal.summary.title")}>
@@ -91,14 +91,13 @@ export function ProposalSummary({
             </Link>
           ) : (
             <>
-              <button
-                type="button"
-                className="button--primary proposal-summary__push"
-                disabled={pushableCount === 0}
-                onClick={onPush}
-              >
-                {pushLabel}
-              </button>
+              <PushPlanButton
+                status={status}
+                pushedCount={pushedCount}
+                pushableCount={pushableCount}
+                className="proposal-summary__push"
+                onPush={onPush}
+              />
               <p className="proposal-summary__note">{t("proposal.next.push_note")}</p>
             </>
           )}

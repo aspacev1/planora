@@ -1034,7 +1034,7 @@
       "total": "Total"
     },
     "push": {
-      "action": "Add to plan",
+      "action": "Move into the plan…",
       "done": {
         "one": "{count} task added to the plan",
         "other": "{count} tasks added to the plan"
@@ -1052,8 +1052,8 @@
       "undo_hint": "The move can be undone with one click",
       "open_gantt": "Open the chart",
       "more": {
-        "one": "Move {count} new work item",
-        "other": "Move {count} new work items"
+        "one": "Move {count} new work item…",
+        "other": "Move {count} new work items…"
       },
       "section_aria": "Section “{name}”",
       "row_aria": "Move “{name}”"
@@ -1076,7 +1076,6 @@
       },
       "mark_sent": "Mark as sent",
       "mark_agreed": "Mark as agreed",
-      "push": "Move into the plan",
       "back_to": "Go back to “{stage}”"
     },
     "params": {

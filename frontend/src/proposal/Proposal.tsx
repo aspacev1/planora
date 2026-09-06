@@ -349,6 +349,7 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
         tax={tax}
         formats={formats}
         canWrite={canWrite}
+        status={proposal.status}
         pushedCount={proposal.pushed_count}
         pushableCount={proposal.pushable_count}
         onPush={() => setPushing(true)}

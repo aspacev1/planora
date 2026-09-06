@@ -507,7 +507,31 @@ describe("вкладка предложения", () => {
     );
   });
 
-  it("согласованное предложение зовёт в план прямо с полосы этапов", async () => {
+  it("перенос доступен из черновика — тихой кнопкой рядом с шагом сделки", async () => {
+    proposalFixtures();
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+    await screen.findByText("Логотип");
+
+    // Не все отправляют документ клиенту: перенос стоит рядом с отметкой
+    // отправки, а не за ней. Но пока сделка не согласована, он тихий — и
+    // на полосе этапов, и в карточке итогов; главной кнопки в черновике нет.
+    const stages = screen.getByRole("list", { name: "Этапы предложения" });
+    expect(within(stages).getByRole("button", { name: "Отметить отправленным" })).toHaveClass(
+      "button--quiet",
+    );
+    const fromStages = within(stages).getByRole("button", { name: "Перенести в план…" });
+    expect(fromStages).toHaveClass("button--quiet");
+    expect(fromStages).not.toHaveClass("button--primary");
+    const summary = screen.getByRole("complementary", { name: "Итоги предложения" });
+    expect(within(summary).getByRole("button", { name: "Перенести в план…" })).toHaveClass(
+      "button--quiet",
+    );
+
+    await userEvent.click(fromStages);
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("после согласования перенос становится главной кнопкой", async () => {
     proposalFixtures({
       ...PROPOSAL,
       status: "agreed",
@@ -517,8 +541,20 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
+    // Шага сделки больше нет — перенос остаётся один и залитым, в обоих
+    // местах. Многоточие при этом остаётся: за нажатием то же окно.
     const stages = screen.getByRole("list", { name: "Этапы предложения" });
-    await userEvent.click(within(stages).getByRole("button", { name: "Перенести в план" }));
+    expect(
+      within(stages).queryByRole("button", { name: /Отметить/ }),
+    ).not.toBeInTheDocument();
+    const fromStages = within(stages).getByRole("button", { name: "Перенести в план…" });
+    expect(fromStages).toHaveClass("button--primary");
+    const summary = screen.getByRole("complementary", { name: "Итоги предложения" });
+    expect(within(summary).getByRole("button", { name: "Перенести в план…" })).toHaveClass(
+      "button--primary",
+    );
+
+    await userEvent.click(fromStages);
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
@@ -593,7 +629,8 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    await userEvent.click(screen.getByRole("button", { name: "Добавить в план" }));
+    const summary = screen.getByRole("complementary", { name: "Итоги предложения" });
+    await userEvent.click(within(summary).getByRole("button", { name: "Перенести в план…" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Перенести предложение в план")).toBeInTheDocument();
     // Раздел найдёт свою категорию плана, а не заведёт вторую.
@@ -645,8 +682,8 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // Главная кнопка зовёт перенести только новое — счётом.
-    expect(screen.getByRole("button", { name: "Перенести 1 новую работу" })).toBeInTheDocument();
+    // Кнопка переноса зовёт перенести только новое — счётом, в обоих местах.
+    expect(screen.getAllByRole("button", { name: "Перенести 1 новую работу…" })).toHaveLength(2);
 
     await userEvent.click(
       screen.getByRole("link", { name: "«Логотип» уже в плане: открыть задачу" }),
@@ -663,7 +700,7 @@ describe("вкладка предложения", () => {
     await screen.findByText("Логотип");
 
     expect(screen.getByRole("link", { name: "Открыть диаграмму" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Добавить в план" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Перенести/ })).not.toBeInTheDocument();
   });
 
   it("клиенту вкладка не показывается, а адрес сметы уводит на диаграмму", async () => {
@@ -685,7 +722,7 @@ describe("вкладка предложения", () => {
     // Имя у читателя — по-прежнему кнопка, открывающая карточку: правкой
     // щелчок по нему быть не может, а карточка для чтения открыта и ему.
     expect(await screen.findByRole("button", { name: /Логотип/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Добавить в план" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Перенести в план…" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Новая работа" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Новый раздел" })).not.toBeInTheDocument();
     expect(
