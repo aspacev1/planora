@@ -467,6 +467,43 @@ def test_push_to_plan_turns_rows_into_tasks_as_one_batch(authed, project_id):
     assert batches == {response.json()["batch_id"]}
 
 
+def test_push_carries_risks_and_assumptions_into_the_internal_note(authed, project_id):
+    """Риски и допущения строки не теряются при переносе: они складываются во
+    внутреннюю заметку задачи под заголовками на языке организации. Описание
+    при этом остаётся описанием — клиенту его показывать можно."""
+    authed.patch("/api/org", json={"default_locale": "ru"})
+    category_id = _category_id(authed, project_id, name="Дизайн")
+    logo = _estimated_task(authed, project_id, category_id, "Логотип", effort=2)
+    authed.patch(
+        f"/api/projects/{project_id}/proposal/tasks/{logo}",
+        json={
+            "description": "Знак",
+            "risks": "Правки затянутся",
+            "assumptions": "Брендбук уже есть",
+        },
+    )
+    # Одно поле пустое — заголовок пустого раздела не пишется, пробелы по
+    # краям не попадают в заметку.
+    guide = _estimated_task(authed, project_id, category_id, "Гайдлайн", effort=1)
+    authed.patch(
+        f"/api/projects/{project_id}/proposal/tasks/{guide}",
+        json={"assumptions": "  Шрифты куплены  "},
+    )
+    # Все поля пустые — заметка пустая, а не пара голых заголовков.
+    _estimated_task(authed, project_id, category_id, "Иконки", effort=1)
+
+    response = authed.post(f"/api/projects/{project_id}/proposal/push-to-plan")
+    assert response.status_code == 201
+
+    state = authed.get(f"/api/projects/{project_id}").json()
+    by_name = {task["name"]: task for task in state["tasks"]}
+    assert by_name["Логотип"]["description"] == "Знак"
+    assert by_name["Логотип"]["internal_note"] == (
+        "Риски\nПравки затянутся\n\nДопущения\nБрендбук уже есть"
+    )
+    assert by_name["Гайдлайн"]["internal_note"] == "Допущения\nШрифты куплены"
+    assert by_name["Иконки"]["internal_note"] == ""
+
 def test_second_push_reuses_the_plan_category_by_name(authed, project_id):
     category_id = _category_id(authed, project_id, name="Дизайн")
     _estimated_task(authed, project_id, category_id, "Логотип", effort=2)
