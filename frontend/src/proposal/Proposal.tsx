@@ -4,6 +4,7 @@ import { useState } from "react";
 import { errorKey } from "../api/errors";
 import { projectQueryKey } from "../api/projects";
 import {
+  buildProposalFromPlan,
   createProposalTask,
   deleteProposalCategory,
   deleteProposalTask,
@@ -25,6 +26,7 @@ import { useToast } from "../components/toast";
 import { useLocale } from "../i18n/LocaleProvider";
 import { formatAmount, formatMoney } from "./money";
 import { ProposalCategoryForm } from "./ProposalCategoryForm";
+import { ProposalEmptyState } from "./ProposalEmptyState";
 import { ProposalNotes } from "./ProposalNotes";
 import { ProposalParams } from "./ProposalParams";
 import { ProposalStepper } from "./ProposalStepper";
@@ -61,6 +63,12 @@ import "./proposal.css";
  * Экран держит данные и состояние вкладки; таблица (ProposalTable), итоги
  * (ProposalSummary) и примечания (ProposalNotes) — свои компоненты, каждому
  * достаётся ровно то, что он показывает.
+ *
+ * Пока разделов нет, вместо таблицы стоит объяснение с двумя стартами
+ * (ProposalEmptyState): пустая таблица с шестью заголовками не говорит
+ * новичку ни что это, ни с чего начать. Карточка итогов и полоса этапов до
+ * первой строки тоже не показываются — нули в них были бы ответом на
+ * незаданный вопрос.
  */
 export function Proposal({ projectId, canWrite }: { projectId: string; canWrite: boolean }) {
   const { t, locale } = useLocale();
@@ -108,6 +116,19 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
   const mark = useMutation({
     mutationFn: (stage: ProposalStage) => setProposalStage(projectId, stage),
     onSuccess: invalidate,
+    onError: (refusal: unknown) => {
+      toast({ message: t(errorKey(refusal)), tone: "error" });
+    },
+  });
+
+  // Сборка из плана — старт пустой сметы: разделы из категорий, строки из
+  // задач. Отказ — тостом: на пустом экране нет строки ошибки под таблицей.
+  const build = useMutation({
+    mutationFn: () => buildProposalFromPlan(projectId),
+    onSuccess: async (result) => {
+      toast({ message: t("proposal.start.build.done", { count: result.created_tasks }) });
+      await invalidate();
+    },
     onError: (refusal: unknown) => {
       toast({ message: t(errorKey(refusal)), tone: "error" });
     },
@@ -168,6 +189,27 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
   }
 
   const proposal = query.data;
+
+  if (proposal.categories.length === 0) {
+    return (
+      <div className="proposal proposal--start">
+        <div className="proposal__main">
+          <ProposalEmptyState
+            proposal={proposal}
+            canWrite={canWrite}
+            saves={saves}
+            onNewCategory={() => setAddingCategory(true)}
+            onBuild={() => build.mutate()}
+            building={build.isPending}
+          />
+        </div>
+        {addingCategory && (
+          <ProposalCategoryForm projectId={projectId} onClose={() => setAddingCategory(false)} />
+        )}
+      </div>
+    );
+  }
+
   const tasks = proposal.categories.flatMap((category) => category.tasks);
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
   const editingCategory =
@@ -233,25 +275,11 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
           <ProposalParams proposal={proposal} canWrite={canWrite} saves={saves} />
         </div>
 
-        {proposal.categories.length === 0 ? (
-          <div className="proposal__empty">
-            <p className="muted">{t("proposal.empty")}</p>
-            {canWrite && (
-              <button
-                type="button"
-                className="button--quiet"
-                onClick={() => setAddingCategory(true)}
-              >
-                {t("proposal.category.create")}
-              </button>
-            )}
-          </div>
-        ) : (
-          // Таблица прокручивается вбок в своих берегах: шесть колонок с
-          // именами, описаниями и деньгами на узком экране уже, чем есть, не
-          // становятся — а без этого они уезжали бы под карточку итогов, и
-          // колонка цены пропадала бы вовсе.
-          <div className="proposal-table__scroll">
+        {/* Таблица прокручивается вбок в своих берегах: шесть колонок с
+            именами, описаниями и деньгами на узком экране уже, чем есть, не
+            становятся — а без этого они уезжали бы под карточку итогов, и
+            колонка цены пропадала бы вовсе. */}
+        <div className="proposal-table__scroll">
             <table className="proposal-table">
               <thead>
                 <tr>
@@ -323,7 +351,6 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
               </tbody>
             </table>
           </div>
-        )}
 
         {failure && (
           <p className="error" role="alert">

@@ -71,6 +71,17 @@ const PROPOSAL: ProposalState = {
 };
 
 /**
+ * Смета, которой ещё нет: ни разделов, ни строк — только план, из которого
+ * её можно собрать. Числа плана не совпадают друг с другом, чтобы подпись
+ * карточки нельзя было собрать из перепутанных счётчиков.
+ */
+const EMPTY: ProposalState = {
+  ...PROPOSAL,
+  categories: [],
+  plan_facts: { tasks: 3, categories: 2 },
+};
+
+/**
  * Деньги — тем же Intl, что и экран: точная строка зависит от ICU среды.
  *
  * Неразрывный пробел приводится к обычному: getByText нормализует пробелы в
@@ -187,6 +198,10 @@ function proposalFixtures(state: ProposalState = PROPOSAL, preview: PushPreview 
         { created_tasks: body.task_ids.length, batch_id: "b1" },
         { status: 201 },
       );
+    }),
+    http.post("/api/projects/p1/proposal/build-from-plan", () => {
+      sent.push({ method: "POST", path: "build-from-plan", body: null });
+      return HttpResponse.json({ created_categories: 1, created_tasks: 2 }, { status: 201 });
     }),
   );
   return sent;
@@ -716,6 +731,104 @@ describe("вкладка предложения", () => {
     expect(
       screen.queryByRole("button", { name: "Отметить отправленным" }),
     ).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Параметры предложения" }));
+    expect(screen.getByLabelText("Налог, %")).toBeDisabled();
+  });
+});
+
+describe("пустая смета", () => {
+  beforeEach(() => {
+    projectFixtures();
+  });
+
+  it("объясняет назначение, предлагает два старта и собирается из плана одной кнопкой", async () => {
+    // Сервер отдаёт пустую смету, пока её не собрали, и полную — после:
+    // перезапрос после сборки обязан показать таблицу, а не прежнюю пустоту.
+    let state = EMPTY;
+    const sent = proposalFixtures(EMPTY);
+    server.use(
+      http.get("/api/projects/p1/proposal", () => HttpResponse.json(state)),
+      http.post("/api/projects/p1/proposal/build-from-plan", () => {
+        sent.push({ method: "POST", path: "build-from-plan", body: null });
+        state = PROPOSAL;
+        return HttpResponse.json({ created_categories: 1, created_tasks: 2 }, { status: 201 });
+      }),
+    );
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+
+    expect(
+      await screen.findByRole("heading", { name: "Смета проекта до плана" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Новый раздел/ })).toBeInTheDocument();
+    const build = screen.getByRole("button", { name: /Собрать из плана/ });
+    expect(build).toBeEnabled();
+    // Счётчики плана — в подписи карточки, склонённые по числу.
+    expect(build).toHaveTextContent("В плане 3 задачи в 2 категориях");
+    // Параметры — той же кнопкой-поповером, что в тулбаре таблицы.
+    expect(screen.getByRole("button", { name: "Параметры предложения" })).toHaveTextContent(
+      "Дни · Налог 10 % · USD",
+    );
+    // Ни таблицы, ни итогов: нули в карточке отвечали бы на незаданный вопрос.
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("complementary", { name: "Итоги предложения" }),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(build);
+
+    await waitFor(() =>
+      expect(sent).toContainEqual({ method: "POST", path: "build-from-plan", body: null }),
+    );
+    // Собранная смета — уже таблица с итогами.
+    expect(await screen.findByText("Логотип")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Итоги предложения" })).toBeInTheDocument();
+  });
+
+  it("при пустом плане карточка сборки приглушена и объясняет почему", async () => {
+    proposalFixtures({ ...EMPTY, plan_facts: { tasks: 0, categories: 0 } });
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+
+    const build = await screen.findByRole("button", { name: /Собрать из плана/ });
+    expect(build).toBeDisabled();
+    expect(build).toHaveTextContent("В плане пока нет задач");
+    // Второй старт открыт: раздел заводится руками при любом плане.
+    expect(screen.getByRole("button", { name: /Новый раздел/ })).toBeEnabled();
+  });
+
+  it("«Новый раздел» открывает окно раздела, кнопка параметров — поповер сметы", async () => {
+    const sent = proposalFixtures(EMPTY);
+    renderProject(undefined, { route: "/projects/p1/proposal" });
+
+    await userEvent.click(await screen.findByRole("button", { name: /Новый раздел/ }));
+    const modal = await screen.findByRole("dialog");
+    expect(within(modal).getByLabelText("Название")).toBeInTheDocument();
+    await userEvent.click(within(modal).getByRole("button", { name: "Отмена" }));
+
+    // Те же поля, что в тулбаре таблицы, и тот же способ сохранения.
+    await userEvent.click(screen.getByRole("button", { name: "Параметры предложения" }));
+    const tax = screen.getByLabelText("Налог, %");
+    await userEvent.clear(tax);
+    await userEvent.type(tax, "5");
+    await waitFor(() =>
+      expect(sent).toContainEqual({
+        method: "PATCH",
+        path: "proposal",
+        body: { tax_rate_pct: 5 },
+      }),
+    );
+  });
+
+  it("читателю старты не предлагаются, а параметры видны", async () => {
+    proposalFixtures(EMPTY);
+    renderProject(undefined, { canWrite: false, route: "/projects/p1/proposal" });
+
+    expect(
+      await screen.findByRole("heading", { name: "Смета проекта до плана" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Собрать из плана/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Новый раздел/ })).not.toBeInTheDocument();
+    // Параметры видны и читателю: в чём считают смету, знать вправе и он —
+    // но поля внутри поповера у него выключены.
     await userEvent.click(screen.getByRole("button", { name: "Параметры предложения" }));
     expect(screen.getByLabelText("Налог, %")).toBeDisabled();
   });

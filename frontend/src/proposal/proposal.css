@@ -31,12 +31,177 @@
   margin-bottom: 14px;
 }
 
-.proposal__empty {
+/* --- Пустое состояние ---------------------------------------------------- */
+
+/* Один экран вместо таблицы без строк: объяснение, три шага, два старта.
+   Ширина ограничена строкой текста, а не экраном: абзац на всю ширину
+   монитора не читается, а карточки старта шире ладони не становятся лучше. */
+.proposal--start .proposal__main {
+  max-width: 720px;
+}
+
+.proposal-start {
+  padding: 8px 0 24px;
+}
+
+/* Надзаголовок — название вкладки капителью, как подпись раздела: он не
+   заголовок, а место, где мы находимся. */
+.proposal-start__eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.proposal-start__title {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.proposal-start__lead {
+  margin: 0 0 22px;
+  max-width: 60ch;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Три шага в ряд, нумерация — счётчиком, а не цифрой в тексте: порядок
+   шагов задаёт разметка, и словарь не обязан помнить, какой из них третий. */
+.proposal-start__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.proposal-start__step {
+  position: relative;
+  padding-left: 34px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  counter-increment: step;
+}
+
+.proposal-start__step::before {
+  content: counter(step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.proposal-start__step strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.proposal-start__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* Карточка старта — кнопка, выглядящая карточкой: заголовок и пояснение в
+   столбик, текст по левому краю. Базовое правило кнопок задаёт ей высоту
+   поля и подпись в одну строку — здесь всё это снимается: пояснение
+   переносится по словам, и высота идёт от него. */
+.proposal-start__card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
-  margin: 24px 0;
+  gap: 6px;
+  height: auto;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.proposal-start__card:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Приглушённая, а не спрятанная: карточка сборки при пустом плане остаётся
+   на месте и объясняет, чего ждёт. */
+.proposal-start__card:disabled,
+.proposal-start__card:disabled:hover {
+  border-color: var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  box-shadow: none;
+  opacity: 1;
+  cursor: default;
+}
+
+.proposal-start__card-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.proposal-start__card-hint {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.proposal-start__readonly {
+  margin: 0 0 20px;
+}
+
+/* Строка параметров — той же кнопкой-поповером, что стоит в тулбаре таблицы
+   (ProposalParams): до первой строки сметы параметры трогают редко, и четыре
+   поля на виду спорили бы с карточками за внимание. */
+.proposal-start__settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Панель раскрывается от левого края кнопки, а не от правого: кнопка стоит в
+   начале строки, и панель, прижатая вправо, уезжала бы за край экрана. */
+.proposal-start__settings .menu__pop {
+  right: auto;
+  left: 0;
+}
+
+@media (max-width: 720px) {
+  .proposal-start__steps,
+  .proposal-start__options {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* --- Этапы сделки --------------------------------------------------------- */
@@ -664,6 +829,12 @@ th.proposal-table__num {
    макета: смета пишется, чтобы стать планом. */
 .proposal-summary__push {
   width: 100%;
+}
+
+.proposal-summary__note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  text-align: center;
 }
 
 @media (max-width: 900px) {

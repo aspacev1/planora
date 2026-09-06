@@ -38,7 +38,10 @@ export type ProposalTask = {
   assumptions: string;
   position: number;
   comment_count: number;
-  /** Задача плана, в которую строка уже перенесена; `null` — ещё нет. */
+  /**
+   * Задача плана, из которой строка собрана или в которую перенесена.
+   * `null` — в плане её ещё нет: перенос заведёт её, а связанные пропустит.
+   */
   plan_task_id: string | null;
 };
 
@@ -67,7 +70,11 @@ export type ProposalState = {
   pushed_count: number;
   pushable_count: number;
   role_suggestions: RoleSuggestion[];
-  /** Сколько в плане категорий и задач — пустому предложению, чтобы предложить собрать смету из плана. */
+  /**
+   * Чем наполнен план — для карточки «Собрать из плана» на пустой смете.
+   * Категории считаются те, в которых есть задачи: столько разделов сборка
+   * и заведёт.
+   */
   plan_facts: { categories: number; tasks: number };
   categories: ProposalCategory[];
 };
@@ -246,4 +253,16 @@ export function pushProposalToPlan(
     method: "POST",
     body: JSON.stringify({ task_ids: taskIds }),
   });
+}
+
+/**
+ * Сборка пустой сметы из плана — обратный путь к переносу: категория —
+ * разделом, задача — строкой с оценкой из длительности и ссылкой на задачу,
+ * чтобы перенос потом не завёл её второй раз. План сборка только читает, и
+ * ревизий не рождает. Отказы: `proposal_not_empty`, `plan_empty`.
+ */
+export function buildProposalFromPlan(
+  projectId: string,
+): Promise<{ created_categories: number; created_tasks: number }> {
+  return request(`/api/projects/${projectId}/proposal/build-from-plan`, { method: "POST" });
 }
