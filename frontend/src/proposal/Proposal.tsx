@@ -154,6 +154,8 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
   const proposal = query.data;
   const tasks = proposal.categories.flatMap((category) => category.tasks);
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+  const selectedCategory =
+    proposal.categories.find((category) => category.id === selectedTask?.category_id) ?? null;
   const editingCategory =
     proposal.categories.find((category) => category.id === editingCategoryId) ?? null;
   const hours = proposal.effort_unit === "hours";
@@ -450,6 +452,7 @@ export function Proposal({ projectId, canWrite }: { projectId: string; canWrite:
         <ProposalTaskPanel
           projectId={projectId}
           task={selectedTask}
+          categoryName={selectedCategory?.name ?? ""}
           effortUnit={proposal.effort_unit}
           currency={proposal.currency}
           canWrite={canWrite}

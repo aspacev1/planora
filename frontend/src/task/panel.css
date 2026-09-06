@@ -562,6 +562,54 @@
   color: var(--text);
 }
 
+/* Пояснение к заголовку створки — кому видно содержимое. Строчными и без
+   разрядки: это подпись к заголовку, а не второй заголовок. */
+.panel__section-note {
+  margin-left: 4px;
+  color: var(--text-faint);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Значок у заголовка створки — замок раздела «только для команды». */
+.panel__section-icon {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+/* Два свойства в одну строку — оценка и ставка сметы: это сомножители одной
+   цены, и в столбце они читались бы как две несвязанные цифры. Первое
+   держит общую колонку подписей, чтобы его значение стояло в один край с
+   остальными; у второго подпись по содержимому. */
+.panel__pair {
+  display: flex;
+  gap: 16px;
+}
+
+.panel__pair > .panel__field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.panel__pair > .panel__field + .panel__field {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+/* На узком экране пара становится столбцом: два поля в 360 пикселей —
+   это два поля по три цифры. */
+@media (max-width: 480px) {
+  .panel__pair {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .panel__pair > .panel__field + .panel__field {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+}
+
 /* Связи: «зависит от» и «блокирует». */
 .panel__links {
   display: flex;
