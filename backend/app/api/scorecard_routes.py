@@ -69,6 +69,15 @@ def _publish(
 _CHANGED = {"type": "scorecard"}
 
 
+def _visibility(context: ProjectContext) -> dict:
+    """Что из разреза по людям положено этому читателю. Решается здесь, по
+    матрице прав, — клиент получает уже урезанный ответ."""
+    return {
+        "include_team": context.can(Action.TEAM_PACE_READ),
+        "include_assessment": context.can(Action.TEAM_ASSESSMENT_READ),
+    }
+
+
 @router.get("/{project_id}/scorecard")
 def get_project_scorecard(
     weeks: int = Query(default=DEFAULT_WEEKS, ge=1, le=26),
@@ -80,7 +89,9 @@ def get_project_scorecard(
     Побочный эффект — ленивая фиксация недель: планировщика в архитектуре
     нет, и дозаписывает снимки первый читатель после границы недели.
     """
-    return scorecard_state(db, context.project, context.org, weeks=weeks)
+    return scorecard_state(
+        db, context.project, context.org, weeks=weeks, **_visibility(context)
+    )
 
 
 @router.post("/{project_id}/scorecard/recalculate")
@@ -102,7 +113,7 @@ def recalculate_project_scorecard(
         raise HTTPException(status_code=429, detail="rate_limited")
     state = scorecard_state(
         db, context.project, context.org, weeks=weeks,
-        actor_id=context.user.id, force=True,
+        actor_id=context.user.id, force=True, **_visibility(context),
     )
     _publish(background, db, context.project.id, _CHANGED)
     return state
@@ -129,7 +140,8 @@ def update_scorecard_metric(
     except ScorecardError as error:
         raise _refuse(error)
     state = scorecard_state(
-        db, context.project, context.org, actor_id=context.user.id, force=True
+        db, context.project, context.org, actor_id=context.user.id, force=True,
+        **_visibility(context),
     )
     _publish(background, db, context.project.id, _CHANGED)
     return state

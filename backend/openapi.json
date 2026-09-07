@@ -119,6 +119,9 @@
                 "$ref": "#/components/schemas/PublicSetCriticality"
               },
               {
+                "$ref": "#/components/schemas/PublicSetRisk"
+              },
+              {
                 "$ref": "#/components/schemas/PublicSetProgress"
               },
               {
@@ -2380,6 +2383,37 @@
         "title": "PublicSetProgress",
         "type": "object"
       },
+      "PublicSetRisk": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Note",
+            "type": "string"
+          },
+          "risk": {
+            "$ref": "#/components/schemas/RiskFlag"
+          },
+          "task_id": {
+            "format": "uuid",
+            "title": "Task Id",
+            "type": "string"
+          },
+          "type": {
+            "const": "set_risk",
+            "default": "set_risk",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "risk"
+        ],
+        "title": "PublicSetRisk",
+        "type": "object"
+      },
       "PublicSetStatus": {
         "additionalProperties": false,
         "properties": {
@@ -2570,6 +2604,16 @@
         ],
         "title": "ResetPasswordIn",
         "type": "object"
+      },
+      "RiskFlag": {
+        "description": "Самооценка исполнителя: успеваю ли я к сроку.\n\nНе расчёт, а слово человека: зелёный — по плану, жёлтый — есть риск,\nкрасный — срок под угрозой. Скоркард сравнивает это слово с фактом\n(«предупредил заранее» или «сорвал молча»), и ровно поэтому флаг живёт на\nзадаче, а не в комментарии: по журналу видно, когда он был поставлен.",
+        "enum": [
+          "green",
+          "yellow",
+          "red"
+        ],
+        "title": "RiskFlag",
+        "type": "string"
       },
       "ScheduleIn": {
         "description": "Привязка плана к дате старта — или её предпросмотр.\n\n`working_days` — маска новой рабочей недели, если её выбрали в том же\nокне; None — оставить действующую. `shift_tasks=False` — при повторной\nсмене старта календарного проекта оставить даты задач как есть; для\nотносительного проекта значения не имеет — его задачи раскладываются по\nкалендарю всегда.",

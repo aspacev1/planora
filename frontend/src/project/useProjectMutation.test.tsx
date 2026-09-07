@@ -41,6 +41,8 @@ const STATE: ProjectState = {
       milestone: false,
       critical: false,
       criticality: "high",
+      risk: "green",
+      risk_note: "",
       status: "in_progress",
       progress_pct: 40,
       position: 0,

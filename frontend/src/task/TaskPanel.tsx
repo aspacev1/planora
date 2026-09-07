@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 
 import { errorKey } from "../api/errors";
 import { MEMBERS_QUERY_KEY, members as fetchMembers } from "../api/org";
-import { CRITICALITY_LEVELS, TASK_STATUSES } from "../api/projects";
-import type { Criticality, Op, ProjectState, Task, TaskStatus } from "../api/projects";
+import { CRITICALITY_LEVELS, RISK_FLAGS, TASK_STATUSES } from "../api/projects";
+import type { Criticality, Op, ProjectState, RiskFlag, Task, TaskStatus } from "../api/projects";
 import { Avatar } from "../components/Avatar";
 import { StatusChip } from "../components/StatusChip";
 import { Switch } from "../components/Switch";
@@ -379,6 +379,42 @@ export function TaskPanel({
                 );
               }}
             />
+
+            {/* Риск — слово исполнителя, а не расчёт: «успеваю ли я». Причина
+                показывается только у не-зелёного флага: у «по плану» ей
+                нечего объяснять, а пустое поле читалось бы как забытое. */}
+            <SelectField
+              id="panel-risk"
+              label={t("task.panel.risk")}
+              value={task.risk}
+              disabled={!canWrite}
+              options={RISK_FLAGS.map((flag) => ({
+                value: flag,
+                label: t(`task.risk.${flag}`),
+              }))}
+              onCommit={(value) => {
+                const risk = value as RiskFlag;
+                send(
+                  { type: "set_risk", task_id: task.id, risk, note: task.risk_note },
+                  patch({ risk }),
+                );
+              }}
+            />
+            {task.risk !== "green" && (
+              <TextField
+                id="panel-risk-note"
+                label={t("task.panel.risk_note")}
+                value={task.risk_note}
+                disabled={!canWrite}
+                onCommit={(value) => {
+                  const note = value.slice(0, 300);
+                  send(
+                    { type: "set_risk", task_id: task.id, risk: task.risk, note },
+                    patch({ risk_note: note }),
+                  );
+                }}
+              />
+            )}
 
             {/* Веха — рубильник, а не поле: у него два состояния, и меняются
                 они сразу. Стоит перед сроками не случайно: включённый он

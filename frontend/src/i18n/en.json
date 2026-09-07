@@ -362,6 +362,11 @@
       "high": "High",
       "critical": "Critical"
     },
+    "risk": {
+      "green": "On plan",
+      "yellow": "At risk",
+      "red": "Deadline threatened"
+    },
     "status": {
       "planned": "Planned",
       "in_progress": "In progress",
@@ -375,6 +380,8 @@
       "description": "Description",
       "category": "Category",
       "criticality": "Criticality",
+      "risk": "Risk",
+      "risk_note": "Reason",
       "status": "Status",
       "start": "Start",
       "start_day": "Start, project day",
@@ -419,6 +426,8 @@
     "set_duration": "changed the duration from {from} to {to}",
     "set_progress": "changed progress from {from}% to {to}%",
     "set_criticality": "changed criticality from “{from}” to “{to}”",
+    "set_risk": "changed risk from “{from}” to “{to}”",
+    "set_risk_noted": "changed risk from “{from}” to “{to}”: {note}",
     "set_status": "changed the status from “{from}” to “{to}”",
     "set_task_fields": "changed the {fields}",
     "field": {
@@ -567,7 +576,8 @@
     },
     "tip": {
       "more": "{name} +{count}",
-      "keys": "Shift + ←→ move · Esc cancel · {mod}+Z undo"
+      "keys": "Shift + ←→ move · Esc cancel · {mod}+Z undo",
+      "risk": "Risk: {risk}"
     },
     "table": {
       "collapse": "Collapse the task table",
@@ -1160,75 +1170,66 @@
     "title": "Project scorecard",
     "subtitle": "Week {number} · {start} – {end}",
     "updated": "updated {time}",
-    "weeks_window": "13 weeks",
     "recalculate": "Recalculate",
-    "columns": {
-      "metric": "Metric",
-      "value": "Actual / target",
-      "trend": "Trend",
-      "status": "Status"
-    },
-    "metric": {
-      "overdue_tasks": "Overdue tasks",
-      "finish_drift": "Finish drift, wd",
-      "scope_growth": "Scope growth",
-      "date_shifts": "Date shifts this week",
-      "close_rate": "Weekly close rate",
-      "stale_in_progress": "Stale in progress",
-      "data_quality": "Data quality"
-    },
     "status": {
       "ok": "On track",
       "warn": "Attention",
       "risk": "At risk",
       "no_data": "No data"
     },
-    "streak": "· {count} wk",
     "row": {
-      "avg_overdue": "avg {count} wd",
-      "scope_breakdown": "added {added}, closed {closed}"
-    },
-    "owner_label": "Owner of “{metric}”",
-    "owner_none": "unassigned",
-    "target_label": "Target for “{metric}”",
-    "attention": {
-      "title": "Needs attention",
-      "empty": "All good",
-      "rule": "“{metric}” has been at risk for two weeks in a row, a task was created",
-      "open_task": "Open the task",
-      "risk": "“{metric}” is at risk this week",
-      "delta_up": "+{count} vs last week",
-      "delta_down": "−{count} vs last week",
-      "top_assignee": "most affected: {name} ({count})",
-      "open_all": "Open all tasks ({count}) →"
-    },
-    "outlook": {
-      "title": "Forecast",
-      "finish": "Projected finish",
-      "milestone": "Next milestone",
-      "milestone_overdue": "Milestone overdue"
+      "avg_overdue": "{count} wd on average"
     },
     "drill": {
-      "empty": "No tasks for this week",
-      "deleted": "Task deleted",
-      "days_overdue": "{count} wd overdue",
-      "in_progress_days": "{count} wd in progress",
-      "delta_days": "shifted {count} d",
-      "closed": "closed this week",
-      "not_closed": "not closed",
-      "added": "added this week",
+      "empty": "No tasks for this week"
+    },
+    "summary": {
+      "week_done": "Team: {done} of {planned} tasks due this week done",
+      "overdue": "Overdue",
+      "blocked": "Blocked",
+      "finish_drift": "Finish drift",
+      "drift_value": "{value} wd",
+      "none": "none",
+      "blocked_longest": "longest: {task}, {count} wd",
+      "projected": "forecast {date}",
+      "no_forecast": "no forecast"
+    },
+    "team": {
+      "person": "Person",
+      "pace": "Weekly pace",
+      "on_time": "On time",
+      "signal": "Signal",
+      "trend": "8 weeks",
+      "pace_planned": "planned",
+      "extra": "+{count} extra",
+      "of": "of {count}",
+      "closed": "{count} closed",
+      "unassigned": "Unassigned: {tasks}",
+      "assessment_note": "Only the project owner sees the signal",
+      "no_assessment": "Only the project owner sees the assessment",
+      "empty": "Assign people to tasks — the pace by person appears here",
       "reason": {
-        "unassigned": "no assignee",
-        "unreal_deadline": "unrealistic deadline"
+        "in_pace": "on pace",
+        "overdue_silent": "{count} missed, no warning",
+        "overdue_warned": "{count} missed, warned ahead",
+        "blocked": "“{task}” blocked for {count} wd",
+        "risk_flag": "“{risk}” flag on “{task}”",
+        "reopened": "“{task}” reopened from done"
       }
     },
-    "quality": {
-      "title": "Project data quality",
-      "percent": "{value}%",
-      "affected": "{affected} of {total} tasks need fixing",
-      "cause_unassigned": "No assignee",
-      "cause_unreal": "Unrealistic deadline",
-      "cause_both": "Both problems"
+    "task": {
+      "due": "due {date}",
+      "done": "done",
+      "late": "{count} wd overdue",
+      "blocked": "blocked {count} wd",
+      "risk": "risk: {risk}",
+      "progress": "in progress",
+      "planned": "planned",
+      "warned_risk": "warned with a flag",
+      "warned_blocked": "warned by blocking",
+      "silent": "no warning",
+      "done_late": "{count} wd late",
+      "reopened": "reopened from done"
     }
   },
   "export": {

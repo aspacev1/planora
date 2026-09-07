@@ -90,6 +90,21 @@ export function formatEvent(
         to: t(`task.criticality.${String(op.to)}`),
       });
 
+    case "set_risk": {
+      // Причина — текст человека, и во фразу она входит как есть: переводить
+      // её нечем, а фраза без неё умалчивала бы о главном.
+      const before = asRecord(op.from);
+      const after = asRecord(op.to);
+      const bounds = {
+        from: t(`task.risk.${String(before.risk)}`),
+        to: t(`task.risk.${String(after.risk)}`),
+      };
+      const note = typeof after.note === "string" ? after.note : "";
+      return note !== "" && note !== before.note
+        ? say("set_risk_noted", { ...bounds, note })
+        : say("set_risk", bounds);
+    }
+
     case "set_status":
       return say("set_status", {
         from: t(`task.status.${String(op.from)}`),

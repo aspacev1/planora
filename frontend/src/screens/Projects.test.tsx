@@ -29,6 +29,8 @@ function task(fields: Partial<Task> = {}): Task {
     milestone: false,
     critical: false,
     criticality: "normal",
+    risk: "green",
+    risk_note: "",
     status: "in_progress",
     progress_pct: 40,
     position: 0,

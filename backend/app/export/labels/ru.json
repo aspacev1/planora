@@ -81,7 +81,8 @@
     "date_shifts": "Сдвиги дат",
     "close_rate": "Закрываемость",
     "stale_in_progress": "Зависшие в работе",
-    "data_quality": "Качество данных"
+    "data_quality": "Качество данных",
+    "team_pace": "Темп команды"
   },
   "legend": {
     "title": "Обозначения",
@@ -137,6 +138,7 @@
     "resize_task": "Изменена длительность",
     "set_category_color": "Изменён цвет категории",
     "set_criticality": "Изменена критичность",
+    "set_risk": "Изменён риск",
     "set_duration": "Изменена длительность",
     "set_milestone": "Изменён признак вехи",
     "set_progress": "Изменён прогресс",

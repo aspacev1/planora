@@ -208,3 +208,19 @@ def test_an_unscoped_editor_is_unaffected_by_the_new_parameter():
     # включается само по себе.
     assert can(Role.EDITOR, Action.PROJECT_READ) is True
     assert can(Role.EDITOR, Action.PROJECT_WRITE) is True
+
+
+def test_team_pace_is_for_the_team_and_assessment_for_the_owner():
+    """Цифры темпа по людям видит команда, включая наблюдателя; оценку
+    («сорвал молча») — только владелец. Клиент и гость не видят ни того, ни
+    другого: они смотрят план, а не на исполнителей."""
+    assert can(Role.OWNER, Action.TEAM_PACE_READ) is True
+    assert can(Role.EDITOR, Action.TEAM_PACE_READ) is True
+    assert can(Role.VIEWER, Action.TEAM_PACE_READ) is True
+    assert can(Role.CLIENT, Action.TEAM_PACE_READ, project_granted=True) is False
+    assert can(None, Action.TEAM_PACE_READ, project_granted=True) is False
+
+    assert can(Role.OWNER, Action.TEAM_ASSESSMENT_READ) is True
+    assert can(Role.EDITOR, Action.TEAM_ASSESSMENT_READ) is False
+    assert can(Role.VIEWER, Action.TEAM_ASSESSMENT_READ) is False
+    assert can(Role.CLIENT, Action.TEAM_ASSESSMENT_READ, project_granted=True) is False

@@ -1801,7 +1801,7 @@ export interface components {
         /** Body_apply_mutation_api_projects__project_id__mutations_post */
         Body_apply_mutation_api_projects__project_id__mutations_post: {
             /** Op */
-            op: components["schemas"]["PublicCreateCategory"] | components["schemas"]["PublicCreateTask"] | components["schemas"]["PublicMoveTask"] | components["schemas"]["PublicMoveCategory"] | components["schemas"]["PublicResizeTask"] | components["schemas"]["PublicSetDuration"] | components["schemas"]["PublicSetMilestone"] | components["schemas"]["PublicDeleteTask"] | components["schemas"]["PublicDeleteCategory"] | components["schemas"]["PublicSetTaskFields"] | components["schemas"]["PublicSetCriticality"] | components["schemas"]["PublicSetProgress"] | components["schemas"]["PublicSetStatus"] | components["schemas"]["PublicRenameCategory"] | components["schemas"]["PublicSetCategoryColor"] | components["schemas"]["PublicReorderTask"] | components["schemas"]["PublicReorderCategory"] | components["schemas"]["PublicAddDependency"] | components["schemas"]["PublicRemoveDependency"] | components["schemas"]["PublicAssignUser"] | components["schemas"]["PublicUnassignUser"];
+            op: components["schemas"]["PublicCreateCategory"] | components["schemas"]["PublicCreateTask"] | components["schemas"]["PublicMoveTask"] | components["schemas"]["PublicMoveCategory"] | components["schemas"]["PublicResizeTask"] | components["schemas"]["PublicSetDuration"] | components["schemas"]["PublicSetMilestone"] | components["schemas"]["PublicDeleteTask"] | components["schemas"]["PublicDeleteCategory"] | components["schemas"]["PublicSetTaskFields"] | components["schemas"]["PublicSetCriticality"] | components["schemas"]["PublicSetRisk"] | components["schemas"]["PublicSetProgress"] | components["schemas"]["PublicSetStatus"] | components["schemas"]["PublicRenameCategory"] | components["schemas"]["PublicSetCategoryColor"] | components["schemas"]["PublicReorderTask"] | components["schemas"]["PublicReorderCategory"] | components["schemas"]["PublicAddDependency"] | components["schemas"]["PublicRemoveDependency"] | components["schemas"]["PublicAssignUser"] | components["schemas"]["PublicUnassignUser"];
             /** Reason */
             reason?: string | null;
         };
@@ -2704,6 +2704,26 @@ export interface components {
              */
             type: "set_progress";
         };
+        /** PublicSetRisk */
+        PublicSetRisk: {
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            risk: components["schemas"]["RiskFlag"];
+            /**
+             * Task Id
+             * Format: uuid
+             */
+            task_id: string;
+            /**
+             * Type
+             * @default set_risk
+             * @constant
+             */
+            type: "set_risk";
+        };
         /** PublicSetStatus */
         PublicSetStatus: {
             status: components["schemas"]["TaskStatus"];
@@ -2807,6 +2827,17 @@ export interface components {
             /** Token */
             token: string;
         };
+        /**
+         * RiskFlag
+         * @description Самооценка исполнителя: успеваю ли я к сроку.
+         *
+         *     Не расчёт, а слово человека: зелёный — по плану, жёлтый — есть риск,
+         *     красный — срок под угрозой. Скоркард сравнивает это слово с фактом
+         *     («предупредил заранее» или «сорвал молча»), и ровно поэтому флаг живёт на
+         *     задаче, а не в комментарии: по журналу видно, когда он был поставлен.
+         * @enum {string}
+         */
+        RiskFlag: "green" | "yellow" | "red";
         /**
          * ScheduleIn
          * @description Привязка плана к дате старта — или её предпросмотр.

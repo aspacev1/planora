@@ -1,39 +1,13 @@
 /* Вкладка «Scorecard». Правило то же, что у остальных модулей: селекторы
    скоркарда живут только здесь. Цвета статусов — токены Northstar-темы
-   (--ok / --warn / --danger): статусы недель обязаны совпадать по цвету со
+   (--ok / --warn / --danger): сигналы по людям обязаны совпадать по цвету со
    статусами ленты, и второй набор значений разошёлся бы с темой. */
 
 .scorecard {
   display: flex;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-/* Две колонки 2/3 + 1/3, как в макете. */
-.scorecard__main {
-  flex: 2 1 0;
-  min-width: 0;
-}
-
-.scorecard-side {
-  flex: 1 1 0;
-  min-width: 260px;
-  display: flex;
   flex-direction: column;
-  gap: 16px;
-  position: sticky;
-  top: 16px;
-}
-
-@media (max-width: 1100px) {
-  .scorecard {
-    flex-direction: column;
-  }
-  .scorecard-side {
-    width: 100%;
-    min-width: 0;
-    position: static;
-  }
+  gap: 20px;
+  max-width: 1040px;
 }
 
 .scorecard__head {
@@ -41,7 +15,6 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
 }
 
 .scorecard__title {
@@ -55,13 +28,8 @@
   font-size: 13px;
 }
 
-.scorecard__actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
 .scorecard__recalculate {
+  flex-shrink: 0;
   background: var(--accent);
   color: #fff;
   border: none;
@@ -79,6 +47,70 @@
   cursor: default;
 }
 
+/* --- три числа проекта --- */
+
+.scorecard-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .scorecard-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.scorecard-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.scorecard-stat__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.scorecard-stat__value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.scorecard-stat__value[data-status="ok"] {
+  color: var(--ok);
+}
+
+.scorecard-stat__value[data-status="warn"] {
+  color: var(--warn);
+}
+
+.scorecard-stat__value[data-status="risk"] {
+  color: var(--danger);
+}
+
+.scorecard-stat__value[data-status="no_data"] {
+  color: var(--text-faint);
+}
+
+.scorecard-stat__note {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- команда --- */
+
 /* Таблица шире окна уезжает в собственную прокрутку, а не ломает колонки —
    тем же приёмом, что таблица сметы. */
 .scorecard-table__scroll {
@@ -90,7 +122,7 @@
 
 .scorecard-table {
   width: 100%;
-  min-width: 640px;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -100,13 +132,13 @@
   font-weight: 500;
   color: var(--text-muted);
   font-size: 12px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .scorecard-table td {
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -119,185 +151,201 @@
   cursor: pointer;
 }
 
-.scorecard-row:hover {
+.scorecard-row:hover,
+.scorecard-row.is-open {
   background: var(--hover);
 }
 
-/* Красная строка: левая кромка и розовая подложка — риску положено быть
-   видным раньше, чем прочитан бейдж. */
-.scorecard-row.is-risk {
-  background: var(--danger-soft);
-  box-shadow: inset 3px 0 0 var(--danger);
+.scorecard-row__caret {
+  width: 24px;
+  color: var(--text-faint);
+  font-size: 11px;
 }
 
-.scorecard-row.is-risk:hover {
-  background: var(--danger-soft);
-}
-
-.scorecard-row__metric {
-  min-width: 200px;
-}
-
-.scorecard-row__name {
-  display: block;
-  font-weight: 500;
-}
-
-.scorecard-row__owner {
+.scorecard-person {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.scorecard-row__owner-select {
-  max-width: 160px;
-  font-size: 12px;
-  color: inherit;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 2px 4px;
-}
-
-.scorecard-row__owner-select:hover,
-.scorecard-row__owner-select:focus-visible {
-  border-color: var(--border);
-  background: var(--surface);
-}
-
-.scorecard-row__value {
+  gap: 10px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
-.scorecard-row__value strong {
+.scorecard-pace {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 190px;
+}
+
+.scorecard-pace__nums {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.scorecard-pace__nums strong {
   font-size: 15px;
+  font-weight: 700;
 }
 
-.scorecard-row__value strong[data-status="ok"] {
-  color: var(--ok);
-}
-
-.scorecard-row__value strong[data-status="warn"] {
-  color: var(--warn);
-}
-
-.scorecard-row__value strong[data-status="risk"] {
-  color: var(--danger);
-}
-
-.scorecard-row__value strong[data-status="no_data"] {
-  color: var(--text-faint);
-}
-
-.scorecard-row__target {
-  color: var(--text-muted);
-  margin-left: 6px;
-  font-size: 13px;
-}
-
-.scorecard-row__target-input {
-  width: 64px;
-  font-size: 13px;
-  padding: 2px 4px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  color: inherit;
-}
-
-/* Второй ракурс под значением: средняя просрочка, разбивка объёма. */
-.scorecard-row__extra {
-  display: block;
-  margin-top: 3px;
+.scorecard-pace__nums span {
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* «Сверх плана» — чипом акцента: это работа, которой в обещании не было. */
+.scorecard-pace__nums .scorecard-pace__extra {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.scorecard-pace__bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--border);
+  overflow: hidden;
+}
+
+.scorecard-pace__bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.scorecard-pace__bar i[data-status="ok"] {
+  background: var(--ok);
+}
+
+.scorecard-pace__bar i[data-status="warn"] {
+  background: var(--warn);
+}
+
+.scorecard-pace__bar i[data-status="risk"] {
+  background: var(--danger);
+}
+
+.scorecard-ontime {
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* Спарклайн: по столбику на неделю, без библиотек. Кнопки — чтобы неделя
-   открывалась и с клавиатуры. */
-.scorecard-spark {
+.scorecard-ontime small {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.scorecard-ontime.is-bad {
+  color: var(--danger-strong, var(--danger));
+  font-weight: 600;
+}
+
+/* Сигнал: точка для взгляда, причина для разговора. */
+.scorecard-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.scorecard-signal__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.scorecard-signal[data-level="green"] .scorecard-signal__dot {
+  background: var(--ok);
+}
+
+.scorecard-signal[data-level="yellow"] .scorecard-signal__dot {
+  background: var(--warn);
+}
+
+.scorecard-signal[data-level="red"] .scorecard-signal__dot {
+  background: var(--danger);
+}
+
+.scorecard-signal__reason {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.scorecard-signal[data-level="red"] .scorecard-signal__reason {
+  color: var(--danger-strong, var(--danger));
+  font-weight: 600;
+}
+
+/* Тренд: по столбику на неделю, без библиотек. Высота нормируется на максимум
+   окна — столбики показывают форму ряда, число стоит в подсказке. */
+.scorecard-trend {
   display: inline-flex;
   align-items: flex-end;
   gap: 3px;
-  height: 32px;
+  height: 26px;
 }
 
-.scorecard-spark__bar {
-  width: 10px;
-  height: 100%;
+.scorecard-trend__slot {
   display: inline-flex;
   align-items: flex-end;
-  justify-content: center;
-  background: transparent;
-  border: none;
+  width: 8px;
+  height: 100%;
   border-bottom: 2px solid var(--border);
-  padding: 0;
-  cursor: pointer;
 }
 
-/* Столбик отзывается сам: подсветкой в свою ширину, а не заливкой всей
-   кнопки акцентом, как делало общее правило темы. Столбик здесь — деление
-   шкалы, и под курсором он обязан остаться делением. */
-.scorecard-spark__bar:hover,
-.scorecard-spark__bar:focus-visible {
-  background: var(--hover);
-}
-
-.scorecard-spark__fill {
+.scorecard-trend__slot i {
   display: block;
   width: 8px;
   border-radius: 2px 2px 0 0;
   background: var(--border-strong);
 }
 
-.scorecard-spark__fill[data-status="ok"] {
-  background: var(--ok);
+.scorecard-trend__slot i.is-now {
+  background: var(--accent);
 }
 
-.scorecard-spark__fill[data-status="warn"] {
-  background: var(--warn);
+.scorecard-trend__slot i[data-zero] {
+  height: 2px !important;
+  background: var(--border);
 }
 
-.scorecard-spark__fill[data-status="risk"] {
-  background: var(--danger);
-}
-
-.scorecard-badge {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 999px;
+.scorecard-team__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 2px 0;
+  color: var(--text-muted);
   font-size: 12px;
-  white-space: nowrap;
 }
 
-.scorecard-badge[data-status="ok"] {
-  background: var(--ok-soft);
-  color: var(--ok);
+.scorecard-team__empty {
+  margin: 0;
+  padding: 24px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
 }
 
-.scorecard-badge[data-status="warn"] {
-  background: var(--warn-soft);
-  color: var(--warn);
-}
+/* --- раскрытая строка: задачи недели --- */
 
-.scorecard-badge[data-status="risk"] {
-  background: var(--danger-soft);
-  color: var(--danger-strong, var(--danger));
-}
-
-.scorecard-badge[data-status="no_data"] {
-  background: var(--bg-subtle);
-  color: var(--text-faint);
-}
-
-/* Развёрнутая строка: список задач недели. */
 .scorecard-drill td {
   background: var(--bg-subtle);
-  padding: 8px 12px 12px;
+  padding: 6px 14px 14px 52px;
 }
 
 .scorecard-drill__empty {
@@ -315,10 +363,10 @@
   gap: 4px;
 }
 
-.scorecard-drill__task {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+.scorecard-task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px minmax(200px, auto);
+  align-items: center;
   gap: 12px;
   width: 100%;
   text-align: left;
@@ -331,256 +379,63 @@
   color: inherit;
 }
 
-.scorecard-drill__task:hover {
+.scorecard-task:hover {
   background: var(--hover);
 }
 
-.scorecard-drill__task-name {
+.scorecard-task__name {
   font-weight: 500;
-}
-
-.scorecard-drill__task-meta {
-  color: var(--text-muted);
-  font-size: 12px;
-  display: inline-flex;
-  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Правая колонка. */
-.scorecard-card {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  padding: 14px 16px;
+.scorecard-task__due {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.scorecard-card__title {
-  margin: 0 0 10px;
-  font-size: 14px;
-  display: flex;
+.scorecard-task__state {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-}
-
-.scorecard-card__count {
-  background: var(--danger-soft);
-  color: var(--danger-strong, var(--danger));
-  border-radius: 999px;
-  padding: 1px 8px;
+  gap: 6px;
+  justify-self: end;
   font-size: 12px;
-  font-weight: 500;
-}
-
-.scorecard-card__empty {
-  margin: 0;
   color: var(--text-muted);
-  font-size: 13px;
+  white-space: nowrap;
 }
 
-.scorecard-alert {
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-  margin-top: 10px;
-  font-size: 13px;
-}
-
-.scorecard-alert:first-of-type {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
-}
-
-.scorecard-alert p {
-  margin: 0 0 6px;
-}
-
-.scorecard-alert__head {
-  font-weight: 600;
-}
-
-/* Дельта к прошлой неделе — сигнал направления, поэтому в цвете тревоги. */
-.scorecard-alert__delta {
-  color: var(--danger-strong, var(--danger));
-  font-weight: 600;
-}
-
-.scorecard-alert__by {
+.scorecard-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--tag-gray, var(--bg-subtle));
   color: var(--text-muted);
 }
 
-/* Ссылка на созданную правилом задачу — отбита фоном от фразы риска. */
-.scorecard-alert__rule {
-  display: inline-block;
-  margin-top: 4px;
-  background: var(--accent-soft);
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-
-.scorecard-alert__tasks {
-  list-style: none;
-  margin: 0 0 6px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.scorecard-alert__link {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 13px;
-  text-align: left;
-}
-
-.scorecard-alert__link:hover {
-  text-decoration: underline;
-}
-
-.scorecard-alert__meta {
-  display: block;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.scorecard-alert__all {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.scorecard-alert__all:hover {
-  text-decoration: underline;
-}
-
-/* Качество данных: процент и полоса в цвете статуса. */
-.scorecard-quality__value {
-  margin: 0 0 8px;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.scorecard-quality__value[data-status="ok"] {
+.scorecard-chip[data-kind="done"] {
+  background: var(--ok-soft);
   color: var(--ok);
 }
 
-.scorecard-quality__value[data-status="warn"] {
-  color: var(--warn);
-}
-
-.scorecard-quality__value[data-status="risk"] {
-  color: var(--danger);
-}
-
-.scorecard-quality__bar {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--bg-subtle);
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.scorecard-quality__fill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--border-strong);
-}
-
-.scorecard-quality__fill[data-status="ok"] {
-  background: var(--ok);
-}
-
-.scorecard-quality__fill[data-status="warn"] {
-  background: var(--warn);
-}
-
-.scorecard-quality__fill[data-status="risk"] {
-  background: var(--danger);
-}
-
-/* Чек-лист причин под процентом: что именно чинить. */
-.scorecard-quality__affected {
-  margin: 0 0 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.scorecard-quality__causes {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-}
-
-.scorecard-quality__causes li {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-/* Причина с нулём — не тревога: приглушается, чтобы взгляд шёл к ненулевым. */
-.scorecard-quality__causes li[data-empty="true"] {
-  color: var(--text-faint);
-}
-
-.scorecard-quality__count {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.scorecard-quality__causes li[data-empty="false"] .scorecard-quality__count {
+.scorecard-chip[data-kind="late"],
+.scorecard-chip[data-kind="blocked"] {
+  background: var(--danger-soft);
   color: var(--danger-strong, var(--danger));
 }
 
-/* Прогноз финиша и ближайшая веха — шапка правой колонки. */
-.scorecard-outlook__finish,
-.scorecard-outlook__milestone {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0 0 10px;
-  text-align: left;
+.scorecard-chip[data-kind="risk"] {
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
-.scorecard-outlook__milestone {
-  width: 100%;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  color: inherit;
-}
-
-.scorecard-outlook__milestone:last-child {
-  margin-bottom: 0;
-}
-
-.scorecard-outlook__label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-faint);
-}
-
-.scorecard-outlook__value {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.scorecard-outlook__milestone[data-status="overdue"] .scorecard-outlook__value {
-  color: var(--danger);
-}
-
-.scorecard-outlook__milestone:hover .scorecard-outlook__value {
-  text-decoration: underline;
+.scorecard-chip[data-kind="progress"] {
+  background: var(--accent-soft);
+  color: var(--accent);
 }

@@ -18,7 +18,8 @@ export type ScorecardMetricKey =
   | "date_shifts"
   | "close_rate"
   | "stale_in_progress"
-  | "data_quality";
+  | "data_quality"
+  | "team_pace";
 
 export type ScorecardHistoryPoint = {
   week_start: string;
@@ -75,12 +76,80 @@ export type ScorecardOutlook = {
   } | null;
 };
 
+/** Три числа шапки и счётчик недели: считаются сервером из снимков. */
+export type ScorecardSummary = {
+  planned: number;
+  done: number;
+  overdue: { value: number | null; status: ScorecardStatus; avg_days: number | null };
+  blocked: {
+    value: number;
+    status: ScorecardStatus;
+    longest: { id: string; name: string; days: number } | null;
+  };
+  finish_drift: {
+    value: number | null;
+    status: ScorecardStatus;
+    projected_finish: string | null;
+  };
+};
+
+export type TeamSignal = "green" | "yellow" | "red";
+
+/** Причина сигнала — кодом с параметрами; фразу собирает клиент по словарю. */
+export type TeamReason =
+  | { kind: "in_pace" }
+  | { kind: "overdue_silent"; count: number }
+  | { kind: "overdue_warned"; count: number }
+  | { kind: "blocked"; task_id: string; task: string; days: number }
+  | { kind: "risk_flag"; task_id: string; task: string; risk: "yellow" | "red" }
+  | { kind: "reopened"; task_id: string; task: string };
+
+export type TeamTaskState = "done" | "late" | "blocked" | "risk" | "progress" | "planned";
+
+/** Задача недели в строке человека. */
+export type TeamTask = {
+  id: string;
+  name: string;
+  status: string | null;
+  due: string | null;
+  risk: string;
+  state: TeamTaskState;
+  late_days?: number;
+  warned?: boolean;
+  warned_kind?: "risk" | "blocked" | null;
+  blocked_days?: number;
+  reopened?: boolean;
+};
+
+export type TeamMember = {
+  user: { id: string; name: string };
+  planned: number;
+  done: number;
+  extra: number;
+  on_time: number;
+  /** Восемь недель, старые слева; `closed` пуст у недели без снимка. */
+  trend: { week_start: string; closed: number | null }[];
+  tasks: TeamTask[];
+  /** Только при праве на оценку (`assessment`). */
+  signal?: TeamSignal;
+  reason?: TeamReason;
+};
+
+export type ScorecardTeam = {
+  assessment: boolean;
+  members: TeamMember[];
+  unassigned_planned: number;
+};
+
 export type ScorecardState = {
   week: { number: number; start: string; end: string };
   computed_at: string | null;
   metrics: ScorecardMetric[];
   alerts: ScorecardAlert[];
   outlook: ScorecardOutlook;
+  summary: ScorecardSummary;
+  /** Пусто у того, кому разрез по людям не положен (клиент, гость). */
+  team: ScorecardTeam | null;
   data_quality: {
     value: number;
     total: number;

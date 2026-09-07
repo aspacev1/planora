@@ -6,7 +6,7 @@
 """
 
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -22,6 +22,8 @@ from app.models import (
     Membership,
     Organization,
     Project,
+    ProjectAccess,
+    Revision,
     ScorecardAlert,
     ScorecardMetric,
     ScorecardSnapshot,
@@ -173,7 +175,7 @@ def test_first_get_seeds_configs_and_snapshots_idempotently(authed, db):
     keys = [m["key"] for m in first.json()["metrics"]]
     assert keys == [
         "overdue_tasks", "finish_drift", "scope_growth", "date_shifts",
-        "close_rate", "stale_in_progress", "data_quality",
+        "close_rate", "stale_in_progress", "data_quality", "team_pace",
     ]
     assert "daily" not in first.json()
     assert first.json()["outlook"] == {"projected_finish": None, "milestone": None}
@@ -185,13 +187,13 @@ def test_first_get_seeds_configs_and_snapshots_idempotently(authed, db):
             ScorecardMetric.project_id == uuid.UUID(project_id)
         )
     ).all()
-    assert len(configs) == 7
+    assert len(configs) == 8
     snapshots = db.scalars(
         select(ScorecardSnapshot).where(
             ScorecardSnapshot.project_id == uuid.UUID(project_id)
         )
     ).all()
-    assert len(snapshots) == 7
+    assert len(snapshots) == 8
     assert {s.week_start for s in snapshots} == {_current_week()}
 
 
@@ -413,7 +415,7 @@ def test_lazy_fixation_backfills_missing_weeks(authed, db):
                 ScorecardSnapshot.week_start == missing,
             )
         ).all()
-        assert len(rows) == 7, missing
+        assert len(rows) == 8, missing
         by_key = {row.metric_key: row for row in rows}
         assert by_key["overdue_tasks"].details.get("backfilled") is True
         assert by_key["overdue_tasks"].computed_by is None
@@ -916,3 +918,270 @@ def test_in_progress_since_follows_status_transitions(authed, db):
         json={"op": {"type": "set_status", "task_id": task_id, "status": "blocked"}},
     )
     assert task.in_progress_since is None
+
+
+# --- темп команды -------------------------------------------------------------
+
+
+def _baku(day: date, hour: int) -> datetime:
+    return datetime.combine(day, time(hour=hour), tzinfo=BAKU)
+
+
+def _member(db, name: str, org_id) -> str:
+    """Второй человек в организации — без входа, только запись членства:
+    исполнителем его назначает владелец."""
+    user = User(email=f"{name.lower()}@example.com", password_hash="x", name=name)
+    db.add(user)
+    db.flush()
+    db.add(Membership(org_id=org_id, user_id=user.id, role="editor"))
+    db.flush()
+    return str(user.id)
+
+
+def _mutate(authed, project_id: str, op: dict) -> dict:
+    response = authed.post(f"/api/projects/{project_id}/mutations", json={"op": op})
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def _stamp_revision(db, seq: int, at: datetime) -> None:
+    """Сдвинуть время записи журнала: тест не может дождаться понедельника."""
+    revision = db.scalar(select(Revision).where(Revision.seq == seq))
+    revision.created_at = at
+    db.flush()
+
+
+def _stamp_done(db, task_id: str, at: datetime) -> None:
+    db.get(Task, uuid.UUID(task_id)).done_at = at
+    db.flush()
+
+
+def _person(team: dict, name: str) -> dict:
+    return next(m for m in team["members"] if m["user"]["name"] == name)
+
+
+def _org_id(db, project_id: str):
+    return db.get(Project, uuid.UUID(project_id)).org_id
+
+
+def test_team_pace_counts_done_extra_and_on_time_per_person(authed, db):
+    """Алекс: одна из двух задач недели сделана в срок, вторая сорвана молча,
+    плюс одна закрыта сверх плана. Боб: своя задача сделана с опозданием.
+    Задача без исполнителя — в корзину «без исполнителя», не в строку."""
+    project_id, category_id = _project(authed, db)
+    week = _current_week()
+    alex = authed.get("/api/auth/me").json()["id"]
+    bob = _member(db, "Bob", _org_id(db, project_id))
+
+    on_time = _task(authed, project_id, category_id, name="On time", start=week)
+    silent = _task(authed, project_id, category_id, name="Silent", start=week)
+    extra = _task(authed, project_id, category_id, name="Extra", start=week + timedelta(days=7))
+    late = _task(authed, project_id, category_id, name="Late", start=week)
+    _task(authed, project_id, category_id, name="Nobody", start=week)
+    for task_id in (on_time, silent, extra):
+        _mutate(authed, project_id, {"type": "assign_user", "task_id": task_id, "user_id": alex})
+    _mutate(authed, project_id, {"type": "assign_user", "task_id": late, "user_id": bob})
+    for task_id in (on_time, extra, late):
+        _mutate(authed, project_id, {"type": "set_status", "task_id": task_id, "status": "done"})
+    _stamp_done(db, on_time, _baku(week, 9))
+    _stamp_done(db, extra, _baku(week, 12))
+    _stamp_done(db, late, _baku(week + timedelta(days=1), 10))
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    assert state["summary"]["planned"] == 4
+    assert state["summary"]["done"] == 2
+    assert _metric(state, "team_pace")["value"] == 0.5
+
+    team = state["team"]
+    assert team["assessment"] is True
+    assert team["unassigned_planned"] == 1
+    assert [m["user"]["name"] for m in team["members"]] == ["Alex", "Bob"]
+
+    me = _person(team, "Alex")
+    assert (me["planned"], me["done"], me["extra"], me["on_time"]) == (2, 1, 1, 1)
+    assert me["signal"] == "red"
+    assert me["reason"] == {"kind": "overdue_silent", "count": 1}
+    states = {t["name"]: t["state"] for t in me["tasks"]}
+    assert states == {"On time": "done", "Silent": "late", "Extra": "done"}
+    silent_entry = next(t for t in me["tasks"] if t["name"] == "Silent")
+    assert silent_entry["warned"] is False
+
+    other = _person(team, "Bob")
+    assert (other["planned"], other["done"], other["on_time"]) == (1, 1, 0)
+    assert other["signal"] == "green"
+    assert next(t for t in other["tasks"])["late_days"] == 1
+    # Текущая неделя тренда — сделано плюс сверх.
+    assert me["trend"][-1]["closed"] == 2
+    assert len(me["trend"]) == 8
+
+
+def test_team_pace_warning_before_deadline_turns_red_into_yellow(authed, db):
+    """Флаг до срока и блок до срока — предупреждение; флаг после срока и
+    отозванный флаг — нет."""
+    project_id, category_id = _project(authed, db)
+    week = _current_week()
+    alex = authed.get("/api/auth/me").json()["id"]
+    before, after = _baku(week, 12), _baku(week + timedelta(days=1), 1)
+
+    flagged = _task(authed, project_id, category_id, name="Flagged", start=week)
+    blocked = _task(authed, project_id, category_id, name="Blocked", start=week)
+    too_late = _task(authed, project_id, category_id, name="Too late", start=week)
+    withdrawn = _task(authed, project_id, category_id, name="Withdrawn", start=week)
+    for task_id in (flagged, blocked, too_late, withdrawn):
+        _mutate(authed, project_id, {"type": "assign_user", "task_id": task_id, "user_id": alex})
+
+    seq = _mutate(authed, project_id, {
+        "type": "set_risk", "task_id": flagged, "risk": "yellow", "note": "жду доступ",
+    })["seq"]
+    _stamp_revision(db, seq, before)
+    seq = _mutate(authed, project_id, {"type": "set_status", "task_id": blocked, "status": "blocked"})["seq"]
+    _stamp_revision(db, seq, before)
+    seq = _mutate(authed, project_id, {"type": "set_risk", "task_id": too_late, "risk": "red"})["seq"]
+    _stamp_revision(db, seq, after)
+    seq = _mutate(authed, project_id, {"type": "set_risk", "task_id": withdrawn, "risk": "yellow"})["seq"]
+    _stamp_revision(db, seq, before)
+    assert authed.post(f"/api/projects/{project_id}/undo").status_code == 201
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    me = _person(state["team"], "Alex")
+    by_name = {t["name"]: t for t in me["tasks"]}
+    assert by_name["Flagged"]["warned"] is True and by_name["Flagged"]["warned_kind"] == "risk"
+    assert by_name["Blocked"]["warned"] is True and by_name["Blocked"]["warned_kind"] == "blocked"
+    assert by_name["Too late"]["warned"] is False
+    assert by_name["Withdrawn"]["warned"] is False
+    assert by_name["Flagged"]["risk"] == "yellow"
+    # Двое молчали — красный; предупредившие в счёт «молча» не идут.
+    assert me["signal"] == "red"
+    assert me["reason"] == {"kind": "overdue_silent", "count": 2}
+
+    for task_id in (too_late, withdrawn):
+        _mutate(authed, project_id, {"type": "set_status", "task_id": task_id, "status": "done"})
+    state = authed.post(f"/api/projects/{project_id}/scorecard/recalculate").json()
+    me = _person(state["team"], "Alex")
+    assert me["signal"] == "yellow"
+    assert me["reason"] == {"kind": "overdue_warned", "count": 2}
+
+
+def test_team_pace_blocked_task_yellow_with_days_and_summary(authed, db):
+    project_id, category_id = _project(authed, db)
+    week = _current_week()
+    alex = authed.get("/api/auth/me").json()["id"]
+    # Срок далеко впереди: задача не сорвана, а стоит в блоке.
+    task_id = _task(authed, project_id, category_id, name="Waiting", start=week + timedelta(days=21))
+    _mutate(authed, project_id, {"type": "assign_user", "task_id": task_id, "user_id": alex})
+    seq = _mutate(authed, project_id, {"type": "set_status", "task_id": task_id, "status": "blocked"})["seq"]
+    since = week - timedelta(days=7)
+    _stamp_revision(db, seq, _baku(since, 10))
+    expected_days = count_working_days(since, _today(), WORKWEEK) - 1
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    me = _person(state["team"], "Alex")
+    assert me["signal"] == "yellow"
+    assert me["reason"] == {
+        "kind": "blocked", "task_id": task_id, "task": "Waiting", "days": expected_days,
+    }
+    assert state["summary"]["blocked"] == {
+        "value": 1,
+        "status": "warn",
+        "longest": {"id": task_id, "name": "Waiting", "days": expected_days},
+    }
+
+
+def test_team_pace_reopened_task_is_yellow_but_undone_reopen_is_not(authed, db):
+    project_id, category_id = _project(authed, db)
+    week = _current_week()
+    alex = authed.get("/api/auth/me").json()["id"]
+    task_id = _task(authed, project_id, category_id, name="Invoice", start=week + timedelta(days=14))
+    _mutate(authed, project_id, {"type": "assign_user", "task_id": task_id, "user_id": alex})
+    _mutate(authed, project_id, {"type": "set_status", "task_id": task_id, "status": "done"})
+    _mutate(authed, project_id, {"type": "set_status", "task_id": task_id, "status": "in_progress"})
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    me = _person(state["team"], "Alex")
+    assert me["signal"] == "yellow"
+    assert me["reason"] == {"kind": "reopened", "task_id": task_id, "task": "Invoice"}
+    assert me["tasks"][0]["reopened"] is True
+
+    assert authed.post(f"/api/projects/{project_id}/undo").status_code == 201
+    state = authed.post(f"/api/projects/{project_id}/scorecard/recalculate").json()
+    me = _person(state["team"], "Alex")
+    assert me["signal"] == "green"
+    assert me["reason"] == {"kind": "in_pace"}
+
+
+def test_team_pace_trend_reads_past_snapshots(authed, db):
+    project_id, category_id = _project(authed, db)
+    week = _current_week()
+    alex = authed.get("/api/auth/me").json()["id"]
+    task_id = _task(authed, project_id, category_id, name="Now", start=week)
+    _mutate(authed, project_id, {"type": "assign_user", "task_id": task_id, "user_id": alex})
+    _mutate(authed, project_id, {"type": "set_status", "task_id": task_id, "status": "done"})
+    db.add(
+        ScorecardSnapshot(
+            project_id=uuid.UUID(project_id),
+            metric_key="team_pace",
+            week_start=week - timedelta(days=7),
+            value=Decimal("1"),
+            target_value=Decimal("0.8"),
+            direction="gte",
+            status="ok",
+            details={"by_person": [{"user_id": alex, "name": "Alex", "done": 2, "extra": 1}]},
+        )
+    )
+    db.flush()
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    trend = _person(state["team"], "Alex")["trend"]
+    assert trend[-2] == {"week_start": (week - timedelta(days=7)).isoformat(), "closed": 3}
+    assert trend[-1] == {"week_start": week.isoformat(), "closed": 1}
+    assert trend[0]["closed"] is None
+
+
+def test_team_pace_never_raises_alerts_or_rule_tasks(authed, db):
+    project_id, category_id = _project(authed, db)
+    week = _current_week()
+    _task(authed, project_id, category_id, name="Missed", start=week)
+    _seed_risk_week(db, project_id, "team_pace", week - timedelta(days=7))
+
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    assert _metric(state, "team_pace")["status"] == "risk"
+    assert not [a for a in state["alerts"] if a["metric_key"] == "team_pace"]
+    assert db.scalar(
+        select(Task).where(Task.project_id == uuid.UUID(project_id), Task.name.like("%Темп%"))
+    ) is None
+
+
+def test_team_pace_visibility_follows_roles(authed, db):
+    project_id, category_id = _project(authed, db)
+    week = _current_week()
+    alex = authed.get("/api/auth/me").json()["id"]
+    task_id = _task(authed, project_id, category_id, name="Silent", start=week)
+    _mutate(authed, project_id, {"type": "assign_user", "task_id": task_id, "user_id": alex})
+
+    owner_view = authed.get(f"/api/projects/{project_id}/scorecard").json()["team"]
+    assert owner_view["assessment"] is True
+    assert _person(owner_view, "Alex")["signal"] == "red"
+
+    for role in ("editor", "viewer"):
+        _set_role(authed, db, role)
+        view = authed.get(f"/api/projects/{project_id}/scorecard").json()["team"]
+        assert view["assessment"] is False, role
+        member = _person(view, "Alex")
+        assert "signal" not in member and "reason" not in member, role
+        assert member["planned"] == 1
+
+    _set_role(authed, db, "client")
+    db.add(ProjectAccess(project_id=uuid.UUID(project_id), user_id=uuid.UUID(alex)))
+    db.flush()
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    assert state["team"] is None
+    assert state["summary"]["planned"] == 1
+
+
+def test_team_pace_is_no_data_without_dates(authed, db):
+    project_id, category_id = _project(authed, db, calendar_mode=False)
+    _task(authed, project_id, category_id, name="Relative", start=date(2000, 1, 3))
+    state = authed.get(f"/api/projects/{project_id}/scorecard").json()
+    assert _metric(state, "team_pace")["value"] is None
+    assert state["team"]["members"] == []
+    assert state["summary"]["planned"] == 0

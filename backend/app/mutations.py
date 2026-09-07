@@ -9,10 +9,12 @@ from sqlalchemy.orm import Session as DbSession
 from app.config import get_settings
 from app.models import (
     CRITICALITY_LEVELS,
+    RISK_FLAGS,
     TASK_STATUSES,
     Category,
     Comment,
     Criticality,
+    RiskFlag,
     Dependency,
     Membership,
     Organization,
@@ -267,6 +269,20 @@ class SetCriticality(BaseModel):
     criticality: str
 
 
+class SetRisk(BaseModel):
+    """Флаг риска и причина одной операцией.
+
+    Карточка меняет их одним жестом («есть риск — жду доступ»), и две записи
+    в истории о нём — тот же довод, что у SetTaskFields. Обе границы в
+    журнале словарём (см. _MAPPED_BOUNDS).
+    """
+
+    type: Literal["set_risk"] = "set_risk"
+    task_id: uuid.UUID
+    risk: str
+    note: str = ""
+
+
 # --- связка прогресса и статуса ----------------------------------------------
 #
 # Правило ровно из трёх пунктов, и только из них:
@@ -401,6 +417,7 @@ Op = Annotated[
     | DeleteCategory
     | SetTaskFields
     | SetCriticality
+    | SetRisk
     | SetProgress
     | SetStatus
     | RenameCategory
@@ -428,6 +445,7 @@ _MODELS = {
     "delete_category": DeleteCategory,
     "set_task_fields": SetTaskFields,
     "set_criticality": SetCriticality,
+    "set_risk": SetRisk,
     "set_progress": SetProgress,
     "set_status": SetStatus,
     "rename_category": RenameCategory,
@@ -572,6 +590,13 @@ class PublicSetCriticality(_Wire):
     criticality: Criticality
 
 
+class PublicSetRisk(_Wire):
+    type: Literal["set_risk"] = "set_risk"
+    task_id: uuid.UUID
+    risk: RiskFlag
+    note: str = Field(default="", max_length=300)
+
+
 class PublicSetProgress(_Wire):
     type: Literal["set_progress"] = "set_progress"
     task_id: uuid.UUID
@@ -649,6 +674,7 @@ PublicOp = Annotated[
     | PublicDeleteCategory
     | PublicSetTaskFields
     | PublicSetCriticality
+    | PublicSetRisk
     | PublicSetProgress
     | PublicSetStatus
     | PublicRenameCategory
@@ -1302,6 +1328,21 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         db.flush()
         return forward, _swap(forward)
 
+    if isinstance(op, SetRisk):
+        if op.risk not in RISK_FLAGS:
+            raise InvalidOperation("unknown_risk", f"неизвестный флаг риска: {op.risk}")
+        task = _require_task(db, project, op.task_id)
+        forward = {
+            "type": "set_risk",
+            "task_id": str(task.id),
+            "from": {"risk": task.risk, "note": task.risk_note},
+            "to": {"risk": op.risk, "note": op.note},
+        }
+        task.risk = op.risk
+        task.risk_note = op.note
+        db.flush()
+        return forward, _swap(forward)
+
     if isinstance(op, SetProgress):
         if not 0 <= op.progress_pct <= 100:
             raise InvalidOperation(
@@ -1847,7 +1888,7 @@ _SCALAR_BOUNDS_FIELD = {
 
 # Операции, у которых `to` — не скаляр, а словарь полей: они разворачиваются
 # в модель целиком.
-_MAPPED_BOUNDS = frozenset({"set_task_fields", "resize_task"})
+_MAPPED_BOUNDS = frozenset({"set_task_fields", "resize_task", "set_risk"})
 
 # Связанное поле, границы которого операция несёт сверх собственных: имя
 # поля модели и пара ключей журнала. Присутствуют в записи только когда

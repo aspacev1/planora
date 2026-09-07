@@ -45,6 +45,7 @@ from app.models import (
     Organization,
     Project,
     Revision,
+    RiskFlag,
     ScheduleMode,
     ScorecardAlert,
     ScorecardAlertKind,
@@ -82,6 +83,18 @@ CURRENT_WEEK_TTL_SECONDS = 300
 #: Сколько недель серия может тянуться в прошлое при чтении. Потолок, а не
 #: точность: серия длиннее двух лет ничего не добавляет к бейджу.
 MAX_STREAK_WEEKS = 104
+#: Окно тренда темпа по людям: восемь столбиков читаются с одного взгляда,
+#: и за два месяца привычка человека уже видна.
+TREND_WEEKS = 8
+#: «В блоке» в шапке: одна-две задачи — внимание, три и больше — риск. Не
+#: конфиг метрики, а константы: у этого числа нет владельца и цели, оно
+#: просто говорит, сколько работы стоит.
+BLOCKED_WARN_FROM = 1
+BLOCKED_RISK_FROM = 3
+#: Метрики, по которым события и правило «красная 2 недели» не заводятся:
+#: задача «Разобрать: темп команды» без адресата ничего не разобрала бы, а
+#: сигнал по людям и так стоит на экране.
+_NO_ALERT_METRICS = frozenset({"team_pace"})
 
 _TWO_PLACES = Decimal("0.01")
 
@@ -101,6 +114,7 @@ METRICS: tuple[MetricDef, ...] = (
     MetricDef("close_rate", ScorecardDirection.GTE, Decimal("1.0")),
     MetricDef("stale_in_progress", ScorecardDirection.LTE, Decimal("3")),
     MetricDef("data_quality", ScorecardDirection.GTE, Decimal("90")),
+    MetricDef("team_pace", ScorecardDirection.GTE, Decimal("0.8")),
 )
 
 METRIC_KEYS: tuple[str, ...] = tuple(m.key for m in METRICS)
@@ -117,6 +131,7 @@ _METRIC_LABELS = {
     "close_rate": {"ru": "Закрываемость", "en": "Close rate", "az": "Bağlanma nisbəti"},
     "stale_in_progress": {"ru": "Зависшие в работе", "en": "Stale in progress", "az": "İşdə ilişib qalanlar"},
     "data_quality": {"ru": "Качество данных", "en": "Data quality", "az": "Məlumat keyfiyyəti"},
+    "team_pace": {"ru": "Темп команды", "en": "Team pace", "az": "Komandanın tempi"},
 }
 _RULE_TASK_TITLE = {"ru": "Разобрать: {label}", "en": "Investigate: {label}", "az": "Araşdır: {label}"}
 
@@ -300,6 +315,9 @@ def _entry(plan: _PlanView, task: Task, **extra) -> dict:
             plan.names.get(user_id, "")
             for user_id in plan.assignees.get(task.id, [])
         ],
+        # Идентификаторы рядом с именами: разрез по людям группирует по ним,
+        # а имя может смениться, пока снимок лежит в летописи.
+        "assignee_ids": [str(user_id) for user_id in plan.assignees.get(task.id, [])],
     }
     entry.update(extra)
     return entry
@@ -708,6 +726,385 @@ def _compute_data_quality(
     return value, details
 
 
+
+# --- темп команды -------------------------------------------------------------
+
+
+def _tz_date(stamp: datetime | None, tz: ZoneInfo) -> date | None:
+    if stamp is None:
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return stamp.astimezone(tz).date()
+
+
+def _end_of_day(day: date, tz: ZoneInfo) -> datetime:
+    """Конец дня в таймзоне проекта — граница «до срока» для предупреждений."""
+    return datetime.combine(day + timedelta(days=1), time.min, tzinfo=tz)
+
+
+def _status_to(op: dict) -> str | None:
+    """Куда операция перевела статус: set_status несёт `to`, set_progress —
+    `status_to`, и только когда связка сработала."""
+    kind = op.get("type")
+    if kind == "set_status":
+        return op.get("to")
+    if kind == "set_progress":
+        return op.get("status_to")
+    return None
+
+
+def _status_from(op: dict) -> str | None:
+    kind = op.get("type")
+    if kind == "set_status":
+        return op.get("from")
+    if kind == "set_progress":
+        return op.get("status_from")
+    return None
+
+
+def _op_task_id(op: dict) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(op["task_id"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _is_warning(op: dict) -> str | None:
+    """Чем операция предупредила о риске: флагом или блокировкой. Пусто, если
+    ничем: зелёный флаг и прочие переходы — не предупреждение."""
+    if op.get("type") == "set_risk":
+        to = op.get("to") or {}
+        if isinstance(to, dict) and to.get("risk") in (RiskFlag.YELLOW, RiskFlag.RED):
+            return "risk"
+        return None
+    if _status_to(op) == TaskStatus.BLOCKED:
+        return "blocked"
+    return None
+
+
+def _without_undone(revisions: list[Revision]) -> list[Revision]:
+    """Записи без отмен и без отменённого: пара «сделал — отменил» в сумме
+    ничего не сообщает, и считать любую её половину значило бы приписать
+    человеку то, от чего он сам отказался."""
+    undone = {r.undoes_seq for r in revisions if r.undoes_seq is not None}
+    return [r for r in revisions if r.undoes_seq is None and r.seq not in undone]
+
+
+def _warnings_before_deadline(
+    db: DbSession, project: Project, ends: dict[uuid.UUID, date], tz: ZoneInfo
+) -> dict[uuid.UUID, tuple[datetime, str]]:
+    """Первое предупреждение по задаче до конца дня её срока: (когда, чем).
+
+    Отозванное предупреждение — не предупреждение: ни сама отмена, ни
+    отменённая ею запись не считаются (см. _without_undone). Один запрос на
+    все задачи: журнал индексирован по op, и по-задачно это был бы N+1.
+    """
+    if not ends:
+        return {}
+    ids = [str(task_id) for task_id in ends]
+    revisions = db.scalars(
+        select(Revision)
+        .where(
+            Revision.project_id == project.id,
+            Revision.op["type"].astext.in_(("set_risk", "set_status", "set_progress")),
+            Revision.op["task_id"].astext.in_(ids),
+        )
+        .order_by(Revision.seq)
+    ).all()
+    found: dict[uuid.UUID, tuple[datetime, str]] = {}
+    for revision in _without_undone(revisions):
+        task_id = _op_task_id(revision.op)
+        if task_id is None or task_id in found:
+            continue
+        kind = _is_warning(revision.op)
+        if kind is None:
+            continue
+        stamp = revision.created_at
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=timezone.utc)
+        if stamp < _end_of_day(ends[task_id], tz):
+            found[task_id] = (stamp, kind)
+    return found
+
+
+def _blocked_since(
+    db: DbSession, project: Project, blocked_ids: set[uuid.UUID]
+) -> dict[uuid.UUID, datetime]:
+    """Когда задача в последний раз вошла в `blocked` — по журналу. Отмена
+    здесь считается: она меняет статус так же, как прямая операция."""
+    if not blocked_ids:
+        return {}
+    revisions = db.scalars(
+        select(Revision)
+        .where(
+            Revision.project_id == project.id,
+            Revision.op["type"].astext.in_(("set_status", "set_progress")),
+            Revision.op["task_id"].astext.in_([str(i) for i in blocked_ids]),
+        )
+        .order_by(Revision.seq)
+    ).all()
+    since: dict[uuid.UUID, datetime] = {}
+    for revision in revisions:
+        if _status_to(revision.op) != TaskStatus.BLOCKED:
+            continue
+        task_id = _op_task_id(revision.op)
+        if task_id is not None:
+            since[task_id] = revision.created_at
+    return since
+
+
+def _reopened_in_week(
+    db: DbSession, project: Project, week_start: date, tz: ZoneInfo
+) -> dict[uuid.UUID, datetime]:
+    """Задачи, вернувшиеся из «сделано» за неделю: когда это случилось в
+    последний раз. Отмена ошибочного «сделано» — исправление записи, а не
+    возврат работы; отменённый возврат — тоже не возврат (см. _without_undone).
+    Отмены читаются шире недели: отменить можно и запись прошлой недели."""
+    begin, end = _week_bounds_utc(week_start, tz)
+    revisions = db.scalars(
+        select(Revision)
+        .where(
+            Revision.project_id == project.id,
+            Revision.created_at >= begin,
+            Revision.op["type"].astext.in_(("set_status", "set_progress")),
+        )
+        .order_by(Revision.seq)
+    ).all()
+    reopened: dict[uuid.UUID, datetime] = {}
+    for revision in _without_undone(revisions):
+        if revision.created_at >= end:
+            continue
+        if _status_from(revision.op) != TaskStatus.DONE:
+            continue
+        if _status_to(revision.op) in (None, TaskStatus.DONE):
+            continue
+        task_id = _op_task_id(revision.op)
+        if task_id is not None:
+            reopened[task_id] = revision.created_at
+    return reopened
+
+
+def _person_signal(person: dict) -> tuple[str, dict]:
+    """Одна точка на человека и её причина — кодом, текст собирает клиент.
+
+    Красный — сорвал срок и не предупредил: это единственное, что модель PM
+    называет неприемлемым. Жёлтый — всё, о чём известно заранее: блок, флаг,
+    предупреждённая просрочка, возврат из «сделано». Порядок причин — от той,
+    с которой разговор начнётся первой.
+    """
+    if person["overdue_silent"]:
+        return "red", {"kind": "overdue_silent", "count": person["overdue_silent"]}
+    if person["overdue"]:
+        # Сорванный, но предупреждённый срок — первее блока и флага: о нём
+        # разговор уже назрел, о тех — только предстоит.
+        return "yellow", {"kind": "overdue_warned", "count": person["overdue"]}
+    blocked = person["_blocked"]
+    if blocked:
+        longest = max(blocked, key=lambda entry: entry["blocked_days"])
+        return "yellow", {
+            "kind": "blocked",
+            "task_id": longest["id"],
+            "task": longest["name"],
+            "days": longest["blocked_days"],
+        }
+    flagged = person["_flagged"]
+    if flagged:
+        worst = flagged[0]
+        return "yellow", {"kind": "risk_flag", "task_id": worst["id"], "task": worst["name"], "risk": worst["risk"]}
+    reopened = person["_reopened"]
+    if reopened:
+        return "yellow", {"kind": "reopened", "task_id": reopened[0]["id"], "task": reopened[0]["name"]}
+    return "green", {"kind": "in_pace"}
+
+
+def _compute_team_pace(
+    db: DbSession, project: Project, plan: _PlanView, week_start: date, ref: date,
+    tz: ZoneInfo,
+) -> tuple[Decimal | None, dict]:
+    """Темп недели по людям: сделано из запланированного, сверх плана,
+    вовремя, и сигнал с причиной.
+
+    «По плану» — задачи со сроком в этой неделе: это и есть обещание недели,
+    снятое с живых дат (явное подтверждение исполнителем — следующий шаг).
+    «Сверх» — закрыто на неделе, хотя срок стоял вне её. Сорванным считается
+    срок, прошедший к дате расчёта; предупреждённым — сорванный, о котором
+    журнал знает флаг или блок до конца дня срока.
+
+    Задача с несколькими исполнителями считается у каждого — иначе один из
+    них отчитался бы за работу, за которую отвечали двое. Без исполнителя —
+    отдельная корзина: её видно счётчиком, а не строкой.
+    """
+    if not plan.dated:
+        return None, {}
+    week_end = week_start + timedelta(days=6)
+    tasks_by_id = {task.id: task for task in plan.tasks}
+
+    planned = {
+        task.id for task in plan.tasks
+        if (end := plan.ends.get(task.id)) is not None and week_start <= end <= week_end
+    }
+    # Сорвано: срок прошёл к дате расчёта, а задача не сделана. Сделанная с
+    # опозданием — не сорвана, а сделана; опоздание у неё в late_days.
+    overdue_ids = {
+        task_id for task_id in planned
+        if plan.ends[task_id] <= ref and tasks_by_id[task_id].status != TaskStatus.DONE
+    }
+    warnings = _warnings_before_deadline(
+        db, project, {task_id: plan.ends[task_id] for task_id in overdue_ids}, tz
+    )
+    blocked_ids = {task.id for task in plan.tasks if task.status == TaskStatus.BLOCKED}
+    blocked_since = _blocked_since(db, project, blocked_ids)
+    reopened = _reopened_in_week(db, project, week_start, tz)
+
+    def blocked_days(task_id: uuid.UUID) -> int:
+        since = _tz_date(blocked_since.get(task_id), tz)
+        if since is None or since > ref:
+            return 0
+        # Полные рабочие дни: день входа в блок не в счёт, как у stale.
+        return max(count_working_days(since, ref, plan.calendar) - 1, 0)
+
+    def describe(task: Task) -> dict:
+        end = plan.ends.get(task.id)
+        done_day = _tz_date(task.done_at, tz)
+        entry = _entry(plan, task, risk=task.risk, due=end.isoformat() if end else None)
+        if task.status == TaskStatus.DONE and done_day is not None:
+            late = _overdue_workdays(plan, end, done_day) if end is not None else 0
+            entry.update(state="done", late_days=late)
+        elif task.id in overdue_ids:
+            warning = warnings.get(task.id)
+            entry.update(
+                state="late",
+                late_days=_overdue_workdays(plan, end, ref),
+                warned=warning is not None,
+                warned_kind=warning[1] if warning else None,
+                warned_at=warning[0].isoformat() if warning else None,
+            )
+        elif task.status == TaskStatus.BLOCKED:
+            entry.update(state="blocked", blocked_days=blocked_days(task.id))
+        elif task.risk in (RiskFlag.YELLOW, RiskFlag.RED):
+            entry.update(state="risk")
+        elif task.status == TaskStatus.IN_PROGRESS:
+            entry.update(state="progress")
+        else:
+            entry.update(state="planned")
+        if task.id in reopened:
+            entry["reopened"] = True
+        return entry
+
+    def fresh_person(user_id: uuid.UUID | None) -> dict:
+        return {
+            "user_id": str(user_id) if user_id else None,
+            "name": plan.names.get(user_id, "") if user_id else "",
+            "planned": 0, "done": 0, "extra": 0, "on_time": 0,
+            "overdue": 0, "overdue_silent": 0,
+            "blocked": 0, "flagged": 0, "reopened": 0,
+            "tasks": [],
+            "_blocked": [], "_flagged": [], "_reopened": [],
+        }
+
+    people: dict[uuid.UUID | None, dict] = {}
+    for user_ids in plan.assignees.values():
+        for user_id in user_ids:
+            people.setdefault(user_id, fresh_person(user_id))
+
+    # Задачи недели: по плану, сверх плана, в блоке, с флагом, возвращённые.
+    # Прочие живут вне недели и человеку в строку не попадают.
+    relevant: set[uuid.UUID] = set(planned)
+    for task in plan.tasks:
+        done_day = _tz_date(task.done_at, tz)
+        if (
+            task.status == TaskStatus.DONE and done_day is not None
+            and week_start <= done_day <= week_end and task.id not in planned
+        ):
+            relevant.add(task.id)
+        if task.status == TaskStatus.BLOCKED or task.id in reopened:
+            relevant.add(task.id)
+        if task.status != TaskStatus.DONE and task.risk in (RiskFlag.YELLOW, RiskFlag.RED):
+            relevant.add(task.id)
+
+    total_planned = total_done = total_extra = total_on_time = 0
+    for task in plan.tasks:
+        if task.id not in relevant:
+            continue
+        entry = describe(task)
+        owners = plan.assignees.get(task.id) or [None]
+        is_planned = task.id in planned
+        done_day = _tz_date(task.done_at, tz)
+        is_done = task.status == TaskStatus.DONE and done_day is not None and done_day <= week_end
+        is_extra = is_done and not is_planned and week_start <= done_day
+        on_time = is_done and is_planned and done_day <= plan.ends[task.id]
+        if is_planned:
+            total_planned += 1
+            if is_done:
+                total_done += 1
+                if on_time:
+                    total_on_time += 1
+        if is_extra:
+            total_extra += 1
+        for user_id in owners:
+            person = people.setdefault(user_id, fresh_person(user_id))
+            person["tasks"].append(entry)
+            if is_planned:
+                person["planned"] += 1
+                if is_done:
+                    person["done"] += 1
+                    if on_time:
+                        person["on_time"] += 1
+            if is_extra:
+                person["extra"] += 1
+            if entry["state"] == "late":
+                person["overdue"] += 1
+                if not entry["warned"]:
+                    person["overdue_silent"] += 1
+            if entry["state"] == "blocked":
+                person["blocked"] += 1
+                person["_blocked"].append(entry)
+            if task.status != TaskStatus.DONE and task.risk in (RiskFlag.YELLOW, RiskFlag.RED):
+                person["flagged"] += 1
+                person["_flagged"].append(entry)
+            if task.id in reopened:
+                person["reopened"] += 1
+                person["_reopened"].append(entry)
+
+    by_person: list[dict] = []
+    unassigned: dict | None = None
+    for user_id, person in people.items():
+        # Предупреждённая просрочка — не «молча»: в сигнале они различаются.
+        person["overdue"] -= person["overdue_silent"]
+        person["signal"], person["reason"] = _person_signal(person)
+        person["tasks"].sort(key=lambda e: (e.get("due") or "", e["name"]))
+        for key in ("_blocked", "_flagged", "_reopened"):
+            person.pop(key)
+        if user_id is None:
+            unassigned = person
+        else:
+            by_person.append(person)
+    by_person.sort(key=lambda person: person["name"])
+
+    blocked_entries = [
+        {"id": str(task.id), "name": task.name, "days": blocked_days(task.id)}
+        for task in plan.tasks if task.id in blocked_ids
+    ]
+    longest = max(blocked_entries, key=lambda e: e["days"], default=None)
+    details = {
+        "planned": total_planned,
+        "done": total_done,
+        "extra": total_extra,
+        "on_time": total_on_time,
+        "by_person": by_person,
+        "unassigned": unassigned,
+        "blocked_count": len(blocked_entries),
+        "blocked_longest": longest,
+    }
+    if total_planned == 0:
+        return None, details
+    rate = (Decimal(total_done) / Decimal(total_planned)).quantize(
+        _TWO_PLACES, rounding=ROUND_HALF_UP
+    )
+    return rate, details
+
+
 def _compute_metric(
     db: DbSession, project: Project, org: Organization, plan: _PlanView,
     key: str, week_start: date, ref: date, tz: ZoneInfo,
@@ -728,6 +1125,8 @@ def _compute_metric(
         return _compute_stale(plan, ref, tz)
     if key == "data_quality":
         return _compute_data_quality(db, project, plan, ref)
+    if key == "team_pace":
+        return _compute_team_pace(db, project, plan, week_start, ref, tz)
     # Неизвестная метрика: источника нет.
     return None, {}
 
@@ -1052,6 +1451,8 @@ def _update_alerts(
     now = datetime.now(timezone.utc)
     previous_week = current_week - timedelta(days=7)
     for config in configs:
+        if config.metric_key in _NO_ALERT_METRICS:
+            continue
         value, status, details = computed[config.metric_key]
         previous_value = values_by_metric.get(config.metric_key, {}).get(previous_week)
         own = by_metric.get(config.metric_key, [])
@@ -1196,6 +1597,101 @@ def _build_outlook(
     return {"projected_finish": projected, "milestone": milestone}
 
 
+def _row_value(row: ScorecardSnapshot | None) -> float | None:
+    return float(row.value) if row is not None and row.value is not None else None
+
+
+def _row_status(row: ScorecardSnapshot | None) -> str:
+    return row.status if row is not None else ScorecardStatus.NO_DATA.value
+
+
+def _blocked_status(count: int) -> str:
+    if count >= BLOCKED_RISK_FROM:
+        return ScorecardStatus.RISK.value
+    if count >= BLOCKED_WARN_FROM:
+        return ScorecardStatus.WARN.value
+    return ScorecardStatus.OK.value
+
+
+def _build_summary(current_rows: dict[str, ScorecardSnapshot]) -> dict:
+    """Три числа шапки и счётчик недели — из уже записанных снимков текущей
+    недели, без второго расчёта."""
+    pace = current_rows.get("team_pace")
+    pace_details = (pace.details or {}) if pace is not None else {}
+    overdue = current_rows.get("overdue_tasks")
+    overdue_details = (overdue.details or {}) if overdue is not None else {}
+    drift = current_rows.get("finish_drift")
+    drift_details = (drift.details or {}) if drift is not None else {}
+    blocked_count = int(pace_details.get("blocked_count", 0))
+    return {
+        "planned": int(pace_details.get("planned", 0)),
+        "done": int(pace_details.get("done", 0)),
+        "overdue": {
+            "value": _row_value(overdue),
+            "status": _row_status(overdue),
+            "avg_days": overdue_details.get("avg_days"),
+        },
+        "blocked": {
+            "value": blocked_count,
+            "status": _blocked_status(blocked_count),
+            "longest": pace_details.get("blocked_longest"),
+        },
+        "finish_drift": {
+            "value": _row_value(drift),
+            "status": _row_status(drift),
+            "projected_finish": drift_details.get("projected_finish"),
+        },
+    }
+
+
+def _build_team(
+    rows: dict[date, ScorecardSnapshot], current_week: date, *, assessment: bool
+) -> dict:
+    """Строки по людям с трендом из летописи. Сигнал и причина остаются в
+    ответе только при праве на оценку — вырезаются здесь, на сервере, а не
+    прячутся клиентом."""
+    current = rows.get(current_week)
+    details = (current.details or {}) if current is not None else {}
+    weeks = [current_week - timedelta(days=7 * i) for i in range(TREND_WEEKS - 1, -1, -1)]
+    closed_by_week: dict[date, dict[str | None, int]] = {}
+    for week in weeks:
+        row = rows.get(week)
+        if row is None or not row.details:
+            continue
+        per_user: dict[str | None, int] = {}
+        for person in row.details.get("by_person", []):
+            per_user[person.get("user_id")] = int(person.get("done", 0)) + int(person.get("extra", 0))
+        closed_by_week[week] = per_user
+
+    members: list[dict] = []
+    for person in details.get("by_person", []):
+        member = {
+            "user": {"id": person["user_id"], "name": person.get("name", "")},
+            "planned": person.get("planned", 0),
+            "done": person.get("done", 0),
+            "extra": person.get("extra", 0),
+            "on_time": person.get("on_time", 0),
+            "trend": [
+                {
+                    "week_start": week.isoformat(),
+                    "closed": closed_by_week[week].get(person["user_id"]) if week in closed_by_week else None,
+                }
+                for week in weeks
+            ],
+            "tasks": person.get("tasks", []),
+        }
+        if assessment:
+            member["signal"] = person.get("signal")
+            member["reason"] = person.get("reason")
+        members.append(member)
+    unassigned = details.get("unassigned") or {}
+    return {
+        "assessment": assessment,
+        "members": members,
+        "unassigned_planned": int(unassigned.get("planned", 0)),
+    }
+
+
 #: Поля details, которые выносятся прямо в строку метрики (а не в drill-down):
 #: второй ракурс, без которого значение читается наполовину.
 _ROW_DETAIL_FIELDS = {
@@ -1207,7 +1703,7 @@ _ROW_DETAIL_FIELDS = {
 def _build_state(
     db: DbSession, project: Project, configs: list[ScorecardMetric],
     current_rows: dict[str, ScorecardSnapshot], current_week: date, weeks: int,
-    today: date,
+    today: date, *, include_team: bool = False, include_assessment: bool = False,
 ) -> dict:
     weeks = max(1, weeks)
     horizon = current_week - timedelta(days=7 * (weeks - 1))
@@ -1322,6 +1818,15 @@ def _build_state(
         "alerts": alerts_out,
         "outlook": _build_outlook(db, project, current_rows, today),
         "data_quality": data_quality,
+        "summary": _build_summary(current_rows),
+        "team": (
+            _build_team(
+                by_metric.get("team_pace", {}), current_week,
+                assessment=include_assessment,
+            )
+            if include_team
+            else None
+        ),
     }
 
 
@@ -1333,8 +1838,14 @@ def scorecard_state(
     weeks: int = DEFAULT_WEEKS,
     actor_id: uuid.UUID | None = None,
     force: bool = False,
+    include_team: bool = False,
+    include_assessment: bool = False,
 ) -> dict:
     """Состояние скоркарда — с побочным эффектом ленивой фиксации.
+
+    `include_team` / `include_assessment` — права читателя (см. access.py):
+    разрез по людям и сигнал по ним отдаются только тем, кому положено, и
+    решение об этом принимает маршрут, а не клиент.
 
     Текущая неделя считается вживую с кэшем в пять минут: кэш — это её же
     снимок, то есть он переживает перезапуск и общий для всех реплик, в
@@ -1382,7 +1893,10 @@ def scorecard_state(
         )
         _update_alerts(db, project, org, plan, configs, computed, current_week)
 
-    return _build_state(db, project, configs, current_rows, current_week, weeks, today)
+    return _build_state(
+        db, project, configs, current_rows, current_week, weeks, today,
+        include_team=include_team, include_assessment=include_assessment,
+    )
 
 
 def patch_metric(

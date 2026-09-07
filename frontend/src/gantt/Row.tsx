@@ -1126,6 +1126,9 @@ export function TaskRow({
           }${canWrite ? " is-draggable" : ""}${dragging !== null ? " is-dragging" : ""}`}
           data-criticality={task.criticality}
           data-status={task.status}
+          // Точка риска — только у жёлтого и красного и только у живой
+          // задачи: у «сделано» флаг уже история, а не сигнал.
+          data-risk={task.status !== "done" && task.risk !== "green" ? task.risk : undefined}
           // Признак, а не класс: критичность — свойство расчёта, и рисуется
           // она только когда слой включён (см. `.gantt.show-critical`).
           data-critical={task.critical ? "" : undefined}

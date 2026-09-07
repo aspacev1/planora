@@ -17,6 +17,8 @@ const TASK: Task = {
   milestone: false,
   critical: false,
   criticality: "high",
+  risk: "green",
+  risk_note: "",
   status: "in_progress",
   progress_pct: 40,
   position: 0,
@@ -295,5 +297,28 @@ describe("карточка наведения на полоску", () => {
     // карточки и говорила бы то же самое вторым окном.
     expect(bar()).not.toHaveAttribute("title");
     expect(bar()).toHaveAccessibleName("Логотип, 4 марта — 10 марта");
+  });
+});
+
+describe("флаг риска на полоске", () => {
+  it("рисует точку и называет риск с причиной в карточке, у «сделано» — нет", async () => {
+    const flagged: ProjectState = {
+      ...STATE,
+      tasks: [{ ...TASK, risk: "yellow", risk_note: "жду доступ к API" }],
+    };
+    draw({ state: flagged });
+    expect(screen.getByTestId("bar-t1")).toHaveAttribute("data-risk", "yellow");
+
+    const tip = await hoverBar();
+    expect(tip).toHaveTextContent("Риск: Есть риск — жду доступ к API");
+  });
+
+  it("у сделанной задачи флаг — уже история, не сигнал", () => {
+    const done: ProjectState = {
+      ...STATE,
+      tasks: [{ ...TASK, status: "done", progress_pct: 100, risk: "red" }],
+    };
+    draw({ state: done });
+    expect(screen.getByTestId("bar-t1")).not.toHaveAttribute("data-risk");
   });
 });

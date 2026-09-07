@@ -50,4 +50,19 @@ describe("запись истории", () => {
   it("не падает на неизвестном типе события", () => {
     expect(formatEvent({ type: "invented_later", task_id: "t1" }, "ru")).toBe("изменил задачу");
   });
+
+  it("называет риск словами исполнителя и приводит причину как есть", () => {
+    const op = {
+      type: "set_risk",
+      task_id: "t1",
+      from: { risk: "green", note: "" },
+      to: { risk: "yellow", note: "жду доступ к API" },
+    };
+    expect(formatEvent(op, "ru")).toBe(
+      "изменил риск с «По плану» на «Есть риск»: жду доступ к API",
+    );
+    // Причина не менялась — фраза без неё: повторять старый текст незачем.
+    const back = { ...op, from: op.to, to: { risk: "green", note: "жду доступ к API" } };
+    expect(formatEvent(back, "ru")).toBe("изменил риск с «Есть риск» на «По плану»");
+  });
 });
