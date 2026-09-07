@@ -504,21 +504,29 @@ export function Gantt({
     }
     // Строка ввода видна и в свёрнутой категории — потому и сосчитана вне
     // условия: категорию сворачивают и посреди набора, а поле, исчезнувшее
-    // из-под курсора, унесло бы с собой написанное.
-    if (before === null) rowCount += draftRows;
+    // из-под курсора, унесло бы с собой написанное. У свёрнутой категории
+    // это касается и вставки перед названной задачей: строки, перед которой
+    // стоять, на экране нет, и поле встаёт в конец заголовка.
+    if (before === null || !open) rowCount += draftRows;
   }
 
   /**
    * Номер, на который ляжет новая задача, — или `undefined` для конца списка.
    *
-   * `sent` — сколько задач эта же строка ввода уже отправила: «а», «б», «в»
-   * подряд обязаны лечь в набранном порядке, а каждая предыдущая сдвигает
-   * названную строку на единицу вниз (см. NewTaskRow).
+   * К номеру названной строки прибавляются задачи, которые эта же строка
+   * ввода уже отправила, но которых в состоянии ещё нет: «а», «б», «в» подряд
+   * обязаны лечь в набранном порядке, а каждая предыдущая сдвигает названную
+   * строку на единицу вниз. Считаются именно неподтверждённые (см.
+   * useQuickTask), а не все отправленные: ответ на «а» уже приходит с
+   * названной строкой, съехавшей на единицу, и прибавлять «а» второй раз
+   * значило бы класть «б» за неё, а не перед ней.
    */
-  const insertPosition = (before: string | null, sent: number): number | undefined => {
+  const insertPosition = (categoryId: string, before: string | null): number | undefined => {
     if (before === null) return undefined;
     const target = state.tasks.find((task) => task.id === before);
-    return target === undefined ? undefined : target.position + sent;
+    return target === undefined
+      ? undefined
+      : target.position + quick.pendingIn(categoryId).length;
   };
 
   return (
@@ -754,8 +762,8 @@ export function Gantt({
                           scale={scale}
                           label={t("task.new.aria", { category: category.name })}
                           placeholder={t("task.new.placeholder")}
-                          onCreate={(name, sent) =>
-                            quick.create(category.id, name, insertPosition(before, sent))
+                          onCreate={(name) =>
+                            quick.create(category.id, name, insertPosition(category.id, before))
                           }
                           onClose={() => onCloseNewTask?.()}
                         />
@@ -869,8 +877,9 @@ export function Gantt({
 
                       {/* В конце категории — то, что не встало посередине:
                           строки ожидания и поле ввода, если вставляют не перед
-                          названной задачей, а просто в эту категорию. */}
-                      {before === null && draft}
+                          названной задачей, а просто в эту категорию — или
+                          если категория свёрнута и той задачи на экране нет. */}
+                      {(before === null || !open) && draft}
                     </div>
                   );
                 })}

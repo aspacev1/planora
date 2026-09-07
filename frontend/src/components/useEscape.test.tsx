@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -66,6 +66,24 @@ describe("Esc при нескольких слоях", () => {
     await userEvent.keyboard("{Escape}");
 
     expect(screen.queryByRole("button", { name: "Да, удалить" })).not.toBeInTheDocument();
+    expect(panel()).toBeInTheDocument();
+  });
+
+  it("Esc в ячейке таблицы возвращает набранное, но карточку не закрывает", async () => {
+    renderProject();
+    await userEvent.click(await bar());
+
+    // Ячейка начала правится прямо в таблице; свой Esc она гасит сама —
+    // возвращает прежнее значение и закрывается.
+    // Имя и дата стоят и в карточке: строка ленты ищется по своей полоске.
+    const row = (await bar()).closest(".gantt__row") as HTMLElement;
+    await userEvent.click(within(row).getByText("4 марта"));
+    const cell = within(row).getByLabelText(/Начало/);
+    await userEvent.click(cell);
+    await userEvent.keyboard("{Escape}");
+
+    expect(within(row).queryByLabelText(/Начало/)).not.toBeInTheDocument();
+    expect(within(row).getByText("4 марта")).toBeInTheDocument();
     expect(panel()).toBeInTheDocument();
   });
 

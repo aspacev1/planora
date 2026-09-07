@@ -262,6 +262,25 @@ describe("связь перетаскиванием", () => {
     expect(sent).toHaveLength(0);
   });
 
+  it("отпускание мимо кружка снимает связь с руки", async () => {
+    const sent = captureMutations();
+    renderProject(TWO_TASKS);
+    await bar(/Логотип/);
+    const handle = dot(rowOf("t1"), "end");
+
+    fireEvent.pointerDown(handle, { pointerId: 1, button: 0, clientX: 100, clientY: 20 });
+    fireEvent.pointerMove(handle, { pointerId: 1, clientX: 300, clientY: 70 });
+    expect(document.querySelector(".is-linking")).not.toBeNull();
+
+    // Кружок исчез вместе со строкой — отпускание достаётся окну. Без этого
+    // линия висела бы за курсором, а кадр подкачки крутился бы до следующего
+    // нажатия.
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 300, clientY: 70 });
+
+    expect(document.querySelector(".is-linking")).toBeNull();
+    expect(sent).toHaveLength(0);
+  });
+
   it("гостю кружков не показывают", async () => {
     renderProject(TWO_TASKS, { canWrite: false });
     await screen.findByRole("button", { name: /Логотип/ });
@@ -371,6 +390,34 @@ describe("колонки таблицы", () => {
     expect(within(row).queryByLabelText(/Окончание/)).not.toBeInTheDocument();
   });
 
+  it("на относительной оси день меньше первого не отправляется", async () => {
+    const sent = captureMutations();
+    renderProject({
+      ...STATE,
+      schedule_mode: "relative",
+      project_end: "2001-01-12",
+      tasks: [
+        { ...STATE.tasks[0], start_date: "2001-01-03", end_date: "2001-01-12", duration_days: 8 },
+      ],
+    });
+    const row = (await bar(/Логотип/)).closest(".gantt__row") as HTMLElement;
+
+    // Начало — «День 3»; ноль и минус — не день проекта, а середина набора.
+    fireEvent.click(within(row).getByText("День 3"));
+    const input = within(row).getByLabelText(/Начало/);
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+    expect(sent).toHaveLength(0);
+
+    fireEvent.click(within(row).getByText("День 3"));
+    const again = within(row).getByLabelText(/Начало/);
+    fireEvent.change(again, { target: { value: "2" } });
+    fireEvent.blur(again);
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].op).toMatchObject({ type: "move_task", start_date: "2001-01-02" });
+  });
+
   it("у гостя ячейки не открываются полем", async () => {
     renderProject(STATE, { canWrite: false });
     const row = (await screen.findByText("Логотип")).closest(".gantt__row") as HTMLElement;
@@ -461,5 +508,16 @@ describe("клавиатура", () => {
     await userEvent.keyboard("{Alt>}{ArrowRight}{/Alt}");
 
     expect(sent).toHaveLength(0);
+  });
+
+  it("Alt со стрелкой на вехе не уводит со страницы, хоть и ничего не тянет", async () => {
+    renderProject(WITH_MILESTONE);
+    const milestone = await bar(/Сдача/);
+
+    // Alt+← у браузера — «назад по истории». Сочетание, выученное на обычных
+    // полосках, на вехе обязано хотя бы молчать, а не закрывать проект.
+    const kept = fireEvent.keyDown(milestone, { key: "ArrowLeft", altKey: true });
+
+    expect(kept).toBe(false);
   });
 });

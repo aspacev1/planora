@@ -105,6 +105,7 @@ export function TimeZoneField({
   value,
   onChange,
   disabled,
+  save,
 }: {
   id: string;
   label: string;
@@ -115,6 +116,8 @@ export function TimeZoneField({
   value: string | null;
   onChange: (zone: string | null) => void;
   disabled?: boolean;
+  /** Отметка отправки рядом с полем — как у остальных полей настроек. */
+  save?: FieldSave;
 }) {
   // Сохранённый выбор и пояс машины добавляются к списку принудительно:
   // браузер старее базы IANA не знает про недавно заведённый пояс, и без
@@ -139,6 +142,7 @@ export function TimeZoneField({
           </option>
         ))}
       </select>
+      <SaveMark save={save} />
     </p>
   );
 }
@@ -198,7 +202,13 @@ export function DateListField({
   save?: FieldSave;
 }) {
   const { t } = useLocale();
-  const [text, setText] = useState(value.join("\n"));
+  // Список сравнивается содержимым, а не ссылкой: состояние проекта и
+  // организации переписывается целиком ответом на любую правку, и массив дат
+  // приходит новым объектом с теми же датами после сохранения любого соседнего
+  // поля. Сверяй мы ссылку, дедлайн, сохранённый секунду назад, стирал бы
+  // набираемые тут праздники.
+  const joined = value.join("\n");
+  const [text, setText] = useState(joined);
   const [typing, setTyping] = useState(false);
 
   // Сервер нормализует список — сортирует и убирает повторы, — и поле обязано
@@ -206,9 +216,9 @@ export function DateListField({
   // список нередко равен присланному, поэтому одного `value` для этого мало:
   // возврат к правде запускает и завершённая отправка.
   useEffect(() => {
-    setText(value.join("\n"));
+    setText(joined);
     setTyping(false);
-  }, [value, save?.settled]);
+  }, [joined, save?.settled]);
 
   const broken = parseDates(text).filter((item) => !ISO_DATE.test(item));
 

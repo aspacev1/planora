@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { errorKey } from "../api/errors";
@@ -212,8 +212,20 @@ export function TextField({
   // Набирают ли поле прямо сейчас. Отметка о прошлой отправке при этом
   // гаснет: «Сохранено» рядом с недописанным словом говорит неправду.
   const [typing, setTyping] = useState(false);
+  // То же «набирают сейчас», но ссылкой — для эффекта ниже. Он обязан видеть
+  // текущее значение, не переподписываясь на него: включи мы `typing` в
+  // зависимости, конец набора сам запускал бы возврат к значению сверху — ещё
+  // старому, пока сервер не ответил, — и поле мигало бы прежним текстом.
+  const typingNow = useRef(false);
 
+  // Возврат к правде сверху — но не под руками у человека. Значение сверху
+  // меняется не только от его собственной правки: сосед подвинул задачу, и
+  // состояние проекта перезапросилось целиком; своя же прошлая отправка
+  // завершилась, пока поле уже набирают заново. Открытое поле при этом не
+  // трогается — так же, как ячейка таблицы (см. EditableCell): набранное
+  // уйдёт по уходу фокуса и сравнится с тем, что будет сверху к тому моменту.
   useEffect(() => {
+    if (typingNow.current) return;
     setDraft(value);
     setTyping(false);
   }, [value, resetToken, save?.settled]);
@@ -223,6 +235,7 @@ export function TextField({
   // запись «изменил описание». Иначе лента заполняется шумом и перестаёт
   // читаться — а читают её ради того, чтобы понять, кто и что поменял.
   const commit = () => {
+    typingNow.current = false;
     setTyping(false);
     if (draft !== value) onCommit(draft);
   };
@@ -235,6 +248,7 @@ export function TextField({
     "aria-labelledby": label === undefined ? labelledBy : undefined,
     onChange: (event: { target: { value: string } }) => {
       setDraft(event.target.value);
+      typingNow.current = true;
       setTyping(true);
     },
     onBlur: commit,

@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -12,6 +12,7 @@ import {
   renderProject,
 } from "../test/project";
 import { server } from "../test/server";
+import { lastSocket } from "../test/socket";
 
 beforeEach(projectFixtures);
 
@@ -67,6 +68,66 @@ describe("порог сдвига", () => {
       op: { type: "move_task", start_date: "2026-03-11" },
       reason: "заказчик не прислал брендбук",
     });
+  });
+
+  it("правка длительности не спрашивает причину за уже объяснённый сдвиг старта", async () => {
+    const sent = captureMutations();
+    // Старт уехал на пять дней при пороге в два — с причиной, как положено.
+    renderProject({
+      ...APPROVED,
+      tasks: [{ ...APPROVED.tasks[0], start_date: "2026-03-09", end_date: "2026-03-13" }],
+    });
+    await userEvent.click(await bar());
+
+    // Длительность меняется на день: её измерение от базы не ушло, и окно
+    // с чужим числом «сдвиг на 5 дней» здесь было бы ошибкой (см. сервер).
+    fireEvent.change(screen.getByLabelText(/Длительность, рабочих/), { target: { value: "6" } });
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].op).toMatchObject({ type: "set_duration", duration_days: 6 });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("откат по отказу возвращает к состоянию на момент отправки, а не до окна", async () => {
+    let attempts = 0;
+    server.use(
+      http.post("/api/projects/p1/mutations", () => {
+        attempts += 1;
+        return HttpResponse.json({ detail: "task_not_found" }, { status: 404 });
+      }),
+    );
+    renderProject(APPROVED);
+    dragDays(await bar(), 7);
+    await screen.findByRole("dialog");
+
+    // Пока окно открыто, сосед переименовал категорию — и состояние
+    // перезапросилось по живой связи.
+    const renamed = {
+      ...APPROVED,
+      categories: [{ ...APPROVED.categories[0], name: "Дизайн v2" }],
+    };
+    server.use(http.get("/api/projects/p1", () => HttpResponse.json(renamed)));
+    await act(async () => lastSocket().accept());
+    await act(async () =>
+      lastSocket().emit({
+        type: "revision",
+        seq: 2,
+        created_at: "2026-03-11T09:00:00+00:00",
+        actor: { id: "u2", name: "Мария" },
+        reason: null,
+        op: { type: "rename_category", category_id: "c1" },
+      }),
+    );
+    expect(await screen.findByText("Дизайн v2")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Причина"), "брендбук");
+    await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() => expect(attempts).toBe(1));
+
+    // Откат вернул полоску, но не стёр чужое переименование: снимок для
+    // отката взят перед самой отправкой, а не до того, как открылось окно.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Дизайн v2")).toBeInTheDocument();
   });
 
   it("«Вернуть» не отправляет ничего", async () => {

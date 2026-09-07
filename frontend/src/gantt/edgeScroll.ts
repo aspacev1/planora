@@ -57,6 +57,10 @@ export function edgeScroll(node: HTMLElement | null, onScroll: () => void): Edge
 
   let pointerX: number | null = null;
   let frame = 0;
+  // Закреплённая таблица слева от шкалы. Ищется один раз на жест: узел за
+  // время жеста не меняется, меняться может только его ширина — она и
+  // читается на каждом кадре.
+  const label = box.querySelector<HTMLElement>(".gantt__label");
 
   /**
    * Прокрутка на начало жеста: от неё и считается ответ `scrolled()`.
@@ -92,10 +96,16 @@ export function edgeScroll(node: HTMLElement | null, onScroll: () => void): Edge
     if (pointerX === null) return;
 
     const bounds = box.getBoundingClientRect();
+    // Левый край ленты — не левый край прокручиваемого узла: первую его часть
+    // занимает закреплённая таблица (`.gantt__label`, sticky), и под ней шкалы
+    // не видно. Полоса у левого края поэтому отсчитывается от правого края
+    // таблицы — иначе, чтобы поехать назад, полоску пришлось бы тащить через
+    // всю таблицу, к краю, которого на шкале нет.
+    const inset = label?.getBoundingClientRect().width ?? 0;
     // Глубина захода в полосу у края: 0 на её внешней границе, 1 у самого
     // края ленты. За краем окна — единица, а не больше: палец, уведённый на
     // соседний монитор, не должен разгонять ленту до бессмысленного.
-    const before = (bounds.left + EDGE_PX - pointerX) / EDGE_PX;
+    const before = (bounds.left + inset + EDGE_PX - pointerX) / EDGE_PX;
     const after = (pointerX - (bounds.right - EDGE_PX)) / EDGE_PX;
     const depth = before > 0 ? -Math.min(1, before) : after > 0 ? Math.min(1, after) : 0;
 

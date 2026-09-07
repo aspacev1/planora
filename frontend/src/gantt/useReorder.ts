@@ -332,6 +332,10 @@ export function useReorder({
     handleProps(kind: RowKind, id: string) {
       return {
         onPointerDown(event: PointerEvent<HTMLElement>) {
+          // Только основная кнопка — как у всякого жеста на ленте: правая
+          // зовёт контекстное меню, и оно съедает отпускание, оставляя
+          // призрак строки ехать за курсором без нажатия.
+          if (event.button !== 0) return;
           // Без этого нажатие уводит фокус и начинает выделение текста вместо
           // перетаскивания.
           event.preventDefault();

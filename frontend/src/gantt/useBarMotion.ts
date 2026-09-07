@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { RefCallback } from "react";
 
 import { MOTION_MS, prefersReducedMotion } from "./motion";
@@ -169,7 +169,10 @@ export function useBarMotion({
     [settle],
   );
 
-  return { ref, hold, release, settle };
+  // Один объект на всё время жизни: его берут в зависимости эффекты жестов
+  // (см. `cancel` в useDragDates), и новый объект на каждую отрисовку
+  // переподписывал бы слушатель Esc на каждом кадре перетаскивания.
+  return useMemo(() => ({ ref, hold, release, settle }), [ref, hold, release, settle]);
 }
 
 /** Сдвиг полоски по горизонтали и прибавка к ширине. Пишутся свойствами, чтобы

@@ -4,6 +4,7 @@ import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CONFIG_QUERY_KEY } from "../api/config";
 import { getProject, projectQueryKey } from "../api/projects";
 import type { ProjectState } from "../api/projects";
 import { server } from "../test/server";
@@ -85,6 +86,21 @@ async function settled() {
 }
 
 describe("живая связь проекта", () => {
+  it("не стучится в сокет там, где установка объявила, что его нет", async () => {
+    queryClient.setQueryData(CONFIG_QUERY_KEY, {
+      mail_enabled: false,
+      signup_mode: "open",
+      supported_locales: ["ru"],
+      default_locale: "ru",
+      public_sharing_enabled: true,
+      live_enabled: false,
+    });
+    const { result } = renderHook(() => useProjectLive("p1"), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe("unavailable"));
+    expect(FakeWebSocket.instances).toHaveLength(0);
+  });
+
   it("открывает сокет проекта и сообщает о связи", async () => {
     const { result } = renderHook(() => useProjectLive("p1"), { wrapper });
 

@@ -228,6 +228,26 @@ describe("панель изменений плана", () => {
     expect(screen.queryByRole("complementary", { name: "Изменения после v1" })).toBeNull();
   });
 
+  it("задача, чья карточка уже открыта, из списка не закрывается, а показывается", async () => {
+    renderProject(MOVED);
+    // Карточка открыта щелчком по полоске — и остаётся, когда открывают список.
+    await userEvent.click(await screen.findByRole("button", { name: /Логотип/ }));
+    await screen.findByRole("complementary", { name: "Задача «Логотип»" });
+    // Кнопка шапки — не одноимённая ссылка внутри карточки задачи.
+    const header = screen.getByRole("button", { name: /Логотип/ }).closest("main") as HTMLElement;
+    const openers = within(header)
+      .getAllByRole("button", { name: /изменени/i })
+      .filter((node) => node.closest("[role=complementary]") === null);
+    await userEvent.click(openers[0]);
+    const dialog = await screen.findByRole("complementary", { name: "Изменения после v1" });
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Логотип" }));
+
+    // «Повторный щелчок закрывает» — правило строки ленты; выбор из списка —
+    // просьба показать, и карточка обязана остаться на экране.
+    expect(await screen.findByRole("complementary", { name: "Задача «Логотип»" })).toBeInTheDocument();
+  });
+
   it("закрывается крестиком", async () => {
     const dialog = await openChanges();
 

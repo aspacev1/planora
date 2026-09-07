@@ -3,6 +3,8 @@ import { Fragment } from "react";
 import type { ProposalStage } from "../api/proposal";
 import { formatShortDate } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
+import { useTimeZone } from "../time/useToday";
+import { dayIn } from "../time/zone";
 import { PushPlanButton } from "./PushPlanButton";
 
 type StepKey = ProposalStage | "in_plan";
@@ -50,18 +52,22 @@ export function ProposalStepper({
   onPush: () => void;
 }) {
   const { t } = useLocale();
+  // Отметки — моменты времени, а подписи — дни; день считается по часам
+  // читателя, а не обрезкой ISO-строки по UTC.
+  const zone = useTimeZone();
+  const dayOf = (at: string) => formatShortDate(t, dayIn(zone, new Date(at)));
 
   const steps: { key: StepKey; reached: boolean; caption?: string }[] = [
     { key: "draft", reached: true },
     {
       key: "sent",
       reached: sentAt !== null,
-      caption: sentAt !== null ? formatShortDate(t, sentAt) : undefined,
+      caption: sentAt !== null ? dayOf(sentAt) : undefined,
     },
     {
       key: "agreed",
       reached: agreedAt !== null,
-      caption: agreedAt !== null ? formatShortDate(t, agreedAt) : undefined,
+      caption: agreedAt !== null ? dayOf(agreedAt) : undefined,
     },
     {
       key: "in_plan",

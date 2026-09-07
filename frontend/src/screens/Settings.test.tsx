@@ -499,6 +499,19 @@ describe("профиль", () => {
     await waitFor(() => expect(patches).toEqual([{ timezone: "Europe/Moscow" }]));
   });
 
+  it("отвергнутый пояс объясняет отказ у поля, а не молча возвращает прежний", async () => {
+    server.use(
+      http.patch("/api/auth/me", () =>
+        HttpResponse.json({ detail: "unknown" }, { status: 422 }),
+      ),
+    );
+    renderApp({ route: "/settings/profile" });
+
+    await userEvent.selectOptions(await screen.findByLabelText("Часовой пояс"), "Europe/Moscow");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/ошибка/i);
+  });
+
   it("«по часам браузера» — это null, а не пустая строка", async () => {
     // Пустая строка не имя пояса, и сервер отказал бы: `null` здесь означает
     // «пояс не выбран», то есть возврат к часам машины.

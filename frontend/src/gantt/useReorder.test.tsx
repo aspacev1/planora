@@ -170,6 +170,18 @@ describe("перестановка строк", () => {
     expect(sent[0].op.type).toBe("move_task");
   });
 
+  it("правая кнопка мыши перестановку не начинает", async () => {
+    renderProject(THREE_TASKS);
+    await screen.findByRole("button", { name: /Первая/ });
+
+    // Правая кнопка зовёт контекстное меню и съедает отпускание: начатый ею
+    // жест остался бы «в руке» с призраком, ползущим за курсором.
+    fireEvent.pointerDown(rowHandle("Первая")!, { pointerId: 4, button: 2, clientX: 10, clientY: 10 });
+
+    expect(ghost()).toBeNull();
+    expect(rowOf("Первая")).not.toHaveClass("is-dragged");
+  });
+
   it("в гостевом режиме строки не перетаскиваются", async () => {
     renderProject(THREE_TASKS, { canWrite: false });
     await screen.findByRole("button", { name: /Первая/ });

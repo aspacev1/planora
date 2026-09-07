@@ -86,6 +86,35 @@ describe("подкачка ленты у края", () => {
     expect(onScroll).not.toHaveBeenCalled();
   });
 
+  it("полоса у левого края начинается за закреплённой таблицей, а не за краем узла", () => {
+    const { box, node } = scrollport();
+    // Таблица на 260 пикселей закреплена слева и накрывает начало шкалы.
+    const label = document.createElement("div");
+    label.className = "gantt__label";
+    label.getBoundingClientRect = () =>
+      ({ left: 0, right: 260, top: 0, bottom: 32, width: 260, height: 32, x: 0, y: 0 }) as DOMRect;
+    box.prepend(label);
+    box.scrollLeft = 200;
+
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    try {
+      const scroll = edgeScroll(node, () => {});
+      // Указатель у видимого края шкалы — сразу справа от таблицы.
+      scroll.track(270);
+      frames.shift()?.(0);
+
+      expect(box.scrollLeft).toBeLessThan(200);
+      scroll.stop();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("вырождается в пустышку там, где прокручивать нечего", () => {
     const node = document.createElement("div");
     document.body.append(node);

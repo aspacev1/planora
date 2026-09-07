@@ -140,6 +140,32 @@ describe("отмена с клавиатуры", () => {
     expect(undone()).toBe(0);
   });
 
+  it("на русской раскладке та же клавиша отменяет: «я» на физической KeyZ", async () => {
+    const undone = countUndo();
+    renderProject(UNDOABLE);
+    await drawn();
+
+    await userEvent.keyboard("{Control>}[KeyZ]{/Control}");
+
+    await waitFor(() => expect(undone()).toBe(1));
+  });
+
+  it("Ctrl+Y на немецкой раскладке — не отмена, хотя стоит на физической KeyZ", async () => {
+    const undone = countUndo();
+    renderProject(UNDOABLE);
+    await drawn();
+
+    // На QWERTZ буква «y» живёт на клавише с кодом KeyZ. Сочетание при этом —
+    // общепринятое «вернуть», и отменять по нему было бы обратным действием.
+    await drawn().then((node) =>
+      node.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "y", code: "KeyZ", ctrlKey: true, bubbles: true }),
+      ),
+    );
+
+    expect(undone()).toBe(0);
+  });
+
   it("читателю клавиша недоступна — как и кнопка", async () => {
     const undone = countUndo();
     renderProject(UNDOABLE, { canWrite: false });
