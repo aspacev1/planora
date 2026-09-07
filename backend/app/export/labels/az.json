@@ -81,7 +81,8 @@
     "date_shifts": "Tarix sürüşmələri",
     "close_rate": "Bağlanma nisbəti",
     "stale_in_progress": "İşdə ilişib qalanlar",
-    "data_quality": "Məlumat keyfiyyəti"
+    "data_quality": "Məlumat keyfiyyəti",
+    "team_pace": "Komandanın tempi"
   },
   "legend": {
     "title": "İşarələr",
@@ -137,6 +138,7 @@
     "resize_task": "Müddət dəyişdi",
     "set_category_color": "Kateqoriya rəngi dəyişdi",
     "set_criticality": "Kritiklik dəyişdi",
+    "set_risk": "Risk dəyişdi",
     "set_duration": "Müddət dəyişdi",
     "set_milestone": "Mərhələ nişanı dəyişdi",
     "set_progress": "İrəliləyiş dəyişdi",

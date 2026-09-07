@@ -43,6 +43,15 @@ class Action(StrEnum):
     # Отдельное право, а не PROJECT_READ: план клиенту читать как раз
     # положено, и разница между планом и сметой должна быть названа.
     PROPOSAL_READ = "proposal_read"
+    # Оценка людей на скоркарде — сигнал «в темпе / отстаёт / сорвал молча»
+    # с причиной. Цифры темпа видит вся команда, а вывод о человеке — только
+    # тот, кто за команду отвечает: владелец. Отдельное право, а не
+    # PROJECT_ADMIN: редактор правит план, но не судит коллег.
+    TEAM_ASSESSMENT_READ = "team_assessment_read"
+    # Темп команды по людям — сделано/по плану за неделю у каждого. Цифры
+    # работы видит вся команда, включая наблюдателя; клиент и гость по ссылке
+    # смотрят план, а не на то, кто из исполнителей как справляется.
+    TEAM_PACE_READ = "team_pace_read"
 
 
 _MATRIX: dict[Role | None, frozenset[Action]] = {
@@ -57,6 +66,7 @@ _MATRIX: dict[Role | None, frozenset[Action]] = {
             Action.PLAN_APPROVE,
             Action.PROJECT_EXPORT,
             Action.PROPOSAL_READ,
+            Action.TEAM_PACE_READ,
         }
     ),
     Role.VIEWER: frozenset(
@@ -66,6 +76,7 @@ _MATRIX: dict[Role | None, frozenset[Action]] = {
             Action.READ_INTERNAL_NOTE,
             Action.PROJECT_EXPORT,
             Action.PROPOSAL_READ,
+            Action.TEAM_PACE_READ,
         }
     ),
     # Клиент и гость по ссылке выгружают клиентский экземпляр: тот же урез,

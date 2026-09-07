@@ -28,7 +28,7 @@ import "./history.css";
 const TYPE_GROUPS = {
   dates: ["move_task", "set_duration", "resize_task", "move_category", "set_milestone"],
   status: ["set_status", "set_progress"],
-  fields: ["set_task_fields", "set_criticality", "rename_category", "set_category_color"],
+  fields: ["set_task_fields", "set_criticality", "set_risk", "rename_category", "set_category_color"],
   structure: [
     "create_task",
     "delete_task",
@@ -62,6 +62,8 @@ const EVENT_ICONS: Record<string, readonly [glyph: string, tone: string]> = {
   set_status: ["✓", "ok"],
   set_progress: ["✓", "ok"],
   set_criticality: ["!", "danger"],
+  // Риск — слово исполнителя о сроке: тон внимания, как у просрочки.
+  set_risk: ["!", "warn"],
   set_task_fields: ["✎", "warn"],
   rename_category: ["✎", "warn"],
   set_category_color: ["✎", "warn"],

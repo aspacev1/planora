@@ -81,7 +81,8 @@
     "date_shifts": "Date shifts",
     "close_rate": "Close rate",
     "stale_in_progress": "Stale in progress",
-    "data_quality": "Data quality"
+    "data_quality": "Data quality",
+    "team_pace": "Team pace"
   },
   "legend": {
     "title": "Legend",
@@ -137,6 +138,7 @@
     "resize_task": "Duration changed",
     "set_category_color": "Category color changed",
     "set_criticality": "Criticality changed",
+    "set_risk": "Risk changed",
     "set_duration": "Duration changed",
     "set_milestone": "Milestone flag changed",
     "set_progress": "Progress changed",

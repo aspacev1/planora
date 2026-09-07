@@ -362,6 +362,11 @@
       "high": "Yüksək",
       "critical": "Kritik"
     },
+    "risk": {
+      "green": "Plan üzrə",
+      "yellow": "Risk var",
+      "red": "Müddət təhlükədədir"
+    },
     "status": {
       "planned": "Planlaşdırılıb",
       "in_progress": "İşdədir",
@@ -375,6 +380,8 @@
       "description": "Təsvir",
       "category": "Kateqoriya",
       "criticality": "Kritiklik",
+      "risk": "Risk",
+      "risk_note": "Səbəb",
       "status": "Status",
       "start": "Başlanğıc",
       "start_day": "Start, layihə günü",
@@ -419,6 +426,8 @@
     "set_duration": "müddəti {from} → {to} dəyişdi",
     "set_progress": "tamamlanmanı {from}% → {to}% dəyişdi",
     "set_criticality": "kritikliyi «{from}» → «{to}» dəyişdi",
+    "set_risk": "riski «{from}» → «{to}» dəyişdi",
+    "set_risk_noted": "riski «{from}» → «{to}» dəyişdi: {note}",
     "set_status": "statusu «{from}» → «{to}» dəyişdi",
     "set_task_fields": "{fields} dəyişdi",
     "field": {
@@ -567,7 +576,8 @@
     },
     "tip": {
       "more": "{name} +{count}",
-      "keys": "Shift + ←→ köçür · Esc dayandır · {mod}+Z geri al"
+      "keys": "Shift + ←→ köçür · Esc dayandır · {mod}+Z geri al",
+      "risk": "Risk: {risk}"
     },
     "table": {
       "collapse": "Tapşırıq cədvəlini qatla",
@@ -1160,75 +1170,66 @@
     "title": "Layihə scorecard-ı",
     "subtitle": "Həftə {number} · {start} – {end}",
     "updated": "yenilənib {time}",
-    "weeks_window": "13 həftə",
     "recalculate": "Yenidən hesabla",
-    "columns": {
-      "metric": "Metrika",
-      "value": "Fakt / hədəf",
-      "trend": "Dinamika",
-      "status": "Status"
-    },
-    "metric": {
-      "overdue_tasks": "Gecikmiş tapşırıqlar",
-      "finish_drift": "Finiş sürüşməsi, iş g.",
-      "scope_growth": "Həcm artımı",
-      "date_shifts": "Həftə ərzində tarix sürüşmələri",
-      "close_rate": "Həftənin bağlanma nisbəti",
-      "stale_in_progress": "İşdə ilişib qalanlar",
-      "data_quality": "Məlumat keyfiyyəti"
-    },
     "status": {
       "ok": "Qaydasında",
       "warn": "Diqqət",
       "risk": "Risk",
       "no_data": "Məlumat yoxdur"
     },
-    "streak": "· {count} həft.",
     "row": {
-      "avg_overdue": "orta {count} iş g.",
-      "scope_breakdown": "{added} yaradıldı, {closed} bağlandı"
-    },
-    "owner_label": "«{metric}» metrikasının sahibi",
-    "owner_none": "təyin edilməyib",
-    "target_label": "«{metric}» metrikasının hədəfi",
-    "attention": {
-      "title": "Diqqət tələb edir",
-      "empty": "Hər şey qaydasındadır",
-      "rule": "«{metric}» ikinci həftədir riskdədir, tapşırıq yaradılıb",
-      "open_task": "Tapşırığı aç",
-      "risk": "«{metric}» bu həftə riskdədir",
-      "delta_up": "həftə ərzində +{count}",
-      "delta_down": "həftə ərzində −{count}",
-      "top_assignee": "ən çox {name} ({count})",
-      "open_all": "Bütün tapşırıqları aç ({count}) →"
-    },
-    "outlook": {
-      "title": "Proqnoz",
-      "finish": "Proqnoz finişi",
-      "milestone": "Növbəti mərhələ",
-      "milestone_overdue": "Mərhələ gecikib"
+      "avg_overdue": "orta {count} iş g."
     },
     "drill": {
-      "empty": "Bu həftə üçün tapşırıq yoxdur",
-      "deleted": "Tapşırıq silinib",
-      "days_overdue": "{count} iş günü gecikmə",
-      "in_progress_days": "{count} iş günü işdə",
-      "delta_days": "{count} gün sürüşmə",
-      "closed": "bu həftə bağlanıb",
-      "not_closed": "bağlanmayıb",
-      "added": "bu həftə yaradıldı",
+      "empty": "Bu həftə üçün tapşırıq yoxdur"
+    },
+    "summary": {
+      "week_done": "Komanda: həftənin {planned} tapşırığından {done} hazırdır",
+      "overdue": "Gecikmiş",
+      "blocked": "Blokda",
+      "finish_drift": "Finiş sürüşməsi",
+      "drift_value": "{value} iş g.",
+      "none": "yoxdur",
+      "blocked_longest": "ən uzun: {task}, {count} iş g.",
+      "projected": "proqnoz {date}",
+      "no_forecast": "proqnoz yoxdur"
+    },
+    "team": {
+      "person": "Şəxs",
+      "pace": "Həftənin tempi",
+      "on_time": "Vaxtında",
+      "signal": "Siqnal",
+      "trend": "8 həftə",
+      "pace_planned": "plan üzrə",
+      "extra": "+{count} əlavə",
+      "of": "{count}-dən",
+      "closed": "{count} bağlanıb",
+      "unassigned": "İcraçısız: {tasks}",
+      "assessment_note": "Siqnalı yalnız layihə sahibi görür",
+      "no_assessment": "Qiymətləndirməni yalnız layihə sahibi görür",
+      "empty": "Tapşırıqlara icraçı təyin edin — şəxslər üzrə temp burada görünəcək",
       "reason": {
-        "unassigned": "icraçı yoxdur",
-        "unreal_deadline": "qeyri-real müddət"
+        "in_pace": "tempdədir",
+        "overdue_silent": "{count} gecikib, xəbərdarlıq olmayıb",
+        "overdue_warned": "{count} gecikib, əvvəlcədən xəbərdarlıq olub",
+        "blocked": "«{task}» {count} iş g. blokdadır",
+        "risk_flag": "«{task}» üzrə «{risk}» bayrağı",
+        "reopened": "«{task}» hazırdan geri qaytarılıb"
       }
     },
-    "quality": {
-      "title": "Layihə məlumatlarının keyfiyyəti",
-      "percent": "{value}%",
-      "affected": "{total} tapşırıqdan {affected} düzəliş tələb edir",
-      "cause_unassigned": "İcraçı yoxdur",
-      "cause_unreal": "Qeyri-real son tarix",
-      "cause_both": "Hər iki problem"
+    "task": {
+      "due": "müddət {date}",
+      "done": "hazırdır",
+      "late": "{count} iş g. gecikib",
+      "blocked": "{count} iş g. blokda",
+      "risk": "risk: {risk}",
+      "progress": "işdədir",
+      "planned": "planlaşdırılıb",
+      "warned_risk": "bayraqla xəbərdarlıq edib",
+      "warned_blocked": "blokla xəbərdarlıq edib",
+      "silent": "xəbərdarlıq olmayıb",
+      "done_late": "{count} iş g. gecikmə ilə",
+      "reopened": "hazırdan geri qaytarılıb"
     }
   },
   "export": {

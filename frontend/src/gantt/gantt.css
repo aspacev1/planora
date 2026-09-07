@@ -1827,6 +1827,32 @@
   box-shadow: inset 3px 0 0 var(--danger-strong);
 }
 
+/* Флаг риска исполнителя — точка у левого края полоски: жёлтая или красная.
+   Своим псевдоэлементом, а не накладкой `::after`: та занята контуром и
+   гранью, и точка не должна спорить с ними за одно объявление. Белая обводка
+   отделяет её от любой заливки — и от синей «в работе», и от штриховки. */
+.gantt__bar[data-risk]::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgb(255 255 255 / 85%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.gantt__bar[data-risk="yellow"]::before {
+  background: var(--warn);
+}
+
+.gantt__bar[data-risk="red"]::before {
+  background: var(--danger);
+}
+
 /* Обе сразу — одним объявлением: сочетание пишется явно, а не оставляется
    каскаду, иначе последняя накладка стирала бы первую. Порядок слоёв тоже
    назван: контур идёт первым и потому лежит поверх грани. Разорванный на
@@ -2317,6 +2343,20 @@
 /* Строка сочетаний клавиш — отделена чертой и приглушена: это не про эту
    задачу, а про то, что с ней можно сделать, и читаться она должна после
    дат, а не наравне с ними. */
+/* Строка риска в карточке наведения — цветом флага, причина следом. */
+.gantt__tip-risk {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.gantt__tip-risk[data-risk="yellow"] b {
+  color: var(--warn);
+}
+
+.gantt__tip-risk[data-risk="red"] b {
+  color: var(--danger);
+}
+
 .gantt__tip-keys {
   margin-top: 8px;
   padding-top: 6px;

@@ -26,6 +26,8 @@ const STATE = {
       end_date: "2026-03-10",
       duration_days: 5,
       criticality: "high",
+      risk: "green",
+      risk_note: "",
       progress_pct: 40,
       position: 0,
       assignee_ids: [],

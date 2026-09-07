@@ -48,10 +48,14 @@ nobody opens.
 ### Weekly health Scorecard
 ![Scorecard dashboard with overdue tasks, data quality, and an alerts panel](docs/screenshots/scorecard.png)
 
-A rolling weekly snapshot of the project's vital signs — overdue tasks,
-average days late, unassigned work, data quality — each with a target, a
-trend sparkline, and a status. Past weeks are frozen at the moment they
-were recorded, so the trend line reflects reality, not this week's
+One screen, one question: who on the team is on pace this week. Three
+project numbers up top (overdue, blocked, finish drift), then a row per
+person — done out of planned, extra work, on-time count, an eight-week
+trend, and, for the project owner only, a signal with its reason ("2 missed,
+no warning", "blocked for 3 wd"). Assignees flag their own risk on a task
+(🟢🟡🔴 with a one-line reason), and the scorecard tells "warned ahead"
+from "missed silently" by the revision journal. Past weeks are frozen at
+the moment they were recorded, so trends reflect reality, not this week's
 recalculated targets.
 
 ### Turn the plan into a quote

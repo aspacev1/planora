@@ -4,7 +4,7 @@ import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { server } from "../test/server";
-import { captureMutations, projectFixtures, renderProject } from "../test/project";
+import { STATE, captureMutations, projectFixtures, renderProject } from "../test/project";
 
 beforeEach(projectFixtures);
 
@@ -75,5 +75,40 @@ describe("правка полей карточки", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Мария/ }));
     await waitFor(() => expect(sent[1].op.type).toBe("unassign_user"));
+  });
+});
+
+describe("флаг риска в карточке", () => {
+  it("выбор флага уходит одной операцией вместе с причиной", async () => {
+    const sent = captureMutations();
+    renderProject();
+    await openPanel();
+
+    // У зелёного флага причины нет: пустое поле читалось бы как забытое.
+    expect(screen.queryByLabelText("Причина")).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText("Риск"), "yellow");
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].op).toEqual({ type: "set_risk", task_id: "t1", risk: "yellow", note: "" });
+  });
+
+  it("причина у не-зелёного флага сохраняется той же операцией", async () => {
+    const sent = captureMutations();
+    renderProject({
+      ...STATE,
+      tasks: [{ ...STATE.tasks[0], risk: "yellow", risk_note: "" }],
+    });
+    await openPanel();
+
+    await userEvent.type(screen.getByLabelText("Причина"), "жду доступ");
+    await userEvent.tab();
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].op).toEqual({
+      type: "set_risk",
+      task_id: "t1",
+      risk: "yellow",
+      note: "жду доступ",
+    });
   });
 });

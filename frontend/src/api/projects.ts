@@ -28,6 +28,14 @@ export type Calendar = {
 };
 
 export const CRITICALITY_LEVELS = ["low", "normal", "high", "critical"] as const;
+
+/**
+ * Флаг риска от исполнителя: успеваю ли я к сроку. Слово человека, а не
+ * расчёт — скоркард сравнивает его с фактом («предупредил заранее» или
+ * «сорвал молча»).
+ */
+export const RISK_FLAGS = ["green", "yellow", "red"] as const;
+export type RiskFlag = (typeof RISK_FLAGS)[number];
 export type Criticality = (typeof CRITICALITY_LEVELS)[number];
 
 /**
@@ -79,6 +87,9 @@ export type Task = {
    */
   critical: boolean;
   criticality: Criticality;
+  /** Флаг риска исполнителя и причина одной строкой; у «сделано» не показываются. */
+  risk: RiskFlag;
+  risk_note: string;
   status: TaskStatus;
   progress_pct: number;
   position: number;
@@ -222,6 +233,8 @@ export type Op =
       internal_note: string;
     }
   | { type: "set_criticality"; task_id: string; criticality: Criticality }
+  /** Флаг и причина одной операцией: карточка меняет их одним жестом. */
+  | { type: "set_risk"; task_id: string; risk: RiskFlag; note: string }
   | { type: "set_status"; task_id: string; status: TaskStatus }
   | { type: "set_progress"; task_id: string; progress_pct: number }
   | { type: "reorder_task"; task_id: string; category_id: string; position: number }

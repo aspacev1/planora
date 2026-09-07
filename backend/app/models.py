@@ -58,6 +58,24 @@ class TaskStatus(StrEnum):
 TASK_STATUSES: tuple[str, ...] = tuple(status.value for status in TaskStatus)
 
 
+class RiskFlag(StrEnum):
+    """Самооценка исполнителя: успеваю ли я к сроку.
+
+    Не расчёт, а слово человека: зелёный — по плану, жёлтый — есть риск,
+    красный — срок под угрозой. Скоркард сравнивает это слово с фактом
+    («предупредил заранее» или «сорвал молча»), и ровно поэтому флаг живёт на
+    задаче, а не в комментарии: по журналу видно, когда он был поставлен.
+    """
+
+    GREEN = "green"
+    YELLOW = "yellow"
+    RED = "red"
+
+
+# Тем же приёмом, что CRITICALITY_LEVELS и TASK_STATUSES.
+RISK_FLAGS: tuple[str, ...] = tuple(flag.value for flag in RiskFlag)
+
+
 class ScheduleMode(StrEnum):
     """Каким временем живёт план проекта.
 
@@ -603,6 +621,10 @@ class Task(Base):
             "status IN (" + ", ".join(f"'{status}'" for status in TASK_STATUSES) + ")",
             name="ck_tasks_status",
         ),
+        CheckConstraint(
+            "risk IN (" + ", ".join(f"'{flag}'" for flag in RISK_FLAGS) + ")",
+            name="ck_tasks_risk",
+        ),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -652,6 +674,14 @@ class Task(Base):
     # журнал.
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     in_progress_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Флаг риска от исполнителя и причина одной строкой (см. RiskFlag). На
+    # закрытой задаче флаг не сбрасывается: сброс мимо журнала сломал бы
+    # отмену, а сброс через связку статуса — лишняя запись в истории о том,
+    # чего человек не делал. Экран просто не показывает флаг у «сделано».
+    risk: Mapped[str] = mapped_column(
+        String(8), default="green", server_default=text("'green'")
+    )
+    risk_note: Mapped[str] = mapped_column(String(300), default="", server_default=text("''"))
 
 
 class PlanVersion(Base):

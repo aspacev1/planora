@@ -366,6 +366,11 @@
       "high": "Высокая",
       "critical": "Критическая"
     },
+    "risk": {
+      "green": "По плану",
+      "yellow": "Есть риск",
+      "red": "Срок под угрозой"
+    },
     "status": {
       "planned": "Запланировано",
       "in_progress": "В работе",
@@ -379,6 +384,8 @@
       "description": "Описание",
       "category": "Категория",
       "criticality": "Критичность",
+      "risk": "Риск",
+      "risk_note": "Причина",
       "status": "Статус",
       "start": "Старт",
       "start_day": "Старт, день проекта",
@@ -423,6 +430,8 @@
     "set_duration": "изменил длительность с {from} на {to}",
     "set_progress": "изменил готовность с {from}% на {to}%",
     "set_criticality": "изменил критичность с «{from}» на «{to}»",
+    "set_risk": "изменил риск с «{from}» на «{to}»",
+    "set_risk_noted": "изменил риск с «{from}» на «{to}»: {note}",
     "set_status": "изменил статус с «{from}» на «{to}»",
     "set_task_fields": "изменил {fields}",
     "field": {
@@ -571,7 +580,8 @@
     },
     "tip": {
       "more": "{name} +{count}",
-      "keys": "Shift + ←→ перенести · Esc прервать · {mod}+Z отменить"
+      "keys": "Shift + ←→ перенести · Esc прервать · {mod}+Z отменить",
+      "risk": "Риск: {risk}"
     },
     "table": {
       "collapse": "Свернуть таблицу задач",
@@ -1194,75 +1204,66 @@
     "title": "Scorecard проекта",
     "subtitle": "Неделя {number} · {start} – {end}",
     "updated": "обновлено {time}",
-    "weeks_window": "13 недель",
     "recalculate": "Пересчитать",
-    "columns": {
-      "metric": "Метрика",
-      "value": "Факт / цель",
-      "trend": "Динамика",
-      "status": "Статус"
-    },
-    "metric": {
-      "overdue_tasks": "Просроченные задачи",
-      "finish_drift": "Сдвиг финиша, р.д.",
-      "scope_growth": "Рост объёма",
-      "date_shifts": "Сдвиги дат за неделю",
-      "close_rate": "Закрываемость недели",
-      "stale_in_progress": "Зависшие в работе",
-      "data_quality": "Качество данных"
-    },
     "status": {
       "ok": "В норме",
       "warn": "Внимание",
       "risk": "Риск",
       "no_data": "Нет данных"
     },
-    "streak": "· {count} нед.",
     "row": {
-      "avg_overdue": "в среднем {count} р.д.",
-      "scope_breakdown": "создано {added}, закрыто {closed}"
-    },
-    "owner_label": "Владелец метрики «{metric}»",
-    "owner_none": "не назначен",
-    "target_label": "Цель метрики «{metric}»",
-    "attention": {
-      "title": "Требует внимания",
-      "empty": "Всё в норме",
-      "rule": "«{metric}» — в риске вторую неделю подряд, создана задача",
-      "open_task": "Открыть задачу",
-      "risk": "«{metric}» — в риске на этой неделе",
-      "delta_up": "+{count} за неделю",
-      "delta_down": "−{count} за неделю",
-      "top_assignee": "больше всех у {name} ({count})",
-      "open_all": "Открыть все задачи ({count}) →"
-    },
-    "outlook": {
-      "title": "Прогноз",
-      "finish": "Прогноз финиша",
-      "milestone": "Ближайшая веха",
-      "milestone_overdue": "Веха просрочена"
+      "avg_overdue": "в среднем {count} р.д."
     },
     "drill": {
-      "empty": "За эту неделю задач нет",
-      "deleted": "Задача удалена",
-      "days_overdue": "просрочка {count} раб. дн.",
-      "in_progress_days": "в работе {count} раб. дн.",
-      "delta_days": "сдвиг {count} дн.",
-      "closed": "закрыта на этой неделе",
-      "not_closed": "не закрыта",
-      "added": "создана на этой неделе",
+      "empty": "За эту неделю задач нет"
+    },
+    "summary": {
+      "week_done": "Команда: {done} из {planned} задач недели сделано",
+      "overdue": "Просрочено",
+      "blocked": "В блоке",
+      "finish_drift": "Сдвиг финиша",
+      "drift_value": "{value} р.д.",
+      "none": "нет",
+      "blocked_longest": "дольше всех: {task}, {count} р.д.",
+      "projected": "прогноз {date}",
+      "no_forecast": "прогноза нет"
+    },
+    "team": {
+      "person": "Человек",
+      "pace": "Темп недели",
+      "on_time": "Вовремя",
+      "signal": "Сигнал",
+      "trend": "8 недель",
+      "pace_planned": "по плану",
+      "extra": "+{count} сверх",
+      "of": "из {count}",
+      "closed": "закрыто {count}",
+      "unassigned": "Без исполнителя: {tasks}",
+      "assessment_note": "Сигнал видит только владелец проекта",
+      "no_assessment": "Оценку людей видит только владелец проекта",
+      "empty": "Назначьте исполнителей задачам — темп по людям появится здесь",
       "reason": {
-        "unassigned": "нет исполнителя",
-        "unreal_deadline": "нереальный срок"
+        "in_pace": "в темпе",
+        "overdue_silent": "сорвано {count}, без предупреждения",
+        "overdue_warned": "сорвано {count}, предупреждение было",
+        "blocked": "«{task}» в блоке {count} р.д.",
+        "risk_flag": "риск «{risk}» на «{task}»",
+        "reopened": "«{task}» вернулась из «сделано»"
       }
     },
-    "quality": {
-      "title": "Качество данных проекта",
-      "percent": "{value}%",
-      "affected": "нужно поправить {affected} из {total} задач",
-      "cause_unassigned": "Нет исполнителя",
-      "cause_unreal": "Нереальный срок",
-      "cause_both": "Обе причины"
+    "task": {
+      "due": "срок {date}",
+      "done": "сделана",
+      "late": "просрочена {count} р.д.",
+      "blocked": "в блоке {count} р.д.",
+      "risk": "риск: {risk}",
+      "progress": "в работе",
+      "planned": "запланирована",
+      "warned_risk": "предупредил флагом",
+      "warned_blocked": "предупредил блоком",
+      "silent": "без предупреждения",
+      "done_late": "с опозданием на {count} р.д.",
+      "reopened": "вернулась из «сделано»"
     }
   },
   "export": {

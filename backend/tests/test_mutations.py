@@ -37,6 +37,7 @@ from app.mutations import (
     SetDuration,
     SetMilestone,
     SetProgress,
+    SetRisk,
     SetStatus,
     SetTaskFields,
     UnassignUser,
@@ -1632,3 +1633,29 @@ def test_resize_rejects_zero_duration(db, project, category):
             actor_id=None,
         )
     assert error.value.code == "duration_too_short"
+
+
+def test_set_risk_round_trip_and_unknown_flag(db, project, category):
+    """Флаг и причина — одной операцией с обеими границами; отмена возвращает
+    обе. Незнакомый флаг — отказ, а не пятисотка от CHECK."""
+    created = apply_op(db, project, CreateTask(
+        category_id=str(category.id), name="Logo",
+        start_date=date(2026, 3, 4), duration_days=5), actor_id=None)
+    task_id = created.op["task_id"]
+
+    revision = apply_op(db, project, SetRisk(
+        task_id=task_id, risk="yellow", note="жду доступ"), actor_id=None)
+    assert revision.op == {
+        "type": "set_risk", "task_id": task_id,
+        "from": {"risk": "green", "note": ""},
+        "to": {"risk": "yellow", "note": "жду доступ"},
+    }
+    task = db.get(Task, task_id)
+    assert (task.risk, task.risk_note) == ("yellow", "жду доступ")
+
+    undo(db, project, revision, actor_id=None)
+    task = db.get(Task, task_id)
+    assert (task.risk, task.risk_note) == ("green", "")
+
+    with pytest.raises(InvalidOperation):
+        apply_op(db, project, SetRisk(task_id=task_id, risk="purple"), actor_id=None)
