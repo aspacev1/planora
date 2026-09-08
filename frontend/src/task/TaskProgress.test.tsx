@@ -56,11 +56,13 @@ describe("быстрый прогресс в карточке", () => {
 
     await userEvent.clear(screen.getByLabelText(/выполнено/i));
     await userEvent.type(screen.getByLabelText(/выполнено/i), "75");
+    // Число уходит по уходу из поля, а не по каждой клавише: иначе «75»
+    // оставляло бы в истории задачи две записи — про 7 и про 75.
+    expect(sent).toHaveLength(0);
+    await userEvent.tab();
 
     await waitFor(() =>
-      expect(sent).toContainEqual({
-        op: { type: "set_progress", task_id: "t1", progress_pct: 75 },
-      }),
+      expect(sent).toEqual([{ op: { type: "set_progress", task_id: "t1", progress_pct: 75 } }]),
     );
   });
 

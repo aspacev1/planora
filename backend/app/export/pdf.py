@@ -11,6 +11,7 @@
 """
 
 import threading
+from decimal import ROUND_HALF_UP, Decimal
 from datetime import date, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -762,8 +763,11 @@ def _proposal_block(sheet: _Sheet, y: float, half: float) -> float:
     proposal = doc.proposal
     y = _section(sheet, y, t("section", "proposal"), proposal.currency)
 
-    def money(value) -> str:
-        return f"{value:,.0f}".replace(",", " ")
+    def money(value: Decimal) -> str:
+        # До целых — колонка узкая, — но половина вверх, как в документе
+        # предложения и на экране: «12 000,50» → «12 001», а не «12 000».
+        whole = value.quantize(Decimal(1), rounding=ROUND_HALF_UP)
+        return f"{whole:,}".replace(",", " ")
 
     rows: list = []
     for group in proposal.groups:

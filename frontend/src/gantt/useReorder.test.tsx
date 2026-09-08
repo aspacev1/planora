@@ -120,6 +120,20 @@ describe("перестановка строк", () => {
     expect(rowOf("Первая")).toHaveClass("drop-after");
   });
 
+  it("мышью линия вставки гаснет, когда курсор ушёл со всех строк", async () => {
+    renderProject(THREE_TASKS);
+    await screen.findByRole("button", { name: /Третья/ });
+
+    hoverRowWhileDragging("Третья", { over: "Первая", half: "top" });
+    expect(rowOf("Первая")).toHaveClass("drop-before");
+
+    // Над тулбаром сообщить о цели некому — окно узнаёт об этом само.
+    fireEvent.pointerMove(document.body, { pointerId: 2, clientX: 10, clientY: 400 });
+
+    expect(rowOf("Первая")).not.toHaveClass("drop-before");
+    expect(rowOf("Первая")).not.toHaveClass("drop-after");
+  });
+
   it("пальцем строка переставляется так же, как мышью", async () => {
     const sent = captureMutations();
     renderProject(THREE_TASKS);

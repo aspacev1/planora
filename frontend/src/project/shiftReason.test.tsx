@@ -82,10 +82,32 @@ describe("порог сдвига", () => {
     // Длительность меняется на день: её измерение от базы не ушло, и окно
     // с чужим числом «сдвиг на 5 дней» здесь было бы ошибкой (см. сервер).
     fireEvent.change(screen.getByLabelText(/Длительность, рабочих/), { target: { value: "6" } });
+    fireEvent.blur(screen.getByLabelText(/Длительность, рабочих/));
 
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0].op).toMatchObject({ type: "set_duration", duration_days: 6 });
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("набор числа не открывает окно на полпути: «15» — это пятнадцать, а не единица", async () => {
+    const sent = captureMutations();
+    renderProject(APPROVED);
+    await userEvent.click(await bar());
+
+    // Длительность 5 при пороге 2: «1» на пути к «15» — уже отклонение на
+    // четыре дня, и окно причины открывалось бы за число, которого человек
+    // не называл.
+    const duration = screen.getByLabelText(/Длительность, рабочих/);
+    await userEvent.clear(duration);
+    await userEvent.type(duration, "15");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(sent).toHaveLength(0);
+
+    await userEvent.tab();
+
+    // Ушло одно число — и окно спрашивает ровно про него.
+    expect(await screen.findByRole("dialog")).toHaveTextContent(/Сдвиг на 10 дней/);
+    expect(sent).toHaveLength(0);
   });
 
   it("откат по отказу возвращает к состоянию на момент отправки, а не до окна", async () => {

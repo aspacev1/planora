@@ -24,7 +24,7 @@ import type {
 import { useFieldSaves } from "../components/autosave";
 import { useToast } from "../components/toast";
 import { useLocale } from "../i18n/LocaleProvider";
-import { formatAmount, formatMoney } from "./money";
+import { formatAmount, formatMoney, formatMoneyAmount, lineAmount, sumMoney, taxOf } from "./money";
 import { ProposalCategoryForm } from "./ProposalCategoryForm";
 import { ProposalEmptyState } from "./ProposalEmptyState";
 import { ProposalNotes } from "./ProposalNotes";
@@ -242,14 +242,15 @@ export function Proposal({
     days: (value) => t("proposal.format.days", { value: formatAmount(locale, value) }),
     hoursLabel: (value) => t("proposal.format.hours", { value: formatAmount(locale, value) }),
     amount: (value) => formatAmount(locale, value),
+    price: (value) => formatMoneyAmount(locale, value),
     money: (value) => formatMoney(locale, proposal.currency, value),
   };
   // Ставка — за день или за час, и шапка колонки обязана это говорить: голое
   // «Ставка» не отвечает на вопрос «за что».
   const unitLetter = t(hours ? "proposal.format.hour_letter" : "proposal.format.day_letter");
 
-  const subtotal = tasks.reduce((sum, task) => sum + task.effort * task.rate, 0);
-  const tax = (subtotal * proposal.tax_rate_pct) / 100;
+  const subtotal = sumMoney(tasks.map((task) => lineAmount(task.effort, task.rate)));
+  const tax = taxOf(subtotal, proposal.tax_rate_pct);
   const totalDays = tasks.reduce((sum, task) => sum + math.toDays(task.effort), 0);
   const totalHours = tasks.reduce((sum, task) => sum + math.toHours(task.effort), 0);
 

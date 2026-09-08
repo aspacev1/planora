@@ -60,6 +60,7 @@ describe("правка полей карточки", () => {
     renderProject();
     await openPanel();
     fireEvent.change(screen.getByLabelText(/выполнено/i), { target: { value: "150" } });
+    fireEvent.blur(screen.getByLabelText(/выполнено/i));
 
     expect(await screen.findByText(/от 0 до 100/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText(/выполнено/i)).toHaveValue(40));
