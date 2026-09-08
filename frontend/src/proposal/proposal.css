@@ -386,7 +386,9 @@
   gap: var(--space-6);
   width: 100%;
   height: 36px;
-  padding: 0 var(--space-12) 0 calc(var(--space-12) + 13px + var(--space-6));
+  /* Знак в столбце шеврона своего уровня, подпись — в колонке имён того же
+     уровня (см. `.gantt__add`): поле ячейки плюс ступень вложенности. */
+  padding: 0 var(--space-12) 0 calc(var(--space-12) + var(--row-indent));
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -409,6 +411,8 @@
 }
 
 .proposal-add__plus {
+  width: var(--row-chevron);
+  text-align: center;
   font-size: 14px;
   color: var(--text-muted);
 }
@@ -577,12 +581,11 @@
   min-width: 100px;
 }
 
-/* Работы отступают под свой раздел — на ширину шеврона: имена строк одной
-   природы стоят в одной колонке. */
+/* Работы отступают под свой раздел: столбец шеврона с просветом, где стоит
+   имя раздела, плюс ступень вложенности — те же меры, что у задачи на ленте
+   (см. `--gantt-indent`), чтобы «как в ленте» значило «так же». */
 .proposal-row__name--task {
-  /* вне шкалы: шеврон (13px) плюс просвет до текста — та же сумма, что и в
-     `--gantt-indent` ленты. */
-  padding-left: calc(13px + var(--space-6));
+  padding-left: calc(var(--row-chevron) + var(--space-6) + var(--row-indent));
 }
 
 /* Имя раздела — того же начертания, что и его сумма: это заголовок группы, а
