@@ -14,7 +14,7 @@
   gap: var(--space-8);
   flex-wrap: wrap;
   margin: 0 0 var(--space-16);
-  padding: var(--space-12) var(--space-16);
+  padding: var(--space-12) var(--gutter);
   border-radius: var(--radius);
   background: var(--danger-soft);
   color: var(--danger);

@@ -76,14 +76,15 @@
    его же ставит разметка, узнав настройку системы. */
 
 /* Итог по срокам — выноска над лентой: одна строка, тонкая заливка, никакой
-   рамки. Поля по бокам те же, что у шапки проекта: лента идёт во всю ширину
-   экрана, и выноска обязана встать по одной вертикали с названием проекта. */
+   рамки. Поля по бокам те же, что у шапки проекта (`--gutter`): лента идёт
+   во всю ширину экрана, и выноска обязана встать по одной вертикали с
+   названием проекта. */
 .gantt__summary {
   display: flex;
   align-items: center;
   gap: var(--space-8);
   flex-wrap: wrap;
-  margin: var(--space-16) var(--space-32) 0;
+  margin: var(--space-16) var(--gutter) 0;
   padding: var(--space-12) var(--space-16);
   border-radius: var(--radius-md);
   background: var(--hover);
@@ -145,7 +146,7 @@
   align-items: center;
   gap: var(--space-6) var(--space-16);
   flex-wrap: wrap;
-  margin: var(--space-16) var(--space-32) 0;
+  margin: var(--space-16) var(--gutter) 0;
   font-size: 11px;
   color: var(--text-muted);
 }
@@ -217,7 +218,7 @@
 
 /* Сноска под лентой: расшифровка засечки и стрелки. */
 .gantt__caption {
-  margin: var(--space-12) var(--space-32);
+  margin: var(--space-12) var(--gutter);
   max-width: 720px;
   font-size: 12px;
   font-style: italic;

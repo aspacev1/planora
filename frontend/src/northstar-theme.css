@@ -180,10 +180,15 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
 /* --- шапка проекта --- */
 
 .screen--wide { padding: 0; }
+/* Тело вкладки рабочей области (смета, скоркард, история) — с полем шапки по
+   бокам: первая буква фильтра или таблицы стоит под первой буквой имени
+   проекта. Лента в эту обёртку не входит намеренно — она идёт от края до
+   края, и поле у неё своё (см. `--gantt-pad`). */
+.project__pane { padding: var(--space-24) var(--gutter) var(--space-48); }
 /* Поля шапки умереннее макетных: над лентой и так стоят четыре яруса — шапка,
    метрики, вкладки, тулбар, — и каждый лишний пиксель здесь умножается на
    четыре. Содержимому ярусов это не мешает: высоту им задают их органы. */
-.project-head { margin: 0; padding: var(--space-16) var(--space-24) var(--space-12); background: var(--surface); border-bottom: 1px solid var(--border); gap: 0; }
+.project-head { margin: 0; padding: var(--space-16) var(--gutter) var(--space-12); background: var(--surface); border-bottom: 1px solid var(--border); gap: 0; }
 .project-head__main { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-20); width: 100%; }
 .project-head__title { font-size: 25px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.25; }
 .project-head__meta { margin-top: var(--space-8); font-size: 13px; color: var(--text-muted); font-style: normal; }
@@ -280,7 +285,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
 /* Высота — от органа управления, а не от собственного числа: с 36-пиксельными
    кнопками прежние 78 пикселей оставляли над лентой полосу пустоты выше самой
    шапки ленты. */
-.project-toolbar { display: flex; align-items: center; gap: var(--space-8); min-height: 46px; padding: var(--space-4) var(--space-16); border-bottom: 1px solid var(--border); background: var(--surface); }
+.project-toolbar { display: flex; align-items: center; gap: var(--space-8); min-height: 46px; padding: var(--space-4) var(--gutter); border-bottom: 1px solid var(--border); background: var(--surface); }
 .project-toolbar__spacer { flex: 1; }
 /* Меню тулбара — «Масштаб» и «Вид» — одной высоты между собой и со всеми
    кнопками приложения: своего роста им больше не задаётся, они берут общий.
@@ -315,7 +320,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   flex-wrap: wrap;
   gap: var(--space-6) var(--space-8);
   min-height: 44px;
-  padding: var(--space-4) var(--space-24);
+  padding: var(--space-4) var(--gutter);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -726,7 +731,7 @@ textarea:focus {
 .screen:not(.screen--wide):not(.screen--narrow) {
   width: min(100%, 1120px);
   max-width: 1120px;
-  padding: var(--space-32) var(--space-40) var(--space-80);
+  padding: var(--space-32) var(--gutter-page) var(--space-80);
 }
 
 .screen:not(.screen--wide) h1 { font-size: 25px; font-weight: 700; letter-spacing: -0.025em; }
@@ -945,7 +950,7 @@ body:has(.screen--narrow) {
 /* --- адаптивность --- */
 
 @media (max-width: 900px) {
-  .project-head, .project-toolbar { padding-left: var(--space-20); padding-right: var(--space-20); }
+  :root { --gutter: var(--space-20); --gutter-page: var(--space-24); }
   .project-head__main, .project__body, .project-toolbar { flex-wrap: wrap; }
   .project-toolbar { height: auto; padding-top: var(--space-16); padding-bottom: var(--space-16); }
 }
@@ -1005,10 +1010,11 @@ body:has(.screen--narrow) {
   .sidebar__nav { flex-direction: row; gap: var(--space-6); }
   .sidebar__link { min-height: 36px; padding: 0 var(--space-12); }
   .sidebar__link.is-current { box-shadow: none; }
-  .screen:not(.screen--wide):not(.screen--narrow) { padding: var(--space-24) var(--space-16) var(--space-48); }
+  :root { --gutter: var(--space-16); --gutter-page: var(--space-16); }
+  .screen:not(.screen--wide):not(.screen--narrow) { padding-top: var(--space-24); padding-bottom: var(--space-48); }
   .screen__head { align-items: stretch; }
   .screen__head h1 { flex-basis: 100%; margin-bottom: var(--space-8); }
-  .project-head { padding: var(--space-16) var(--space-16); }
+  .project-head { padding-top: var(--space-16); padding-bottom: var(--space-16); }
   .project-head__main { flex-direction: column; }
   .project-head__actions { justify-content: flex-start; gap: var(--space-8); }
   .project-toolbar { gap: var(--space-8); }
