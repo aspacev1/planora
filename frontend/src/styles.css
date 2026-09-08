@@ -70,7 +70,28 @@
   --radius-sm: 3px;
   --radius: 6px;
   --radius-lg: 10px;
-  --gap: 16px;
+  /* Шкала расстояний — единственный источник отступов, полей и просветов
+     (`padding`, `margin`, `gap`). Шаг 4px, ниже 8 — половинные ступени 2 и
+     6: просвет между значком и подписью в 6px есть в каждом ряду, а 4 его
+     сплющивает, 8 — разрывает. Значений между ступенями (10, 14, 18…) в
+     стилях нет намеренно: глаз их не отличает от соседних, и рядом стоящие
+     блоки читались как «почти ровные». Тест `spacing-scale.test.ts` не даёт
+     литералу вернуться. Размеры (ширина, высота, положение) шкале не
+     подчинены — это геометрия, а не воздух. */
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --space-80: 80px;
+  --space-96: 96px;
   --sidebar: 240px;
   /* Свёрнутая колонка: ширина одного значка с полями. Пункты со значком в ней
      остаются — виден значок, а подпись выезжает подсказкой вбок. */
@@ -233,8 +254,8 @@ body {
   width: var(--sidebar);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 8px;
+  gap: var(--space-2);
+  padding: var(--space-8);
   background: var(--bg-subtle);
   border-right: 1px solid var(--border);
   /* Колонка стоит на месте, пока прокручивается страница: это карта, а
@@ -273,7 +294,7 @@ body {
   justify-content: flex-start;
   gap: var(--sidebar-gap);
   min-width: 0;
-  padding: 6px var(--sidebar-gutter);
+  padding: var(--space-6) var(--sidebar-gutter);
   border-radius: var(--radius);
   /* Якорь для подсказки свёрнутой колонки: она встаёт от края этой строки, а
      не от края колонки, — иначе её пришлось бы отмерять от верха вручную и
@@ -387,8 +408,8 @@ button.sidebar__workspace:focus-visible {
     width: var(--sidebar-collapsed);
     /* Поля уже общих: в рейке шириной с один значок каждый пиксель бокового
        поля отнимается у самого значка. */
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: var(--space-8);
+    padding-right: var(--space-8);
     /* Подсказки выходят за правый край рейки, и `overflow-y: auto` развёрнутой
        колонки обрезал бы их. Прятать нечего: в рейке пунктов на треть экрана,
        и прокручивать её незачем. */
@@ -431,8 +452,8 @@ button.sidebar__workspace:focus-visible {
     left: 100%;
     top: 50%;
     z-index: 1;
-    margin-left: 8px;
-    padding: 4px 8px;
+    margin-left: var(--space-8);
+    padding: var(--space-4) var(--space-8);
     border-radius: var(--radius-sm);
     background: var(--text);
     color: var(--surface);
@@ -483,7 +504,7 @@ button.sidebar__workspace:focus-visible {
   align-items: center;
   gap: var(--sidebar-gap);
   min-height: 28px;
-  padding: 4px var(--sidebar-gutter);
+  padding: var(--space-4) var(--sidebar-gutter);
   border-radius: var(--radius);
   color: var(--text-muted);
   font-weight: 500;
@@ -521,11 +542,11 @@ button.sidebar__workspace:focus-visible {
    выход. Всё, что относится к нему, а не к работе. */
 .sidebar__foot {
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: var(--space-8);
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
 }
 
 /* Кнопка выхода выглядит как пункт колонки, а не как кнопка: она стоит в
@@ -573,7 +594,7 @@ button.sidebar__button:hover {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-4);
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
@@ -622,8 +643,8 @@ button.sidebar__button:hover {
   .sidebar--collapsed .sidebar__link,
   .sidebar--collapsed button.sidebar__button {
     justify-content: center;
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: var(--space-8);
+    padding-right: var(--space-8);
   }
 
   /* Стрелки здесь нет: в строке сверху от логотипа остаётся один квадрат, и
@@ -643,9 +664,9 @@ button.sidebar__button:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
   height: 45px;
-  padding: 0 16px;
+  padding: 0 var(--space-16);
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
@@ -653,7 +674,7 @@ button.sidebar__button:hover {
 .header__side {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   margin-left: auto;
   flex-wrap: wrap;
 }
@@ -665,7 +686,7 @@ button.sidebar__button:hover {
 .screen {
   max-width: 900px;
   margin: 0 auto;
-  padding: 48px 64px 96px;
+  padding: var(--space-48) var(--space-64) var(--space-96);
 }
 
 /* Вход и регистрация: узкая колонка по центру и кнопка во всю её ширину.
@@ -673,23 +694,23 @@ button.sidebar__button:hover {
    целиться в него не приходится вовсе. */
 .screen--narrow {
   max-width: 380px;
-  padding-top: 96px;
+  padding-top: var(--space-96);
 }
 
 .screen--narrow h1 {
   font-size: 28px;
-  margin-bottom: 28px;
+  margin-bottom: var(--space-24);
 }
 
 .screen--narrow form button[type="submit"] {
   width: 100%;
-  margin-top: 4px;
+  margin-top: var(--space-4);
 }
 
 /* Диаграмма занимает всю ширину экрана: ради неё человек сюда и пришёл. */
 .screen--wide {
   max-width: none;
-  padding: 32px 40px 64px;
+  padding: var(--space-32) var(--space-40) var(--space-64);
 }
 
 .screen--center {
@@ -701,7 +722,7 @@ button.sidebar__button:hover {
   .screen,
   .screen--wide,
   .screen--narrow {
-    padding: 32px 20px 64px;
+    padding: var(--space-32) var(--space-20) var(--space-64);
   }
 }
 
@@ -709,8 +730,8 @@ button.sidebar__button:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 24px;
+  gap: var(--space-8);
+  margin-bottom: var(--space-24);
 }
 
 /* Заголовок отжимает действия вправо сам, вместо `space-between`: действий
@@ -728,14 +749,14 @@ h1 {
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.2;
-  margin: 0 0 24px;
+  margin: 0 0 var(--space-24);
 }
 
 h2 {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  margin: 32px 0 8px;
+  margin: var(--space-32) 0 var(--space-8);
 }
 
 /* Шапка проекта — лесенкой, а не заголовком с действиями в одну строку.
@@ -746,21 +767,21 @@ h2 {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 24px;
+  gap: var(--space-16);
+  margin-bottom: var(--space-24);
 }
 
 .project-head__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   flex-wrap: wrap;
 }
 
 .project-head__plan {
   display: flex;
   align-items: center;
-  gap: 8px 14px;
+  gap: var(--space-8) var(--space-16);
   flex-wrap: wrap;
   margin: 0;
   font-size: 12px;
@@ -786,7 +807,7 @@ h2 {
 .project-head__titles {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 /* Состояние плана в этой строке стоит вплотную к названию и едет за ним:
@@ -799,7 +820,7 @@ h2 {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  gap: var(--space-8) var(--space-16);
 }
 
 /* Отступ снизу заголовок здесь не несёт: расстояния в шапке задаёт её
@@ -831,7 +852,7 @@ h2 {
   align-items: stretch;
   width: fit-content;
   max-width: 100%;
-  margin: 12px 0 0;
+  margin: var(--space-12) 0 0;
   padding: 0;
   list-style: none;
   overflow-x: auto;
@@ -843,7 +864,7 @@ h2 {
 .project-head__metric {
   flex: 0 0 auto;
   min-width: 96px;
-  padding: 6px 12px;
+  padding: var(--space-6) var(--space-12);
   border-right: 1px solid var(--border);
 }
 
@@ -878,7 +899,7 @@ h2 {
 @media (max-width: 900px) {
   .project-head__metric {
     min-width: 104px;
-    padding: 9px 12px;
+    padding: var(--space-8) var(--space-12);
   }
 }
 
@@ -909,7 +930,7 @@ h2 {
 .project__body {
   display: flex;
   align-items: stretch;
-  gap: var(--gap);
+  gap: var(--space-16);
 }
 
 .project__body > .gantt {
@@ -935,9 +956,9 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-6);
   height: var(--control-button);
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   font: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -1006,9 +1027,9 @@ button:where(:disabled:hover) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-6);
   height: var(--control-button);
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   font: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -1098,8 +1119,8 @@ button:where(:disabled:hover) {
    отдельные кнопки. Общая подложка и говорит, что выбор один. */
 .locale-switch {
   display: flex;
-  gap: 2px;
-  padding: 2px;
+  gap: var(--space-2);
+  padding: var(--space-2);
   border-radius: var(--radius);
   background: var(--hover);
 }
@@ -1110,7 +1131,7 @@ button:where(:disabled:hover) {
    значки, и нижний ряд не разъезжается на два левых края. */
 .sidebar .locale-switch {
   align-self: flex-start;
-  margin: 4px 0 4px var(--sidebar-gutter);
+  margin: var(--space-4) 0 var(--space-4) var(--sidebar-gutter);
 }
 
 /* В поле профиля — по той же причине: поле тянет содержимое на всю свою
@@ -1121,7 +1142,7 @@ button:where(:disabled:hover) {
 
 .locale-switch button {
   height: 24px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   font-size: 12px;
   background: transparent;
   color: var(--text-muted);
@@ -1147,8 +1168,8 @@ button:where(:disabled:hover) {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 0 0 var(--gap);
+  gap: var(--space-6);
+  margin: 0 0 var(--space-16);
 }
 
 .field label,
@@ -1161,7 +1182,7 @@ button:where(:disabled:hover) {
 .field--inline {
   flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 /* `:where` — не украшение записи: без него `:not([type=…])` поднял бы вес
@@ -1173,7 +1194,7 @@ textarea,
 input:where(:not([type="checkbox"]):not([type="radio"])) {
   width: 100%;
   min-height: var(--control);
-  padding: 6px 10px;
+  padding: var(--space-6) var(--space-12);
   font: inherit;
   color: var(--text);
   background: var(--input-bg);
@@ -1240,20 +1261,20 @@ input[type="checkbox"] {
 .checkbox {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .fieldset,
 .settings__fieldset {
   margin: 0;
-  padding: 12px;
+  padding: var(--space-12);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 
 .fieldset legend,
 .settings__fieldset legend {
-  padding: 0 6px;
+  padding: 0 var(--space-6);
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 500;
@@ -1262,13 +1283,13 @@ input[type="checkbox"] {
 /* Палитра: готовые цвета кружками в один ряд. Ряд переносится, а не жмёт
    кружки, — на узком экране лучше две строки, чем десять неразличимых точек. */
 .swatches {
-  margin: 0 0 var(--gap);
+  margin: 0 0 var(--space-16);
 }
 
 .swatches__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-8);
 }
 
 /* Кружок — это сама радиокнопка: `appearance: none` снимает вид платформы,
@@ -1314,8 +1335,8 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin: 0 0 12px;
+  gap: var(--space-12);
+  margin: 0 0 var(--space-12);
 }
 
 .switch__label {
@@ -1346,7 +1367,7 @@ input[type="checkbox"] {
 .switch__dot {
   width: 16px;
   height: 16px;
-  margin: 0 2px;
+  margin: 0 var(--space-2);
   border-radius: 50%;
   background: #ffffff;
   box-shadow: var(--shadow-sm);
@@ -1360,7 +1381,7 @@ input[type="checkbox"] {
 /* --- сообщения --- */
 
 .error {
-  margin: 0 0 var(--gap);
+  margin: 0 0 var(--space-16);
   color: var(--danger);
 }
 
@@ -1388,7 +1409,7 @@ input[type="checkbox"] {
 .members__list {
   list-style: none;
   padding: 0;
-  margin: 0 0 24px;
+  margin: 0 0 var(--space-24);
   display: flex;
   flex-direction: column;
 }
@@ -1398,9 +1419,9 @@ input[type="checkbox"] {
 .members__row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
   flex-wrap: wrap;
-  padding: 10px 8px;
+  padding: var(--space-12) var(--space-8);
   border-bottom: 1px solid var(--border);
   border-radius: var(--radius-sm);
   transition: background var(--motion-fast) var(--motion-ease);
@@ -1432,7 +1453,7 @@ input[type="checkbox"] {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
 }
 
@@ -1450,17 +1471,17 @@ input[type="checkbox"] {
    чужой строке он читался бы такой же мелочью, какой не является: позвать
    себя обратно нечем. */
 .members__leave {
-  margin-top: 32px;
-  padding-top: 24px;
+  margin-top: var(--space-32);
+  padding-top: var(--space-24);
   border-top: 1px solid var(--border);
 }
 
 .members__leave h2 {
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-4);
 }
 
 .members__leave p {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-12);
 }
 
 .invite__who {
@@ -1478,7 +1499,7 @@ input[type="checkbox"] {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 4px;
+  gap: var(--space-4);
   margin-left: auto;
   /* Без этого развёрнутое подтверждение — предупреждение и две кнопки —
      распирало бы строку наружу вместо того, чтобы переноситься внутри неё. */
@@ -1521,9 +1542,9 @@ input[type="checkbox"] {
    успеть скопировать, а не разглядывать обрезанной. */
 .issued {
   display: flex;
-  gap: 8px;
+  gap: var(--space-8);
   width: 100%;
-  margin: 8px 0 0;
+  margin: var(--space-8) 0 0;
 }
 
 .issued__url {
@@ -1534,7 +1555,7 @@ input[type="checkbox"] {
 }
 
 .issued-list > div {
-  margin-bottom: var(--gap);
+  margin-bottom: var(--space-16);
 }
 
 /* --- окно --- */
@@ -1552,7 +1573,7 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--gap);
+  padding: var(--space-16);
   background: var(--backdrop);
   animation: layer-fade var(--motion-layer) var(--motion-layer-ease);
 }
@@ -1562,7 +1583,7 @@ input[type="checkbox"] {
   max-width: 440px;
   max-height: 100%;
   overflow: auto;
-  padding: 24px;
+  padding: var(--space-24);
   background: var(--surface);
   border-radius: var(--radius-lg);
   /* Тень вместо рамки: окно висит над страницей, и рамка вокруг него
@@ -1572,7 +1593,7 @@ input[type="checkbox"] {
 }
 
 .modal__title {
-  margin: 0 0 var(--gap);
+  margin: 0 0 var(--space-16);
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -1581,8 +1602,8 @@ input[type="checkbox"] {
 /* Вопрос о потере введённого: подложка отделяет его от полей формы, к которым
    он относится, но не уводит взгляд со дна окна, где человек только что был. */
 .modal__confirm {
-  margin-top: var(--gap);
-  padding: 12px;
+  margin-top: var(--space-16);
+  padding: var(--space-12);
   border-radius: var(--radius);
   background: var(--bg-subtle);
 }
@@ -1592,7 +1613,7 @@ input[type="checkbox"] {
 }
 
 .modal__confirm .modal__actions {
-  margin-top: 12px;
+  margin-top: var(--space-12);
 }
 
 /* Главное действие слева, отказ рядом: в окне читают сверху вниз и слева
@@ -1600,8 +1621,8 @@ input[type="checkbox"] {
 .modal__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 24px;
+  gap: var(--space-8);
+  margin-top: var(--space-24);
 }
 
 /* --- пустое состояние --- */
@@ -1609,7 +1630,7 @@ input[type="checkbox"] {
 /* Пунктирной рамки нет: она обводит пустоту, тем самым делая её заметнее.
    Приглушённый текст и одна кнопка говорят то же самое и не кричат. */
 .empty {
-  padding: 40px 24px;
+  padding: var(--space-40) var(--space-24);
   border-radius: var(--radius-lg);
   background: var(--bg-subtle);
   color: var(--text-muted);
@@ -1621,13 +1642,13 @@ input[type="checkbox"] {
 }
 
 .empty .empty__title {
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-4);
   color: var(--text);
   font-weight: 600;
 }
 
 .empty button {
-  margin-top: var(--gap);
+  margin-top: var(--space-16);
 }
 
 /* Подтверждение переутверждения: предупреждение и две кнопки в строке шапки,
@@ -1636,9 +1657,9 @@ input[type="checkbox"] {
 .plan__confirm {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   flex-wrap: wrap;
-  padding: 4px 4px 4px 12px;
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-12);
   border-radius: var(--radius);
   background: var(--danger-soft);
 }
@@ -1654,9 +1675,9 @@ input[type="checkbox"] {
 .plan-reapprove {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
   max-width: 480px;
-  padding: 12px 14px;
+  padding: var(--space-12) var(--space-16);
   border: 1px solid var(--danger);
   border-radius: var(--radius);
   background: var(--danger-soft);
@@ -1684,8 +1705,8 @@ input[type="checkbox"] {
 
 .plan-reapprove__actions {
   display: flex;
-  gap: 8px;
-  margin-top: 4px;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
 }
 
 /* «Посмотреть изменения» внутри подтверждения — ссылка, а не третья кнопка:
@@ -1721,10 +1742,10 @@ input[type="checkbox"] {
 .nudge {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   flex-wrap: wrap;
-  margin-bottom: var(--gap);
-  padding: 10px 14px;
+  margin-bottom: var(--space-16);
+  padding: var(--space-12) var(--space-16);
   border-radius: var(--radius);
   background: var(--hover);
   font-size: 13px;
@@ -1743,15 +1764,15 @@ input[type="checkbox"] {
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 20px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-20);
   border-bottom: 1px solid var(--border);
 }
 
 /* Подчёркивание, а не заливка: вкладки стоят в ряд у линии, и заливка ушла бы
    от неё, оставив выбранную вкладку висеть над собственной границей. */
 .tabs__link {
-  padding: 8px 10px;
+  padding: var(--space-8) var(--space-12);
   margin-bottom: -1px;
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
@@ -1773,14 +1794,14 @@ input[type="checkbox"] {
 .settings {
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
+  gap: var(--space-16);
   max-width: 560px;
 }
 
 .settings__days {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-4);
 }
 
 /* День недели — метка-переключатель, как свойство «мультивыбор» в Notion:
@@ -1788,8 +1809,8 @@ input[type="checkbox"] {
 .settings__day {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px 4px 8px;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-12) var(--space-4) var(--space-8);
   border-radius: var(--radius);
   background: var(--hover);
   font-size: 13px;
@@ -1810,8 +1831,8 @@ input[type="checkbox"] {
 .settings__override {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: var(--space-8);
+  padding: var(--space-12);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
@@ -1829,15 +1850,15 @@ input[type="checkbox"] {
 .settings__inherit {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   color: var(--text-muted);
 }
 
 /* Удаление проекта — под чертой, отдельно от настроек: это не правка, а
    расставание. */
 .settings__danger {
-  margin-top: 8px;
-  padding-top: 16px;
+  margin-top: var(--space-8);
+  padding-top: var(--space-16);
   border-top: 1px solid var(--border);
 }
 
@@ -1850,14 +1871,14 @@ input[type="checkbox"] {
 .settings__slug-hint {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   color: var(--text-muted);
   font-size: 13px;
 }
 
 /* Пояснение под полем формы: тем же голосом, что подсказка у слага. */
 .field__hint {
-  margin: -6px 0 12px;
+  margin: -6px 0 var(--space-12);
   color: var(--text-muted);
   font-size: 13px;
 }
@@ -1865,8 +1886,8 @@ input[type="checkbox"] {
 /* Рассчитанные границы проекта в окне привязки: строка-итог перед кнопками,
    заметная, но не тревожная — это обещание, а не предупреждение. */
 .schedule__preview {
-  margin: 16px 0 0;
-  padding: 10px 14px;
+  margin: var(--space-16) 0 0;
+  padding: var(--space-12) var(--space-16);
   border-radius: var(--radius-md);
   background: var(--accent-soft);
   color: var(--accent);
@@ -1892,7 +1913,7 @@ input[type="checkbox"] {
    не как поле формы: это навигация, а не значение, которое вводят. */
 .org-switch {
   height: 28px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   background: transparent;
   box-shadow: none;
   color: var(--text-muted);
@@ -1927,9 +1948,9 @@ input[type="checkbox"] {
 .status-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   height: 28px;
-  padding: 0 12px;
+  padding: 0 var(--space-12);
   border: 1px solid transparent;
   border-radius: 999px;
   font-size: 13px;
@@ -1979,7 +2000,7 @@ input[type="checkbox"] {
 .menu__button {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-8);
 }
 
 .menu__caret {
@@ -2002,7 +2023,7 @@ input[type="checkbox"] {
   right: 0;
   z-index: 30;
   min-width: 220px;
-  padding: 10px;
+  padding: var(--space-12);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -2017,10 +2038,10 @@ input[type="checkbox"] {
      `justify-content: center` общего правила кнопок и в столбце пунктов-
      флажков стоит один по-своему. */
   justify-content: flex-start;
-  gap: 9px;
+  gap: var(--space-8);
   width: 100%;
   min-height: 32px;
-  padding: 4px 8px;
+  padding: var(--space-4) var(--space-8);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -2077,9 +2098,9 @@ input[type="checkbox"] {
   z-index: 1200;
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: var(--space-12);
   max-width: min(92vw, 480px);
-  padding: 12px 18px;
+  padding: var(--space-12) var(--space-16);
   border-radius: 12px;
   background: #1f2937;
   color: #f9fafb;
@@ -2115,7 +2136,7 @@ input[type="checkbox"] {
 
 .toast__action {
   height: auto;
-  padding: 2px 4px;
+  padding: var(--space-2) var(--space-4);
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -2133,7 +2154,7 @@ input[type="checkbox"] {
 /* --- мои задачи --- */
 
 .task-list {
-  margin: 20px 0 0;
+  margin: var(--space-20) 0 0;
   padding: 0;
   list-style: none;
   border: 1px solid var(--border);
@@ -2145,9 +2166,9 @@ input[type="checkbox"] {
 .task-list__row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-16);
   min-height: 56px;
-  padding: 10px 16px;
+  padding: var(--space-12) var(--space-16);
 }
 
 .task-list__row + .task-list__row {
@@ -2157,7 +2178,7 @@ input[type="checkbox"] {
 .task-list__main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -2194,7 +2215,7 @@ input[type="checkbox"] {
    от этого не страдают. */
 .report {
   width: 100%;
-  margin-top: 20px;
+  margin-top: var(--space-20);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   border-spacing: 0;
@@ -2203,7 +2224,7 @@ input[type="checkbox"] {
 
 .report th,
 .report td {
-  padding: 12px 16px;
+  padding: var(--space-12) var(--space-16);
   text-align: left;
   font-size: 14px;
 }
@@ -2271,5 +2292,5 @@ input[type="checkbox"] {
    колонки — фильтр по имени и адресу не набирают строкой в четверть метра. */
 .admin__search {
   max-width: 320px;
-  margin-top: 16px;
+  margin-top: var(--space-16);
 }

@@ -15,7 +15,7 @@
   display: block;
   max-width: 100%;
   min-width: 0;
-  padding: 2px 4px;
+  padding: var(--space-2) var(--space-4);
   border: 1px solid transparent;
   border-radius: var(--radius-sm, 6px);
   overflow: hidden;
@@ -37,7 +37,9 @@
 .cell-input {
   width: 100%;
   min-width: 0;
-  padding: 1px 3px;
+  /* вне шкалы: на пиксель уже значения (2px 4px) с каждой стороны — ровно на
+     толщину рамки, чтобы поле встало на место ячейки без сдвига текста. */
+  padding: 1px var(--space-4);
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm, 6px);
   background: var(--surface);
@@ -71,7 +73,7 @@
 .row-icons {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-2);
   flex: 0 0 auto;
   margin-left: auto;
 }
@@ -139,9 +141,9 @@
 .row-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-4);
   height: 22px;
-  padding: 0 5px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-faint);

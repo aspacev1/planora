@@ -59,7 +59,7 @@
    полоса вкладок. */
 .panel__head {
   flex: 0 0 auto;
-  padding: 16px 24px 0;
+  padding: var(--space-16) var(--space-24) 0;
   background: var(--surface);
 }
 
@@ -67,8 +67,8 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: var(--gap);
+  gap: var(--space-8);
+  margin-bottom: var(--space-16);
 }
 
 /* Середина — единственное, что прокручивается. min-height: 0 обязателен:
@@ -77,7 +77,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--gap) 24px;
+  padding: var(--space-16) var(--space-24);
 }
 
 /* Подвал закреплён у нижнего края карточки — и экрана. */
@@ -85,8 +85,8 @@
   flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 24px;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-24);
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
@@ -97,7 +97,7 @@
    карточки. */
 .panel__save {
   height: var(--control-button);
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   border-radius: var(--radius);
   background: var(--accent);
   color: var(--accent-text);
@@ -114,8 +114,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
   color: var(--text-muted);
   font-size: 13px;
 }
@@ -165,7 +165,7 @@
 .panel__fields {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
 }
 
 /* Свойство — строка из подписи и значения, а не подпись над полем: в столбце
@@ -177,7 +177,7 @@
   display: grid;
   grid-template-columns: 104px minmax(0, 1fr);
   align-items: start;
-  gap: 8px;
+  gap: var(--space-8);
   margin: 0;
 }
 
@@ -204,7 +204,7 @@
 .panel__fields select,
 .panel__fields textarea {
   min-height: 28px;
-  padding: 4px 8px;
+  padding: var(--space-4) var(--space-8);
   background: transparent;
   box-shadow: none;
   border-radius: var(--radius);
@@ -230,8 +230,8 @@
 .panel__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
 }
 
 /* Метка Notion: скругление в три пикселя, серая заливка, мелкая подпись.
@@ -239,7 +239,7 @@
    человек рисует цепочку, в которой не читается ни одно. */
 .panel__chip {
   height: 22px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   border-radius: var(--radius-sm);
   background: var(--tag-gray);
   color: var(--text);
@@ -268,9 +268,9 @@
 .panel__baseline {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 var(--gap);
-  padding: 8px 12px;
+  gap: var(--space-8);
+  margin: 0 0 var(--space-16);
+  padding: var(--space-8) var(--space-12);
   border-radius: var(--radius);
   background: var(--hover);
   font-size: 13px;
@@ -294,7 +294,7 @@
    шли одним списком под полями, — полоса вкладок теперь и есть эта черта. */
 
 .panel__history-title {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-8);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -311,7 +311,7 @@
 }
 
 .panel__event {
-  margin-bottom: 10px;
+  margin-bottom: var(--space-12);
   font-size: 13px;
 }
 
@@ -327,7 +327,7 @@
 .panel__event-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-8);
   /* Кто и когда — данные журнала, им положен контраст текста. */
   color: var(--text-muted);
   font-size: 12px;
@@ -345,7 +345,7 @@
    единственное, что в карточке делают каждый день, и она видна при любой
    прокрутке середины. Без own-подложки: шапка и так отделена вкладками. */
 .panel__progress {
-  margin: 0 0 var(--gap);
+  margin: 0 0 var(--space-16);
 }
 
 /* Процент — в общей строке со статусом и периодом, и остаётся полем: полосой
@@ -363,7 +363,7 @@
 .panel__progress-pct input {
   width: 3.4ch;
   min-height: 0;
-  padding: 0 2px;
+  padding: 0 var(--space-2);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -404,7 +404,7 @@
 .panel__progress-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 /* Полоса стала органом: по ней щёлкают и её тянут, поэтому она выше прежней
@@ -448,7 +448,7 @@
 .panel__progress-day {
   flex: 0 0 auto;
   height: var(--control-button);
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   border-radius: var(--radius);
   background: var(--accent);
   color: var(--accent-text);
@@ -480,14 +480,14 @@
    между шапкой и прокручиваемой серединой. */
 .panel__tabs {
   display: flex;
-  gap: 4px;
+  gap: var(--space-4);
   margin: 0;
   border-bottom: 1px solid var(--border);
 }
 
 .panel__tab {
   height: 32px;
-  padding: 0 4px;
+  padding: 0 var(--space-4);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -516,7 +516,7 @@
    без скрипта. Черта между секциями — снизу, чтобы последняя не рисовала
    границу перед закреплённым подвалом. */
 .panel__section {
-  padding: 4px 0 12px;
+  padding: var(--space-4) 0 var(--space-12);
   border-bottom: 1px solid var(--border);
 }
 
@@ -527,7 +527,7 @@
 .panel__section-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   min-height: 32px;
   color: var(--text-muted);
   font-size: 12px;
@@ -565,7 +565,7 @@
 /* Пояснение к заголовку створки — кому видно содержимое. Строчными и без
    разрядки: это подпись к заголовку, а не второй заголовок. */
 .panel__section-note {
-  margin-left: 4px;
+  margin-left: var(--space-4);
   color: var(--text-faint);
   font-weight: 400;
   letter-spacing: 0;
@@ -585,7 +585,7 @@
    остальными; у второго подпись по содержимому. */
 .panel__pair {
   display: flex;
-  gap: 16px;
+  gap: var(--space-16);
 }
 
 .panel__pair > .panel__field {
@@ -602,7 +602,7 @@
 @media (max-width: 480px) {
   .panel__pair {
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-2);
   }
 
   .panel__pair > .panel__field + .panel__field {
@@ -614,8 +614,8 @@
 .panel__links {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
 }
 
 .panel__deps {
@@ -626,16 +626,16 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   min-width: 0;
 }
 
 .panel__dep {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   max-width: 100%;
-  padding: 3px 8px;
+  padding: var(--space-4) var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--input-bg, var(--hover));
@@ -648,7 +648,7 @@
 
 .panel__dep-remove {
   height: auto;
-  padding: 0 2px;
+  padding: 0 var(--space-2);
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -690,14 +690,14 @@
    а не отдельный орган управления, которому положено своё место. */
 .panel__dep-fix {
   height: auto;
-  padding: 3px 8px;
+  padding: var(--space-4) var(--space-8);
   font-size: 13px;
 }
 
 /* «Добавить связь…» — узкий список среди пилюль, а не поле во всю строку. */
 .panel__dep-add {
   max-width: 100%;
-  padding: 3px 8px;
+  padding: var(--space-4) var(--space-8);
   font-size: 13px;
   color: var(--text-muted);
 }
@@ -706,12 +706,12 @@
 .panel__chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 /* Блок удаления — в самом низу карточки, отделён от разговора. */
 .panel__danger {
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: var(--space-16);
+  padding-top: var(--space-12);
   border-top: 1px solid var(--border);
 }

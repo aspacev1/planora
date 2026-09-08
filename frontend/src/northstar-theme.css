@@ -122,7 +122,7 @@ a:focus-visible,
    этом набраны мерами страницы (кегль 13, вес 620, рисунок 18): прежние
    14/600 со значками в 22 пикселя делали колонку о трёх пунктах самым крупным
    органом экрана — вывеской при странице, которой она служит. */
-.sidebar { padding: 16px 10px 12px; gap: 10px; background: var(--surface); border-right: 1px solid var(--border); --sidebar-gutter: 10px; --sidebar-mark: 30px; --sidebar-gap: 10px; }
+.sidebar { padding: var(--space-16) var(--space-12) var(--space-12); gap: var(--space-12); background: var(--surface); border-right: 1px solid var(--border); --sidebar-gutter: var(--space-12); --sidebar-mark: 30px; --sidebar-gap: var(--space-12); }
 .sidebar__workspace { padding: 0 var(--sidebar-gutter); }
 /* Буква в квадрате — первая буква организации, и берётся она из разметки, а не
    рисуется темой. Тема ставила сюда `content: "P"` поверх погашенного
@@ -132,7 +132,7 @@ a:focus-visible,
    единственное, что от неё остаётся. */
 .sidebar__avatar { width: 30px; height: 30px; border-radius: 8px; color: #fff; font-size: 15px; line-height: 1; font-weight: 800; background: linear-gradient(145deg, #7182ff, #4256d8); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%); }
 .sidebar__brand { font-size: 15px; font-weight: 700; color: var(--text); }
-.sidebar__nav { gap: 3px; }
+.sidebar__nav { gap: var(--space-4); }
 /* Рост строки — 32, как у переключателя организаций над разделами: колонка —
    один столбец, и три роста в нём (34, 32 и 35 у дорожки языка) читались как
    собранные случайно. Не кнопочные 29: пункт — мишень навигации во всю ширину
@@ -150,7 +150,7 @@ a:focus-visible,
    до двух с лишним пикселей — рядом со значками кнопок в 14 колонка выходила
    вдвое тяжелее страницы. */
 .sidebar__icon { height: 18px; color: currentColor; }
-.sidebar__foot { border-top: 1px solid var(--border); gap: 4px; }
+.sidebar__foot { border-top: 1px solid var(--border); gap: var(--space-4); }
 button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-radius: var(--radius-md); font-size: 13px; font-weight: 620; }
 .org-switch { display: inline-flex; }
 .locale-switch { display: flex; }
@@ -166,16 +166,16 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
   font-size: 13px;
 }
 
-.sidebar .locale-switch { align-self: stretch; margin: 4px var(--sidebar-gutter); }
-/* 26 плюс поля дорожки по 3 — те же 32, что у строк вокруг: нижний блок стоит
+.sidebar .locale-switch { align-self: stretch; margin: var(--space-4) var(--sidebar-gutter); }
+/* 24 плюс поля дорожки по 4 — те же 32, что у строк вокруг: нижний блок стоит
    столбиком, и дорожка языка не должна быть в нём самой высокой строкой.
    Правило при колонке, а не общее: в шапке публичной страницы кнопки языка
    стоят без соседей-строк и остаются кнопочного роста. */
-.sidebar .locale-switch button { flex: 1; height: 26px; }
+.sidebar .locale-switch button { flex: 1; height: 24px; }
 
 /* --- шапка публичной страницы --- */
 
-.header { height: 52px; padding: 0 22px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.header { height: 52px; padding: 0 var(--space-24); background: var(--surface); border-bottom: 1px solid var(--border); }
 
 /* --- шапка проекта --- */
 
@@ -183,10 +183,10 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
 /* Поля шапки умереннее макетных: над лентой и так стоят четыре яруса — шапка,
    метрики, вкладки, тулбар, — и каждый лишний пиксель здесь умножается на
    четыре. Содержимому ярусов это не мешает: высоту им задают их органы. */
-.project-head { margin: 0; padding: 14px 24px 12px; background: var(--surface); border-bottom: 1px solid var(--border); gap: 0; }
-.project-head__main { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; width: 100%; }
+.project-head { margin: 0; padding: var(--space-16) var(--space-24) var(--space-12); background: var(--surface); border-bottom: 1px solid var(--border); gap: 0; }
+.project-head__main { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-20); width: 100%; }
 .project-head__title { font-size: 25px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.25; }
-.project-head__meta { margin-top: 7px; font-size: 13px; color: var(--text-muted); font-style: normal; }
+.project-head__meta { margin-top: var(--space-8); font-size: 13px; color: var(--text-muted); font-style: normal; }
 
 /* Состояние плана — пилюля-бейдж макета с точкой: черновик янтарный,
    согласованный зелёный. Прежняя прямоугольная плашка была всегда янтарной и
@@ -194,9 +194,9 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
 .project-head__plan-label {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-8);
   height: 29px;
-  padding: 0 11px;
+  padding: 0 var(--space-12);
   border: 1px solid #f3dcae;
   border-radius: var(--radius-pill);
   background: var(--warn-soft);
@@ -226,9 +226,9 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
 .project-head__plan-note {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-8);
   height: 29px;
-  padding: 0 11px;
+  padding: 0 var(--space-12);
   border: 1px solid #f0c2cf;
   border-radius: var(--radius-pill);
   background: var(--danger-soft);
@@ -260,7 +260,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
 /* Уголок мельче подписи и приглушён: он обещает продолжение, а не спорит с
    числом за внимание. */
 .project-head__plan-chevron { font-size: 9px; opacity: 0.7; }
-.project-head__actions { gap: 8px; justify-content: flex-end; }
+.project-head__actions { gap: var(--space-8); justify-content: flex-end; }
 /* Рамки здесь нет: ссылке-кнопке её край рисует общее правило `.button-link`
    тем же внутренним контуром, что и тихим кнопкам рядом, — и настоящая рамка
    поверх него давала «Настройкам» двойной край, заметный ровно теперь, когда
@@ -280,7 +280,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
 /* Высота — от органа управления, а не от собственного числа: с 36-пиксельными
    кнопками прежние 78 пикселей оставляли над лентой полосу пустоты выше самой
    шапки ленты. */
-.project-toolbar { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 5px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.project-toolbar { display: flex; align-items: center; gap: var(--space-8); min-height: 46px; padding: var(--space-4) var(--space-16); border-bottom: 1px solid var(--border); background: var(--surface); }
 .project-toolbar__spacer { flex: 1; }
 /* Меню тулбара — «Масштаб» и «Вид» — одной высоты между собой и со всеми
    кнопками приложения: своего роста им больше не задаётся, они берут общий.
@@ -291,7 +291,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
    того, кому дату назначить нечем — у читателя в шапке проекта и на
    публичной странице: рядом с кнопкой «Назначить дату старта» она говорила
    то же самое второй раз и занимала больше места, чем любая кнопка ряда. */
-.project-toolbar__mode { display: inline-flex; align-items: center; gap: 5px; height: 29px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; white-space: nowrap; cursor: help; }
+.project-toolbar__mode { display: inline-flex; align-items: center; gap: var(--space-4); height: 29px; padding: 0 var(--space-12); border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; white-space: nowrap; cursor: help; }
 /* Знак ⓘ — псевдоэлементом, а не разметкой: он говорит, что у бейджа есть
    подсказка, и в читалку отдельным словом попадать при этом не должен. */
 .project-toolbar__mode::before { content: "ⓘ"; font-weight: 400; }
@@ -313,9 +313,9 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 10px;
+  gap: var(--space-6) var(--space-8);
   min-height: 44px;
-  padding: 4px 24px;
+  padding: var(--space-4) var(--space-24);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -336,9 +336,9 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
    её поля, — чтобы подчёркивание выбранной легло на нижнюю черту строки, а
    не висело над ней. */
 .project-bar .tabs {
-  gap: 2px;
+  gap: var(--space-2);
   align-self: stretch;
-  margin: -4px 0 -4px 12px;
+  margin: -4px 0 -4px var(--space-12);
   border-bottom: 0;
 }
 
@@ -349,7 +349,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
 .project-bar .tabs__link {
   display: inline-flex;
   align-items: center;
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   margin-bottom: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
@@ -370,20 +370,20 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
 .project-bar__end {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   margin-left: auto;
 }
 
 .project-bar__tools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-2);
 }
 
 .project-bar__divider {
   width: 1px;
   height: 20px;
-  margin: 0 6px;
+  margin: 0 var(--space-6);
   background: var(--border);
 }
 
@@ -412,7 +412,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
 .project-bar__summary-toggle {
   min-height: 22px;
   margin-left: -4px;
-  padding: 0 5px;
+  padding: 0 var(--space-4);
   border: 0;
   background: none;
   box-shadow: none;
@@ -432,7 +432,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
 }
 
 .plan-summary__period {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-8);
   color: var(--text-muted);
   font-size: 12px;
 }
@@ -446,7 +446,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
 .plan-summary__metrics {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-4);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -456,7 +456,7 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
 .plan-summary__metrics li {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-8);
   color: var(--text-muted);
 }
 
@@ -529,7 +529,7 @@ body:has(.project__body--focus) {
 /* Лента обсуждения на публичной странице — колонкой для чтения, с полями от
    краёв. В карточке задачи она же стоит внутри 404 пикселей, и поля с
    ограничением ширины там рисуют вторую, вложенную страницу. */
-.comments { max-width: 740px; margin: 28px 32px; }
+.comments { max-width: 740px; margin: var(--space-24) var(--space-32); }
 /* Своей черты обсуждение в карточке не рисует: её уже нарисовал блок
    `.panel__comments`, в который оно вложено, и две горизонтали подряд читаются
    как два разных раздела там, где раздел один. */
@@ -557,7 +557,7 @@ body:has(.project__body--focus) {
    писали своё число (24, 28, 32, 34), и один и тот же орган выходил на экран
    пятью разными размерами. Кнопка ниже поля намеренно: она действие *при*
    содержимом, а не само содержимое. */
-button { height: var(--control-button); padding: 0 10px; border-radius: var(--radius-md); font-size: 12px; font-weight: 620; }
+button { height: var(--control-button); padding: 0 var(--space-12); border-radius: var(--radius-md); font-size: 12px; font-weight: 620; }
 
 /* Значок на кнопке — 14 пикселей, а не 16, которые рисует сама разметка
    (см. icons.tsx): при подписи в 12-м кегле шестнадцатый читается как
@@ -596,11 +596,11 @@ button { height: var(--control-button); padding: 0 10px; border-radius: var(--ra
    оставаться чернильной, иначе синими окажутся обе. */
 .button-link,
 .screen .button-link,
-.header .button-link { height: var(--control-button); padding: 0 10px; border-radius: var(--radius-md); font-size: 12px; font-weight: 620; color: var(--text); background: var(--surface); text-decoration: none; box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm); }
+.header .button-link { height: var(--control-button); padding: 0 var(--space-12); border-radius: var(--radius-md); font-size: 12px; font-weight: 620; color: var(--text); background: var(--surface); text-decoration: none; box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm); }
 .button-link:hover, .screen .button-link:hover, .header .button-link:hover { background: var(--bg-subtle); }
 
-.locale-switch { padding: 3px; border-radius: 9px; background: #f1f3f7; }
-.locale-switch button { height: 29px; padding: 0 10px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 650; box-shadow: none; }
+.locale-switch { padding: var(--space-4); border-radius: 9px; background: #f1f3f7; }
+.locale-switch button { height: 29px; padding: 0 var(--space-12); border-radius: var(--radius-sm); font-size: 12px; font-weight: 650; box-shadow: none; }
 .locale-switch button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(16 24 40 / 13%); }
 
 /* --- поля --- */
@@ -609,14 +609,14 @@ select,
 textarea,
 input:where(:not([type="checkbox"]):not([type="radio"])) {
   min-height: var(--control);
-  padding: 0 9px;
+  padding: 0 var(--space-8);
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   box-shadow: none;
 }
 
-textarea { padding: 9px 10px; line-height: 1.45; }
+textarea { padding: var(--space-8) var(--space-12); line-height: 1.45; }
 
 input:focus,
 select:focus,
@@ -628,7 +628,7 @@ textarea:focus {
 /* Подпись поля — 11 пикселей полужирным приглушённым, как в карточке задачи
    макета. Мельче значения ровно затем, чтобы читалось значение: подпись
    человек прочитывает один раз, а возвращается к ней глазами постоянно. */
-.field { gap: 6px; margin-bottom: 18px; }
+.field { gap: var(--space-6); margin-bottom: var(--space-16); }
 .field label, .field > .settings__key, .settings__key { color: var(--text-muted); font-size: 11px; font-weight: 700; }
 /* Пояснение под подписью — мельче значения и крупнее подписи: набранное общим
    кеглем, оно оказывалось заметнее самой подписи поля. */
@@ -639,8 +639,8 @@ textarea:focus {
 
 /* --- меню --- */
 
-.menu__pop { min-width: 220px; padding: 7px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-md); }
-.menu__item { min-height: 34px; gap: 9px; padding: 7px 9px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; }
+.menu__pop { min-width: 220px; padding: var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-md); }
+.menu__item { min-height: 34px; gap: var(--space-8); padding: var(--space-8) var(--space-8); border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; }
 .menu__item:hover { background: var(--hover); }
 .menu__caret { color: var(--text-muted); }
 
@@ -650,7 +650,7 @@ textarea:focus {
    мелким. Кегль 11, а не 10 как в макете: там пилюля стоит в таблице и несёт
    одно слово, здесь — целую фразу («3 заблокированы»), и на 10 она перестаёт
    читаться с расстояния строки списка. */
-.status-chip { height: 23px; padding: 0 9px; border: 0; border-radius: var(--radius-pill); background: var(--tag-gray); color: var(--text-muted); font-size: 11px; font-weight: 700; }
+.status-chip { height: 23px; padding: 0 var(--space-8); border: 0; border-radius: var(--radius-pill); background: var(--tag-gray); color: var(--text-muted); font-size: 11px; font-weight: 700; }
 .status-chip[data-status="in_progress"] { background: var(--accent-soft); color: #4455c1; }
 .status-chip[data-status="done"] { background: var(--ok-soft); color: #187448; }
 .status-chip[data-status="planned"] { background: var(--tag-gray); color: var(--text-muted); }
@@ -663,7 +663,7 @@ textarea:focus {
 
 .error,
 .ok {
-  padding: 10px 12px;
+  padding: var(--space-12) var(--space-12);
   border: 1px solid currentColor;
   border-radius: var(--radius-md);
   background: var(--danger-soft);
@@ -671,8 +671,8 @@ textarea:focus {
 }
 
 .ok { background: var(--ok-soft); }
-.nudge { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); }
-.plan__confirm { padding: 4px 4px 4px 12px; border-radius: var(--radius-md); background: var(--danger-soft); }
+.nudge { padding: var(--space-12) var(--space-12); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); }
+.plan__confirm { padding: var(--space-4) var(--space-4) var(--space-4) var(--space-12); border-radius: var(--radius-md); background: var(--danger-soft); }
 
 /* --- тост --- */
 
@@ -681,10 +681,10 @@ textarea:focus {
    оба говорят поверх страницы и обязаны выглядеть одним голосом. */
 .toast {
   bottom: 24px;
-  gap: 14px;
+  gap: var(--space-16);
   min-width: 345px;
   height: 48px;
-  padding: 0 9px 0 15px;
+  padding: 0 var(--space-8) 0 var(--space-16);
   border-radius: 9px;
   background: var(--overlay);
   color: var(--overlay-text);
@@ -700,7 +700,7 @@ textarea:focus {
    что и кнопка на странице, и своего размера ему не положено. */
 .toast__action {
   height: var(--control-button);
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   border-radius: var(--radius-sm);
   color: var(--overlay-accent);
   font-size: 12px;
@@ -712,12 +712,12 @@ textarea:focus {
 /* --- окно --- */
 
 .modal__backdrop { backdrop-filter: blur(5px); }
-.modal { max-width: 480px; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
+.modal { max-width: 480px; padding: var(--space-24); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
 /* Широкое окно: колонка формы рядом с превью. Ширина названа здесь, а не в
    стилях потребителя, — хрома окна живёт в теме, и второй размер окна тоже
    её дело. */
 .modal--wide { max-width: 940px; }
-.modal__title { margin-bottom: 20px; font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+.modal__title { margin-bottom: var(--space-20); font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
 
 /* --- страницы --- */
 
@@ -726,15 +726,15 @@ textarea:focus {
 .screen:not(.screen--wide):not(.screen--narrow) {
   width: min(100%, 1120px);
   max-width: 1120px;
-  padding: 32px 40px 80px;
+  padding: var(--space-32) var(--space-40) var(--space-80);
 }
 
 .screen:not(.screen--wide) h1 { font-size: 25px; font-weight: 700; letter-spacing: -0.025em; }
 
 .screen__head {
-  gap: 12px;
-  margin-bottom: 24px;
-  padding-bottom: 18px;
+  gap: var(--space-12);
+  margin-bottom: var(--space-24);
+  padding-bottom: var(--space-16);
   border-bottom: 1px solid var(--border);
 }
 
@@ -752,7 +752,7 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   min-height: var(--control);
-  padding: 0 12px;
+  padding: 0 var(--space-12);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   color: var(--text);
@@ -768,7 +768,7 @@ textarea:focus {
 
 /* Выбранная вкладка — акцентом, а не чернилами: «вы здесь» во всём остальном
    приложении говорит синий, и вкладки не повод заводить второй такой знак. */
-.tabs__link, .screen .tabs__link { padding: 6px 10px; font-size: 13px; font-weight: 620; text-decoration: none; }
+.tabs__link, .screen .tabs__link { padding: var(--space-6) var(--space-12); font-size: 13px; font-weight: 620; text-decoration: none; }
 .tabs__link.is-current { border-bottom-color: var(--accent); color: var(--accent); }
 
 button {
@@ -792,8 +792,8 @@ body:has(.screen--narrow) {
   position: relative;
   width: calc(100% - 32px);
   max-width: 440px;
-  margin: 72px auto;
-  padding: 36px;
+  margin: var(--space-64) auto;
+  padding: var(--space-32);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -806,7 +806,7 @@ body:has(.screen--narrow) {
   place-items: center;
   width: 40px;
   height: 40px;
-  margin-bottom: 26px;
+  margin-bottom: var(--space-24);
   border-radius: 11px;
   background: linear-gradient(145deg, #7182ff, #4256d8);
   color: white;
@@ -815,9 +815,9 @@ body:has(.screen--narrow) {
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
 }
 
-.screen--narrow h1 { margin-bottom: 24px; }
-.screen--narrow .muted:last-child { margin: 24px 0 0; text-align: center; }
-.screen--narrow form button[type="submit"] { margin-top: 8px; }
+.screen--narrow h1 { margin-bottom: var(--space-24); }
+.screen--narrow .muted:last-child { margin: var(--space-24) 0 0; text-align: center; }
+.screen--narrow form button[type="submit"] { margin-top: var(--space-8); }
 
 /* --- списки --- */
 
@@ -834,7 +834,7 @@ body:has(.screen--narrow) {
 
 .empty {
   position: relative;
-  padding: 56px 24px;
+  padding: var(--space-48) var(--space-24);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--bg-subtle);
@@ -846,7 +846,7 @@ body:has(.screen--narrow) {
   place-items: center;
   width: 44px;
   height: 44px;
-  margin: 0 auto 16px;
+  margin: 0 auto var(--space-16);
   border-radius: var(--radius-lg);
   background: var(--accent-soft);
   color: var(--accent);
@@ -865,20 +865,20 @@ body:has(.screen--narrow) {
 
 .members li,
 .invite,
-.members__row { min-height: 52px; padding: 12px 16px; border-radius: 0; }
+.members__row { min-height: 52px; padding: var(--space-12) var(--space-16); border-radius: 0; }
 .members li:last-child, .invite:last-child, .members__row:last-child { border-bottom: 0; }
 
 /* --- настройки --- */
 
 .settings {
   max-width: 680px;
-  gap: 18px;
+  gap: var(--space-16);
 }
 
 .settings__fieldset,
 .fieldset,
 .settings__override {
-  padding: 18px;
+  padding: var(--space-16);
   border-color: var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -886,14 +886,14 @@ body:has(.screen--narrow) {
 }
 
 .settings__fieldset legend,
-.fieldset legend { padding: 0 8px; color: var(--text-muted); font-size: 11px; font-weight: 700; }
+.fieldset legend { padding: 0 var(--space-8); color: var(--text-muted); font-size: 11px; font-weight: 700; }
 
-.settings__day { min-height: var(--control); padding: 0 12px 0 9px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 13px; }
+.settings__day { min-height: var(--control); padding: 0 var(--space-12) 0 var(--space-8); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 13px; }
 .settings__day:hover { background: var(--hover); }
 .settings__day:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 
 .ai__question {
-  padding: 20px;
+  padding: var(--space-20);
   border-left: 3px solid var(--accent);
   border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
   background: var(--accent-soft);
@@ -909,8 +909,8 @@ body:has(.screen--narrow) {
    стоит колонкой в потоке. */
 .panel { border-radius: 0; box-shadow: -1px 0 0 var(--border-strong), -32px 0 64px rgb(23 32 51 / 12%); background: var(--surface); }
 .panel__title { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
-.panel__fields { gap: 4px; }
-.panel__fields .panel__field, .panel__row { grid-template-columns: 112px minmax(0, 1fr); gap: 12px; }
+.panel__fields { gap: var(--space-4); }
+.panel__fields .panel__field, .panel__row { grid-template-columns: 112px minmax(0, 1fr); gap: var(--space-12); }
 .panel__key, .panel__fields .panel__field label { min-height: var(--control); color: var(--text-muted); font-size: 11px; font-weight: 700; }
 .panel__value { min-height: var(--control); }
 
@@ -921,14 +921,14 @@ body:has(.screen--narrow) {
 .panel__fields select,
 .panel__fields textarea {
   min-height: var(--control);
-  padding: 0 9px;
+  padding: 0 var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: none;
 }
 
-.panel__fields textarea { padding: 9px 10px; }
+.panel__fields textarea { padding: var(--space-8) var(--space-12); }
 .panel__fields input:hover:not(:disabled),
 .panel__fields select:hover:not(:disabled),
 .panel__fields textarea:hover:not(:disabled) { background: var(--surface); border-color: #c5ccda; }
@@ -938,16 +938,16 @@ body:has(.screen--narrow) {
 .panel__fields textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 .panel__chip { height: 23px; border-radius: var(--radius-pill); background: var(--tag-gray); font-size: 11px; font-weight: 700; }
-.panel__baseline { padding: 10px 12px; border-radius: var(--radius-md); background: var(--bg-subtle); box-shadow: inset 0 0 0 1px var(--border); font-size: 12px; }
+.panel__baseline { padding: var(--space-12) var(--space-12); border-radius: var(--radius-md); background: var(--bg-subtle); box-shadow: inset 0 0 0 1px var(--border); font-size: 12px; }
 .panel__history, .panel__comments { border-top-color: var(--border); }
 .panel__history-title, .comments__title { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: var(--text-muted); }
 
 /* --- адаптивность --- */
 
 @media (max-width: 900px) {
-  .project-head, .project-toolbar { padding-left: 20px; padding-right: 20px; }
+  .project-head, .project-toolbar { padding-left: var(--space-20); padding-right: var(--space-20); }
   .project-head__main, .project__body, .project-toolbar { flex-wrap: wrap; }
-  .project-toolbar { height: auto; padding-top: 14px; padding-bottom: 14px; }
+  .project-toolbar { height: auto; padding-top: var(--space-16); padding-bottom: var(--space-16); }
 }
 
 @media (max-width: 760px) {
@@ -958,18 +958,18 @@ body:has(.screen--narrow) {
     width: 100%;
     height: auto;
     min-height: 65px;
-    padding: 10px 14px;
+    padding: var(--space-12) var(--space-16);
     flex: 0 0 auto;
     flex-direction: row;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-8);
     overflow-x: auto;
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
   /* В строке сверху равнять подписи не под чем — логотип стоит слева от них,
      а не над ними, — и колонка значков сжимается до самого рисунка. */
-  .sidebar { --sidebar-mark: 18px; --sidebar-gap: 8px; }
+  .sidebar { --sidebar-mark: 18px; --sidebar-gap: var(--space-8); }
   .sidebar__workspace { flex: 0 0 auto; padding: 0; }
   .sidebar__avatar { width: 36px; height: 36px; }
   .sidebar__brand { display: none; }
@@ -983,7 +983,7 @@ body:has(.screen--narrow) {
   .sidebar__foot {
     flex-direction: row;
     align-items: center;
-    gap: 2px;
+    gap: var(--space-2);
     margin-top: 0;
     margin-left: auto;
     padding-top: 0;
@@ -995,31 +995,31 @@ body:has(.screen--narrow) {
     width: auto;
     min-height: 36px;
     height: 36px;
-    padding: 0 10px;
+    padding: 0 var(--space-12);
   }
   .sidebar__foot .sidebar__icon { flex-basis: 18px; }
   /* Переключатель организаций подписей не имеет и сжимается сам: он нужен
      ровно тому, у кого организаций стало две, — то есть принявшему
      приглашение. */
   .sidebar .org-switch { max-width: 32vw; flex: 0 1 auto; }
-  .sidebar__nav { flex-direction: row; gap: 6px; }
-  .sidebar__link { min-height: 36px; padding: 0 11px; }
+  .sidebar__nav { flex-direction: row; gap: var(--space-6); }
+  .sidebar__link { min-height: 36px; padding: 0 var(--space-12); }
   .sidebar__link.is-current { box-shadow: none; }
-  .screen:not(.screen--wide):not(.screen--narrow) { padding: 24px 18px 56px; }
+  .screen:not(.screen--wide):not(.screen--narrow) { padding: var(--space-24) var(--space-16) var(--space-48); }
   .screen__head { align-items: stretch; }
-  .screen__head h1 { flex-basis: 100%; margin-bottom: 8px; }
-  .project-head { padding: 16px 18px; }
+  .screen__head h1 { flex-basis: 100%; margin-bottom: var(--space-8); }
+  .project-head { padding: var(--space-16) var(--space-16); }
   .project-head__main { flex-direction: column; }
-  .project-head__actions { justify-content: flex-start; gap: 8px; }
-  .project-toolbar { gap: 8px; }
-  .panel { padding: 18px 18px 26px; }
+  .project-head__actions { justify-content: flex-start; gap: var(--space-8); }
+  .project-toolbar { gap: var(--space-8); }
+  .panel { padding: var(--space-16) var(--space-16) var(--space-24); }
 }
 
 @media (max-width: 520px) {
-  .screen--narrow { margin: 24px auto; padding: 28px 22px; }
+  .screen--narrow { margin: var(--space-24) auto; padding: var(--space-24) var(--space-24); }
   .project-head__title { font-size: 22px; }
   .project-head__meta { font-size: 12px; }
-  .modal { padding: 22px 18px; }
+  .modal { padding: var(--space-24) var(--space-16); }
   .modal__actions { align-items: stretch; flex-direction: column; }
   .modal__actions button { width: 100%; }
   /* Тост во всю ширину минус поля: 345 пикселей минимальной ширины на узком
