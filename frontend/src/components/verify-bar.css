@@ -13,8 +13,8 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 10px 24px;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--gutter);
   border-bottom: 1px solid var(--border);
   background: var(--accent-soft);
   color: var(--text);
@@ -42,10 +42,4 @@
   flex: 1 0 100%;
   margin: 0;
   color: var(--danger);
-}
-
-@media (max-width: 900px) {
-  .verify-bar {
-    padding: 10px 16px;
-  }
 }

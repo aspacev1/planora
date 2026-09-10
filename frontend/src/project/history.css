@@ -16,15 +16,15 @@
 .feed__filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-12);
   align-items: flex-end;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-20);
 }
 
 .feed__filter {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
   font-size: 13px;
   color: var(--text-muted);
 }
@@ -37,15 +37,15 @@
    нитью, а не пунктиром по числу дней. */
 .feed__day {
   position: relative;
-  margin-bottom: 26px;
-  padding-left: 48px;
+  margin-bottom: var(--space-24);
+  padding-left: var(--space-48);
 }
 
 .feed__day::before {
   content: "";
   position: absolute;
   top: 40px;
-  bottom: -26px;
+  bottom: -24px;
   left: 17px;
   width: 1px;
   background: var(--border-strong);
@@ -59,9 +59,9 @@
 .feed__day-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-8);
   /* Узел выезжает влево, на линию спицы: заголовок дня стоит в её колонке. */
-  margin: 0 0 12px -48px;
+  margin: 0 0 var(--space-12) -48px;
 }
 
 .feed__day-dot {
@@ -100,14 +100,14 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-12);
 }
 
 .feed__card {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
-  column-gap: 12px;
-  padding: 14px 16px;
+  column-gap: var(--space-12);
+  padding: var(--space-16) var(--space-16);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -160,11 +160,11 @@
 }
 
 .feed__meta {
-  margin: 4px 0 0;
+  margin: var(--space-4) 0 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-8);
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -177,11 +177,11 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .feed__time {
-  margin-top: 2px;
+  margin-top: var(--space-2);
   /* Приглушённо, но не faint: время события — данные, и на белом им нужен
      контраст текста, а не декорации. */
   color: var(--text-muted);
@@ -245,14 +245,14 @@
    просто их скобка видна по отступу. Своих плиток у них нет: род каждой
    мелкой записи внутри пачки не стоит тридцати повторов значка. */
 .feed__list--nested {
-  margin-top: 10px;
-  padding-left: 14px;
+  margin-top: var(--space-12);
+  padding-left: var(--space-16);
   border-left: 2px solid var(--border);
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .feed__list--nested .feed__meta {
-  margin-top: 2px;
+  margin-top: var(--space-2);
 }
 
 /* --- веха --- */
@@ -272,7 +272,7 @@
 /* --- край ленты --- */
 
 .feed__empty {
-  padding: 36px 24px;
+  padding: var(--space-32) var(--space-24);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--bg-subtle);
@@ -281,15 +281,15 @@
 
 /* «Показать ещё» встаёт в колонну карточек, а не под узлы дней. */
 .feed__more {
-  margin: 14px 0 0 48px;
+  margin: var(--space-16) 0 0 var(--space-48);
 }
 
 /* --- теснота --- */
 
 @media (max-width: 760px) {
-  .feed__day { padding-left: 26px; }
+  .feed__day { padding-left: var(--space-24); }
   .feed__day::before { left: 8px; }
-  .feed__day-head { margin-left: -26px; }
+  .feed__day-head { margin-left: -24px; }
 
   /* Узел сжимается до точки: номер дня уже есть в заголовке рядом. */
   .feed__day-dot {
@@ -314,7 +314,7 @@
     grid-column: 2;
     flex-direction: row;
     align-items: center;
-    margin-top: 8px;
+    margin-top: var(--space-8);
   }
 
   .feed__time {
@@ -322,5 +322,5 @@
     margin: 0 0 0 auto;
   }
 
-  .feed__more { margin-left: 26px; }
+  .feed__more { margin-left: var(--space-24); }
 }

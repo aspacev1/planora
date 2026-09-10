@@ -25,11 +25,11 @@
 /* Между заголовком и строкой «План согласован …» просвета почти нет: вторая
    поясняет первый, а не начинает новый ярус. */
 .plan-changes__head .panel__head-top {
-  margin-bottom: 2px;
+  margin-bottom: var(--space-2);
 }
 
 .plan-changes__since {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-12);
   font-size: 13px;
   color: var(--text-muted);
 }
@@ -39,7 +39,7 @@
 .plan-changes__summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 /* Тег — не кнопка на вид: он сообщает число и лишь заодно фильтрует. Нажатый
@@ -51,7 +51,7 @@
    наведение красит тег цветом главного действия. */
 .plan-changes__tag {
   height: 24px;
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--tag-gray);
@@ -83,8 +83,8 @@
    Свой нижний отступ рубильника здесь снимается: просвет держат поля обёртки,
    и два источника одного расстояния разошлись бы. */
 .plan-changes__ghost {
-  margin-top: 12px;
-  padding: 10px 0;
+  margin-top: var(--space-12);
+  padding: var(--space-12) 0;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   font-size: 13px;
@@ -99,8 +99,8 @@
 .plan-changes__group-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 18px 0 2px;
+  gap: var(--space-8);
+  margin: var(--space-16) 0 var(--space-2);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -117,7 +117,7 @@
    всего такого», заголовок повторяет его над самим списком, чтобы под
    фильтром число не пропадало вместе с остальными тегами. */
 .plan-changes__count {
-  padding: 0 7px;
+  padding: 0 var(--space-8);
   border-radius: var(--radius-pill);
   background: var(--tag-gray);
   color: var(--text-muted);
@@ -132,14 +132,14 @@
 }
 
 .plan-changes__row {
-  padding: 9px 0;
+  padding: var(--space-8) 0;
   border-top: 1px solid var(--border);
 }
 
 .plan-changes__main {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 /* Имя тянет строку, разница и бейдж жмутся вправо и не переносятся: пара
@@ -190,7 +190,7 @@
 }
 
 .plan-changes__badge {
-  padding: 1px 8px;
+  padding: 1px var(--space-8);
   border-radius: var(--radius-pill);
   font-size: 11px;
   font-weight: 700;
@@ -204,7 +204,7 @@
 /* Второе расхождение той же задачи — под парой дат, помельче: главное у
    перенесённой задачи всё-таки начало, а растяжение — уточнение к нему. */
 .plan-changes__also {
-  margin: 3px 0 0;
+  margin: var(--space-4) 0 0;
   font-size: 12px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
@@ -212,7 +212,7 @@
 
 /* Причина — текст человека: курсивом, как и в ленте истории. */
 .plan-changes__reason {
-  margin: 3px 0 0;
+  margin: var(--space-4) 0 0;
   font-size: 12px;
   font-style: italic;
   color: var(--text-muted);

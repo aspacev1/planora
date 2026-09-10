@@ -15,7 +15,7 @@
   display: block;
   max-width: 100%;
   min-width: 0;
-  padding: 2px 4px;
+  padding: var(--space-2) var(--space-4);
   border: 1px solid transparent;
   border-radius: var(--radius-sm, 6px);
   overflow: hidden;
@@ -37,7 +37,9 @@
 .cell-input {
   width: 100%;
   min-width: 0;
-  padding: 1px 3px;
+  /* вне шкалы: на пиксель уже значения (2px 4px) с каждой стороны — ровно на
+     толщину рамки, чтобы поле встало на место ячейки без сдвига текста. */
+  padding: 1px var(--space-4);
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm, 6px);
   background: var(--surface);
@@ -45,11 +47,31 @@
   color: inherit;
 }
 
+/* Меры дерева строк — одни на ленту и смету. Ширина шеврона задаёт столбец
+   знака перед именем группы, ступень — на сколько имя вложенной строки стоит
+   правее имени своей группы. Ступень в 16px, а не «в ширину шеврона»: раньше
+   имена задач стояли ровно под именами категорий, и уровень читался только по
+   весу шрифта и серой подложке — на длинном списке этого не хватало, чтобы с
+   одного взгляда увидеть, где кончается один этап и начинается другой. */
+:root {
+  --row-chevron: 13px;
+  --row-indent: var(--space-16);
+}
+
+/* На телефоне колонка имён вдвое уже (см. layoutWidth), и полная ступень
+   отбирала бы у имени задачи треть оставшейся ширины; половинная ступень
+   ещё читается как уровень, а имя ещё помещается. */
+@media (max-width: 520px) {
+  :root {
+    --row-indent: var(--space-8);
+  }
+}
+
 /* Шеврон сворачивания — молчаливая кнопка: ни заливки, ни тени базовой
    кнопки, только знак. */
 .row-chevron {
   flex: 0 0 auto;
-  width: 13px;
+  width: var(--row-chevron);
   height: auto;
   padding: 0;
   background: transparent;
@@ -71,7 +93,7 @@
 .row-icons {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-2);
   flex: 0 0 auto;
   margin-left: auto;
 }
@@ -139,9 +161,9 @@
 .row-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-4);
   height: 22px;
-  padding: 0 5px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-faint);

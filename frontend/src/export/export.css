@@ -3,7 +3,7 @@
    разъедется с продуктом на первой же перекраске. */
 
 .export__hint {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-16);
   color: var(--text-muted);
   font-size: 12.5px;
 }
@@ -11,20 +11,20 @@
 .export {
   display: grid;
   grid-template-columns: 1fr 300px;
-  gap: 20px;
+  gap: var(--space-20);
   align-items: start;
 }
 
 .export__group {
   border: 0;
-  margin: 0 0 18px;
+  margin: 0 0 var(--space-16);
   padding: 0;
   min-width: 0;
 }
 
 .export__label {
   padding: 0;
-  margin-bottom: 9px;
+  margin-bottom: var(--space-8);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -37,14 +37,14 @@
 .export__formats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: var(--space-12);
 }
 
 .export__format {
   display: flex;
-  gap: 11px;
+  gap: var(--space-12);
   align-items: flex-start;
-  padding: 13px 14px;
+  padding: var(--space-12) var(--space-16);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -94,7 +94,7 @@
 
 .export__format-note {
   display: block;
-  margin-top: 2px;
+  margin-top: var(--space-2);
   color: var(--text-muted);
   font-size: 11.5px;
   line-height: 1.35;
@@ -105,14 +105,14 @@
 .export__sections {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2px 20px;
+  gap: var(--space-2) var(--space-20);
 }
 
 .export__section {
   display: flex;
-  gap: 10px;
+  gap: var(--space-8);
   align-items: flex-start;
-  padding: 7px 8px;
+  padding: var(--space-8) var(--space-8);
   border-radius: var(--radius);
   cursor: pointer;
 }
@@ -127,7 +127,7 @@
 .export__section.is-off:hover { background: transparent; }
 
 .export__section input {
-  margin: 2px 0 0;
+  margin: var(--space-2) 0 0;
   flex: 0 0 auto;
   accent-color: var(--accent);
 }
@@ -155,14 +155,14 @@
 
 .export__options {
   display: grid;
-  gap: 4px;
+  gap: var(--space-4);
 }
 
 .export__segments {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 2px;
-  padding: 3px;
+  gap: var(--space-2);
+  padding: var(--space-4);
   border-radius: var(--radius);
   background: var(--tag-gray);
 }
@@ -170,9 +170,9 @@
 .export__segments button {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-6);
   border: 0;
-  padding: 5px 12px;
+  padding: var(--space-4) var(--space-12);
   border-radius: var(--radius-sm);
   background: transparent;
   font: inherit;
@@ -206,7 +206,7 @@
 /* --- превью --- */
 
 .export__preview {
-  padding: 14px;
+  padding: var(--space-16);
   border-radius: var(--radius-md);
   background: var(--bg-subtle);
   border: 1px solid var(--border);
@@ -216,10 +216,10 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
-.export__preview-head .export__label { margin-bottom: 10px; }
+.export__preview-head .export__label { margin-bottom: var(--space-12); }
 
 .export__preview-pages {
   font-size: 11.5px;
@@ -252,16 +252,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-top: 18px;
-  padding: 14px 0 24px;
+  gap: var(--space-16);
+  margin-top: var(--space-16);
+  padding: var(--space-16) 0 var(--space-24);
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
 
 .export__filename {
   min-width: 0;
-  padding: 5px 9px;
+  padding: var(--space-4) var(--space-8);
   border-radius: var(--radius-sm);
   background: var(--tag-gray);
   color: var(--text-muted);
@@ -274,7 +274,7 @@
 
 .export__actions {
   display: flex;
-  gap: 9px;
+  gap: var(--space-8);
   flex: 0 0 auto;
 }
 

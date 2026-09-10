@@ -49,9 +49,11 @@
   padding: 0;
   border-radius: 0;
   background: var(--surface);
+  /* Грань слева и тень отрыва от страницы: карточка лежит поверх ленты, а не
+     стоит колонкой в потоке. */
   box-shadow:
-    -1px 0 0 var(--border),
-    -24px 0 48px rgb(var(--ink) / 12%);
+    -1px 0 0 var(--border-strong),
+    -32px 0 64px rgb(23 32 51 / 12%);
 }
 
 /* Шапка закреплена: название, статус с периодом, прогресс и вкладки не
@@ -59,7 +61,7 @@
    полоса вкладок. */
 .panel__head {
   flex: 0 0 auto;
-  padding: 16px 24px 0;
+  padding: var(--space-16) var(--space-24) 0;
   background: var(--surface);
 }
 
@@ -67,8 +69,8 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: var(--gap);
+  gap: var(--space-8);
+  margin-bottom: var(--space-16);
 }
 
 /* Середина — единственное, что прокручивается. min-height: 0 обязателен:
@@ -77,7 +79,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--gap) 24px;
+  padding: var(--space-16) var(--space-24);
 }
 
 /* Подвал закреплён у нижнего края карточки — и экрана. */
@@ -85,8 +87,8 @@
   flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 24px;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-24);
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
@@ -97,7 +99,7 @@
    карточки. */
 .panel__save {
   height: var(--control-button);
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   border-radius: var(--radius);
   background: var(--accent);
   color: var(--accent-text);
@@ -114,8 +116,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
   color: var(--text-muted);
   font-size: 13px;
 }
@@ -130,13 +132,14 @@
   white-space: nowrap;
 }
 
-/* Название задачи набрано как заголовок страницы, только мельче: карточка —
-   это и есть страница задачи, просто открытая сбоку. */
+/* Название задачи набрано как заголовок раздела (h2), а не страницы: карточка —
+   это страница задачи, открытая сбоку от ленты, и заголовок крупнее имени
+   проекта в шапке ей не положен. */
 .panel__title {
   margin: 0;
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   line-height: 1.25;
   /* Длинное название переносится, а не растягивает карточку: ширина колонки
      задана, и горизонтальная прокрутка внутри неё читается как поломка. */
@@ -165,64 +168,90 @@
 .panel__fields {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-4);
 }
 
 /* Свойство — строка из подписи и значения, а не подпись над полем: в столбце
    из восьми свойств подписи сверху дают восемь лишних строк, и карточка
    перестаёт помещаться на экран целиком. Ширина колонки подписей задана
-   числом, чтобы значения стояли в один край. */
+   числом, чтобы значения стояли в один край. 120 пикселей вмещают все подписи
+   в одну строку, кроме «Длительность, рабочих дней»: та ложится в две, и обе
+   умещаются в рост поля рядом; шире колонка отбирала бы место у значений. */
 .panel__fields .panel__field,
 .panel__row {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-columns: 120px minmax(0, 1fr);
   align-items: start;
-  gap: 8px;
+  gap: var(--space-12);
   margin: 0;
 }
 
+/* Подпись свойства — мелкая и плотная, ростом с поле рядом: строка свойства
+   читается как строка приборной панели, а не как подпись над полем формы. */
 .panel__fields .panel__field label,
 .panel__key {
   display: flex;
   align-items: center;
-  min-height: 28px;
+  min-height: var(--control);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .panel__value {
   display: flex;
   align-items: center;
-  min-height: 28px;
+  min-height: var(--control);
 }
 
-/* Поле внутри карточки не обведено ничем, пока к нему не подвели курсор:
-   значение читается как текст, а правится по щелчку. Это тот же приём, что и
-   у свойств страницы Notion, и он держит карточку читаемой — а читают её
-   чаще, чем правят. */
+/* Рубильник «Веха» стоит строкой свойства: подпись — в колонке подписей и
+   тем же кеглем, ручка — на линии значений, без собственного нижнего отступа
+   общего `.switch`, который сбивал шаг между строками. */
+.panel__row .switch {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  gap: var(--space-12);
+  min-height: var(--control);
+  margin: 0;
+}
+
+.panel__row .switch__label {
+  flex: 0 0 120px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Поля карточки видны полями, а не текстом до наведения: у макета это ряд
+   органов управления в рамках, и лента рядом набрана так же плотно — поле,
+   проявляющееся только под курсором, здесь читалось бы как незаполненное. */
 .panel__fields input,
 .panel__fields select,
 .panel__fields textarea {
-  min-height: 28px;
-  padding: 4px 8px;
-  background: transparent;
-  box-shadow: none;
+  min-height: var(--control);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.panel__fields textarea {
+  padding: var(--space-8) var(--space-12);
 }
 
 .panel__fields input:hover:not(:disabled),
 .panel__fields select:hover:not(:disabled),
 .panel__fields textarea:hover:not(:disabled) {
-  background: var(--hover);
+  background: var(--surface);
+  border-color: #c5ccda;
 }
 
 .panel__fields input:focus,
 .panel__fields select:focus,
 .panel__fields textarea:focus {
-  background: var(--surface);
-  box-shadow:
-    inset 0 0 0 1px var(--accent),
-    0 0 0 3px var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 /* Исполнители — метки в перенос: в строку они не встают, потому что их
@@ -230,22 +259,22 @@
 .panel__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
 }
 
-/* Метка Notion: скругление в три пикселя, серая заливка, мелкая подпись.
-   Не «таблетка» с рамкой — рамка вокруг каждого имени в списке из восьми
-   человек рисует цепочку, в которой не читается ни одно. */
+/* Метка — пилюля с серой заливкой и мелкой плотной подписью, без рамки:
+   рамка вокруг каждого имени в списке из восьми человек рисует цепочку, в
+   которой не читается ни одно. Тот же рисунок, что у связей ниже. */
 .panel__chip {
-  height: 22px;
-  padding: 0 8px;
-  border-radius: var(--radius-sm);
+  height: 24px;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-pill);
   background: var(--tag-gray);
   color: var(--text);
   box-shadow: none;
-  font-size: 12px;
-  font-weight: 400;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .panel__chip:hover:not(:disabled) {
@@ -268,12 +297,13 @@
 .panel__baseline {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 var(--gap);
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  background: var(--hover);
-  font-size: 13px;
+  gap: var(--space-8);
+  margin: 0 0 var(--space-16);
+  padding: var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-size: 12px;
   color: var(--text-muted);
 }
 
@@ -293,11 +323,22 @@
    Оба живут на своих вкладках: разделяющая черта у них была нужна, пока они
    шли одним списком под полями, — полоса вкладок теперь и есть эта черта. */
 
+/* Лента обсуждения внутри карточки — без полей и черты страницы (см.
+   `.comments` в comments.css): она стоит внутри 640 пикселей, и поля с
+   ограничением ширины там рисуют вторую, вложенную страницу, а черту уже
+   нарисовала полоса вкладок. */
+.panel .comments {
+  max-width: none;
+  margin: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
 .panel__history-title {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  margin: 0 0 var(--space-8);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   /* Muted, а не faint: 12 пикселей капителью на белом в faint (2.7:1) уже не
      прочитать — а заголовок раздела читают, а не угадывают. */
@@ -311,7 +352,7 @@
 }
 
 .panel__event {
-  margin-bottom: 10px;
+  margin-bottom: var(--space-12);
   font-size: 13px;
 }
 
@@ -327,7 +368,7 @@
 .panel__event-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-8);
   /* Кто и когда — данные журнала, им положен контраст текста. */
   color: var(--text-muted);
   font-size: 12px;
@@ -345,7 +386,7 @@
    единственное, что в карточке делают каждый день, и она видна при любой
    прокрутке середины. Без own-подложки: шапка и так отделена вкладками. */
 .panel__progress {
-  margin: 0 0 var(--gap);
+  margin: 0 0 var(--space-16);
 }
 
 /* Процент — в общей строке со статусом и периодом, и остаётся полем: полосой
@@ -363,7 +404,7 @@
 .panel__progress-pct input {
   width: 3.4ch;
   min-height: 0;
-  padding: 0 2px;
+  padding: 0 var(--space-2);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -404,7 +445,7 @@
 .panel__progress-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 /* Полоса стала органом: по ней щёлкают и её тянут, поэтому она выше прежней
@@ -448,7 +489,7 @@
 .panel__progress-day {
   flex: 0 0 auto;
   height: var(--control-button);
-  padding: 0 10px;
+  padding: 0 var(--space-12);
   border-radius: var(--radius);
   background: var(--accent);
   color: var(--accent-text);
@@ -480,14 +521,14 @@
    между шапкой и прокручиваемой серединой. */
 .panel__tabs {
   display: flex;
-  gap: 4px;
+  gap: var(--space-4);
   margin: 0;
   border-bottom: 1px solid var(--border);
 }
 
 .panel__tab {
   height: 32px;
-  padding: 0 4px;
+  padding: 0 var(--space-4);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -516,7 +557,7 @@
    без скрипта. Черта между секциями — снизу, чтобы последняя не рисовала
    границу перед закреплённым подвалом. */
 .panel__section {
-  padding: 4px 0 12px;
+  padding: var(--space-4) 0 var(--space-12);
   border-bottom: 1px solid var(--border);
 }
 
@@ -527,7 +568,7 @@
 .panel__section-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   min-height: 32px;
   color: var(--text-muted);
   font-size: 12px;
@@ -565,7 +606,7 @@
 /* Пояснение к заголовку створки — кому видно содержимое. Строчными и без
    разрядки: это подпись к заголовку, а не второй заголовок. */
 .panel__section-note {
-  margin-left: 4px;
+  margin-left: var(--space-4);
   color: var(--text-faint);
   font-weight: 400;
   letter-spacing: 0;
@@ -585,7 +626,7 @@
    остальными; у второго подпись по содержимому. */
 .panel__pair {
   display: flex;
-  gap: 16px;
+  gap: var(--space-16);
 }
 
 .panel__pair > .panel__field {
@@ -602,7 +643,7 @@
 @media (max-width: 480px) {
   .panel__pair {
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-2);
   }
 
   .panel__pair > .panel__field + .panel__field {
@@ -614,8 +655,8 @@
 .panel__links {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
 }
 
 .panel__deps {
@@ -626,21 +667,24 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   min-width: 0;
 }
 
+/* Связь — та же пилюля, что и метка исполнителя: серая заливка без рамки и
+   тени, мелкая плотная подпись. */
 .panel__dep {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   max-width: 100%;
-  padding: 3px 8px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--input-bg, var(--hover));
-  font-size: 13px;
-  font-weight: 500;
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--tag-gray);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -648,7 +692,7 @@
 
 .panel__dep-remove {
   height: auto;
-  padding: 0 2px;
+  padding: 0 var(--space-2);
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -690,14 +734,14 @@
    а не отдельный орган управления, которому положено своё место. */
 .panel__dep-fix {
   height: auto;
-  padding: 3px 8px;
+  padding: var(--space-4) var(--space-8);
   font-size: 13px;
 }
 
 /* «Добавить связь…» — узкий список среди пилюль, а не поле во всю строку. */
 .panel__dep-add {
   max-width: 100%;
-  padding: 3px 8px;
+  padding: var(--space-4) var(--space-8);
   font-size: 13px;
   color: var(--text-muted);
 }
@@ -706,12 +750,12 @@
 .panel__chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 /* Блок удаления — в самом низу карточки, отделён от разговора. */
 .panel__danger {
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: var(--space-16);
+  padding-top: var(--space-12);
   border-top: 1px solid var(--border);
 }

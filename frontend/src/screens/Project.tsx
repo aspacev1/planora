@@ -525,31 +525,38 @@ export function Project({
 
             {offline && <OfflineBar syncedAt={query.dataUpdatedAt || null} />}
 
-            {tab === "history" && (
-              <ProjectHistory projectId={projectId} state={query.data} canUndo={editable} />
-            )}
+            {/* Смета, скоркард и история — в одной обёртке с полем шапки по
+                бокам (см. .project__pane): лента в неё не входит, она идёт от
+                края до края. */}
+            {tab !== "gantt" && (
+              <div className="project__pane">
+              {tab === "history" && (
+                <ProjectHistory projectId={projectId} state={query.data} canUndo={editable} />
+              )}
 
-            {tab === "proposal" && (
-              <Proposal
-                projectId={projectId}
-                canWrite={editable}
-                canExport={roleCanReadProposal(role)}
-              />
-            )}
+              {tab === "proposal" && (
+                <Proposal
+                  projectId={projectId}
+                  canWrite={editable}
+                  canExport={roleCanReadProposal(role)}
+                />
+              )}
 
-            {/* Скоркарду отдаётся «кому можно», а не «можно ли сейчас»:
-                обрыв связи он учитывает сам — пересчёт гаснет, а чтение
-                остаётся. Задача из drill-down открывается на ленте — тем же
-                переходом, что и из списка расхождений. */}
-            {tab === "scorecard" && (
-              <Scorecard
-                projectId={projectId}
-                canWrite={canWrite}
-                onOpenTask={(taskId) => {
-                  navigate(`/projects/${projectId}`);
-                  showTask(taskId);
-                }}
-              />
+              {/* Скоркарду отдаётся «кому можно», а не «можно ли сейчас»:
+                  обрыв связи он учитывает сам — пересчёт гаснет, а чтение
+                  остаётся. Задача из drill-down открывается на ленте — тем же
+                  переходом, что и из списка расхождений. */}
+              {tab === "scorecard" && (
+                <Scorecard
+                  projectId={projectId}
+                  canWrite={canWrite}
+                  onOpenTask={(taskId) => {
+                    navigate(`/projects/${projectId}`);
+                    showTask(taskId);
+                  }}
+                />
+              )}
+              </div>
             )}
 
             {/* Предложение подвинуть связанную задачу — над лентой, а не поверх

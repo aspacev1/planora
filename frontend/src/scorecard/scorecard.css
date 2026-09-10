@@ -6,7 +6,7 @@
 .scorecard {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-20);
   max-width: 1040px;
 }
 
@@ -14,7 +14,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-16);
 }
 
 .scorecard__title {
@@ -23,7 +23,7 @@
 }
 
 .scorecard__subtitle {
-  margin: 4px 0 0;
+  margin: var(--space-4) 0 0;
   color: var(--text-muted);
   font-size: 13px;
 }
@@ -34,7 +34,7 @@
   color: #fff;
   border: none;
   border-radius: var(--radius-sm, 6px);
-  padding: 6px 14px;
+  padding: var(--space-6) var(--space-16);
   cursor: pointer;
 }
 
@@ -52,7 +52,7 @@
 .scorecard-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 @media (max-width: 720px) {
@@ -64,8 +64,8 @@
 .scorecard-stat {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 12px 16px;
+  gap: var(--space-2);
+  padding: var(--space-12) var(--space-16);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -132,13 +132,13 @@
   font-weight: 500;
   color: var(--text-muted);
   font-size: 12px;
-  padding: 10px 14px;
+  padding: var(--space-8) var(--space-16);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .scorecard-table td {
-  padding: 12px 14px;
+  padding: var(--space-12) var(--space-16);
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -165,7 +165,7 @@
 .scorecard-person {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-8);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -173,14 +173,14 @@
 .scorecard-pace {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-4);
   min-width: 190px;
 }
 
 .scorecard-pace__nums {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-8);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -200,7 +200,7 @@
   display: inline-flex;
   align-items: center;
   height: 18px;
-  padding: 0 7px;
+  padding: 0 var(--space-8);
   border-radius: 9px;
   background: var(--accent-soft);
   color: var(--accent);
@@ -244,7 +244,7 @@
 .scorecard-ontime small {
   color: var(--text-muted);
   font-size: 12px;
-  margin-left: 4px;
+  margin-left: var(--space-4);
 }
 
 .scorecard-ontime.is-bad {
@@ -256,7 +256,7 @@
 .scorecard-signal {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   white-space: nowrap;
 }
 
@@ -294,7 +294,7 @@
 .scorecard-trend {
   display: inline-flex;
   align-items: flex-end;
-  gap: 3px;
+  gap: var(--space-4);
   height: 26px;
 }
 
@@ -325,15 +325,15 @@
 .scorecard-team__foot {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  margin: 8px 2px 0;
+  gap: var(--space-12);
+  margin: var(--space-8) var(--space-2) 0;
   color: var(--text-muted);
   font-size: 12px;
 }
 
 .scorecard-team__empty {
   margin: 0;
-  padding: 24px;
+  padding: var(--space-24);
   border: 1px dashed var(--border-strong);
   border-radius: 8px;
   color: var(--text-muted);
@@ -345,11 +345,11 @@
 
 .scorecard-drill td {
   background: var(--bg-subtle);
-  padding: 6px 14px 14px 52px;
+  padding: var(--space-6) var(--space-16) var(--space-16) var(--space-48);
 }
 
 .scorecard-drill__empty {
-  margin: 4px 0;
+  margin: var(--space-4) 0;
   color: var(--text-muted);
   font-size: 13px;
 }
@@ -360,20 +360,20 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
 }
 
 .scorecard-task {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 90px minmax(200px, auto);
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
   width: 100%;
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: var(--space-6) var(--space-12);
   cursor: pointer;
   font-size: 13px;
   color: inherit;
@@ -400,7 +400,7 @@
 .scorecard-task__state {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   justify-self: end;
   font-size: 12px;
   color: var(--text-muted);
@@ -411,7 +411,7 @@
   display: inline-flex;
   align-items: center;
   height: 20px;
-  padding: 0 8px;
+  padding: 0 var(--space-8);
   border-radius: 10px;
   font-size: 11px;
   font-weight: 700;

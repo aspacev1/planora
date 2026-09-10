@@ -77,3 +77,8 @@ README duplicates them for humans but CI is ground truth.
 - Config (`backend/app/config.py`) validates required settings at startup and
   refuses to boot rather than serving with a half-configured integration.
 - Sessions/invitations/tokens store `token_hash`, never the raw token.
+- Frontend spacing (`padding`/`margin`/`gap`) comes from the `--space-*` scale
+  in `frontend/src/styles.css` (4px step, plus 2 and 6 below 8), never a bare
+  pixel literal — `spacing-scale.test.ts` fails CI otherwise. A geometric
+  exception (border compensation, chevron width) is marked on the line with a
+  `вне шкалы` comment. Sizes and positions are not part of the scale.
