@@ -4,8 +4,11 @@
    Блок не обведён коробкой: он и так последний на странице, и рамка вокруг
    него сообщила бы, что это отдельный виджет, а не продолжение той же
    страницы. */
+/* На публичной странице — колонкой для чтения, с полями от краёв; в карточке
+   задачи поля и черту снимает panel.css. */
 .comments {
-  margin-top: var(--space-32);
+  max-width: 740px;
+  margin: var(--space-24) var(--space-32);
   padding-top: var(--space-24);
   border-top: 1px solid var(--border);
 }
@@ -20,9 +23,9 @@
 
 .comments__title {
   margin: 0 0 var(--space-12);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   /* Muted, а не faint: 12 пикселей на белом в faint (2.7:1) не читаются, а
      заголовок раздела читают, а не угадывают. */

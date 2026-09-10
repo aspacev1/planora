@@ -531,14 +531,6 @@ body:has(.project__body--focus) {
 .app:has(.project__body--focus) .verify-bar {
   visibility: hidden;
 }
-/* Лента обсуждения на публичной странице — колонкой для чтения, с полями от
-   краёв. В карточке задачи она же стоит внутри 404 пикселей, и поля с
-   ограничением ширины там рисуют вторую, вложенную страницу. */
-.comments { max-width: 740px; margin: var(--space-24) var(--space-32); }
-/* Своей черты обсуждение в карточке не рисует: её уже нарисовал блок
-   `.panel__comments`, в который оно вложено, и две горизонтали подряд читаются
-   как два разных раздела там, где раздел один. */
-.panel .comments { max-width: none; margin: 0; padding-top: 0; border-top: 0; }
 
 /* --- кнопки --- */
 
@@ -638,9 +630,6 @@ textarea:focus {
 /* Пояснение под подписью — мельче значения и крупнее подписи: набранное общим
    кеглем, оно оказывалось заметнее самой подписи поля. */
 .field .muted { font-size: 12px; }
-
-.panel__dep { border-radius: var(--radius-pill); background: var(--tag-gray); box-shadow: none; font-size: 12px; font-weight: 700; }
-.panel__dep { border: 0; }
 
 /* --- меню --- */
 
@@ -908,44 +897,12 @@ body:has(.screen--narrow) {
 
 /* --- карточка задачи --- */
 
-/* Карточка — оверлей во всю высоту экрана, как в макете: раскладку (fixed,
-   640 пикселей, три яруса) задаёт panel.css, тема добавляет только облик —
-   грань слева и тень отрыва от страницы: карточка лежит поверх ленты, а не
-   стоит колонкой в потоке. */
-.panel { border-radius: 0; box-shadow: -1px 0 0 var(--border-strong), -32px 0 64px rgb(23 32 51 / 12%); background: var(--surface); }
-.panel__title { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
-.panel__fields { gap: var(--space-4); }
-.panel__fields .panel__field, .panel__row { grid-template-columns: 112px minmax(0, 1fr); gap: var(--space-12); }
-.panel__key, .panel__fields .panel__field label { min-height: var(--control); color: var(--text-muted); font-size: 11px; font-weight: 700; }
-.panel__value { min-height: var(--control); }
-
-/* Поля карточки видны полями, а не текстом до наведения: у макета это ряд
-   органов управления в рамках, и лента рядом набрана так же плотно — поле,
-   проявляющееся только под курсором, здесь читалось бы как незаполненное. */
-.panel__fields input,
-.panel__fields select,
-.panel__fields textarea {
-  min-height: var(--control);
-  padding: 0 var(--space-8);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: none;
-}
-
-.panel__fields textarea { padding: var(--space-8) var(--space-12); }
-.panel__fields input:hover:not(:disabled),
-.panel__fields select:hover:not(:disabled),
-.panel__fields textarea:hover:not(:disabled) { background: var(--surface); border-color: #c5ccda; }
-
-.panel__fields input:focus,
-.panel__fields select:focus,
-.panel__fields textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-
-.panel__chip { height: 23px; border-radius: var(--radius-pill); background: var(--tag-gray); font-size: 11px; font-weight: 700; }
-.panel__baseline { padding: var(--space-12) var(--space-12); border-radius: var(--radius-md); background: var(--bg-subtle); box-shadow: inset 0 0 0 1px var(--border); font-size: 12px; }
-.panel__history, .panel__comments { border-top-color: var(--border); }
-.panel__history-title, .comments__title { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: var(--text-muted); }
+/* Облик карточки задачи целиком в task/panel.css: тема здесь не держит ни
+   строки. Прежде она перекрашивала два десятка её селекторов, но собирается
+   раньше panel.css и при равном весе проигрывала ему — половина её правил
+   молча не действовала, а карточка выходила смесью двух замыслов. Правило то
+   же, что и у ленты: один селектор живёт в одном файле, и это проверяет
+   theme-cascade.test.ts. */
 
 /* --- адаптивность --- */
 
@@ -1018,7 +975,6 @@ body:has(.screen--narrow) {
   .project-head__main { flex-direction: column; }
   .project-head__actions { justify-content: flex-start; gap: var(--space-8); }
   .project-toolbar { gap: var(--space-8); }
-  .panel { padding: var(--space-16) var(--space-16) var(--space-24); }
 }
 
 @media (max-width: 520px) {
