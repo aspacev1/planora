@@ -86,35 +86,37 @@ export function Projects() {
       )}
 
       {states.length > 0 && (
-        <table className="report">
-          <thead>
-            <tr>
-              <th scope="col">{t("reports.col.project")}</th>
-              <th scope="col">{t("reports.col.progress")}</th>
-              <th scope="col">{t("task.status.in_progress")}</th>
-              <th scope="col">{t("task.status.blocked")}</th>
-              <th scope="col">{t("reports.col.overdue")}</th>
-              <th scope="col">{t("reports.col.deadline")}</th>
-              {/* Столбец есть только там, где есть чем его заполнить: без
-                  права удалять в нём не нашлось бы ни одной ячейки. */}
-              {canDelete && (
-                <th scope="col" className="report__actions">
-                  {t("reports.col.actions")}
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {states.map((state) => (
-              <ProjectRow
-                key={state.id}
-                state={state}
-                today={today}
-                onDelete={canDelete ? () => setDeleting(state) : undefined}
-              />
-            ))}
-          </tbody>
-        </table>
+        <div className="report__scroll">
+          <table className="report">
+            <thead>
+              <tr>
+                <th scope="col">{t("reports.col.project")}</th>
+                <th scope="col">{t("reports.col.progress")}</th>
+                <th scope="col">{t("task.status.in_progress")}</th>
+                <th scope="col">{t("task.status.blocked")}</th>
+                <th scope="col">{t("reports.col.overdue")}</th>
+                <th scope="col">{t("reports.col.deadline")}</th>
+                {/* Столбец есть только там, где есть чем его заполнить: без
+                    права удалять в нём не нашлось бы ни одной ячейки. */}
+                {canDelete && (
+                  <th scope="col" className="report__actions">
+                    {t("reports.col.actions")}
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {states.map((state) => (
+                <ProjectRow
+                  key={state.id}
+                  state={state}
+                  today={today}
+                  onDelete={canDelete ? () => setDeleting(state) : undefined}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* Окно живёт на экране, а не в строке таблицы: строка удалённого

@@ -978,6 +978,43 @@ body:has(.screen--narrow) {
 }
 
 @media (max-width: 520px) {
+  /* Верхняя полоса — в одну строку в 56 пикселей, а не в две по 109: подписи
+     разделов уходят (значки с `aria-label` остаются), органы справа сжимаются
+     до значка. Перенос не запрещён — с переключателем организаций строка всё
+     же ляжет в две, — но в обычном случае помещается одна. */
+  .sidebar { padding: var(--space-8) var(--space-16); }
+  .sidebar__avatar { width: 32px; height: 32px; }
+  .sidebar__nav .sidebar__label { display: none; }
+  .sidebar__link, .sidebar__foot .sidebar__link, .sidebar__foot button.sidebar__button { padding: 0 var(--space-8); }
+  .sidebar .locale-switch { margin: 0; }
+  .sidebar .locale-switch button { padding: 0 var(--space-6); }
+
+  /* Шапка проекта на телефоне — три строки вместо пяти: имя с плашкой и
+     кнопкой плана, вкладки одной прокручиваемой строкой, органы вида. Вкладки
+     не переносятся на вторую строку, а уезжают вбок — так их четыре и на
+     полосе в 358 пикселей. */
+  .project-bar .tabs {
+    flex: 0 0 100%;
+    flex-wrap: nowrap;
+    margin: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .project-bar .tabs::-webkit-scrollbar { display: none; }
+  .project-bar .tabs__link { flex: 0 0 auto; white-space: nowrap; }
+  /* От плашки состояния плана остаётся точка: слова «План проекта · черновик»
+     занимали половину строки и выталкивали кнопку «Согласовать план» на
+     свою. Цвет точки — тот же знак, что и цвет плашки; текст остаётся в
+     доступном дереве. */
+  .project-head__plan-label { position: relative; width: 29px; padding: 0; justify-content: center; }
+  .project-head__plan-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
   .screen--narrow { margin: var(--space-24) auto; padding: var(--space-24) var(--space-24); }
   .project-head__title { font-size: 22px; }
   .project-head__meta { font-size: 12px; }
