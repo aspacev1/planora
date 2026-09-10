@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -44,6 +44,26 @@ describe("согласование плана", () => {
     expect(approvals).toHaveLength(0);
     await userEvent.click(screen.getByRole("button", { name: "Да, пересогласовать" }));
     await waitFor(() => expect(approvals).toHaveLength(1));
+  });
+
+  it("отказ в пересогласовании виден там же, где подтверждали", async () => {
+    server.use(
+      http.post("/api/projects/p1/plan/approvals", () =>
+        HttpResponse.json({ detail: "unknown" }, { status: 500 }),
+      ),
+    );
+    renderProject(APPROVED);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Пересогласовать" }));
+    await userEvent.click(screen.getByRole("button", { name: "Да, пересогласовать" }));
+
+    // Карточка вопроса остаётся — и отказ стоит в ней, а не теряется за её
+    // пределами, где его никто не рисует.
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/ошибка/i);
+    const card = screen.getByRole("button", { name: "Да, пересогласовать" }).closest("[role=group]");
+    expect(card).not.toBeNull();
+    expect(within(card as HTMLElement).getByRole("alert")).toBe(alert);
   });
 
   it("наблюдателю кнопки не показываются вовсе", async () => {

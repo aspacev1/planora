@@ -406,6 +406,7 @@ export function TaskPanel({
                 label={t("task.panel.risk_note")}
                 value={task.risk_note}
                 disabled={!canWrite}
+                resetToken={refusals}
                 onCommit={(value) => {
                   const note = value.slice(0, 300);
                   send(

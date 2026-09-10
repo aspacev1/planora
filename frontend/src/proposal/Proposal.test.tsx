@@ -757,12 +757,12 @@ describe("вкладка предложения", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Параметры предложения" }),
     );
-    // Число уходит на сервер с каждым нажатием, как и всякое число в полях
-    // автосохранения, — поэтому одна цифра: заглушка сервера не запоминает
-    // правку, и вторая цифра легла бы поверх возвращённого старого значения.
+    // Число уходит по уходу из поля, как и всякое число в полях
+    // автосохранения: набранное целиком, а не по цифре.
     const tax = screen.getByLabelText("Налог, %");
     await userEvent.clear(tax);
     await userEvent.type(tax, "5");
+    await userEvent.tab();
     await waitFor(() =>
       expect(sent).toContainEqual({
         method: "PATCH",
@@ -1156,6 +1156,7 @@ describe("пустая смета", () => {
     const tax = screen.getByLabelText("Налог, %");
     await userEvent.clear(tax);
     await userEvent.type(tax, "5");
+    await userEvent.tab();
     await waitFor(() =>
       expect(sent).toContainEqual({
         method: "PATCH",

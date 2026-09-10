@@ -260,7 +260,18 @@
     "jira_url_invalid": "Jira ünvanı düzgün deyil",
     "jira_url_private": "Jira ünvanı ictimai host ilə həll olunmur",
     "proposal_nothing_to_push": "Köçürməyə heç nə yoxdur: seçilmiş işlər artıq plandadır və ya qiymətləndirilməyib",
-    "proposal_value_out_of_range": "Yenidən hesablama icazə verilən hədlərə sığmır: qiymətləndirmə və ya dərəcələri azaldın"
+    "proposal_value_out_of_range": "Yenidən hesablama icazə verilən hədlərə sığmır: qiymətləndirmə və ya dərəcələri azaldın",
+    "export_empty_selection": "İxrac üçün ən azı bir bölmə seçin",
+    "export_scale_too_wide": "Bu miqyasda həddindən çox səhifə alınır — daha iri miqyas seçin və ya dövrü daraldın",
+    "export_period_undated": "Bu dövr üçün həqiqi tarixlər lazımdır — planın başlanğıc tarixi hələ yoxdur",
+    "export_too_large": "Layihə bir faylda ixrac etmək üçün çox böyükdür",
+    "ai_rate_limited": "AI-yə həddindən çox sorğu — bir dəqiqədən sonra yenidən cəhd edin",
+    "ai_budget_exhausted": "Bu təşkilatın AI büdcəsi hələlik tükənib",
+    "share_link_exists": "Bu layihənin ictimai keçidi artıq var",
+    "unknown_risk": "Naməlum risk bayrağı",
+    "unknown_operation": "Naməlum əməliyyat",
+    "revision_not_found": "Bu dəyişiklik layihənin tarixçəsində yoxdur",
+    "plan_version_not_found": "Plan versiyası tapılmadı"
   },
   "live": {
     "offline": "Serverlə əlaqə yoxdur. Redaktə mümkün deyil",

@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { listTaskRevisions, revisionsQueryKey } from "../api/revisions";
 import { formatShortDate } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
+import { useTimeZone } from "../time/useToday";
+import { dayIn } from "../time/zone";
 import { formatEvent } from "./formatEvent";
 
 /**
@@ -26,6 +28,10 @@ export function History({
   relative?: boolean;
 }) {
   const { t, locale } = useLocale();
+  // Сутки читателя, как и в ленте истории проекта: обрезка ISO-строки давала
+  // день по UTC, и правка, сделанная в час ночи, здесь и там датировалась
+  // разными числами.
+  const zone = useTimeZone();
 
   const query = useQuery({
     queryKey: revisionsQueryKey(projectId, taskId),
@@ -50,7 +56,7 @@ export function History({
               {formatEvent(entry.op, locale, entry.names, relative)}
             </p>
             <p className="panel__event-meta">
-              <span>{formatShortDate(t, entry.created_at.slice(0, 10))}</span>
+              <span>{formatShortDate(t, dayIn(zone, new Date(entry.created_at)))}</span>
               {/* Причина — текст пользователя: выводится как есть, без
                   перевода и без кавычек от интерфейса. */}
               {entry.reason && <span className="panel__event-reason">{entry.reason}</span>}

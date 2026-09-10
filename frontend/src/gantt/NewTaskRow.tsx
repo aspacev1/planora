@@ -36,18 +36,15 @@ export function NewTaskRow({
   /**
    * Отправить написанное. Строка при этом остаётся открытой.
    *
-   * Второй довод — сколько задач эта строка уже отправила. Он нужен вставке
-   * посередине: строка стоит на одном месте, а «а», «б», «в» подряд обязаны
-   * лечь в этом же порядке — то есть каждая следующая на номер ниже
-   * предыдущей. Без счёта все три ушли бы на один номер, и порядок вышел бы
-   * обратным набранному.
+   * Номер, на который ляжет задача, строка не считает: «а», «б», «в» подряд
+   * обязаны лечь в набранном порядке, но сколько из них сервер уже принял и
+   * подвинул соседей, знает лента, а не поле (см. `insertPosition` в Gantt).
    */
-  onCreate: (name: string, sent: number) => void;
+  onCreate: (name: string) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
   const input = useRef<HTMLInputElement>(null);
-  const sent = useRef(0);
 
   // Фокус — сразу: «плюс» нажимают ради того, чтобы писать, и щелчок по полю
   // после этого был бы вторым нажатием ради того же самого.
@@ -59,8 +56,7 @@ export function NewTaskRow({
   const submit = (): boolean => {
     const trimmed = name.trim();
     if (trimmed === "") return false;
-    onCreate(trimmed, sent.current);
-    sent.current += 1;
+    onCreate(trimmed);
     setName("");
     return true;
   };

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { projectFixtures, renderProject } from "../test/project";
 import { server } from "../test/server";
@@ -49,6 +49,10 @@ describe("обсуждение задачи", () => {
     projectFixtures();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("показывает реплики с подписями авторов", async () => {
     server.use(http.get("/api/projects/p1/comments", () => HttpResponse.json(THREAD)));
 
@@ -56,6 +60,26 @@ describe("обсуждение задачи", () => {
 
     expect(await within(thread).findByText("Клиент просит другой знак")).toBeInTheDocument();
     expect(within(thread).getByText("Мария")).toBeInTheDocument();
+  });
+
+  it("датирует реплику по часам читателя, а не по UTC", async () => {
+    // Браузер в Баку (UTC+4): реплика в 22:30 по Гринвичу — это уже 6 марта.
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      locale: "ru",
+      calendar: "gregory",
+      numberingSystem: "latn",
+      timeZone: "Asia/Baku",
+    });
+    server.use(
+      http.get("/api/projects/p1/comments", () =>
+        HttpResponse.json([{ ...THREAD[0], created_at: "2026-03-05T22:30:00+00:00" }]),
+      ),
+    );
+
+    const thread = await openThread();
+    await within(thread).findByText("Клиент просит другой знак");
+
+    expect(within(thread).getByText(/6 мар/)).toBeInTheDocument();
   });
 
   it("отличает гостя от участника с аккаунтом", async () => {

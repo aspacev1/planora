@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { errorKey } from "../api/errors";
@@ -212,8 +212,20 @@ export function TextField({
   // Набирают ли поле прямо сейчас. Отметка о прошлой отправке при этом
   // гаснет: «Сохранено» рядом с недописанным словом говорит неправду.
   const [typing, setTyping] = useState(false);
+  // То же «набирают сейчас», но ссылкой — для эффекта ниже. Он обязан видеть
+  // текущее значение, не переподписываясь на него: включи мы `typing` в
+  // зависимости, конец набора сам запускал бы возврат к значению сверху — ещё
+  // старому, пока сервер не ответил, — и поле мигало бы прежним текстом.
+  const typingNow = useRef(false);
 
+  // Возврат к правде сверху — но не под руками у человека. Значение сверху
+  // меняется не только от его собственной правки: сосед подвинул задачу, и
+  // состояние проекта перезапросилось целиком; своя же прошлая отправка
+  // завершилась, пока поле уже набирают заново. Открытое поле при этом не
+  // трогается — так же, как ячейка таблицы (см. EditableCell): набранное
+  // уйдёт по уходу фокуса и сравнится с тем, что будет сверху к тому моменту.
   useEffect(() => {
+    if (typingNow.current) return;
     setDraft(value);
     setTyping(false);
   }, [value, resetToken, save?.settled]);
@@ -223,6 +235,7 @@ export function TextField({
   // запись «изменил описание». Иначе лента заполняется шумом и перестаёт
   // читаться — а читают её ради того, чтобы понять, кто и что поменял.
   const commit = () => {
+    typingNow.current = false;
     setTyping(false);
     if (draft !== value) onCommit(draft);
   };
@@ -235,6 +248,7 @@ export function TextField({
     "aria-labelledby": label === undefined ? labelledBy : undefined,
     onChange: (event: { target: { value: string } }) => {
       setDraft(event.target.value);
+      typingNow.current = true;
       setTyping(true);
     },
     onBlur: commit,
@@ -257,7 +271,17 @@ export function TextField({
   );
 }
 
-/** Дата или число: уходит сразу, как только значение изменилось. */
+/**
+ * Дата или число.
+ *
+ * Дата уходит сразу, как только выбрана: календарь отдаёт её целиком одним
+ * выбором. Число — по уходу фокуса или по Enter, а не по каждой клавише:
+ * набор «15» посылал бы сперва «1», и у задачи с базовым планом на это
+ * успевало открыться окно «объясните сдвиг» — посреди ввода, за число,
+ * которого человек не называл. Пустое поле по уходу возвращается к правде:
+ * пустота — середина набора, а не значение (кроме полей, где «пусто» —
+ * ответ, см. `allowEmpty`).
+ */
 export function ValueField({
   id,
   label,
@@ -288,6 +312,13 @@ export function ValueField({
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value, resetToken, save?.settled]);
 
+  // Пустое поле — это середина набора, а не значение. Отправлять его значит
+  // просить сервер отказать в том, чего человек не просил, — кроме тех полей,
+  // где «пусто» само по себе ответ.
+  const commit = (next: string) => {
+    if ((allowEmpty === true || next !== "") && next !== value) onCommit(next);
+  };
+
   return (
     <FieldRow id={id} label={label} className={className} save={save}>
       <input
@@ -300,10 +331,23 @@ export function ValueField({
         onChange={(event) => {
           const next = event.target.value;
           setDraft(next);
-          // Пустое поле — это середина набора, а не значение. Отправлять его
-          // значит просить сервер отказать в том, чего человек не просил, —
-          // кроме тех полей, где «пусто» само по себе ответ.
-          if ((allowEmpty === true || next !== "") && next !== value) onCommit(next);
+          if (type === "date") commit(next);
+        }}
+        onBlur={() => {
+          if (type === "date") return;
+          if (draft === "" && allowEmpty !== true) {
+            setDraft(value);
+            return;
+          }
+          commit(draft);
+        }}
+        onKeyDown={(event) => {
+          // Enter — тот же уход из поля: число готово, и один путь отправки
+          // лучше двух, которые однажды разойдутся.
+          if (type === "number" && event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
         }}
       />
     </FieldRow>

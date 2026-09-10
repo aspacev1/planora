@@ -1,8 +1,9 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { HttpResponse, http } from "msw";
+import { HttpResponse, delay, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import type { Draft } from "../api/ai";
 import { server } from "../test/server";
 import { renderApp, sessionHandlers } from "../test/utils";
 
@@ -168,6 +169,56 @@ describe("интервью", () => {
     await userEvent.click(apply);
 
     await waitFor(() => expect(calls).toContain("apply"));
+  });
+
+  it("отказ на правке конспекта виден, а не проглатывается", async () => {
+    aiFixtures();
+    server.use(
+      http.put("/api/ai/sessions/s1/summary", () =>
+        HttpResponse.json({ detail: "wrong_step" }, { status: 409 }),
+      ),
+    );
+    renderApp({ route: "/projects/new/ai" });
+    await userEvent.click(await screen.findByRole("button", { name: "Начать интервью" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Хватит, генерируй" }));
+
+    const theses = await screen.findByLabelText(/Тезисы/);
+    await userEvent.type(theses, "{Enter}Ещё тезис");
+    await userEvent.tab();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Этот шаг ещё не пройден");
+  });
+
+  it("две правки черновика подряд не стирают друг друга", async () => {
+    aiFixtures();
+    const bodies: Draft[] = [];
+    server.use(
+      http.put("/api/ai/sessions/s1/draft", async ({ request }) => {
+        const { draft } = (await request.json()) as { draft: Draft };
+        bodies.push(draft);
+        // Ответ задерживается: вторая правка уходит, пока первая ещё летит.
+        await delay(60);
+        return HttpResponse.json({ ...DRAFT_STATE, draft });
+      }),
+    );
+    renderApp({ route: "/projects/new/ai" });
+    await userEvent.click(await screen.findByRole("button", { name: "Начать интервью" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Хватит, генерируй" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Сгенерировать план" }));
+    await screen.findByText("Черновик плана");
+
+    fireEvent.change(screen.getByLabelText("Старт «Логотип»"), { target: { value: "2026-03-09" } });
+    const name = screen.getByLabelText("Название «Логотип»");
+    await userEvent.type(name, " v2");
+    await userEvent.tab();
+
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    // Вторая правка построена поверх первой, а не поверх черновика с сервера,
+    // в котором первой ещё нет.
+    expect(bodies[1].categories[0].tasks[0]).toMatchObject({
+      name: "Логотип v2",
+      start_date: "2026-03-09",
+    });
   });
 
   it("задача из черновика удаляется до применения", async () => {

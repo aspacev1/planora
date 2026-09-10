@@ -60,10 +60,16 @@ export function deviationDays(
   if (baseline === null) return null;
   const start = next.start_date ?? task.start_date;
   const duration = next.duration_days ?? task.duration_days;
-  return Math.max(
-    Math.abs(daysBetween(baseline.start, start)),
-    Math.abs(duration - baseline.duration),
-  );
+  const startShift = Math.abs(daysBetween(baseline.start, start));
+  const durationShift = Math.abs(duration - baseline.duration);
+  // Измерения не смешиваются — ровно как в `deviation_days` на сервере:
+  // названное измерение и меряется. Иначе задача, чей старт уже объяснённо
+  // уехал за порог, требовала бы причину на каждую правку длительности в
+  // один день — и окно называло бы число из чужого измерения. Без подмены
+  // возвращается наибольшее из двух: ответ на «насколько задача ушла».
+  if (next.start_date !== undefined && next.duration_days === undefined) return startShift;
+  if (next.duration_days !== undefined && next.start_date === undefined) return durationShift;
+  return Math.max(startShift, durationShift);
 }
 
 /**

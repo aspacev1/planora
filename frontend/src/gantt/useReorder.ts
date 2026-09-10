@@ -155,6 +155,13 @@ export function useReorder({
       point.current = { x: event.clientX, y: event.clientY };
       const node = ghost.current;
       if (node !== null) moveGhost(node, point.current);
+      // Мышью цель сообщают сами строки (см. handleProps): над шапкой или
+      // тулбаром сообщить некому, и линия вставки оставалась бы на строке,
+      // с которой курсор давно ушёл, хотя бросок там уже ничего не делает.
+      // Пальцем указатель захвачен ручкой, и событие всегда приходит из её
+      // строки — этот случай ведёт `targetAt`, а не строки.
+      const target = event.target instanceof Element ? event.target : null;
+      if (target !== null && target.closest("[data-drop-id]") === null) setTarget(null);
     };
     window.addEventListener("pointermove", follow);
     return () => window.removeEventListener("pointermove", follow);
@@ -332,6 +339,10 @@ export function useReorder({
     handleProps(kind: RowKind, id: string) {
       return {
         onPointerDown(event: PointerEvent<HTMLElement>) {
+          // Только основная кнопка — как у всякого жеста на ленте: правая
+          // зовёт контекстное меню, и оно съедает отпускание, оставляя
+          // призрак строки ехать за курсором без нажатия.
+          if (event.button !== 0) return;
           // Без этого нажатие уводит фокус и начинает выделение текста вместо
           // перетаскивания.
           event.preventDefault();

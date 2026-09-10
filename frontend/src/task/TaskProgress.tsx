@@ -96,10 +96,22 @@ export function TaskProgress({
   const [markedDay, setMarkedDay] = useState(false);
   useEffect(() => setMarkedDay(false), [resetToken]);
 
-  // Число — то же поле, что и раньше: черновик, отправка при изменении,
-  // возврат к правде по отказу сервера (см. fields.tsx про resetToken).
+  // Число — то же поле, что и раньше: черновик, отправка по уходу фокуса
+  // или Enter, возврат к правде по отказу сервера (см. fields.tsx про
+  // resetToken). Не по каждой клавише: набор «75» слал бы сперва «7», и в
+  // истории задачи от одного ввода оставались бы две записи.
   const [draft, setDraft] = useState(String(pct));
   useEffect(() => setDraft(String(pct)), [pct, resetToken]);
+  const commitDraft = () => {
+    // Пустое поле — середина набора, а не значение: возвращается к правде.
+    if (draft === "") {
+      setDraft(String(pct));
+      return;
+    }
+    // Границы не проверяются здесь намеренно: их проверяет сервер, и отказ
+    // вернёт поле к правде, объяснив словами.
+    if (Number(draft) !== pct) onCommit(Number(draft));
+  };
 
   const barRef = useRef<HTMLDivElement | null>(null);
   const shown = dragPct ?? pct;
@@ -147,13 +159,13 @@ export function TaskProgress({
             value={draft}
             disabled={!canWrite}
             aria-label={t("task.panel.progress")}
-            onChange={(event) => {
-              const next = event.target.value;
-              setDraft(next);
-              // Пустое поле — середина набора, а не значение. Границы не
-              // проверяются здесь намеренно: их проверяет сервер, и отказ
-              // вернёт поле к правде, объяснив словами.
-              if (next !== "" && Number(next) !== pct) onCommit(Number(next));
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={commitDraft}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
             }}
           />
           <span aria-hidden="true">%</span>

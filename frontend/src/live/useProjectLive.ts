@@ -1,7 +1,8 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
 import { commentsQueryKey } from "../api/comments";
+import { CONFIG_QUERY_KEY, installConfig } from "../api/config";
 import { projectQueryKey } from "../api/projects";
 import { proposalQueryKey } from "../api/proposal";
 
@@ -79,9 +80,18 @@ function messageType(data: unknown): string | null {
 export function useProjectLive(projectId: string): Live {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<LiveStatus>("connecting");
+  // Установка сама говорит, есть ли у неё живая связь (`live_enabled` в
+  // /api/config). Читается из кэша, а не спрашивается: настройки установки и
+  // так запрашивает рама защищённых экранов, а без них в кэше ответ — «есть»:
+  // не открыть сокет там, где он есть, хуже, чем открыть там, где его нет.
+  const config = useQuery({ queryKey: CONFIG_QUERY_KEY, queryFn: installConfig, enabled: false });
+  const liveEnabled = config.data?.live_enabled ?? true;
 
   useEffect(() => {
-    if (typeof WebSocket === "undefined") {
+    // Раскладка без WebSocket (serverless): установка знает об этом заранее,
+    // и стучаться в сокет шесть раз подряд, чтобы выяснить то же самое, —
+    // почти минута лишних попыток на каждое открытие проекта.
+    if (typeof WebSocket === "undefined" || !liveEnabled) {
       setStatus("unavailable");
       return;
     }
@@ -170,7 +180,7 @@ export function useProjectLive(projectId: string): Live {
       if (socket) socket.onclose = null;
       socket?.close();
     };
-  }, [projectId, queryClient]);
+  }, [projectId, queryClient, liveEnabled]);
 
   // Объект собирается заново на каждый рендер экрана, а через контекст его
   // читает половина дерева: без этого каждая перерисовка проекта тащила бы за

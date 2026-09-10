@@ -17,7 +17,8 @@ import { useEscape } from "../components/useEscape";
 import { useLocale } from "../i18n/LocaleProvider";
 import { TextField, ValueField } from "../task/fields";
 import { PanelSection } from "../task/PanelSection";
-import { formatAmount, formatMoney } from "./money";
+import { formatAmount, formatMoney, lineAmount } from "./money";
+import type { Money } from "./money";
 
 import "../task/panel.css";
 
@@ -89,7 +90,7 @@ export function ProposalTaskPanel({
   useEscape(onClose);
 
   const hours = effortUnit === "hours";
-  const money = (value: number) => formatMoney(locale, currency, value);
+  const money = (value: Money) => formatMoney(locale, currency, value);
   // Формула цены — «2д × 400,00 $ в день»: цена в шапке не поле, и человек
   // должен видеть, из чего она сложилась, чтобы знать, какое поле править.
   const effort = t(hours ? "proposal.format.hours" : "proposal.format.days", {
@@ -97,7 +98,7 @@ export function ProposalTaskPanel({
   });
   const formula = t(hours ? "proposal.task.formula_hour" : "proposal.task.formula_day", {
     effort,
-    rate: money(task.rate),
+    rate: money(lineAmount(1, task.rate)),
   });
 
   return (
@@ -126,7 +127,7 @@ export function ProposalTaskPanel({
           <span className="panel__meta-sep" aria-hidden="true" />
           <span>{formula}</span>
           <span className="panel__meta-sep" aria-hidden="true" />
-          <strong>{money(task.effort * task.rate)}</strong>
+          <strong>{money(lineAmount(task.effort, task.rate))}</strong>
         </p>
       </header>
 

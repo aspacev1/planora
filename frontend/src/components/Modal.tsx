@@ -1,8 +1,40 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
 import { useLocale } from "../i18n/LocaleProvider";
 import { useEscape } from "./useEscape";
+
+/**
+ * Что в окне принимает фокус. Тот же список, что у первого поля при открытии:
+ * им же замыкается Tab (см. `trapTab`).
+ */
+const FOCUSABLE =
+  'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Tab не выходит из окна: с последнего поля — на первое, с первого назад — на
+ * последнее.
+ *
+ * `aria-modal` обещает читателю с экрана, что страницы за окном сейчас нет, —
+ * и клавиатура обязана держать то же обещание. Без замыкания Tab с кнопки
+ * «Создать» уходил в боковую колонку под подложкой, и человек с клавиатуры
+ * дальше нажимал ссылки, которых не видел.
+ */
+function trapTab(event: KeyboardEvent<HTMLElement>, dialog: HTMLElement | null) {
+  if (event.key !== "Tab" || dialog === null) return;
+  const nodes = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
+  if (nodes.length === 0) return;
+  const first = nodes[0];
+  const last = nodes[nodes.length - 1];
+  const active = document.activeElement;
+  if (event.shiftKey && (active === first || !dialog.contains(active))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (active === last || !dialog.contains(active))) {
+    event.preventDefault();
+    first.focus();
+  }
+}
 
 type ModalProps = {
   title: string;
@@ -66,9 +98,7 @@ export function Modal({ title, onClose, dirty = false, wide = false, children }:
 
     // Первое поле, а не само окно: человек открыл форму, чтобы её заполнить,
     // и лишнее нажатие Tab здесь — это лишний шаг в каждом создании подряд.
-    const focusable = dialog.current?.querySelector<HTMLElement>(
-      "input, select, textarea, button",
-    );
+    const focusable = dialog.current?.querySelector<HTMLElement>(FOCUSABLE);
     focusable?.focus();
 
     return () => {
@@ -136,7 +166,12 @@ export function Modal({ title, onClose, dirty = false, wide = false, children }:
     >
       <div
         className={`modal${wide ? " modal--wide" : ""}`}
-        role="dialog" aria-modal="true" aria-labelledby={titleId} ref={dialog}>
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        ref={dialog}
+        onKeyDown={(event) => trapTab(event, dialog.current)}
+      >
         <h2 className="modal__title" id={titleId}>
           {title}
         </h2>
