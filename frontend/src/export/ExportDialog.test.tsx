@@ -138,7 +138,11 @@ describe("окно экспорта", () => {
 
     await user.click(screen.getByRole("button", { name: "Скачать" }));
 
-    expect(await screen.findByText(/масштаб/i)).toBeInTheDocument();
+    // Именно тост, а не подсказка окна про масштаб: та стоит на экране и до
+    // отказа, и по ней тест проходил бы даже с сырым кодом в тосте.
+    const toast = await screen.findByRole("status");
+    expect(toast).toHaveTextContent(/масштаб/i);
+    expect(toast).not.toHaveTextContent("error.");
     // Окно остаётся открытым: человеку есть что здесь поправить.
     expect(onClose).not.toHaveBeenCalled();
   });

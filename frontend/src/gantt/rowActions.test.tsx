@@ -292,6 +292,30 @@ describe("вставка строки посередине", () => {
     ]);
   });
 
+  it("вторая задача, набранная уже после ответа на первую, тоже встаёт перед названной", async () => {
+    const sent = captureMutations();
+    renderProject(THREE_TASKS);
+    await screen.findByRole("button", { name: /Первая/ });
+
+    await insert("t2");
+    const field = () => screen.getByRole("textbox", { name: "Новая задача в «Дизайн»" });
+    await userEvent.type(field(), "а{Enter}");
+    // Сервер ответил: «а» стоит на месте «Второй», а та съехала на единицу.
+    // Строки ожидания больше нет — состояние уже отражает вставку.
+    await waitFor(() => expect(document.querySelector(".gantt__row--pending")).toBeNull());
+    await screen.findByText("а");
+
+    await userEvent.type(field(), "б{Enter}");
+
+    await waitFor(() => expect(sent).toHaveLength(2));
+    // Номер «Второй» уже 2 — и «б» идёт на него, а не на 3 за «Второй»: сдвиг,
+    // который сервер уже сделал, не прибавляется второй раз.
+    expect(sent.map((row) => [row.op.name, row.op.position])).toEqual([
+      ["а", 1],
+      ["б", 2],
+    ]);
+  });
+
   it("«плюс» на строке категории по-прежнему кладёт задачу в конец", async () => {
     const sent = captureMutations();
     renderProject(THREE_TASKS);

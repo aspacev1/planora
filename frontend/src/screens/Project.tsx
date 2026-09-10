@@ -153,6 +153,15 @@ export function Project({
       current === taskId && tab === selectedTaskTab ? null : taskId,
     );
   };
+  // Карточка, к которой пришли из другого места — со скоркарда, из списка
+  // расхождений, — обязана открыться, а не переключиться. Правило «повторный
+  // щелчок закрывает» — про строку ленты под рукой; человек, выбравший задачу
+  // в списке, ждёт её карточку, даже если та уже была открыта на ленте.
+  const showTask = (taskId: string) => {
+    setSelectedTaskTab("details");
+    setShowingChanges(false);
+    setSelectedTaskId(taskId);
+  };
 
   // Лента развёрнута на весь экран. Между визитами не запоминается: полный
   // экран включают осознанно, и открывшийся без шапки и колонки проект читался
@@ -538,7 +547,7 @@ export function Project({
                 canWrite={canWrite}
                 onOpenTask={(taskId) => {
                   navigate(`/projects/${projectId}`);
-                  openTask(taskId);
+                  showTask(taskId);
                 }}
               />
             )}
@@ -675,7 +684,7 @@ export function Project({
                 onReapprove={() => setReapproving(true)}
                 onOpenTask={(taskId) => {
                   navigate(`/projects/${projectId}`);
-                  openTask(taskId);
+                  showTask(taskId);
                 }}
                 onClose={() => setShowingChanges(false)}
               />

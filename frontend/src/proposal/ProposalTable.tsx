@@ -11,6 +11,8 @@ import type {
 import { ConfirmAction } from "../components/ConfirmAction";
 import { CommentIcon, EditableCell, PencilIcon, RowBadge, RowIcon } from "../components/rows";
 import { NewProposalTaskRow } from "./NewProposalTaskRow";
+import { isPositive, lineAmount, moneyToNumber, sumMoney } from "./money";
+import type { Money } from "./money";
 
 /** Колонки таблицы: работа, роль, описание, оценка, ставка, цена. */
 export const COLUMNS = 6;
@@ -45,7 +47,9 @@ export type Formats = {
   days: (value: number) => string;
   hoursLabel: (value: number) => string;
   amount: (value: number) => string;
-  money: (value: number) => string;
+  /** Стоимость без валюты — точная сумма, а не число (см. money.ts). */
+  price: (value: Money) => string;
+  money: (value: Money) => string;
 };
 
 /**
@@ -102,10 +106,7 @@ export function CategoryRows({
   t: Translate;
 }) {
   const categoryEffort = category.tasks.reduce((sum, task) => sum + task.effort, 0);
-  const categoryPrice = category.tasks.reduce(
-    (sum, task) => sum + task.effort * task.rate,
-    0,
-  );
+  const categoryPrice = sumMoney(category.tasks.map((task) => lineAmount(task.effort, task.rate)));
   const rates = new Set(category.tasks.map((task) => task.rate));
   const uniformRate = rates.size === 1 ? [...rates][0] : null;
 
@@ -188,7 +189,7 @@ export function CategoryRows({
           {uniformRate !== null && uniformRate > 0 ? formats.amount(uniformRate) : ""}
         </td>
         <td className="proposal-table__num proposal-table__price">
-          {categoryPrice > 0 ? formats.amount(categoryPrice) : ""}
+          {isPositive(categoryPrice) ? formats.price(categoryPrice) : ""}
         </td>
       </tr>
 
@@ -312,6 +313,7 @@ function TaskRow({
   /** «Изменить: {колонка} у „{имя}“» — подпись поля, открытого на месте. */
   const label = (column: string) =>
     t("proposal.cell.edit", { column: t(column), name: task.name });
+  const price = lineAmount(task.effort, task.rate);
 
   const commit = {
     name: (value: string) => {
@@ -473,8 +475,8 @@ function TaskRow({
           type="number"
           step="any"
           min={0}
-          value={String(task.effort * task.rate)}
-          display={task.effort * task.rate > 0 ? formats.amount(task.effort * task.rate) : ""}
+          value={String(moneyToNumber(price))}
+          display={isPositive(price) ? formats.price(price) : ""}
           disabled={!canWrite || task.effort === 0}
           label={label("proposal.columns.price")}
           onCommit={commit.price}

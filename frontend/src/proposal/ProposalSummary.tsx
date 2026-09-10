@@ -5,6 +5,8 @@ import type { ProposalStage } from "../api/proposal";
 import { useLocale } from "../i18n/LocaleProvider";
 import type { Formats } from "./ProposalTable";
 import { PushPlanButton } from "./PushPlanButton";
+import { addMoney } from "./money";
+import type { Money } from "./money";
 
 /**
  * Итоги — карточкой сбоку, на виду при любой прокрутке: «сколько всего»
@@ -35,8 +37,8 @@ export function ProposalSummary({
   taxRatePct: number;
   totalHours: number;
   totalDays: number;
-  subtotal: number;
-  tax: number;
+  subtotal: Money;
+  tax: Money;
   formats: Formats;
   canWrite: boolean;
   /** Вправе ли смотрящий получить документ для клиента (см. permissions). */
@@ -85,7 +87,7 @@ export function ProposalSummary({
             <span className="proposal-summary__currency">{currency}</span>
           </dt>
           <dd className="proposal-summary__amount">
-            {formats.money(subtotal + tax)}
+            {formats.money(addMoney(subtotal, tax))}
           </dd>
         </div>
       </dl>

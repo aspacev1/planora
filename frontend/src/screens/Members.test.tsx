@@ -215,6 +215,34 @@ describe("экран участников", () => {
     expect(screen.getByLabelText(/ссылка приглашения/i)).toBeInTheDocument();
   });
 
+  it("отзыв снимает и «письмо не ушло»: оно было про перевыпуск, которого больше нет", async () => {
+    server.use(
+      ...membersHandlers({ mailEnabled: true }),
+      http.post("/api/org/invitations/i1/reissue", () =>
+        HttpResponse.json({
+          id: "i1",
+          email: "guest@example.com",
+          role: "viewer",
+          expires_at: "2026-08-18T09:00:00+00:00",
+          url: "http://localhost:8000/invite/новый-токен",
+          sent: false,
+          mail_error: "mail_failed",
+        }),
+      ),
+      http.delete("/api/org/invitations/i1", () => new HttpResponse(null, { status: 204 })),
+    );
+
+    renderApp({ route: "/members", locale: "ru" });
+    await userEvent.click(await screen.findByRole("button", { name: /отправить ещё раз/i }));
+    await userEvent.click(screen.getByRole("button", { name: /да, отправить заново/i }));
+    expect(await screen.findByText(/письмо не ушло/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /^отозвать$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /да, отозвать/i }));
+
+    await waitFor(() => expect(screen.queryByText(/письмо не ушло/i)).toBeNull());
+  });
+
   it("отозванное приглашение действий больше не предлагает", async () => {
     server.use(...membersHandlers({ invitations: [{ ...PENDING, status: "revoked" }] }));
 

@@ -239,17 +239,24 @@ function applied(state: ProjectState, op: Record<string, unknown>): ProjectState
 
   switch (op.type) {
     case "create_task": {
-      // Идентификатор и позицию назначает сервер — здесь тоже: клиент их не
-      // присылает и присылать не должен. Задача встаёт в конец своей
-      // категории, как на сервере; конец равен началу, потому что заводится
-      // она однодневной, а календаря у заглушки нет.
+      // Идентификатор назначает сервер — здесь тоже. Позицию клиент называет
+      // только при вставке посередине; тогда соседи с этого номера и ниже
+      // съезжают на единицу, как в `_make_room` на сервере. Без номера
+      // задача встаёт в конец своей категории; конец равен началу, потому что
+      // заводится она однодневной, а календаря у заглушки нет.
       const categoryId = op.category_id as string;
       const siblings = state.tasks.filter((task) => task.category_id === categoryId);
       const start = op.start_date as string;
+      const position = typeof op.position === "number" ? op.position : siblings.length;
+      const shifted = state.tasks.map((task) =>
+        task.category_id === categoryId && task.position >= position
+          ? { ...task, position: task.position + 1 }
+          : task,
+      );
       return {
         ...state,
         tasks: [
-          ...state.tasks,
+          ...shifted,
           {
             ...STATE.tasks[0],
             id: `new${state.tasks.length + 1}`,
@@ -266,7 +273,7 @@ function applied(state: ProjectState, op: Record<string, unknown>): ProjectState
             risk_note: "",
             status: "planned",
             progress_pct: 0,
-            position: siblings.length,
+            position,
             assignee_ids: [],
             baseline_start: null,
             baseline_duration: null,

@@ -44,6 +44,10 @@ export function ConfirmAction({
   const { t } = useLocale();
   const [confirming, setConfirming] = useState(false);
   const group = useRef<HTMLSpanElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  // Была ли выноска только что открыта: фокус возвращается на кнопку только
+  // после её сворачивания, а не при первой отрисовке.
+  const wasConfirming = useRef(false);
 
   // Фокус переходит на саму выноску, а не на кнопку подтверждения: человек с
   // клавиатуры нажимает Enter быстрее, чем читает, и подтверждение, поймавшее
@@ -51,7 +55,16 @@ export function ConfirmAction({
   // добавив к нему лишнее нажатие. На кнопку отказа фокус тоже не ставится:
   // выноска сама называет последствие, и голосом оно читается первым.
   useEffect(() => {
-    if (confirming) group.current?.focus();
+    if (confirming) {
+      group.current?.focus();
+    } else if (wasConfirming.current) {
+      // Выноска свёрнута — а вместе с ней ушёл и узел, на котором стоял
+      // фокус. Без возврата человек с клавиатуры оказывался в начале
+      // документа и искал место заново после каждого «отмена». Кнопка при
+      // этом могла уйти вместе с удалённой строкой — тогда возвращать некуда.
+      trigger.current?.focus();
+    }
+    wasConfirming.current = confirming;
   }, [confirming]);
 
   if (confirming) {
@@ -80,6 +93,7 @@ export function ConfirmAction({
 
   return (
     <button
+      ref={trigger}
       type="button"
       className={className}
       disabled={disabled}

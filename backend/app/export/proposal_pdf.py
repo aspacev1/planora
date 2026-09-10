@@ -17,7 +17,7 @@
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from io import BytesIO
 from xml.sax.saxutils import escape
 
@@ -179,8 +179,15 @@ def build_document(
 
 def _money(value: Decimal) -> str:
     """Сумма с разрядами через пробел и копейками только там, где они есть:
-    «12 000» читается быстрее «12 000.00», а «12 000.50» терять нельзя."""
-    rounded = value.quantize(Decimal("0.01"))
+    «12 000» читается быстрее «12 000.00», а «12 000.50» терять нельзя.
+
+    Половина копейки — вверх, а не к чётному: так же считает экран сметы
+    (frontend/src/proposal/money.ts) и так же приводит к копейкам оценку и
+    ставку proposals.py. Умолчание Decimal — ROUND_HALF_EVEN — давало «1,12»
+    за 0,5 × 2,25 там, где экран показывал «1,13», и документ расходился с
+    тем, что клиенту только что показали.
+    """
+    rounded = value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     if rounded == rounded.to_integral_value():
         text = f"{int(rounded):,}"
     else:

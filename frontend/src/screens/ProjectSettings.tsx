@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { errorKey } from "../api/errors";
@@ -23,6 +23,7 @@ import { formatDate, formatTime } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
 import { SharePanel } from "../project/SharePanel";
 import { useDeleteProject } from "../project/useDeleteProject";
+import { browserTimeZone, dayIn } from "../time/zone";
 import {
   DateListField,
   SlugField,
@@ -73,6 +74,11 @@ export function ProjectSettings() {
       queryClient.setQueryData(projectQueryKey(projectId), state),
   });
   const saves = useFieldSaves(save.mutateAsync);
+  // Одна и та же функция между отрисовками: поле слага откладывает проверку
+  // по ней, и новая стрелка на каждую отрисовку экрана — а он перерисовывается
+  // на каждом ответе любого поля — сбрасывала бы таймер и выбрасывала уже
+  // полученный ответ, так что подсказка «занято» не появлялась вовсе.
+  const checkSlug = useCallback((slug: string) => checkProjectSlug(projectId, slug), [projectId]);
 
   // Что делается с кэшем после удаления, знает общий хук: то же самое
   // случается и при удалении с карточки в списке проектов. Экрану остаётся
@@ -129,7 +135,7 @@ export function ProjectSettings() {
           label={t("settings.project.slug")}
           value={state.slug}
           disabled={readOnly}
-          check={(slug) => checkProjectSlug(projectId, slug)}
+          check={checkSlug}
           save={saves.at("project-slug")}
           onCommit={(slug) => saves.commit("project-slug", { slug })}
         />
@@ -375,6 +381,11 @@ function Override({
 function JiraSyncPanel({ projectId, readOnly }: { projectId: string; readOnly: boolean }) {
   const { t, locale } = useLocale();
   const queryClient = useQueryClient();
+  // День и время рядом обязаны считаться по одним часам: время — по часам
+  // машины (см. formatTime), и день берётся по ним же, а не обрезкой
+  // ISO-строки по UTC, иначе ночная синхронизация датировалась бы вчерашним
+  // числом рядом с сегодняшним временем.
+  const zone = browserTimeZone();
   const showToast = useToast();
   // Отказы отправки остаются на панели, а не только в тосте: тост исчезает,
   // а список отклонённых задач Jira — то, что человеку нужно решить, а не
@@ -430,7 +441,7 @@ function JiraSyncPanel({ projectId, readOnly }: { projectId: string; readOnly: b
       <p className="muted">
         {link.data.last_synced_at
           ? t("jira.sync.last_synced", {
-              date: `${formatDate(t, link.data.last_synced_at)} · ${formatTime(locale, new Date(link.data.last_synced_at))}`,
+              date: `${formatDate(t, dayIn(zone, new Date(link.data.last_synced_at)))} · ${formatTime(locale, new Date(link.data.last_synced_at))}`,
             })
           : t("jira.sync.never")}
       </p>

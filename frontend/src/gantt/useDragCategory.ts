@@ -108,6 +108,13 @@ export function useDragCategory({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [cancel, dragging]);
 
+  // Полоса пропала посреди жеста, а строка осталась: последнюю задачу этапа
+  // удалил сосед, и обработчиков у полосы больше нет — отпускание ей не
+  // придёт. Жест снимается здесь, иначе кадр подкачки крутился бы до Esc.
+  useEffect(() => {
+    if (!enabled && from.current !== null) cancel();
+  }, [enabled, cancel]);
+
   // Строка исчезла посреди жеста — снять надо и качалку ленты, и достройку
   // окна: без жеста она держала бы ленту растянутой навсегда.
   useEffect(
@@ -149,7 +156,8 @@ export function useDragCategory({
     // закоммитит. Не `null`: сброс в ноль сжал бы холст раньше, чем догадка
     // доедет до кэша, и прокрутка прыгнула бы под рукой (см. эффект у reach в
     // Gantt — накрытую догадкой дату снимает он).
-    if (reached.current) {
+    const extended = reached.current;
+    if (extended) {
       reached.current = false;
       onReach?.(days === 0 || spanEnd === null ? null : addDays(spanEnd, days));
     }
@@ -171,7 +179,9 @@ export function useDragCategory({
       )
       .catch(() => {
         // Откат уже сделан внутри `apply`: задачи вернулись на свои даты, и
-        // полоса, посчитанная по ним, встала обратно сама.
+        // полоса, посчитанная по ним, встала обратно сама. Окно, достроенное
+        // под бросок за край, снимается здесь: без сдвига держать его нечем.
+        if (extended) onReach?.(null);
       })
       .finally(() => {
         // Сдвиг снимается после ответа, а не до него: снятый сразу, он вернул

@@ -112,6 +112,13 @@ export function PlanApproval({
             </>
           )}
         </p>
+        {/* Отказ — здесь же, где нажали: карточка не сворачивается по отказу
+            (свернуть её — успех), и ошибка из ветки ниже сюда не доходила. */}
+        {mutation.error !== null && (
+          <span className="error" role="alert">
+            {t(errorKey(mutation.error))}
+          </span>
+        )}
         <span className="plan-reapprove__actions">
           <button
             type="button"

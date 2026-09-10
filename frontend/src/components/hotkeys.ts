@@ -33,7 +33,12 @@ export function isUndoChord(event: KeyboardEvent): boolean {
   if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return false;
   // `code`, а не только `key`: на русской раскладке та же клавиша даёт «я», и
   // сравнение с «z» молчало бы ровно там, где приложение и говорит по-русски.
-  return event.code === "KeyZ" || event.key.toLowerCase() === "z";
+  // Но `code` спрашивается только там, где `key` — не латинская буква: на
+  // немецкой раскладке физическая KeyZ даёт «y», и Ctrl+Y (у всех «вернуть»)
+  // отменял бы изменение вместо того, чтобы вернуть его.
+  const key = event.key.toLowerCase();
+  if (key === "z") return true;
+  return event.code === "KeyZ" && !/^[a-z]$/.test(key);
 }
 
 /**

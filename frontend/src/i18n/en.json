@@ -260,7 +260,18 @@
     "jira_url_invalid": "The Jira address is invalid",
     "jira_url_private": "The Jira address does not resolve to a public host",
     "proposal_nothing_to_push": "Nothing to move: the selected work items are already in the plan or have no estimate",
-    "proposal_value_out_of_range": "The conversion does not fit the allowed range: lower the estimates or rates"
+    "proposal_value_out_of_range": "The conversion does not fit the allowed range: lower the estimates or rates",
+    "export_empty_selection": "Pick at least one section to export",
+    "export_scale_too_wide": "This zoom produces too many pages — choose a coarser zoom or a narrower period",
+    "export_period_undated": "This period needs real dates — the plan has no start date yet",
+    "export_too_large": "The project is too large to export in one file",
+    "ai_rate_limited": "Too many AI requests — try again in a minute",
+    "ai_budget_exhausted": "The AI budget for this organization is spent for now",
+    "share_link_exists": "A public link already exists for this project",
+    "unknown_risk": "Unknown risk flag",
+    "unknown_operation": "Unknown operation",
+    "revision_not_found": "This change is not in the project history",
+    "plan_version_not_found": "Plan version not found"
   },
   "live": {
     "offline": "No connection to the server. Editing is unavailable",

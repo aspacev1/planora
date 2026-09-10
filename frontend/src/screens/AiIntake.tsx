@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import {
@@ -63,7 +63,13 @@ export function AiIntake() {
   });
 
   const failure =
-    start.error ?? reply.error ?? summarize.error ?? draft.error ?? apply.error ?? saveDraft.error;
+    start.error ??
+    reply.error ??
+    summarize.error ??
+    saveTheses.error ??
+    draft.error ??
+    apply.error ??
+    saveDraft.error;
 
   // Нет ключа — кнопки AI неактивны со ссылкой в настройки. Не спрятаны:
   // спрятанная кнопка не объясняет, почему интервью недоступно.
@@ -221,14 +227,26 @@ function DraftGate({
 }) {
   const { t } = useLocale();
   const [name, setName] = useState("");
+  // Рабочая копия черновика. Правки идут по ней, а не по пропсу: пропс —
+  // это ответ сервера на прошлую правку, и он приходит позже следующей. Две
+  // правки подряд — дата у одной задачи, имя у другой, — построенные каждая
+  // от пропса, стирали бы друг друга: вторая уходила бы без первой, а
+  // последний ответ ставил бы экран в состояние без неё.
+  const [work, setWork] = useState(draft);
+  useEffect(() => setWork(draft), [draft]);
+
+  const edit = (next: Draft) => {
+    setWork(next);
+    onSave(next);
+  };
 
   const patchTask = (
     categoryIndex: number,
     taskIndex: number,
     patch: Partial<Draft["categories"][number]["tasks"][number]>,
   ) =>
-    onSave({
-      categories: draft.categories.map((category, index) =>
+    edit({
+      categories: work.categories.map((category, index) =>
         index !== categoryIndex
           ? category
           : {
@@ -241,8 +259,8 @@ function DraftGate({
     });
 
   const dropTask = (categoryIndex: number, taskIndex: number) =>
-    onSave({
-      categories: draft.categories.map((category, index) =>
+    edit({
+      categories: work.categories.map((category, index) =>
         index !== categoryIndex
           ? category
           : { ...category, tasks: category.tasks.filter((_, position) => position !== taskIndex) },
@@ -254,8 +272,10 @@ function DraftGate({
       <h2>{t("ai.draft.title")}</h2>
       <p className="muted">{t("ai.draft.hint")}</p>
 
-      {draft.categories?.map((category, categoryIndex) => (
-        <fieldset key={category.name} className="settings__fieldset">
+      {/* Ключ — номер, а не имя: имена категориям даёт модель, и двум из них
+          ничто не мешает совпасть; правки же адресуются номерами. */}
+      {work.categories?.map((category, categoryIndex) => (
+        <fieldset key={categoryIndex} className="settings__fieldset">
           {/* Название категории — содержимое: пришло от модели на языке
               сессии и не переводится. */}
           <legend>{category.name}</legend>

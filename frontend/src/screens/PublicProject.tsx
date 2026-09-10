@@ -17,6 +17,7 @@ import type { PublicProjectState } from "../api/public";
 import { exportPublicProject } from "../api/export";
 import { CommentThread } from "../comments/CommentThread";
 import { IconDownload } from "../components/icons";
+import { ToastProvider } from "../components/toast";
 import { ExportDialog } from "../export/ExportDialog";
 import { LocaleSwitch } from "../components/LocaleSwitch";
 import { Gantt } from "../gantt/Gantt";
@@ -121,7 +122,11 @@ export function PublicProject() {
   }
 
   return (
-    <>
+    // Свои тосты, а не рама защищённых экранов (см. RequireAuth): у гостя рамы
+    // нет, а окно выгрузки говорит об отказе именно тостом. Без поставщика
+    // здесь отказ уходил в пустой обработчик, и «Скачать» просто ничего не
+    // делало — ни файла, ни слова о том, почему.
+    <ToastProvider>
       <PublicHeader title={project.data.org.name} projectId={project.data.id} />
 
       <main className="screen screen--wide">
@@ -179,7 +184,7 @@ export function PublicProject() {
           sendError={send.error}
         />
       </main>
-    </>
+    </ToastProvider>
   );
 }
 

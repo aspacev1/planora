@@ -6,6 +6,7 @@ import { Avatar } from "../components/Avatar";
 import { Field } from "../components/Field";
 import { formatShortDate, formatTime } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
+import { browserTimeZone, dayIn } from "../time/zone";
 import { rememberGuestName, storedGuestName } from "./guestName";
 
 import "./comments.css";
@@ -53,6 +54,11 @@ export function CommentThread({
   embedded?: boolean;
 }) {
   const { t, locale } = useLocale();
+  // Дата и время рядом обязаны считаться по одним часам: время — по часам
+  // машины (см. formatTime), и день берётся по ним же, а не обрезкой
+  // ISO-строки по UTC — иначе реплика в час ночи подписывалась вчерашним
+  // числом с сегодняшним временем.
+  const zone = browserTimeZone();
   const [body, setBody] = useState("");
   // Имя подтягивается из браузера сразу: гость, уже назвавшийся однажды,
   // не должен вводить его снова под каждой репликой.
@@ -96,7 +102,7 @@ export function CommentThread({
                 {/* Дата и время: в разговоре за один день дата без времени не
                     различает реплики вовсе. */}
                 <span className="muted">
-                  {formatShortDate(t, comment.created_at)}
+                  {formatShortDate(t, dayIn(zone, new Date(comment.created_at)))}
                   {" · "}
                   {formatTime(locale, new Date(comment.created_at))}
                 </span>

@@ -77,10 +77,9 @@ export function useProjectMutation(projectId: string) {
       // неизвестно насколько, и операция ляжет поверх чужих правок вслепую.
       if (blocked) throw new ApiError(OFFLINE_ERROR_CODE, 0);
 
-      // Снимок берётся здесь, непосредственно перед применением, а не один раз
-      // при монтировании: иначе откат второго изменения возвращает состояние к
-      // тому, что было до первого, и стирает его заодно.
-      const snapshot = queryClient.getQueryData<ProjectState>(key);
+      // Состояние, по которому решается, нужна ли причина. Это ещё не снимок
+      // для отката: тот берётся ниже, перед самым применением.
+      const before = queryClient.getQueryData<ProjectState>(key);
 
       // Причина спрашивается до всякого показа. Это не забота об аккуратности
       // кода, а само правило раздела 5: изменение не применяется, пока причина
@@ -88,8 +87,8 @@ export function useProjectMutation(projectId: string) {
       // системе не существует — в том числе на те полсекунды, пока человек
       // читает окно.
       let reason = options?.reason;
-      if (reason === undefined && snapshot && askReason) {
-        const request = shiftNeedingReason(snapshot, op);
+      if (reason === undefined && before && askReason) {
+        const request = shiftNeedingReason(before, op);
         if (request) {
           const answer = await askReason(request);
           if (answer === null) throw new ShiftCancelled();
@@ -98,6 +97,15 @@ export function useProjectMutation(projectId: string) {
       }
 
       const commit = async (withReason: string | undefined): Promise<Revision> => {
+        // Снимок берётся здесь, непосредственно перед применением, а не один
+        // раз при монтировании и не до окна с причиной. Первое — чтобы откат
+        // второго изменения не возвращал к состоянию до первого. Второе —
+        // потому что, пока окно открыто, состояние успевает смениться: сосед
+        // подвинул задачу, проект перезапросился, — и снимок, взятый до окна,
+        // накрыл бы его правку своей копией, а откат на отказе вернул бы
+        // вкладку в прошлое без единого перезапроса.
+        const snapshot = queryClient.getQueryData<ProjectState>(key);
+
         // Показ идёт синхронно. Жест обязан отозваться в том же кадре, в
         // котором его сделали; отложенный на микрозадачу показ — это уже
         // заметное запаздывание под пальцем.
@@ -136,10 +144,10 @@ export function useProjectMutation(projectId: string) {
         // утвердить только что. Спрашиваем причину и повторяем один раз — а не
         // показываем человеку отказ с машинным кодом, на который он всё равно
         // ответит тем же жестом.
-        if (!isReasonRequired(error) || reason !== undefined || !askReason || !snapshot) {
+        if (!isReasonRequired(error) || reason !== undefined || !askReason || !before) {
           throw error;
         }
-        const answer = await askReason(refusalRequest(snapshot, op, error));
+        const answer = await askReason(refusalRequest(before, op, error));
         if (answer === null) throw new ShiftCancelled();
         return commit(answer);
       }

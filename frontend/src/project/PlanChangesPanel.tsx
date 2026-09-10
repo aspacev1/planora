@@ -11,6 +11,8 @@ import { useEscape } from "../components/useEscape";
 import { relativeDayLabel } from "../gantt/relative";
 import { formatDate, formatShortDate } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
+import { useTimeZone } from "../time/useToday";
+import { dayIn } from "../time/zone";
 import { planChanges, removedTasks } from "./planChanges";
 import type { PlanChange } from "./planChanges";
 
@@ -28,7 +30,9 @@ import "./planChanges.css";
  * ищутся среди них, потому что причину спрашивают именно за уход от базового
  * плана, а переименование или смена статуса её не требуют и не имеют.
  */
-const DATE_OPS = ["move_task", "set_duration", "resize_task", "move_category"];
+// Веха тоже здесь: она схлопывает длительность до дня, и сервер спрашивает
+// причину за это так же, как за растяжение (см. `_guard_shift_threshold`).
+const DATE_OPS = ["move_task", "set_duration", "resize_task", "move_category", "set_milestone"];
 
 type GroupKey = "shifts" | "durations" | "added" | "removed";
 
@@ -71,6 +75,7 @@ export function PlanChangesPanel({
 }) {
   const { t } = useLocale();
   const [group, setGroup] = useState<GroupKey | "all">("all");
+  const zone = useTimeZone(state.settings?.timezone);
 
   // Летопись версий — ради имён удалённых задач и имени согласовавшего. Ключ
   // тот же, что у ленты истории: она уже могла её загрузить, и второй раз
@@ -148,7 +153,12 @@ export function PlanChangesPanel({
             дате. */}
         {state.plan_approved_at && (
           <p className="plan-changes__since">
-            {t("plan.changes_since", { date: formatDate(t, state.plan_approved_at.slice(0, 10)) })}
+            {t("plan.changes_since", {
+              // Сутки читателя, а не сервера: обрезка ISO-строки давала день
+              // по UTC, и согласование в час ночи датировалось вчерашним
+              // числом — тем же, что и лента истории, только та считает верно.
+              date: formatDate(t, dayIn(zone, new Date(state.plan_approved_at))),
+            })}
             {/* Имя человека — содержимое пользователя: без перевода. */}
             {approvedBy && <span className="muted"> · {approvedBy.name}</span>}
           </p>

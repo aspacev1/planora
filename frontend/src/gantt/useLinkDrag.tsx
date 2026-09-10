@@ -125,13 +125,34 @@ export function useLinkDrag({
       event.preventDefault();
       finish();
     };
+    // Отпускание слушает и окно, а не только кружок: кружок держит захват
+    // указателя, но узел с захватом может исчезнуть посреди жеста — сосед
+    // удалил задачу, и строка ушла вместе с кружком. Отпускание тогда
+    // приходит окну, и без этого слушателя связь оставалась бы «в руке»:
+    // линия на экране, а кадр подкачки крутился бы до следующего нажатия.
+    // На кружке своё отпускание срабатывает раньше и обнуляет жест — здесь
+    // тогда уже нечего делать.
+    window.addEventListener("pointerup", abandon);
     window.addEventListener("pointercancel", abandon);
     window.addEventListener("keydown", onKeyDown);
     return () => {
+      window.removeEventListener("pointerup", abandon);
       window.removeEventListener("pointercancel", abandon);
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [active, finish]);
+
+  // Лента ушла посреди жеста — кадр подкачки и подсветку цели надо снять
+  // руками: обработчикам кружка размонтированный узел ничего не пришлёт.
+  useEffect(
+    () => () => {
+      from.current?.scroll.stop();
+      from.current = null;
+      hovered.current?.classList.remove(TARGET_CLASS);
+      hovered.current = null;
+    },
+    [],
+  );
 
   const link = (sourceId: string, side: LinkSide, targetId: string) => {
     // За правый кружок тянут «эта задача блокирует ту», за левый — «эту

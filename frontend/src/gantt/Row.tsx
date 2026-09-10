@@ -599,17 +599,24 @@ export function TaskRow({
   // ячейка не заводит своего способа менять срок, она вызывает уже
   // существующий. Отказ откатывает `apply`, и ячейка возвращается к правде
   // сама — своего состояния «не сохранилось» у неё нет.
+  // День проекта считается с первого: нулевой и отрицательный — не дата, а
+  // середина набора или опечатка, и превращать их в дату до начала оси (см.
+  // RELATIVE_EPOCH) значило бы увести полоску за левый край ленты.
+  const projectDay = (value: string): string | null => {
+    const day = Number(value);
+    return Number.isInteger(day) && day >= 1 ? dateOfProjectDay(day, format.anchor) : null;
+  };
   const edit = {
     start: (value: string) => {
-      const start = format.relative ? dateOfProjectDay(Number(value), format.anchor) : value;
-      if (start === task.start_date) return;
+      const start = format.relative ? projectDay(value) : value;
+      if (start === null || start === task.start_date) return;
       void apply({ type: "move_task", task_id: task.id, start_date: start }, (state) =>
         patchTask(state, task.id, { start_date: start }),
       ).catch(() => {});
     },
     end: (value: string) => {
-      const finish = format.relative ? dateOfProjectDay(Number(value), format.anchor) : value;
-      if (finish < task.start_date) return;
+      const finish = format.relative ? projectDay(value) : value;
+      if (finish === null || finish < task.start_date) return;
       const duration_days = Math.max(1, workingDaysBetween(task.start_date, finish, calendar));
       if (duration_days === task.duration_days) return;
       void apply({ type: "set_duration", task_id: task.id, duration_days }, (state) =>

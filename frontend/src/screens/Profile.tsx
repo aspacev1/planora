@@ -67,7 +67,11 @@ export function Profile() {
               : t("settings.profile.timezone_auto")
           }
           value={user.timezone}
-          onChange={(timezone) => save.mutate({ timezone })}
+          // Через ту же отправку полей, что и имя: отказ сервера иначе был
+          // бы немым — список возвращался к прежнему поясу, и человек не
+          // понимал, почему выбор не удержался.
+          save={saves.at("profile-timezone")}
+          onChange={(timezone) => saves.commit("profile-timezone", { timezone })}
         />
 
         <p className="field">
