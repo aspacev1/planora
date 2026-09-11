@@ -1,13 +1,14 @@
-/* Лента истории проекта — вкладка «История».
+/* The project's history feed — the "History" tab.
 
-   Рисунок — вертикальный таймлайн: узел дня слева, от него вниз спица, справа
-   от спицы — карточки событий. Карточка, а не строка: у записи три разнородных
-   части — значок рода события, фраза с подписью и время с кнопкой, — и без
-   собственной рамки их колонки не за что выровнять.
+   The drawing is a vertical timeline: the day's node on the left, a spoke running down
+   from it, and event cards to the right of the spoke. A card rather than a row: an entry
+   has three heterogeneous parts — the event kind's icon, the phrase with its signature,
+   and the time with a button — and without a frame of its own there is nothing to align
+   their columns against.
 
-   Одна колонка ограниченной ширины: ленту читают, а не сканируют, и строка на
-   всю ширину диаграммного экрана заставляла бы глаз прыгать от фразы к времени
-   через пол-экрана пустоты. */
+   One column of bounded width: the feed is read rather than scanned, and a row spanning
+   the whole chart screen would make the eye jump from the phrase to the time across half
+   a screen of emptiness. */
 
 .feed {
   max-width: 760px;
@@ -29,12 +30,12 @@
   color: var(--text-muted);
 }
 
-/* --- день --- */
+/* --- the day --- */
 
-/* Отступ слева — под узел дня: карточки начинаются правее спицы. Спица —
-   псевдоэлементом от узла вниз; отрицательный низ дотягивает её через
-   межсекционный просвет до узла следующего дня, чтобы таймлайн читался одной
-   нитью, а не пунктиром по числу дней. */
+/* The left indent makes room for the day's node: the cards begin to the right of the
+   spoke. The spoke is a pseudo-element running down from the node; a negative bottom
+   stretches it through the inter-section gap to the next day's node, so that the timeline
+   reads as one thread rather than as a dashed line broken by the number of days. */
 .feed__day {
   position: relative;
   margin-bottom: var(--space-24);
@@ -51,7 +52,7 @@
   background: var(--border-strong);
 }
 
-/* У последнего дня спице некуда вести. */
+/* On the last day the spoke has nowhere to lead. */
 .feed__day:last-of-type::before {
   display: none;
 }
@@ -60,7 +61,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-8);
-  /* Узел выезжает влево, на линию спицы: заголовок дня стоит в её колонке. */
+  /* The node moves out to the left, onto the spoke's line: the day's heading stands in its column. */
   margin: 0 0 var(--space-12) -48px;
 }
 
@@ -78,8 +79,8 @@
   font-weight: 700;
 }
 
-/* Сегодняшний узел — акцентом: «вы здесь» на нити времени, тем же цветом,
-   каким приложение говорит это во всех остальных местах. */
+/* Today's node takes the accent colour: "you are here" on the thread of time, in the same
+   colour the application says that everywhere else. */
 .feed__day--today .feed__day-dot {
   border-color: transparent;
   background: var(--accent-soft);
@@ -92,7 +93,7 @@
   font-weight: 700;
 }
 
-/* --- карточка события --- */
+/* --- an event card --- */
 
 .feed__list {
   list-style: none;
@@ -127,9 +128,9 @@
   align-self: center;
 }
 
-/* Значок — квадратная плитка с глифом шрифта, тон парой «мягкий фон + густой
-   знак». Тёмные оттенки знака — те же, что у плашек статуса и состояния плана:
-   светлые --ok и --warn на своих подложках не набирают контраста текста. */
+/* The icon is a square tile with a font glyph, toned as a "soft background + dense sign"
+   pair. The dark shades of the sign are the same as on the status and plan-state chips:
+   the light --ok and --warn do not reach text contrast on their backings. */
 .feed__icon {
   display: grid;
   place-items: center;
@@ -169,10 +170,10 @@
   color: var(--text-muted);
 }
 
-/* Правая колонка: время у верхнего края карточки, под ним — кнопка отмены,
-   когда она есть. Кнопка видна всегда, а не по наведению, как в макете: она
-   стоит у единственной записи, которую сервер согласен отменить, и прятать
-   один-единственный орган управления ленты — терять его вовсе. */
+/* The right column: the time at the card's top edge, and beneath it the undo button when
+   there is one. The button is always visible rather than appearing on hover as in the
+   mockup: it stands on the one entry the server agrees to undo, and hiding the feed's one
+   and only control means losing it altogether. */
 .feed__tools {
   display: flex;
   flex-direction: column;
@@ -182,24 +183,24 @@
 
 .feed__time {
   margin-top: var(--space-2);
-  /* Приглушённо, но не faint: время события — данные, и на белом им нужен
-     контраст текста, а не декорации. */
+  /* Muted but not faint: an event's time is data, and on white it needs text contrast
+     rather than decoration. */
   color: var(--text-muted);
   font-size: 12px;
   white-space: nowrap;
 }
 
-/* Своего роста «Отменить» в ленте не задаётся: 28 пикселей отличались от
-   общей кнопочной меры на один, и рядом с «Показать ещё» разница читалась
-   опечаткой, а не решением. */
+/* "Undo" in the feed is not given a height of its own: 28 pixels differed from the shared
+   button measure by one, and next to "Show more" the difference read as a typo rather than
+   as a decision. */
 
-/* Причина — текст человека: выделяется курсивом, а не кавычками интерфейса. */
+/* The reason is a person's text: it is set in italics rather than in the interface's quotes. */
 .feed__reason {
   font-style: italic;
 }
 
-/* Отменённая запись гаснет, но остаётся читаемой: история не переписывается,
-   и «что пытались сделать» — тоже её часть. */
+/* An undone entry dims but stays readable: history is not rewritten, and "what was
+   attempted" is part of it too. */
 .feed__item--undone .feed__line {
   text-decoration: line-through;
   color: var(--text-muted);
@@ -221,7 +222,7 @@
   color: var(--text-muted);
 }
 
-/* --- пачка --- */
+/* --- a batch --- */
 
 .feed__toggle {
   border: none;
@@ -234,16 +235,16 @@
   transition: color var(--motion-fast) var(--motion-ease);
 }
 
-/* Ссылка внутри строки сводки: под курсором меняет цвет, а не обрастает
-   заливкой — заливка в наборе текста рисует объект там, где его нет. */
+/* A link inside a summary line changes colour under the cursor rather than growing a fill
+   — a fill inside running text draws an object where there is none. */
 .feed__toggle:hover,
 .feed__toggle:focus-visible {
   color: var(--accent);
 }
 
-/* Вложенный список раскрытой пачки: сдвиг вместо рамки — записи те же,
-   просто их скобка видна по отступу. Своих плиток у них нет: род каждой
-   мелкой записи внутри пачки не стоит тридцати повторов значка. */
+/* The nested list of an expanded batch: an indent instead of a frame — the entries are the
+   same, their bracket is simply visible from the indent. They have no tiles of their own:
+   the kind of each small entry inside a batch is not worth thirty repetitions of an icon. */
 .feed__list--nested {
   margin-top: var(--space-12);
   padding-left: var(--space-16);
@@ -255,10 +256,10 @@
   margin-top: var(--space-2);
 }
 
-/* --- веха --- */
+/* --- a milestone --- */
 
-/* Веха — флажок поперёк ленты, не запись: зелёная целиком, без кнопок.
-   Кайма — тоном плашки согласованного плана: это одно и то же событие. */
+/* A milestone is a flag across the feed rather than an entry: green throughout, with no
+   buttons. The border takes the tone of the agreed plan's chip: this is the same event. */
 .feed__milestone {
   border-color: #bde5ce;
   background: var(--ok-soft);
@@ -269,7 +270,7 @@
   font-weight: 650;
 }
 
-/* --- край ленты --- */
+/* --- the feed's edge --- */
 
 .feed__empty {
   padding: var(--space-32) var(--space-24);
@@ -279,19 +280,19 @@
   text-align: center;
 }
 
-/* «Показать ещё» встаёт в колонну карточек, а не под узлы дней. */
+/* "Show more" stands in the column of cards rather than under the day nodes. */
 .feed__more {
   margin: var(--space-16) 0 0 var(--space-48);
 }
 
-/* --- теснота --- */
+/* --- tight quarters --- */
 
 @media (max-width: 760px) {
   .feed__day { padding-left: var(--space-24); }
   .feed__day::before { left: 8px; }
   .feed__day-head { margin-left: -24px; }
 
-  /* Узел сжимается до точки: номер дня уже есть в заголовке рядом. */
+  /* The node shrinks to a dot: the day's number is already in the heading beside it. */
   .feed__day-dot {
     width: 17px;
     height: 17px;
@@ -299,14 +300,14 @@
     font-size: 0;
   }
 
-  /* Без номера мягкая заливка «сегодня» сливается со страницей: точке нужен
-     сплошной акцент, чтобы остаться отметкой «вы здесь». */
+  /* Without a number the soft "today" fill merges with the page: a dot needs a solid accent
+     to remain a "you are here" mark. */
   .feed__day--today .feed__day-dot {
     background: var(--accent);
   }
 
-  /* Правой колонке не хватает ширины: время и отмена уходят под фразу,
-     время — к правому краю своей строки. */
+  /* The right column is short of width: the time and the undo move below the phrase, with
+     the time at the right edge of its line. */
   .feed__card { grid-template-columns: 30px minmax(0, 1fr); }
   .feed__icon { width: 30px; height: 30px; border-radius: 9px; font-size: 14px; }
 

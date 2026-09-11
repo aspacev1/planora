@@ -1,7 +1,7 @@
-/* Вкладка «Scorecard». Правило то же, что у остальных модулей: селекторы
-   скоркарда живут только здесь. Цвета статусов — токены Northstar-темы
-   (--ok / --warn / --danger): сигналы по людям обязаны совпадать по цвету со
-   статусами ленты, и второй набор значений разошёлся бы с темой. */
+/* The "Scorecard" tab. The rule is the same as with the other modules: the
+   scorecard's selectors live only here. The status colours are Northstar theme tokens
+   (--ok / --warn / --danger): the per-person signals must match the chart's statuses in
+   colour, and a second set of values would diverge from the theme. */
 
 .scorecard {
   display: flex;
@@ -47,7 +47,7 @@
   cursor: default;
 }
 
-/* --- три числа проекта --- */
+/* --- the project's three figures --- */
 
 .scorecard-stats {
   display: grid;
@@ -109,10 +109,10 @@
   white-space: nowrap;
 }
 
-/* --- команда --- */
+/* --- the team --- */
 
-/* Таблица шире окна уезжает в собственную прокрутку, а не ломает колонки —
-   тем же приёмом, что таблица сметы. */
+/* A table wider than the window moves into a scroll of its own rather than breaking the
+   columns — by the same technique as the budget's table. */
 .scorecard-table__scroll {
   overflow-x: auto;
   border: 1px solid var(--border);
@@ -195,7 +195,7 @@
   font-size: 12px;
 }
 
-/* «Сверх плана» — чипом акцента: это работа, которой в обещании не было. */
+/* "Beyond the plan" is an accent chip: this is work that was not in the promise. */
 .scorecard-pace__nums .scorecard-pace__extra {
   display: inline-flex;
   align-items: center;
@@ -252,7 +252,7 @@
   font-weight: 600;
 }
 
-/* Сигнал: точка для взгляда, причина для разговора. */
+/* The signal: a dot for the eye, a reason for the conversation. */
 .scorecard-signal {
   display: inline-flex;
   align-items: center;
@@ -289,8 +289,8 @@
   font-weight: 600;
 }
 
-/* Тренд: по столбику на неделю, без библиотек. Высота нормируется на максимум
-   окна — столбики показывают форму ряда, число стоит в подсказке. */
+/* The trend: one bar per week, with no libraries. The height is normalized to the
+   window's maximum — the bars show the shape of the series, the number is in the tooltip. */
 .scorecard-trend {
   display: inline-flex;
   align-items: flex-end;
@@ -341,7 +341,7 @@
   text-align: center;
 }
 
-/* --- раскрытая строка: задачи недели --- */
+/* --- an expanded row: the week's tasks --- */
 
 .scorecard-drill td {
   background: var(--bg-subtle);

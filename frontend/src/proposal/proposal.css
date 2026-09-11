@@ -1,10 +1,10 @@
 /*
- * Смета: одна таблица работ слева, карточка итогов справа.
+ * The budget: one table of works on the left, a totals card on the right.
  *
- * Раскладка та же, что у ленты с карточкой задачи: работа — слева, сводка —
- * узкой колонкой. Итоги не прячутся в подвал таблицы намеренно: вопрос
- * «сколько всего» задают, не дочитав смету, и ответ обязан быть виден без
- * прокрутки.
+ * The layout is the same as the chart with the task card: the work on the left, the
+ * summary in a narrow column. The totals deliberately do not hide in the table's footer:
+ * the question "how much in total" is asked before the budget has been read through, and
+ * the answer must be visible without scrolling.
  */
 
 .proposal {
@@ -18,10 +18,10 @@
   min-width: 0;
 }
 
-/* Шапка сметы — одной строкой над таблицей: слева этапы сделки, справа
-   параметры. Параметры сложены в поповер: единица, норма часов, налог и
-   валюта нужны раз в проект, а четыре поля на виду спорили бы с таблицей за
-   первый взгляд. */
+/* The budget's header is one row above the table: the deal's stages on the left, the
+   parameters on the right. The parameters are folded into a popover: the unit, the hours
+   norm, the tax and the currency are needed once per project, and four fields on show
+   would compete with the table for the first glance. */
 .proposal__toolbar {
   display: flex;
   align-items: center;
@@ -31,11 +31,11 @@
   margin-bottom: var(--space-16);
 }
 
-/* --- Пустое состояние ---------------------------------------------------- */
+/* --- The empty state ------------------------------------------------------ */
 
-/* Один экран вместо таблицы без строк: объяснение, три шага, два старта.
-   Ширина ограничена строкой текста, а не экраном: абзац на всю ширину
-   монитора не читается, а карточки старта шире ладони не становятся лучше. */
+/* One screen instead of a table with no rows: an explanation, three steps, two starts.
+   The width is bounded by a line of text rather than by the screen: a paragraph spanning a
+   whole monitor does not read, and start cards wider than a palm do not get better. */
 .proposal--start .proposal__main {
   max-width: 720px;
 }
@@ -44,8 +44,8 @@
   padding: var(--space-8) 0 var(--space-24);
 }
 
-/* Надзаголовок — название вкладки капителью, как подпись раздела: он не
-   заголовок, а место, где мы находимся. */
+/* The eyebrow is the tab's name in small caps, like a section label: it is not a heading
+   but the place where we are. */
 .proposal-start__eyebrow {
   margin: 0 0 var(--space-6);
   font-size: 11px;
@@ -71,8 +71,9 @@
   color: var(--text-muted);
 }
 
-/* Три шага в ряд, нумерация — счётчиком, а не цифрой в тексте: порядок
-   шагов задаёт разметка, и словарь не обязан помнить, какой из них третий. */
+/* Three steps in a row, numbered by a counter rather than by a digit in the text: the
+   order of the steps is set by the markup, and the dictionary need not remember which of
+   them is the third. */
 .proposal-start__steps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -122,10 +123,10 @@
   margin-bottom: var(--space-20);
 }
 
-/* Карточка старта — кнопка, выглядящая карточкой: заголовок и пояснение в
-   столбик, текст по левому краю. Базовое правило кнопок задаёт ей высоту
-   поля и подпись в одну строку — здесь всё это снимается: пояснение
-   переносится по словам, и высота идёт от него. */
+/* A start card is a button that looks like a card: a heading and an explanation stacked,
+   the text flush left. The base button rule gives it a field's height and a single-line
+   label — all of that is removed here: the explanation wraps by words, and the height
+   follows from it. */
 .proposal-start__card {
   display: flex;
   flex-direction: column;
@@ -150,8 +151,8 @@
   color: var(--text);
 }
 
-/* Приглушённая, а не спрятанная: карточка сборки при пустом плане остаётся
-   на месте и объясняет, чего ждёт. */
+/* Muted rather than hidden: the assembly card stays in place with an empty plan and
+   explains what it is waiting for. */
 .proposal-start__card:disabled,
 .proposal-start__card:disabled:hover {
   border-color: var(--border);
@@ -178,9 +179,9 @@
   margin: 0 0 var(--space-20);
 }
 
-/* Строка параметров — той же кнопкой-поповером, что стоит в тулбаре таблицы
-   (ProposalParams): до первой строки сметы параметры трогают редко, и четыре
-   поля на виду спорили бы с карточками за внимание. */
+/* The parameters row uses the same popover button that stands in the table's toolbar
+   (ProposalParams): before the budget's first row the parameters are rarely touched, and
+   four fields on show would compete with the cards for attention. */
 .proposal-start__settings {
   display: flex;
   flex-wrap: wrap;
@@ -190,8 +191,9 @@
   color: var(--text-muted);
 }
 
-/* Панель раскрывается от левого края кнопки, а не от правого: кнопка стоит в
-   начале строки, и панель, прижатая вправо, уезжала бы за край экрана. */
+/* The panel opens from the button's left edge rather than from its right: the button
+   stands at the start of the row, and a panel pinned to the right would ride off the
+   screen's edge. */
 .proposal-start__settings .menu__pop {
   right: auto;
   left: 0;
@@ -204,7 +206,7 @@
   }
 }
 
-/* --- Этапы сделки --------------------------------------------------------- */
+/* --- The deal's stages ----------------------------------------------------- */
 
 .stepper {
   display: flex;
@@ -219,9 +221,9 @@
   gap: var(--space-8);
 }
 
-/* Пройденный этап — кнопка возврата к нему: снять отметку можно тем же
-   движением, каким её поставили. Без кнопочной рамки и роста: это подпись
-   этапа, а не действие при содержимом. */
+/* A passed stage is a button for going back to it: the mark can be cleared with the same
+   movement that set it. With no button border and no button height: this is a stage's
+   label rather than an action on content. */
 .stepper__back {
   height: auto;
   padding: var(--space-2) var(--space-4);
@@ -308,8 +310,8 @@
   background: var(--accent);
 }
 
-/* Действия справа от этапов: шаг сделки и перенос в план, в один ряд. Оба
-   могут стоять тихими — тогда их разводит зазор, а не рамка. */
+/* The actions to the right of the stages: the deal's step and the carry-across into the
+   plan, in one row. Both may stand quiet — then a gap parts them rather than a border. */
 .stepper__actions {
   display: inline-flex;
   align-items: center;
@@ -317,7 +319,7 @@
   margin-left: var(--space-16);
 }
 
-/* --- Параметры в поповере ------------------------------------------------- */
+/* --- The parameters in a popover ------------------------------------------- */
 
 .proposal-params .menu__pop {
   min-width: 320px;
@@ -341,10 +343,10 @@
   color: var(--text-muted);
 }
 
-/* --- Подсказки и оценка в ячейках ---------------------------------------- */
+/* --- Hints and estimates in cells ----------------------------------------- */
 
-/* Подсказка в пустой ячейке: тише значения и с пунктиром, как поле, в
-   которое пишут, — прочерк говорил бы «пусто», а не «сюда». */
+/* A hint in an empty cell: quieter than a value and with a dashed line, like a field
+   that is typed into — a dash would say "empty" rather than "here". */
 .cell-value--hint {
   color: var(--text-faint);
   text-decoration: underline dashed;
@@ -352,8 +354,8 @@
   text-underline-offset: 3px;
 }
 
-/* Оценка в единице сметы и рядом — в другой, мелко: обе нужны, но одна из
-   них главная, и вторая не должна читаться как ещё одна колонка. */
+/* The estimate in the budget's unit and, beside it, in another, small: both are needed,
+   but one of them is the main one, and the second must not read as one more column. */
 .proposal-estimate {
   display: inline-flex;
   align-items: baseline;
@@ -372,10 +374,10 @@
   white-space: nowrap;
 }
 
-/* --- Заведение строк прямо в таблице ------------------------------------- */
+/* --- Creating rows right in the table ------------------------------------- */
 
-/* «+ Добавить работу в „…“» в конце раздела и «+ Новый раздел» внизу — как
-   в ленте: у каждого уровня списка свой плюс, и кнопок в тулбаре не нужно. */
+/* "+ Add work to '...'" at the end of a section and "+ New section" at the bottom — as on
+   the chart: every level of the list has its own plus, and no toolbar buttons are needed. */
 .proposal-row--add td {
   padding: 0;
 }
@@ -386,8 +388,8 @@
   gap: var(--space-6);
   width: 100%;
   height: 36px;
-  /* Знак в столбце шеврона своего уровня, подпись — в колонке имён того же
-     уровня (см. `.gantt__add`): поле ячейки плюс ступень вложенности. */
+  /* The sign in the chevron column of its own level, the label in the name column of the
+     same level (see `.gantt__add`): the cell's padding plus the nesting step. */
   padding: 0 var(--space-12) 0 calc(var(--space-12) + var(--row-indent));
   background: transparent;
   border: 0;
@@ -421,7 +423,7 @@
   color: var(--accent);
 }
 
-/* Строка ввода: четыре поля в ряд на подложке цвета действия. */
+/* The input row: four fields in a row on a backing in the action colour. */
 .proposal-entry td {
   padding: var(--space-8) var(--space-12);
   background: var(--accent-soft);
@@ -460,7 +462,7 @@
   font-weight: 620;
 }
 
-/* Подсказки ролей — списком под полем роли, как меню. */
+/* Role suggestions come as a list beneath the role field, like a menu. */
 .proposal-suggest {
   position: absolute;
   top: 34px;
@@ -508,12 +510,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* --- Таблица работ ------------------------------------------------------- */
+/* --- The table of works --------------------------------------------------- */
 
-/* Берега таблицы: она уезжает вбок внутри них, а не под карточку итогов.
-   Шесть колонок — имя, описание и четыре числа — ужимаются до предела и
-   дальше не ужимаются, и на узком экране кто-то обязан уступить. Уступает
-   прокрутка, а не колонка цены. */
+/* The table's banks: it rides sideways within them rather than under the totals card.
+   Six columns — the name, the description and four figures — shrink to their limit and
+   shrink no further, and on a narrow screen somebody has to give way. What gives way is
+   the scroll rather than the price column. */
 .proposal-table__scroll {
   overflow-x: auto;
 }
@@ -553,15 +555,15 @@
   background: var(--hover);
 }
 
-/* Строка раздела — заголовок группы со сводкой: чуть подкрашена, чтобы
-   границы разделов читались при беглом просмотре. */
+/* A section row is a group heading with a summary: slightly tinted, so that the sections'
+   boundaries read at a glance. */
 .proposal-row--category {
   background: var(--bg-subtle);
 }
 
-/* Колонка имени: шеврон, само имя и знаки действий, прижатые к правому краю
-   колонки. Флексом на всю ширину ячейки, а не по содержимому: иначе знаки
-   вставали бы вплотную к имени и на каждой строке на своём месте. */
+/* The name column: the chevron, the name itself and the action signs pressed to the
+   column's right edge. As a flex across the cell's full width rather than by content:
+   otherwise the signs would stand flush against the name, each in its own place on every row. */
 .proposal-row__name {
   display: flex;
   align-items: center;
@@ -569,34 +571,34 @@
   min-width: 0;
 }
 
-/* Само имя занимает всё свободное место: оно и обрезается многоточием, когда
-   не влезло, а не раздвигает соседние колонки.
+/* The name itself takes all the free space: it is what gets truncated with an ellipsis
+   when it does not fit, rather than pushing the neighbouring columns apart.
 
-   Но не уже нижней границы: обрезаемое имя браузер считает сжимаемым до нуля,
-   и колонка работ отдавала бы всю ширину описанию — от названий оставалось бы
-   «Диз…». Порог держит колонку читаемой, а многоточие достаётся только тем
-   именам, которые и правда длиннее её. */
+   But not narrower than its lower bound: a truncatable name is considered shrinkable to
+   zero by the browser, and the works column would give all its width to the description —
+   of the titles only "Des..." would be left. The bound keeps the column readable, and the
+   ellipsis goes only to the names that really are longer than it. */
 .proposal-row__field {
   flex: 1;
   min-width: 100px;
 }
 
-/* Работы отступают под свой раздел: столбец шеврона с просветом, где стоит
-   имя раздела, плюс ступень вложенности — те же меры, что у задачи на ленте
-   (см. `--gantt-indent`), чтобы «как в ленте» значило «так же». */
+/* The works are indented under their section: the chevron column with its gap, where the
+   section's name stands, plus a nesting step — the same measurements as a task on the
+   chart (see `--gantt-indent`), so that "as on the chart" means "the same". */
 .proposal-row__name--task {
   padding-left: calc(var(--row-chevron) + var(--space-6) + var(--row-indent));
 }
 
-/* Имя раздела — того же начертания, что и его сумма: это заголовок группы, а
-   не значение отдельной работы. Как строка категории в ленте. Описание рядом
-   полужирным не набирается: это по-прежнему пояснение, а не заголовок. */
+/* A section's name is in the same weight as its sum: this is a group heading rather than
+   the value of an individual work. Like a category row on the chart. The description
+   beside it is not set semibold: it is still an explanation rather than a heading. */
 .proposal-row--category .proposal-row__field .cell-value {
   font-weight: 600;
 }
 
-/* Знаки действий молчат, пока на строку не навели, — общее правило строк
-   (components/rows.css) знает всё, кроме того, какая строка под курсором. */
+/* The action signs stay silent until the row is hovered — the shared row rule
+   (components/rows.css) knows everything except which row is under the cursor. */
 .proposal-row:hover .row-icon,
 .proposal-row:focus-within .row-icon,
 .proposal-row:hover .row-badge {
@@ -613,15 +615,15 @@ th.proposal-table__num {
   text-align: right;
 }
 
-/* Цена раздела — итог его строк, полужирным, как в макете. */
+/* A section's price is the total of its rows, semibold, as in the mockup. */
 .proposal-table__price {
   font-weight: 600;
 }
 
-/* Имя строки у читателя — кнопка, открывающая карточку, но не выглядящая
-   кнопкой: ни заливки, ни тени, ни высоты базовой — иначе каждое имя в
-   таблице стояло бы в собственной плашке. Геометрию берёт у ячейки рядом
-   (`cell-value`), чтобы таблица не съезжала на пиксель от прав смотрящего. */
+/* For a reader a row's name is a button that opens the card but does not look like a
+   button: no fill, no shadow, no base height — otherwise every name in the table would
+   stand in a chip of its own. It takes its geometry from the cell beside it
+   (`cell-value`), so that the table does not shift by a pixel with the viewer's permissions. */
 .proposal-row__open {
   width: 100%;
   height: auto;
@@ -644,31 +646,31 @@ th.proposal-table__num {
   max-width: 320px;
 }
 
-/* Описание переносится по словам, а не режется многоточием в одну строку:
-   таблица шириной в экран, и длинная фраза, не умеющая переноситься, отняла
-   бы место у всех колонок разом. Остальные ячейки — в одну строку, как в
-   ленте: имена и числа сравнивают взглядом сверху вниз. */
+/* The description wraps by words rather than being cut with an ellipsis on one line: the
+   table is a screen wide, and a long phrase that cannot wrap would take room from every
+   column at once. The other cells are single-line, as on the chart: names and figures are
+   compared by eye from top to bottom. */
 .proposal-table__desc .cell-value {
   white-space: normal;
   overflow: visible;
 }
 
-/* Вопрос перед удалением разворачивается на месте крестика — прямо в колонке
-   имени. Он длиннее любого знака рядом, поэтому набран мельче и переносится
-   по словам: иначе фраза о последствии растянула бы колонку на пол-таблицы. */
+/* The question before a deletion unfolds in the cross's place — right in the name column.
+   It is longer than any sign beside it, so it is set smaller and wraps by words: otherwise
+   a phrase about the consequence would stretch the column across half the table. */
 .proposal-row .plan__confirm {
   font-size: 12px;
   white-space: normal;
 }
 
-/* Число правится своим числом, а не подписью: в поле встаёт «2», а не «2д», и
-   выравнивание вправо остаётся тем же, каким было у значения. */
+/* A figure is edited by its own number rather than by its label: "2" goes into the field,
+   not "2d", and the right alignment stays as it was for the value. */
 .proposal-table__num .cell-input {
   text-align: right;
 }
 
-/* Поле новой строки — на всю ширину таблицы, как строка новой задачи в
-   ленте: пишут имя, остальное правится в карточке. */
+/* The new-row field spans the table's full width, like the new-task row on the chart: the
+   name is typed, and the rest is edited on the card. */
 .proposal-table__input {
   width: 100%;
   border: 0;
@@ -683,7 +685,7 @@ th.proposal-table__num {
   box-shadow: none;
 }
 
-/* --- Допущения и примечания ---------------------------------------------- */
+/* --- Assumptions and notes ------------------------------------------------ */
 
 .proposal-notes {
   margin-top: var(--space-20);
@@ -724,10 +726,10 @@ th.proposal-table__num {
   font-size: 13px;
 }
 
-/* --- Итоги --------------------------------------------------------------- */
+/* --- The totals ----------------------------------------------------------- */
 
-/* Ширина фиксированная: итоговая сумма не должна прыгать вправо-влево от
-   того, насколько длинны имена строк слева. */
+/* The width is fixed: the grand total must not jump left and right depending on how long
+   the row names on the left are. */
 .proposal-summary {
   width: 264px;
   flex-shrink: 0;
@@ -767,8 +769,8 @@ th.proposal-table__num {
   font-variant-numeric: tabular-nums;
 }
 
-/* Черта отделяет деньги от объёма: часы и дни — про работу, суммы — про
-   счёт, и читаются они разными вопросами. */
+/* A rule separates the money from the volume: hours and days are about the work, sums are
+   about the invoice, and they are read as different questions. */
 .proposal-summary__row--first {
   border-top: 1px solid var(--border);
   padding-top: var(--space-12);
@@ -789,8 +791,8 @@ th.proposal-table__num {
   gap: var(--space-6);
 }
 
-/* Код валюты — чипом у слова «Итого», как в макете: большая сумма без
-   валюты — это число, а не деньги. */
+/* The currency code is a chip by the word "Total", as in the mockup: a large sum without a
+   currency is a number rather than money. */
 .proposal-summary__currency {
   font-size: 10px;
   font-weight: 600;
@@ -801,18 +803,17 @@ th.proposal-table__num {
   padding: 1px var(--space-4);
 }
 
-/* Итоговая сумма — крупно и цветом действия: это ответ, ради которого
-   карточку и открывают. */
+/* The grand total is large and in the action colour: it is the answer the card is opened for. */
 .proposal-summary__amount {
   font-size: 22px;
   font-weight: 700;
   color: var(--accent);
 }
 
-/* Блок «Дальше»: что делать с предложением, когда итоги прочитаны. Отделён
-   чертой от чисел: вопрос «сколько» и вопрос «что теперь» — разные. Документ
-   для клиента — главная кнопка, перенос в план — тихая под ней; обе во всю
-   ширину карточки, как в макете. */
+/* The "Next" block: what to do with the proposal once the totals have been read. Separated
+   by a rule from the figures: "how much" and "what now" are different questions. The
+   document for the client is the primary button, the carry-across into the plan a quiet one
+   beneath it; both span the card's full width, as in the mockup. */
 .proposal-summary__next {
   display: flex;
   flex-direction: column;
@@ -838,8 +839,8 @@ th.proposal-table__num {
   box-sizing: border-box;
 }
 
-/* Ссылка-кнопка в цвете главной кнопки. Два класса в селекторе — чтобы
-   перевесить `.screen .button-link`, красящий ссылки-кнопки в тихий вид. */
+/* A link-button in the primary button's colour. Two classes in the selector — to outweigh
+   `.screen .button-link`, which paints link-buttons in the quiet look. */
 .proposal-summary .proposal-summary__pdf {
   background: var(--accent);
   color: var(--accent-text);
@@ -870,10 +871,10 @@ th.proposal-table__num {
   }
 }
 
-/* --- Отметка «в плане» ---------------------------------------------------- */
+/* --- The "in the plan" mark ------------------------------------------------ */
 
-/* Пилюля рядом с именем строки: ссылка на задачу плана. Зелёная, а не
-   акцентная: это состояние («сделано»), а не действие. */
+/* A pill next to a row's name: a link to the plan's task. Green rather than accented: this
+   is a state ("done") rather than an action. */
 .proposal-chip {
   flex: 0 0 auto;
   display: inline-flex;
@@ -907,7 +908,7 @@ th.proposal-table__num {
   color: var(--text-muted);
 }
 
-/* --- Окно переноса в план -------------------------------------------------- */
+/* --- The carry-across dialog ----------------------------------------------- */
 
 .push-pick {
   border: 1px solid var(--border);
@@ -931,7 +932,7 @@ th.proposal-table__num {
   font-weight: 600;
 }
 
-/* Строка отступает под свой раздел — на ширину его чекбокса с просветом. */
+/* A row is indented under its section — by the width of its checkbox plus the gap. */
 .push-pick__row {
   padding-left: var(--space-32);
 }
@@ -941,8 +942,8 @@ th.proposal-table__num {
   border-bottom: 0;
 }
 
-/* Выключенная строка — уже в плане или без оценки: сама не переносится и
-   читается тише, но остаётся в списке, иначе человек искал бы её. */
+/* A disabled row is already in the plan or has no estimate: it does not carry across on its
+   own and reads more quietly, but stays in the list, otherwise a person would go looking for it. */
 .push-pick__row--off {
   color: var(--text-faint);
   cursor: default;
@@ -971,8 +972,8 @@ th.proposal-table__num {
   color: var(--text-muted);
 }
 
-/* Подпись про отмену — в строке кнопок, справа: обещание относится к тому
-   действию, рядом с которым стоит. */
+/* The note about undoing goes in the button row, on the right: the promise relates to the
+   action it stands beside. */
 .push-dialog__hint {
   margin-left: auto;
   color: var(--text-muted);
