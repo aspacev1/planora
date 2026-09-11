@@ -1,10 +1,10 @@
-"""Выгрузка проекта в Excel и PDF.
+"""Exporting a project to Excel and PDF.
 
-Проверяется не «двести не пятьсот», а три обещания, ради которых работа
-затевалась: файл открывается своим приложением и содержит настоящие даты и
-числа; клиенту по ссылке не уезжает то, что ему не обещано; и число страниц
-ленты не растёт молча — правило масштаба отказывает раньше, чем соберёт
-неподъёмный документ.
+What is checked is not "a 200 rather than a 500" but the three promises the work was
+undertaken for: the file opens in its own application and contains real dates and
+numbers; nothing the client was not promised rides out to them through a link; and the
+number of chart pages does not grow silently — the scale rule refuses before it
+assembles an unmanageable document.
 """
 
 import io
@@ -43,8 +43,8 @@ def client(db):
 
 @pytest.fixture(autouse=True)
 def fresh_rate_limit(monkeypatch):
-    """Счётчик выгрузок живёт в памяти процесса: без сброса один тест доедал
-    бы окно следующего (тот же приём, что у гостевых комментариев)."""
+    """The export counter lives in the process's memory: without a reset one test would
+    eat into the next one's window (the same technique as with guest comments)."""
     import app.api.export_routes as export_routes
 
     monkeypatch.setattr(export_routes, "_limiter", None)
@@ -72,10 +72,9 @@ def _mutate(authed, project_id, op):
 
 def _make_project(authed, *, tasks=3, start=date(2026, 3, 2), duration=5, name="Redesign"):
     project_id = authed.post("/api/projects", json={"name": name}).json()["id"]
-    # Дата старта назначается до задач: в календарном режиме задача создаётся
-    # с настоящей датой, а в относительном — координатой на оси «День N», и
-    # привязка задним числом переразложила бы уже созданные задачи по
-    # рабочим дням.
+    # The start date is assigned before the tasks: in calendar mode a task is created with
+    # a real date, while in relative mode it is a coordinate on the "Day N" axis, and
+    # anchoring after the fact would re-lay the already created tasks across working days.
     anchored = authed.post(
         f"/api/projects/{project_id}/schedule", json={"start_date": start.isoformat()}
     )
@@ -102,7 +101,7 @@ def _make_project(authed, *, tasks=3, start=date(2026, 3, 2), duration=5, name="
     return project_id, category_id, task_ids
 
 
-# --- форма ответа -------------------------------------------------------------
+# --- the answer's shape --------------------------------------------------------
 
 
 def test_both_formats_come_back_as_files_with_a_name(authed):
@@ -117,13 +116,13 @@ def test_both_formats_come_back_as_files_with_a_name(authed):
         assert response.headers["content-type"].startswith(mime)
         assert response.content.startswith(signature)
 
-        # Имя файла — дважды: ASCII-заглушка и RFC 5987. Без второго кириллица
-        # в имени проекта не переживает заголовок.
+        # The file name twice: an ASCII placeholder and RFC 5987. Without the second,
+        # Cyrillic in a project's name does not survive the header.
         disposition = response.headers["content-disposition"]
         assert disposition.startswith("attachment;")
         assert f".{fmt}" in disposition
         assert "filename*=UTF-8''" in disposition
-        # Файл собран под права спрашивающего — общему кэшу его отдавать нельзя.
+        # The file is assembled for the caller's permissions — it must not go to a shared cache.
         assert "no-store" in response.headers["cache-control"]
 
 
@@ -133,25 +132,25 @@ def test_a_cyrillic_project_name_survives_the_header(authed):
     assert response.status_code == 200
 
     disposition = response.headers["content-disposition"]
-    # В ASCII-части кириллицы быть не может, зато она обязана быть в
-    # процентной кодировке — иначе браузер сохранит файл под «____».
+    # There can be no Cyrillic in the ASCII part, but it must be there percent-encoded —
+    # otherwise the browser saves the file as "____".
     assert "%D0%9F%D0%B5%D1%80%D0%B5%D0%B5%D0%B7%D0%B4" in disposition
     assert disposition.split(";")[1].strip().isascii()
 
 
-# --- срок действия --------------------------------------------------------------
+# --- validity ------------------------------------------------------------------
 
 
 def _cover_line(body: bytes) -> str:
-    """Строка обложки листа «Обзор» — та, где стоят период, дата выгрузки и
-    срок действия."""
+    """The cover row of the "Overview" sheet — the one with the period, the export date
+    and the validity."""
     return load_workbook(io.BytesIO(body))["Обзор"]["B4"].value
 
 
 def _exported_on(cover_line: str) -> date:
-    """Дата выгрузки берётся из самого документа, а не из date.today():
-    «сегодня» документа считается по таймзоне проекта, и на границе суток
-    тест иначе разошёлся бы с ним."""
+    """The export date is taken from the document itself rather than from date.today():
+    the document's "today" is computed in the project's timezone, and at a day boundary
+    the test would otherwise diverge from it."""
     day, month, year = cover_line.split("Выгружено: ")[1].split()[0].split(".")
     return date(int(year), int(month), int(day))
 
@@ -159,9 +158,9 @@ def _exported_on(cover_line: str) -> date:
 def test_the_document_is_valid_for_the_configured_days_from_its_export_date(
     authed, monkeypatch
 ):
-    """«Действительно до» — настройка установки, а не поле формы: считается на
-    сервере от даты выгрузки (она же дата отправки заказчику), и обе формы
-    называют один и тот же день."""
+    """"Valid until" is an installation setting rather than a form field: it is computed
+    on the server from the export date (which is also the date it is sent to the orderer),
+    and both formats name one and the same day."""
     monkeypatch.setenv("EXPORT_VALIDITY_DAYS", "10")
     get_settings.cache_clear()
     try:
@@ -187,12 +186,12 @@ def test_thirty_days_is_the_default_validity(authed):
     assert f"Действительно до: {_exported_on(line) + timedelta(days=30):%d.%m.%Y}" in line
 
 
-# --- книга Excel --------------------------------------------------------------
+# --- the Excel workbook --------------------------------------------------------
 
 
 def test_the_workbook_carries_real_dates_and_numbers_not_strings(authed):
-    """Даты строками превратили бы книгу в картинку таблицы: Excel не
-    сортирует и не фильтрует по ним."""
+    """Dates as strings would turn the workbook into a picture of a table: Excel neither
+    sorts nor filters by them."""
     project_id, _, task_ids = _make_project(authed, start=date(2026, 3, 2))
     _mutate(
         authed, project_id, {"type": "set_progress", "task_id": task_ids[0], "progress_pct": 40}
@@ -205,15 +204,15 @@ def test_the_workbook_carries_real_dates_and_numbers_not_strings(authed):
     start_column = header.index("Начало") + 1
     progress_column = header.index("Прогресс") + 1
 
-    # Первая строка данных — заголовок категории; задача идёт следом.
+    # The first data row is the category's heading; the task follows.
     row = 3
-    # Excel хранит дату числом со временем; openpyxl отдаёт её datetime — это
-    # и есть настоящая дата, а не строка, по которой нельзя сортировать.
+    # Excel stores a date as a number with a time; openpyxl returns it as a datetime — and
+    # that is a real date rather than a string that cannot be sorted by.
     assert sheet.cell(row=row, column=start_column).value.date() == date(2026, 3, 2)
     assert sheet.cell(row=row, column=start_column).number_format == "DD.MM.YYYY"
 
-    # Прогресс — доля с процентным форматом, а не текст «40%»: иначе по
-    # колонке не построить ни фильтр, ни среднее.
+    # The progress is a fraction with a percentage format rather than the text "40%":
+    # otherwise neither a filter nor an average can be built on the column.
     assert sheet.cell(row=row, column=progress_column).value == pytest.approx(0.4)
     assert sheet.cell(row=row, column=progress_column).number_format == "0%"
 
@@ -231,8 +230,8 @@ def test_the_workbook_has_exactly_the_requested_sheets(authed):
 
 
 def test_an_empty_section_does_not_produce_an_empty_sheet(authed):
-    """Лист из одних заголовков читается как поломка выгрузки, а не как
-    «здесь пусто»."""
+    """A sheet of nothing but headings reads as a broken export rather than as "there is
+    nothing here"."""
     project_id, _, _ = _make_project(authed)
     body = authed.get(
         f"/api/projects/{project_id}/export.xlsx?include=tasks&include=comments&locale=ru"
@@ -276,7 +275,7 @@ def test_the_proposal_totals_are_formulas_so_a_rate_can_be_edited(authed):
     assert any("+" in formula for formula in formulas), "итог — формула"
 
 
-# --- документ PDF -------------------------------------------------------------
+# --- the PDF document ----------------------------------------------------------
 
 
 def _pdf_text(body: bytes) -> str:
@@ -303,8 +302,8 @@ def test_the_pdf_names_the_project_and_its_tasks(authed):
 
 @pytest.mark.parametrize("locale,word", [("az", "Tapşırıqlar"), ("en", "Tasks"), ("ru", "Задачи")])
 def test_the_pdf_speaks_the_asked_language(authed, locale, word):
-    """Ради этого и встраивается Inter: во встроенных шрифтах ReportLab нет ни
-    кириллицы, ни `ə`."""
+    """That is what Inter is embedded for: ReportLab's built-in fonts have neither
+    Cyrillic nor `ə`."""
     project_id, _, _ = _make_project(authed)
     body = authed.get(
         f"/api/projects/{project_id}/export.pdf?include=tasks&locale={locale}"
@@ -313,28 +312,27 @@ def test_the_pdf_speaks_the_asked_language(authed, locale, word):
 
 
 def test_a_wide_project_is_split_by_time_not_cropped(authed):
-    """Проект шире страницы становится несколькими страницами ленты — и на
-    каждой повторяется колонка названий."""
+    """A project wider than a page becomes several chart pages — and the name column
+    repeats on every one of them."""
     project_id, _, _ = _make_project(authed, tasks=12, duration=20)
     body = authed.get(
         f"/api/projects/{project_id}/export.pdf?include=gantt&zoom=day&locale=ru"
     ).content
 
     assert _pdf_pages(body) > 1
-    # Подпись первой задачи стоит на каждой странице ленты, а не только там,
-    # где лежит её полоска.
+    # The first task's label stands on every chart page rather than only where its bar lies.
     from pypdf import PdfReader
 
     pages = [page.extract_text() or "" for page in PdfReader(io.BytesIO(body)).pages]
     assert all("Задача 1" in page for page in pages)
 
 
-# --- клиентский экземпляр ------------------------------------------------------
+# --- the client copy ------------------------------------------------------------
 
 
 @pytest.fixture
 def shared(authed):
-    """Проект с внутренней заметкой, внутренней репликой и публичной ссылкой."""
+    """A project with an internal note, an internal remark and a public link."""
     project_id, category_id, task_ids = _make_project(authed, name="Публичный")
     _mutate(
         authed,
@@ -357,11 +355,11 @@ def shared(authed):
 
 
 def _link_parts(link: dict) -> tuple[str, str, str]:
-    """Слаги и строка запроса из публичной ссылки.
+    """The slugs and the query string from a public link.
 
-    Имя параметра токена берётся из самой ссылки, а не пишется здесь руками:
-    его знает `app.sharing.TOKEN_PARAM`, и тест, повторивший это знание,
-    разошёлся бы с ним молча.
+    The token parameter's name is taken from the link itself rather than written here by
+    hand: `app.sharing.TOKEN_PARAM` knows it, and a test that repeated that knowledge would
+    diverge from it silently.
     """
     from urllib.parse import urlparse
 
@@ -382,9 +380,8 @@ def test_the_guest_copy_hides_notes_people_and_the_baseline(authed, shared, clie
     assert response.status_code == 200, response.text
     wb = load_workbook(io.BytesIO(response.content))
 
-    # Выгрузка не показывает больше, чем показывает страница, с которой её
-    # позвали: ни сметы со ставками, ни скоркарда, ни журнала правок публичная
-    # страница гостю не отдаёт.
+    # An export shows no more than the page it was called from shows: the public page hands
+    # a guest neither the budget with its rates, nor the scorecard, nor the edit journal.
     assert "История правок" not in wb.sheetnames
     assert "Предложение" not in wb.sheetnames
     assert "Скоркард" not in wb.sheetnames
@@ -404,8 +401,8 @@ def test_the_guest_copy_hides_notes_people_and_the_baseline(authed, shared, clie
 
 
 def test_the_member_copy_still_carries_what_the_guest_may_not_see(authed, shared):
-    """Обратная сторона предыдущего теста: без неё он проходил бы и на
-    выгрузке, потерявшей заметки для всех."""
+    """The flip side of the previous test: without it that one would pass on an export
+    that had lost the notes for everyone."""
     project_id, _ = shared
     category_id = authed.post(
         f"/api/projects/{project_id}/proposal/categories", json={"name": "Работы"}
@@ -429,16 +426,17 @@ def test_the_member_copy_still_carries_what_the_guest_may_not_see(authed, shared
     assert "СЕКРЕТ-РЕПЛИКА" in dump
 
 
-# --- документ для клиента ------------------------------------------------------
+# --- the document for the client ------------------------------------------------
 #
-# Коммерческое предложение одним PDF: только то, что клиент вправе прочитать.
-# Проверяется не вёрстка, а обещание: имена работ, итог и примечания в файле
-# есть, а роли, риски, заметки и обсуждение — нет по построению.
+# The commercial proposal as a single PDF: only what the client is entitled to read.
+# What is checked is not the layout but the promise: the names of the works, the total and
+# the notes are in the file, while roles, risks, notes and discussion are not, by
+# construction.
 
 
 def _demote_own_membership(authed, db, role: str) -> None:
-    """Меняет роль зарегистрированного пользователя прямо в записи членства —
-    тем же приёмом, что в tests/test_project_api.py."""
+    """Changes a registered user's role directly in the membership row — by the same
+    technique as in tests/test_project_api.py."""
     from sqlalchemy import select
 
     from app.models import Membership
@@ -461,8 +459,8 @@ def _grant_project_access(authed, db, project_id: str) -> None:
 
 @pytest.fixture
 def quoted(authed):
-    """Проект с предложением, где у строки заполнено всё — и клиентское, и
-    внутреннее, — и есть реплика обсуждения."""
+    """A project with a proposal whose row has everything filled in — both the
+    client-facing and the internal parts — and with a discussion remark."""
     project_id, _, _ = _make_project(authed, name="Переезд офиса")
     authed.patch(
         f"/api/projects/{project_id}/proposal",
@@ -515,31 +513,31 @@ def test_the_client_document_reads_as_a_commercial_proposal(authed, quoted):
 
     disposition = response.headers["content-disposition"]
     assert disposition.startswith("attachment;")
-    # Имя проекта — в имени файла, кириллицей через RFC 5987.
+    # The project's name is in the file's name, in Cyrillic through RFC 5987.
     assert "%D0%9F%D0%B5%D1%80%D0%B5%D0%B5%D0%B7%D0%B4" in disposition
 
     text = _pdf_text(response.content)
     assert "Коммерческое предложение" in text
     assert "Acme" in text
     assert "Переезд офиса" in text
-    # Разделы с описанием, работы с описанием.
+    # Sections with a description, works with a description.
     assert "Дизайн" in text and "Понять и нарисовать" in text
     assert "Логотип" in text and "Знак и начертание" in text
     assert "Вёрстка" in text
-    # 2 × 100 + 3 × 200 = 800; налог 18% — 144; итого 944.
+    # 2 x 100 + 3 x 200 = 800; 18% tax is 144; 944 in total.
     assert "800 EUR" in text
     assert "Налог 18%" in text and "144 EUR" in text
     assert "944 EUR" in text
-    # Примечания — по пункту на строку.
+    # The notes — one item per line.
     assert "Оценки по объёму." in text
     assert "Ставки без лицензий." in text
-    # Действительно тридцать дней с даты документа.
+    # Valid for thirty days from the document's date.
     assert "Действительно до" in text
 
 
 def test_the_client_document_carries_nothing_marked_internal(authed, quoted):
-    """Роль, подробности, заметки, риски, допущения строки и обсуждение —
-    внутренняя кухня; у строк документа для них нет полей."""
+    """The role, details, notes, risks, a row's assumptions and the discussion are the
+    internal kitchen; the document's rows have no fields for them."""
     text = _pdf_text(
         authed.get(f"/api/projects/{quoted}/proposal/export.pdf?locale=ru").content
     )
@@ -556,8 +554,9 @@ def test_the_client_document_speaks_the_asked_language(authed, quoted, locale, t
 
 
 def test_the_client_document_is_refused_to_a_client(authed, quoted, db):
-    """Клиенту обещаны сроки и объём, а не ставки: документ для него готовит
-    исполнитель. Проект он видит (грант есть), а документ — 403, не 404."""
+    """A client was promised deadlines and scope, not rates: the document for them is
+    prepared by the contractor. They see the project (the grant is there) but the document
+    is a 403, not a 404."""
     _demote_own_membership(authed, db, "client")
     _grant_project_access(authed, db, quoted)
 
@@ -568,8 +567,8 @@ def test_the_client_document_is_refused_to_a_client(authed, quoted, db):
 
 
 def test_a_viewer_still_gets_the_client_document(authed, quoted, db):
-    """Обратная сторона: право читать предложение есть у всякого участника, а
-    не только у пишущих — наблюдатель отправляет документ так же."""
+    """The flip side: the right to read a proposal belongs to every member rather than to
+    the writing ones alone — a viewer sends the document just the same."""
     _demote_own_membership(authed, db, "viewer")
     assert authed.get(f"/api/projects/{quoted}/proposal/export.pdf").status_code == 200
 
@@ -582,7 +581,7 @@ def test_an_empty_proposal_is_refused_rather_than_rendered_blank(authed):
 
 
 def test_the_client_document_counts_against_the_export_limit(authed, quoted, monkeypatch):
-    """Счётчик один на все выгрузки: для сервера это такая же сборка PDF."""
+    """One counter for every export: for the server this is the same kind of PDF assembly."""
     from app.api import export_routes
 
     monkeypatch.setattr(export_routes, "EXPORTS_PER_MINUTE", 1)
@@ -593,8 +592,8 @@ def test_the_client_document_counts_against_the_export_limit(authed, quoted, mon
 
 
 def test_a_long_proposal_spans_pages_without_losing_a_row(authed):
-    """Таблица переносится на следующую страницу, а не обрезается: последняя
-    работа есть в файле, а шапка таблицы повторяется на каждой странице."""
+    """The table carries over to the next page rather than being cut off: the last work is
+    in the file, and the table's header repeats on every page."""
     project_id, _, _ = _make_project(authed)
     category_id = authed.post(
         f"/api/projects/{project_id}/proposal/categories", json={"name": "Работы"}
@@ -619,7 +618,7 @@ def test_a_long_proposal_spans_pages_without_losing_a_row(authed):
     assert "700 USD" in pages[-1]
 
 
-# --- отказы --------------------------------------------------------------------
+# --- refusals ------------------------------------------------------------------
 
 
 def test_an_unknown_section_is_refused_by_the_schema(authed):
@@ -647,7 +646,7 @@ def test_a_project_beyond_the_task_ceiling_is_refused_before_the_work_starts(
     assert response.json()["detail"] == "export_too_large"
 
 
-# --- правило масштаба ----------------------------------------------------------
+# --- the scale rule -------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -661,7 +660,7 @@ def test_the_default_zoom_is_the_most_detailed_that_still_fits(months, expected)
 
 
 def test_the_server_picks_a_zoom_when_the_dialog_did_not(authed):
-    """Маршрут зовут и мимо окна — закладкой, скриптом, публичной ссылкой."""
+    """The route is called from outside the dialog too — by a bookmark, a script, a public link."""
     project_id, _, _ = _make_project(authed, tasks=4, duration=30)
     response = authed.get(f"/api/projects/{project_id}/export.pdf?include=gantt")
     assert response.status_code == 200
@@ -678,7 +677,7 @@ def test_a_scale_beyond_the_ceiling_is_refused_instead_of_forty_pages(authed):
 
 
 def test_narrowing_the_period_brings_the_detailed_scale_back(authed):
-    """Тот самый выход: день недоступен на всём проекте, но доступен на окне."""
+    """That very exit: the day scale is unavailable across the whole project but available on a window."""
     project_id, _, _ = _make_project(
         authed, tasks=20, duration=60, start=date.today() - timedelta(days=30)
     )
@@ -690,8 +689,8 @@ def test_narrowing_the_period_brings_the_detailed_scale_back(authed):
 
 
 def test_a_relative_plan_has_no_today_and_says_so(authed):
-    """У плана без дат ось — «День N», и окно «ближайшие 4 недели» на ней не
-    определено. Это отсутствие величины, а не отказ по вкусу."""
+    """A plan with no dates has a "Day N" axis, and the window "the next 4 weeks" is
+    undefined on it. That is the absence of a quantity rather than a refusal out of taste."""
     project_id = authed.post("/api/projects", json={"name": "Черновик"}).json()["id"]
     category_id = _mutate(
         authed, project_id, {"type": "create_category", "name": "Этап", "color": "#3b82f6"}
@@ -714,15 +713,15 @@ def test_a_relative_plan_has_no_today_and_says_so(authed):
     assert refused.status_code == 422
     assert refused.json()["detail"] == "export_period_undated"
 
-    # «Весь проект» на той же оси работает: отказ касается только окон,
-    # отсчитываемых от сегодня.
+    # "The whole project" works on the same axis: the refusal concerns only windows counted
+    # from today.
     assert authed.get(
         f"/api/projects/{project_id}/export.pdf?include=gantt&period=all"
     ).status_code == 200
 
 
 def test_portrait_needs_more_pages_than_landscape_at_the_same_scale():
-    """Ёмкость страницы считается формулой от ширины, а не таблицей чисел."""
+    """A page's capacity is computed by a formula from the width rather than by a table of numbers."""
     days = 365
     for zoom in budget.ZOOMS:
         assert budget.page_count(days, zoom, Orientation.PORTRAIT) >= budget.page_count(
@@ -734,9 +733,9 @@ def test_portrait_needs_more_pages_than_landscape_at_the_same_scale():
 
 
 def test_the_default_zoom_is_never_forbidden_to_itself():
-    """На десятилетнем портфеле даже месяц выходит за потолок — и он всё равно
-    разрешён: у него нет менее подробного соседа, и отказ там означал бы, что
-    проект не выгружается вовсе, а это уже не защита от неподъёмного файла."""
+    """On a ten-year portfolio even the month scale goes past the ceiling — and it is
+    allowed anyway: it has no less detailed neighbour, and a refusal there would mean the
+    project cannot be exported at all, which is no longer protection from an unmanageable file."""
     for days in (30, 365, 1095, 5000, 20000):
         zoom = budget.default_zoom(days, Orientation.LANDSCAPE)
         assert budget.allowed(zoom, days, Orientation.LANDSCAPE)
@@ -746,16 +745,16 @@ def test_the_default_zoom_is_never_forbidden_to_itself():
 
 
 def test_a_decade_long_project_still_exports(authed):
-    """Обратная сторона: правило проверяется не только арифметикой, но и
-    маршрутом — иначе потолок однажды переехал бы в него отдельной строкой."""
+    """The flip side: the rule is checked not only by arithmetic but by the route as well —
+    otherwise the ceiling would one day move into it as a separate line."""
     project_id, _, _ = _make_project(authed, tasks=30, duration=180)
     response = authed.get(f"/api/projects/{project_id}/export.pdf?include=gantt")
     assert response.status_code == 200, response.text
 
 
 def test_the_gantt_sheet_never_outgrows_the_column_ceiling():
-    """Лист ленты на страницы не режется — он одна широкая полоса, и предел
-    ему ставится по числу колонок."""
+    """The chart sheet is not cut into pages — it is one wide strip, and its limit is set by
+    the number of columns."""
     for days in (30, 365, 1095, 5000):
         zoom = budget.default_zoom_for_xlsx(days)
         assert budget.columns_for(days, zoom) <= budget.MAX_XLSX_COLUMNS
@@ -770,19 +769,19 @@ def test_the_window_of_a_period_never_leaves_the_project(authed):
 
 
 def test_a_project_entirely_in_the_past_still_gets_a_window(authed):
-    """Пустая шкала — это страница, на которой ничего нет; лучше показать
-    конец проекта, чем пустоту."""
+    """An empty scale is a page with nothing on it; better to show the project's end than
+    emptiness."""
     whole = budget.Window(date(2024, 1, 1), date(2024, 3, 1))
     window = budget.resolve_window(Period.NEXT_4W, whole, date(2026, 6, 1), dated=True)
     assert window.start == window.end == whole.end
 
 
-# --- скоркард: метрики с разной историей ----------------------------------------
+# --- the scorecard: metrics with different histories -----------------------------
 #
-# Метрики появляются и снимаются (см. миграцию scorecard_signal_cleanup), а
-# снимки прошлых недель неизменяемы: у метрики, заведённой в августе, июльских
-# снимков нет и не будет. Значит набор недель у метрик разный, и таблица обязана
-# это переживать.
+# Metrics appear and are removed (see the scorecard_signal_cleanup migration), while
+# snapshots of past weeks are immutable: a metric created in August has no July snapshots
+# and never will. That means the set of weeks differs between metrics, and the table must
+# survive that.
 
 
 def _metric(key: str, history: list[tuple[str, float]], value=0.0, status="ok") -> dict:
@@ -797,7 +796,7 @@ def _metric(key: str, history: list[tuple[str, float]], value=0.0, status="ok") 
 
 
 def test_the_week_columns_are_the_union_across_metrics():
-    """Иначе метрика помоложе обрезала бы историю всем остальным."""
+    """Otherwise a younger metric would cut everyone else's history short."""
     old = _metric("overdue_tasks", [("2026-08-03", 1), ("2026-08-10", 2)])
     young = _metric("finish_drift", [("2026-08-10", 3)])
 
@@ -807,24 +806,24 @@ def test_the_week_columns_are_the_union_across_metrics():
 
 
 def test_a_metric_without_a_snapshot_gets_a_gap_not_a_shift():
-    """Прочерк на своём месте, а не сдвиг соседних значений влево: сдвинутая
-    строка — это молча неверный документ, и заметили бы его не сразу."""
+    """A dash in its own place rather than a shift of the neighbouring values to the left: a
+    shifted row is a silently wrong document, and it would not be noticed right away."""
     old = _metric("overdue_tasks", [("2026-08-03", 1), ("2026-08-10", 2)], value=5)
     young = _metric("finish_drift", [("2026-08-10", 3)], value=7)
     weeks = align_weeks([old, young], date(2026, 8, 17))
 
     assert metric_row(old, weeks) == ([1, 2, 5], ["ok", "ok", "ok"])
-    # У молодой метрики первая колонка пуста, а её единственный снимок стоит
-    # под своей неделей — второй, а не первой.
+    # A young metric's first column is empty, and its single snapshot stands under its own
+    # week — the second, not the first.
     values, statuses = metric_row(young, weeks)
     assert values == [None, 3, 7]
     assert statuses == ["no_data", "ok", "ok"]
 
 
 def test_a_first_metric_without_history_does_not_collapse_the_table():
-    """Тот самый случай, который сегодня не наступает лишь из-за порядка метрик
-    в миграции: раньше недели брались у первой метрики, и молодая на нулевой
-    позиции схлопнула бы таблицу в одну колонку."""
+    """That very case, which does not arise today only because of the order of the metrics in
+    the migration: the weeks used to be taken from the first metric, and a young one at
+    position zero would have collapsed the table into a single column."""
     young = _metric("finish_drift", [])
     old = _metric("overdue_tasks", [("2026-08-03", 1), ("2026-08-10", 2)])
 
@@ -835,8 +834,7 @@ def test_a_first_metric_without_history_does_not_collapse_the_table():
 
 
 def test_the_current_week_is_always_the_last_column():
-    """Её значение живое и берётся не из истории — снимка за неё может ещё не
-    быть вовсе."""
+    """Its value is live and is not taken from history — there may be no snapshot for it at all yet."""
     metric = _metric("overdue_tasks", [("2026-08-03", 1)], value=9, status="risk")
     weeks = align_weeks([metric], date(2026, 8, 17))
 
@@ -845,8 +843,8 @@ def test_the_current_week_is_always_the_last_column():
 
 
 def test_a_snapshot_for_the_current_week_does_not_double_the_column():
-    """Снимок текущей недели уже есть (ленивая фиксация при открытии
-    скоркарда) — колонка всё равно одна, и в ней живое значение."""
+    """The current week's snapshot already exists (lazy committing when the scorecard is
+    opened) — there is still one column, and it holds the live value."""
     metric = _metric("overdue_tasks", [("2026-08-17", 4)], value=6)
     weeks = align_weeks([metric], date(2026, 8, 17))
 
@@ -855,18 +853,18 @@ def test_a_snapshot_for_the_current_week_does_not_double_the_column():
 
 
 def test_an_unknown_metric_status_does_not_cost_the_whole_document():
-    """Набор состояний живёт в ScorecardStatus и меняется вместе со скоркардом.
-    Падение на неизвестном — пятисотка на весь файл из-за одной ячейки."""
+    """The set of states lives in ScorecardStatus and changes along with the scorecard. A
+    failure on an unknown one is a 500 on the whole file because of one cell."""
     assert theme.metric_cell("risk") == theme.METRIC_CELL["risk"]
     assert theme.metric_cell("brand_new") == theme.METRIC_CELL["no_data"]
 
 
-# --- словари -------------------------------------------------------------------
+# --- the dictionaries ------------------------------------------------------------
 
 
 def test_every_language_has_every_label():
-    """Полнота словарей проверяется здесь, а не глазами: рассинхрон копится
-    незаметно и обнаруживается уже выгруженным файлом."""
+    """Dictionary completeness is checked here rather than by eye: a desync accumulates
+    unnoticed and is discovered in an already exported file."""
     locales = available_locales()
     assert set(locales) >= {"az", "en", "ru"}
 
@@ -879,9 +877,9 @@ def test_every_language_has_every_label():
 
 
 def test_every_mutation_has_a_name_in_the_history_dictionary():
-    """Журнал правок подписывает операции по имени. Новая операция без подписи
-    не должна ронять документ — но и молча превращаться в «Правка плана» ей
-    незачем, пока о ней помнят здесь."""
+    """The edit journal labels operations by name. A new operation with no label must not
+    bring the document down — but there is no reason for it to turn silently into "Plan
+    edit" while it is remembered here."""
     import re
 
     source = Path(__file__).resolve().parents[1] / "app" / "mutations.py"
@@ -893,8 +891,8 @@ def test_every_mutation_has_a_name_in_the_history_dictionary():
 
 
 def test_the_embedded_font_covers_all_three_languages():
-    """Встроенные шрифты ReportLab — Latin-1: без вшитого Inter документ на
-    двух языках из трёх остался бы без букв."""
+    """ReportLab's built-in fonts are Latin-1: without an embedded Inter the document would
+    be left with no letters in two of the three languages."""
     from reportlab.pdfbase.ttfonts import TTFont
 
     fonts = Path(__file__).resolve().parents[1] / "app" / "export" / "fonts"

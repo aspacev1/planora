@@ -10,12 +10,12 @@ from app.main import app
 
 @pytest.fixture
 def client(db):
-    """TestClient, у которого get_db переопределён на сессию фикстуры `db`.
+    """A TestClient whose get_db is overridden with the `db` fixture's session.
 
-    Переопределение отдаёт ровно ту же сессию и не делает commit — иначе
-    внешняя транзакция фикстуры `db` закрылась бы раньше времени и
-    изоляция между тестами исчезла бы (см. tests/conftest.py). Тот же
-    паттерн, что и в tests/test_auth.py.
+    The override returns exactly the same session and does not commit — otherwise the
+    `db` fixture's outer transaction would close ahead of time and the isolation
+    between tests would disappear (see tests/conftest.py). The same pattern as in
+    tests/test_auth.py.
     """
 
     def _override_get_db():
@@ -49,10 +49,10 @@ def test_creating_a_project_derives_a_slug_from_the_name(authed):
 
 
 def test_project_listing_shows_only_own_organization(authed, db):
-    """В тесте обязана существовать вторая организация со своим проектом.
+    """A second organization with a project of its own must exist in the test.
 
-    Без неё утверждение проходило бы точно так же, даже если убрать из
-    маршрута фильтр по организации, — то есть не проверяло бы ничего.
+    Without it the assertion would pass just the same even with the organization filter
+    removed from the route — that is, it would check nothing.
     """
     from app.models import Organization, Project
 
@@ -94,7 +94,7 @@ def test_mutation_creates_a_task_and_returns_the_computed_end_date(authed):
     state = authed.get(f"/api/projects/{project_id}").json()
     task = state["tasks"][0]
     assert task["start_date"] == "2026-03-06"
-    # пятница плюс три рабочих дня: пт, пн, вт
+    # Friday plus three working days: Fri, Mon, Tue
     assert task["end_date"] == "2026-03-10"
 
 
@@ -124,8 +124,8 @@ def test_mutation_on_a_foreign_project_returns_404(authed, db):
 
 
 def test_get_project_on_a_foreign_project_returns_404(authed, db):
-    # Тот же обработчик _load_project, что и у мутаций, но здесь это отдельный
-    # маршрут (GET), и до сих пор эта ветка не была проверена для него.
+    # The same _load_project handler as in mutations, but here it is a separate route
+    # (GET), and until now this branch had not been checked for it.
     from app.models import Organization, Project
 
     other_org = Organization(name="Other", slug="other")
@@ -140,8 +140,8 @@ def test_get_project_on_a_foreign_project_returns_404(authed, db):
 
 
 def _demote_own_membership(authed, db, role: str) -> None:
-    """Меняет роль зарегистрированного пользователя напрямую в записи
-    членства, минуя регистрацию (у неё роль всегда owner)."""
+    """Changes a registered user's role directly in the membership row, bypassing
+    registration (there the role is always owner)."""
     from app.models import Membership
 
     user_id = authed.get("/api/auth/me").json()["id"]
@@ -151,8 +151,8 @@ def _demote_own_membership(authed, db, role: str) -> None:
 
 
 def _grant_project_access(authed, db, project_id: str) -> None:
-    """Зовёт зарегистрированного пользователя в проект — так же, как это
-    сделает приглашение с ролью client, когда оно появится."""
+    """Invites a registered user into a project — the same way an invitation with the
+    client role will once it exists."""
     from app.models import ProjectAccess
 
     user_id = authed.get("/api/auth/me").json()["id"]
@@ -161,8 +161,8 @@ def _grant_project_access(authed, db, project_id: str) -> None:
 
 
 def _scope_own_membership(authed, db) -> None:
-    """Сужает членство зарегистрированного пользователя — так же, как это
-    сделает приглашение с отмеченными проектами для роли, отличной от client."""
+    """Narrows a registered user's membership — the same way an invitation with selected
+    projects will for a role other than client."""
     from app.models import Membership
 
     user_id = authed.get("/api/auth/me").json()["id"]
@@ -172,18 +172,18 @@ def _scope_own_membership(authed, db) -> None:
 
 
 def test_client_without_a_grant_does_not_see_the_project(authed, db):
-    # access._MATRIX: client входит в _NEEDS_GRANT и без выданного доступа к
-    # проекту не имеет даже PROJECT_READ — маршруты чтения обязаны спросить
-    # об этом can(), а не пускать любого члена организации.
+    # access._MATRIX: client is in _NEEDS_GRANT and without granted access to a project
+    # does not even have PROJECT_READ — the reading routes must ask can() about that
+    # rather than letting in any member of the organization.
     project_id = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
 
     _demote_own_membership(authed, db, "client")
 
-    # чужой проект неотличим от несуществующего — тот же принцип применяется
-    # и к «есть проект, но роль не имеет права его читать»: 404, а не 403.
+    # someone else's project is indistinguishable from a nonexistent one — the same
+    # principle applies to "the project exists but the role may not read it": 404, not 403.
     assert authed.get(f"/api/projects/{project_id}").status_code == 404
-    # В списке его тоже нет, и это не отказ: клиента позвали в организацию,
-    # просто ни в один проект пока не приглашали.
+    # It is not in the list either, and that is not a refusal: the client was invited into
+    # the organization, they simply have not been invited into any project yet.
     assert authed.get("/api/projects").json() == []
 
 
@@ -201,10 +201,10 @@ def test_client_sees_only_the_projects_he_was_invited_to(authed, db):
 
 
 def test_client_with_a_grant_reads_the_project_without_the_internal_note(authed, db):
-    # Роль, ради которой заметка и скрывается: client с выданным доступом
-    # читает проект целиком — кроме одного поля. Подмены can() здесь больше
-    # нет: грант на проект существует по-настоящему, и разрыв «читает, но не
-    # видит заметку» воспроизводится ровно так, как он выглядит в бою.
+    # The role the note is hidden for: a client with granted access reads the whole project
+    # — except one field. There is no can() substitution here anymore: the grant on the
+    # project genuinely exists, and the gap of "reads it but does not see the note" is
+    # reproduced exactly as it looks in production.
     project_id = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
     category_id = authed.post(
         f"/api/projects/{project_id}/mutations",
@@ -231,15 +231,15 @@ def test_client_with_a_grant_reads_the_project_without_the_internal_note(authed,
     assert state["tasks"][0]["name"] == "Logo"
     assert "internal_note" not in state["tasks"][0]
 
-    # И в журнале тоже: запись создания несёт заметку наравне с остальными
-    # полями, и лента карточки задачи — вторая дверь к тому же полю.
+    # And in the journal as well: the creation entry carries the note alongside the other
+    # fields, and the task card's feed is a second door to the same field.
     revisions = authed.get(f"/api/projects/{project_id}/revisions").json()
     assert all("internal_note" not in revision["op"] for revision in revisions)
 
 
 def test_a_scoped_editor_sees_only_the_granted_project(authed, db):
-    """Сужение (Membership.project_scoped) работает для editor так же, как
-    _NEEDS_GRANT работает для client — только без смены роли."""
+    """Narrowing (Membership.project_scoped) works for an editor the same way _NEEDS_GRANT
+    works for a client — only without changing the role."""
     granted = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
     other = authed.post("/api/projects", json={"name": "Внутренний"}).json()["id"]
 
@@ -263,8 +263,8 @@ def test_a_scoped_editor_without_any_grant_sees_no_projects(authed, db):
 
 
 def test_an_unscoped_editor_still_sees_the_whole_organization(authed, db):
-    # Контрольный случай: сужение — не побочный эффект самой роли editor, оно
-    # включается только явным project_scoped=True на записи членства.
+    # The control case: narrowing is not a side effect of the editor role itself, it is
+    # switched on only by an explicit project_scoped=True on the membership row.
     granted = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
     other = authed.post("/api/projects", json={"name": "Внутренний"}).json()["id"]
 
@@ -275,9 +275,9 @@ def test_an_unscoped_editor_still_sees_the_whole_organization(authed, db):
 
 
 def test_a_scoped_editor_cannot_create_a_new_project_to_escape_the_scope(authed, db):
-    # Новый проект не может нести заранее выданный доступ — можно только
-    # завести его и молча остаться без него самому. Отказ здесь и есть верный
-    # ответ: он не даёт сужённой роли обойти список отметкой «создать ещё один».
+    # A new project cannot carry pre-granted access — one can only create it and silently
+    # be left without it oneself. A refusal here is the right answer: it does not let a
+    # narrowed role bypass the list by "creating one more".
     _demote_own_membership(authed, db, "editor")
     _scope_own_membership(authed, db)
 
@@ -289,14 +289,14 @@ def test_a_scoped_editor_cannot_create_a_new_project_to_escape_the_scope(authed,
 def test_role_without_read_internal_note_permission_does_not_see_it_in_mutation_response(
     authed, monkeypatch
 ):
-    # create_task кладёт internal_note в свой op, а его обратная операция —
-    # это голый delete_task без заметки; delete_task — наоборот, у самой
-    # операции заметки нет, зато её обратная операция (снимок для undo)
-    # несёт полную копию задачи вместе с internal_note. Проверяем оба поля
-    # на паре запросов, которая реально их заполняет.
+    # create_task puts internal_note into its op, while its inverse operation is a bare
+    # delete_task with no note; delete_task is the opposite — the operation itself has no
+    # note, but its inverse operation (the undo snapshot) carries a full copy of the task
+    # together with internal_note. We check both fields on a pair of requests that actually
+    # fill them.
     #
-    # Подменяется can() внутри access: решение о видимости заметки живёт там,
-    # а маршрут только зовёт access.visible_op.
+    # can() is substituted inside access: the decision about the note's visibility lives
+    # there, and the route merely calls access.visible_op.
     import app.access as access
 
     project_id = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
@@ -363,8 +363,8 @@ def _project_with_task(authed) -> tuple[str, str, str]:
 
 
 def test_naming_a_task_of_another_project_is_reported_as_not_found(authed):
-    # Раньше маршрут расплющивал оба класса отказа в 422 с русской прозой:
-    # обращение к задаче чужой организации выглядело ошибкой валидации.
+    # The route used to flatten both classes of refusal into a 422 with Russian prose:
+    # reaching for a task of another organization looked like a validation error.
     own_project_id, _, _ = _project_with_task(authed)
     other_project_id, _, foreign_task_id = _project_with_task(authed)
     assert other_project_id != own_project_id
@@ -381,23 +381,23 @@ def test_naming_a_task_of_another_project_is_reported_as_not_found(authed):
 def test_a_refused_operation_answers_with_a_stable_machine_code(authed):
     project_id, category_id, _ = _project_with_task(authed)
 
-    # Отказ домена, а не формы запроса: сдвиг на ноль дней провод принимает —
-    # отбивает его правило «запись в истории обязана что-то означать».
+    # A domain refusal rather than a request-shape one: the wire accepts a shift of zero
+    # days — it is rejected by the rule "a history entry must mean something".
     response = authed.post(
         f"/api/projects/{project_id}/mutations",
         json={"op": {"type": "move_category", "category_id": category_id, "days": 0}},
     )
     assert response.status_code == 422
-    # Код, а не переводимая проза: тексты сообщений составляет клиент.
+    # A code rather than translatable prose: message texts are composed by the client.
     assert response.json()["detail"] == "empty_shift"
 
 
 def test_deleting_a_category_takes_its_tasks_and_is_undone_in_one_step(authed):
-    """Категория уходит вместе с этапом — и возвращается им же.
+    """A category goes away together with its stage — and comes back with it.
 
-    Раньше маршрут отвечал на это `category_not_empty`, и убрать этап значило
-    удалить каждую его задачу по очереди: столько же записей в истории и
-    столько же нажатий «Отменить», сколько в нём строк.
+    The route used to answer `category_not_empty` to this, and removing a stage meant
+    deleting each of its tasks in turn: as many history entries and as many presses of
+    "Undo" as it has rows.
     """
     project_id, category_id, task_id = _project_with_task(authed)
 
@@ -421,8 +421,8 @@ def test_deleting_a_category_takes_its_tasks_and_is_undone_in_one_step(authed):
 
 
 def test_an_over_long_name_is_refused_before_it_reaches_the_column(authed):
-    # tasks.name — varchar(300): без границы в схеме строка длиннее приезжала
-    # в базу и возвращалась пятисоткой на ошибке усечения.
+    # tasks.name is varchar(300): without a bound in the schema a longer string reached the
+    # database and came back as a 500 on a truncation error.
     project_id, category_id, _ = _project_with_task(authed)
 
     response = authed.post(
@@ -508,10 +508,10 @@ def test_progress_outside_the_percentage_range_is_refused(authed, progress):
 
 
 def test_a_client_supplied_task_id_never_reaches_the_database(authed, db):
-    # task_id существует ради отмены удаления: он восстанавливает строку под
-    # прежним идентификатором. По проводу его принимать нельзя — назначение
-    # идентификаторов перестаёт быть делом сервера, а совпадение с уже
-    # существующим id превращается в IntegrityError и пятисотку.
+    # task_id exists for the sake of undoing a deletion: it restores a row under its
+    # previous identifier. It must not be accepted over the wire — the assignment of
+    # identifiers stops being the server's business, and a collision with an existing id
+    # turns into an IntegrityError and a 500.
     from app.models import Task
 
     project_id, category_id, _ = _project_with_task(authed)
@@ -557,12 +557,12 @@ def test_a_client_supplied_position_never_reaches_the_database(authed, db):
 
 
 def test_project_slug_collision_at_insert_time_retries_instead_of_failing(authed, monkeypatch):
-    """Тот же тест гонки, что у слага организации, — теперь и для проекта.
+    """The same race test as for an organization's slug — now for a project too.
 
-    Раньше маршрут делал проверку-и-вставку без обработки IntegrityError: два
-    одновременных создания с одинаковым названием в одной организации давали
-    пятисотку. Симулируем устаревшую проверку: первый кандидат — уже занятый
-    слаг, вставка обязана упасть и повториться с новым суффиксом.
+    The route used to do a check-and-insert with no IntegrityError handling: two
+    simultaneous creations with the same name in one organization gave a 500. We simulate
+    a stale check: the first candidate is an already taken slug, and the insert must fail
+    and be retried with a new suffix.
     """
     import app.slugs as slugs
 
@@ -574,7 +574,7 @@ def test_project_slug_collision_at_insert_time_retries_instead_of_failing(authed
     def flaky(name, *, forced, is_taken, fallback):
         calls["n"] += 1
         if calls["n"] == 1:
-            return "redesign"  # уже занято — вставка упадёт на уникальном индексе
+            return "redesign"  # already taken — the insert will fail on the unique index
         return original(name, forced=True, is_taken=is_taken, fallback=fallback)
 
     monkeypatch.setattr(slugs, "_candidate", flaky)
@@ -614,7 +614,7 @@ def test_project_state_carries_assignees_dependencies_and_calendar(authed, db):
     assert state["dependencies"] == [{"from_task_id": first, "to_task_id": second}]
     task = next(t for t in state["tasks"] if t["id"] == first)
     assert task["assignee_ids"] == [me["id"]]
-    assert state["calendar"]["working_days"] == 31        # пн–пт
+    assert state["calendar"]["working_days"] == 31        # Mon-Fri
     assert state["calendar"]["holidays"] == []
     assert state["settings"]["shift_threshold_days"] == 2
 
@@ -633,7 +633,7 @@ def test_project_end_is_the_latest_task_end(authed):
         "start_date": "2026-03-16", "duration_days": 2}})
 
     state = authed.get(f"/api/projects/{project_id}").json()
-    # пн 16 + 2 рабочих дня = вт 17 — позже, чем 10 марта у первой задачи
+    # Mon 16 + 2 working days = Tue 17 — later than 10 March on the first task
     assert state["project_end"] == "2026-03-17"
 
 
@@ -644,10 +644,10 @@ def test_a_task_with_no_assignees_reports_an_empty_list(authed):
 
 
 def test_the_calendar_reports_the_project_exceptions(authed, db):
-    """Исключения проекта видны интерфейсу до первого клика.
+    """The project's exceptions are visible to the interface before the first click.
 
-    Он заливает нерабочие дни на шкале и рисует выходные — без этого блока
-    ему пришлось бы догадываться о них по маске недели.
+    It fills non-working days on the scale and draws the weekends — without this block it
+    would have to guess at them from the week mask.
     """
     import uuid as uuid_module
 
@@ -655,8 +655,8 @@ def test_the_calendar_reports_the_project_exceptions(authed, db):
 
     project_id, _, _ = _project_with_task(authed)
     project = db.get(Project, uuid_module.UUID(project_id))
-    # Исключения — принадлежность календарного режима: у относительной оси
-    # настоящих дат нет, и календарь там — одна недельная маска.
+    # Exceptions belong to calendar mode: a relative axis has no real dates, and the
+    # calendar there is a single weekly mask.
     project.schedule_mode = "calendar"
     project.holidays_extra = ["2026-03-09"]
     project.workdays_extra = ["2026-03-07"]
@@ -668,10 +668,10 @@ def test_the_calendar_reports_the_project_exceptions(authed, db):
 
 
 def test_reading_a_project_with_no_working_days_explains_itself(authed, db):
-    """Настройка приходит от человека — значит уронить чтение может человек.
+    """The setting comes from a person — which means a person can bring reading down.
 
-    Вырожденная маска раньше поднимала голый ValueError из end_date и
-    отвечала пятисоткой: проект переставал читаться без объяснения.
+    A degenerate mask used to raise a bare ValueError from end_date and answer with a 500:
+    the project stopped being readable with no explanation.
     """
     import uuid
 
@@ -694,7 +694,7 @@ def test_reading_a_project_with_no_working_days_explains_itself(authed, db):
 
 
 def test_a_calendar_too_short_for_the_duration_is_also_explained(authed, db):
-    """Вторая точка отказа календаря отвечает так же — кодом, а не пятисоткой."""
+    """The calendar's second point of refusal answers the same way — with a code, not a 500."""
     import uuid
 
     from app.models import Project
@@ -707,11 +707,11 @@ def test_a_calendar_too_short_for_the_duration_is_also_explained(authed, db):
         "start_date": "2026-03-06", "duration_days": 2}})
 
     project = db.get(Project, uuid.UUID(project_id))
-    # Календарный режим: объявленные рабочие дни — свойство настоящих дат,
-    # относительная ось их не видит.
+    # Calendar mode: declared working days are a property of real dates, and a relative
+    # axis does not see them.
     project.schedule_mode = "calendar"
-    # Единственный рабочий день во всём календаре — тот, с которого задача
-    # начинается; на второй день длительности рабочих дней уже не остаётся.
+    # The only working day in the whole calendar is the one the task starts on; by the
+    # duration's second day there are no working days left.
     project.working_days = 0
     project.workdays_extra = ["2026-03-06"]
     db.flush()
@@ -724,11 +724,11 @@ def test_a_calendar_too_short_for_the_duration_is_also_explained(authed, db):
 def test_set_task_fields_does_not_leak_the_note_to_a_role_that_cannot_read_it(
     authed, monkeypatch
 ):
-    """Заметка спрятана и когда она лежит во вложенном словаре.
+    """The note is hidden when it lies in a nested dict too.
 
-    set_task_fields — первая операция, кладущая internal_note не в корень
-    записи, а внутрь from/to. Проверка «есть ли такой ключ на верхнем
-    уровне» на ней молча не срабатывает, и заметка уезжает в ответ.
+    set_task_fields is the first operation to put internal_note not at the entry's root but
+    inside from/to. The check "is there such a key at the top level" silently fails on it,
+    and the note rides out in the answer.
     """
     import app.access as access
 
@@ -769,7 +769,7 @@ def test_revision_log_reads_newest_first_and_names_the_author(authed):
     assert response.status_code == 200
 
     entries = response.json()
-    # Новые сверху: ленту читают с последнего события, а не листают к нему.
+    # Newest first: the feed is read from the last event rather than paged towards it.
     assert [entry["op"]["type"] for entry in entries] == [
         "move_task", "create_task", "create_category",
     ]
@@ -796,8 +796,8 @@ def test_revision_log_filtered_by_task_leaves_out_everything_else(authed):
         f"/api/projects/{project_id}/revisions", params={"task_id": task_id}
     ).json()
 
-    # Ни создание категории, ни чужая задача: карточка показывает историю
-    # своей задачи, а не всего проекта.
+    # Neither the creation of a category nor another task: a card shows the history of its
+    # own task rather than of the whole project.
     assert [entry["op"]["type"] for entry in entries] == ["create_task"]
     assert entries[0]["op"]["task_id"] == task_id
 
@@ -811,8 +811,8 @@ def test_revision_log_names_the_entities_it_mentions(authed):
 
     entries = authed.get(f"/api/projects/{project_id}/revisions").json()
 
-    # Лента всего проекта обязана называть, чей это старт: имя — по
-    # идентификатору из операции, а не отдельным запросом с клиента.
+    # A whole project's feed must name whose start this is: the name comes from the
+    # identifier in the operation rather than from a separate request by the client.
     move = next(e for e in entries if e["op"]["type"] == "move_task")
     assert move["names"] == {task_id: "Logo"}
     creation = next(e for e in entries if e["op"]["type"] == "create_task")
@@ -829,8 +829,8 @@ def test_revision_log_keeps_naming_a_deleted_task(authed):
 
     entries = authed.get(f"/api/projects/{project_id}/revisions").json()
 
-    # Строки задачи больше нет, но журнал — единственное место, где имя
-    # пережило удаление: оно достаётся из снимка восстановления.
+    # The task's row is gone, but the journal is the only place where the name outlived the
+    # deletion: it is taken from the restore snapshot.
     deletion = next(e for e in entries if e["op"]["type"] == "delete_task")
     assert deletion["names"][task_id] == "Logo"
 
@@ -870,8 +870,8 @@ def test_revision_log_marks_undo_records(authed):
 
     entries = authed.get(f"/api/projects/{project_id}/revisions").json()
 
-    # Запись об отмене несёт номер отменённой: по этой паре лента помечает
-    # «отменено», не спрашивая сервер второй раз.
+    # An undo entry carries the number of the revision it undid: by that pair the feed marks
+    # things "undone" without asking the server a second time.
     undo_entry = entries[0]
     assert undo_entry["undoes_seq"] == undone_seq
     ordinary = entries[1]
@@ -944,15 +944,15 @@ def test_owner_deletes_a_project_with_everything_inside(authed):
 
     assert authed.delete(f"/api/projects/{project_id}").status_code == 204
 
-    # Проект пропал и из списка, и по адресу: удалённый неотличим от
-    # несуществующего.
+    # The project vanished both from the list and from its address: a deleted one is
+    # indistinguishable from a nonexistent one.
     assert authed.get(f"/api/projects/{project_id}").status_code == 404
     assert authed.get("/api/projects").json() == []
 
 
 def test_editor_cannot_delete_a_project(authed, db):
-    # Право нарочно уже PROJECT_ADMIN: настройки редактор правит, а удаление —
-    # необратимое действие уровня владельца (см. Action.PROJECT_DELETE).
+    # The permission is deliberately beyond PROJECT_ADMIN: an editor edits the settings,
+    # while deletion is an irreversible owner-level action (see Action.PROJECT_DELETE).
     project_id = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
 
     _demote_own_membership(authed, db, "editor")
@@ -960,7 +960,7 @@ def test_editor_cannot_delete_a_project(authed, db):
     response = authed.delete(f"/api/projects/{project_id}")
     assert response.status_code == 403
     assert response.json()["detail"] == "forbidden"
-    # Проект остался читаемым: отказ ничего не удалил.
+    # The project stayed readable: the refusal deleted nothing.
     assert authed.get(f"/api/projects/{project_id}").status_code == 200
 
 
@@ -974,6 +974,6 @@ def test_deleting_a_foreign_project_returns_404(authed, db):
     db.add(foreign)
     db.flush()
 
-    # Тот же 404, что и на чтении: чужой проект неотличим от несуществующего,
-    # и удаление не должно выдавать его существование.
+    # The same 404 as on a read: someone else's project is indistinguishable from a
+    # nonexistent one, and a deletion must not give away its existence.
     assert authed.delete(f"/api/projects/{foreign.id}").status_code == 404
