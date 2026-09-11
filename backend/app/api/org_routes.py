@@ -33,11 +33,12 @@ class MemberOut(BaseModel):
 
 
 class OrganizationSettingsOut(BaseModel):
-    """Дефолты организации — те самые, которые наследуют проекты.
+    """The organization's defaults — the very ones the projects inherit.
 
-    Отдаются всякому её участнику, а не только владельцу: рабочие дни и
-    праздники видит каждый, кто видит диаграмму, — она ими и залита. Править
-    их может только владелец, и это решается на записи, а не на чтении.
+    Returned to any member of it, not only to the owner: working days and
+    holidays are seen by everyone who sees the chart — it is filled with them.
+    Only the owner may edit them, and that is decided on the write, not on the
+    read.
     """
 
     default_locale: str
@@ -54,9 +55,10 @@ class OrganizationOut(BaseModel):
     id: str
     name: str
     slug: str
-    #: Роль спрашивающего в этой организации, а не свойство самой организации:
-    #: интерфейс всё равно спросит её следующим запросом, чтобы решить, что
-    #: показывать, и второй поход к серверу ради одного слова ничего не даёт.
+    #: The caller's role in this organization rather than a property of the
+    #: organization itself: the interface will ask for it with the next request
+    #: anyway to decide what to show, and a second trip to the server for one
+    #: word gains nothing.
     role: str
     settings: OrganizationSettingsOut
 
@@ -92,11 +94,11 @@ def _to_out(org: Organization, role: str) -> OrganizationOut:
 def current_organization(
     membership: Membership = Depends(current_membership), db: DbSession = Depends(get_db)
 ):
-    """Организация, в которой человек находится прямо сейчас.
+    """The organization a person is in right now.
 
-    Права здесь не проверяются: название своей организации видит любой её
-    участник, включая роль `client`. Скрывать его не от кого — оно подписывает
-    каждый экран, на который человек и так имеет право войти.
+    No permissions are checked here: the name of their own organization is
+    visible to any member of it, including the `client` role. There is nobody to
+    hide it from — it signs every screen the person is entitled to enter anyway.
     """
     return _to_out(db.get(Organization, membership.org_id), membership.role)
 
@@ -105,11 +107,12 @@ def current_organization(
 def list_organizations(
     session: Session = Depends(current_session), db: DbSession = Depends(get_db)
 ):
-    """Организации, в которых человек состоит, — содержимое переключателя.
+    """The organizations a person belongs to — the contents of the switcher.
 
-    Список отдаётся и тогда, когда организация одна: решать, показывать ли
-    переключатель, — дело интерфейса, а не сервера, и ветка «а если одна»,
-    заведённая здесь, повторилась бы в каждом клиенте.
+    The list is returned even when there is only one organization: deciding
+    whether to show the switcher is the interface's business, not the server's,
+    and an "and what if there is only one" branch introduced here would repeat in
+    every client.
     """
     return [_to_out(org, membership.role) for membership, org in memberships_of(db, session.user_id)]
 
@@ -120,11 +123,11 @@ def switch_organization(
     session: Session = Depends(current_session),
     db: DbSession = Depends(get_db),
 ):
-    """Переключает сессию на другую организацию.
+    """Switches the session to another organization.
 
-    Чужая организация неотличима от несуществующей: 404, а не 403 — иначе
-    перебор по адресу превращается в способ выяснить, какие организации в
-    установке вообще есть.
+    Someone else's organization is indistinguishable from a nonexistent one: 404,
+    not 403 — otherwise enumerating addresses turns into a way of finding out
+    which organizations exist in the installation at all.
     """
     membership = switch(db, session, payload.org_id)
     if membership is None:
@@ -145,16 +148,16 @@ def update_organization(
     membership: Membership = Depends(current_membership),
     db: DbSession = Depends(get_db),
 ):
-    """Уровень 2 настроек: дефолты, которые наследуют все проекты.
+    """Level 2 of the settings: the defaults all projects inherit.
 
-    Правит владелец. Производственный календарь живёт именно здесь, а не на
-    проекте: никто не станет вбивать даты Новруза в каждый новый проект
-    руками, а забытый праздник тихо сдвигает все сроки.
+    Edited by the owner. The production calendar lives here specifically rather
+    than on a project: nobody is going to type the Novruz dates into every new
+    project by hand, and a forgotten holiday silently shifts every deadline.
 
-    Значения меняются по месту, а не копируются в проекты: проект хранит
-    `null` — «наследовать», — и правка дефолта доходит до всех, кто его не
-    переопределил. Копирование при создании выглядело бы так же ровно до
-    первой правки дефолта, а потом расходилось бы навсегда.
+    Values are changed in place rather than copied into projects: a project
+    stores `null` — "inherit" — and an edit to a default reaches everyone who has
+    not overridden it. Copying at creation time would look the same right up to
+    the first edit of a default, and would diverge forever after.
     """
     if not can(parse_role(membership.role), Action.ORG_ADMIN):
         raise HTTPException(status_code=403, detail="forbidden")
@@ -163,9 +166,9 @@ def update_organization(
     updates = changes(payload)
 
     if "slug" in updates and _slug_taken(db, updates["slug"], except_id=org.id):
-        # Занятый слаг — не авария, а повод показать свободный вариант, и
-        # интерфейс спросит его отдельным маршрутом. Здесь достаточно честного
-        # отказа.
+        # A taken slug is not a crash but a reason to show a free variant, and
+        # the interface will ask for it through a separate route. An honest
+        # refusal is enough here.
         raise HTTPException(status_code=409, detail="slug_taken")
 
     for field, value in updates.items():
@@ -174,8 +177,9 @@ def update_organization(
     try:
         db.flush()
     except IntegrityError:
-        # Гонка между проверкой и записью: уникальность держит база, а не
-        # проверка выше — та лишь избавляет от отказа в обычном случае.
+        # A race between the check and the write: uniqueness is held by the
+        # database rather than by the check above — that one merely spares a
+        # refusal in the ordinary case.
         db.rollback()
         raise HTTPException(status_code=409, detail="slug_taken")
 
@@ -188,17 +192,17 @@ def check_org_slug(
     membership: Membership = Depends(current_membership),
     db: DbSession = Depends(get_db),
 ):
-    """Свободен ли такой слаг — и что предложить, если занят.
+    """Whether such a slug is free — and what to offer if it is taken.
 
-    Спрашивается из поля ввода до отправки формы: «занятый слаг подсказывает
-    свободный вариант прямо в поле». Слаг здесь ещё и нормализуется, поэтому
-    ответ заодно показывает, во что превратится введённое название.
+    Asked from the input field before the form is submitted: "a taken slug
+    suggests a free variant right in the field". The slug is also normalized
+    here, so the answer additionally shows what the entered name turns into.
     """
     org = db.get(Organization, membership.org_id)
 
     def taken(candidate: str) -> bool:
-        # Свой же слаг не считается занятым: иначе форма сообщала бы, что имя
-        # занято, тому, кто его и занимает.
+        # One's own slug does not count as taken: otherwise the form would tell
+        # whoever holds the name that the name is taken.
         return _slug_taken(db, candidate, except_id=org.id)
 
     return slug_check(slug, is_taken=taken, fallback="org")
@@ -208,13 +212,13 @@ def check_org_slug(
 def list_members(
     membership: Membership = Depends(current_membership), db: DbSession = Depends(get_db)
 ):
-    """Люди, которых можно назначить исполнителями.
+    """The people who can be made assignees.
 
-    Отказ здесь — 403, а не 404, в отличие от маршрутов проекта: адрес не
-    называет никакой сущности, существование которой стоило бы скрывать, а
-    свою организацию спрашивающий и так видит. По спеку роль client состава
-    организации не получает вовсе — и отсутствие у неё PROJECT_READ без
-    выданного доступа к проекту ровно это и означает.
+    A refusal here is a 403, not a 404, unlike the project routes: the address
+    names no entity whose existence would be worth hiding, and the caller sees
+    their own organization anyway. Per the specification the client role does not
+    get the organization's membership at all — and its lack of PROJECT_READ
+    without granted access to a project means exactly that.
     """
     if not can(parse_role(membership.role), Action.PROJECT_READ):
         raise HTTPException(status_code=403, detail="forbidden")
@@ -232,11 +236,11 @@ def list_members(
 
 
 def _target(db: DbSession, membership: Membership, user_id: uuid.UUID) -> Membership:
-    """Членство человека, о котором идёт речь, в организации спрашивающего.
+    """The membership, in the caller's organization, of the person in question.
 
-    Чужой участник неотличим от несуществующего: 404 на оба случая — иначе
-    перебор по адресу превращается в способ выяснить, кто в этой установке
-    вообще заведён.
+    A member of another organization is indistinguishable from a nonexistent one:
+    404 for both cases — otherwise enumerating addresses turns into a way of
+    finding out who exists in this installation at all.
     """
     found = member_of(db, org_id=membership.org_id, user_id=user_id)
     if found is None:
@@ -245,13 +249,14 @@ def _target(db: DbSession, membership: Membership, user_id: uuid.UUID) -> Member
 
 
 def _parse_assignable_role(raw: str) -> Role:
-    """Роль из запроса. Владелец здесь допустим — в отличие от приглашения.
+    """The role from the request. Owner is admissible here — unlike in an invitation.
 
-    Приглашение владельца не выдаёт (NOT_INVITABLE в app.invitations): ссылка
-    без адреса достаётся предъявителю, и владельцем становился бы всякий, кто
-    её открыл. Здесь адресат — действующий участник, названный поимённо тем,
-    кто и так распоряжается организацией целиком; это то самое «отдельное
-    действие», ради которого приглашению владельца запрещено.
+    An invitation does not hand out ownership (NOT_INVITABLE in app.invitations):
+    a link with no address goes to whoever presents it, and the owner would
+    become anyone who opened it. Here the recipient is an existing member, named
+    individually by someone who already governs the whole organization; this is
+    the very "separate action" for whose sake an invitation to ownership is
+    forbidden.
     """
     try:
         return Role(raw)
@@ -266,12 +271,12 @@ def update_member_role(
     membership: Membership = Depends(current_membership),
     db: DbSession = Depends(get_db),
 ):
-    """Меняет роль участника. Правит владелец, и только он.
+    """Changes a member's role. The owner edits it, and only the owner.
 
-    Свою собственную роль владелец сменить может — пока он не последний.
-    Запрещать это отдельно незачем: пока владельцев двое, разжалование
-    отыгрывает назад второй, а на последнем срабатывает та же защита, что и
-    на всех остальных путях остаться без владельца.
+    An owner may change their own role — while they are not the last one.
+    Forbidding that separately is pointless: while there are two owners, the
+    second one can undo the demotion, and on the last one the same protection
+    fires as on every other path to being left without an owner.
     """
     if not can(parse_role(membership.role), Action.ORG_ADMIN):
         raise HTTPException(status_code=403, detail="forbidden")
@@ -295,14 +300,14 @@ def remove_member(
     membership: Membership = Depends(current_membership),
     db: DbSession = Depends(get_db),
 ):
-    """Выводит человека из организации — или выпускает его самого.
+    """Removes a person from the organization — or lets them leave themselves.
 
-    Один маршрут на оба действия, потому что действие и правда одно: членства
-    больше нет. Разными их делает только то, кто вправе его выполнить —
-    владелец над любым или человек над собой. Уход своими руками не требует
-    прав в организации вовсе: роль `client` не видит даже её состава, и
-    отдельного права «выйти» у неё нет и быть не должно — иначе позванный
-    однажды остаётся внутри навсегда.
+    One route for both actions, because the action really is one: the membership
+    is gone. The only thing that makes them different is who may perform it — the
+    owner over anyone, or a person over themselves. Leaving by one's own hand
+    requires no permissions in the organization at all: the `client` role does not
+    even see its membership, and it has no separate "leave" permission and must
+    not have one — otherwise whoever was once invited stays inside forever.
     """
     leaving = user_id == membership.user_id
     if not leaving and not can(parse_role(membership.role), Action.ORG_ADMIN):
