@@ -21,9 +21,9 @@ Planora is a self-hosted project planner: organizations → projects → categor
 module, and a weekly health dashboard ("Scorecard"). This skill is a map, not
 a tutorial — its job is to point you at the file that already solves your
 problem so you extend it instead of reinventing it. The codebase's own code
-comments (mostly Russian, explaining *why* a line exists, not *what* it does)
-are the deeper source of truth; read the file this skill points at before
-writing new code near it.
+comments (they explain *why* a line exists, not *what* it does) are the
+deeper source of truth; read the file this skill points at before writing
+new code near it.
 
 ## Stack and layout
 
@@ -199,9 +199,9 @@ in `detail` is directly unusable there). When you add an endpoint:
 
 - **Comment the "why," not the "what."** Nearly every non-obvious column,
   branch, or constraint in this codebase has a comment explaining the
-  reasoning or the incident that motivated it (mostly in Russian). A column
-  called `internal` or a `server_default` next to a Python `default` usually
-  has one — read it before assuming the obvious explanation.
+  reasoning or the incident that motivated it. A column called `internal` or
+  a `server_default` next to a Python `default` usually has one — read it
+  before assuming the obvious explanation.
 - **Push invariants into the database, not just the app layer.** `StrEnum`
   classes are paired with a derived tuple constant (`tuple(x.value for x in
   Enum)`) that feeds a `CheckConstraint`, so the enum and the DB constraint

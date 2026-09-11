@@ -71,7 +71,7 @@ README duplicates them for humans but CI is ground truth.
 ## House habits
 
 - Comment the "why," not the "what" — most non-obvious code already has a
-  comment (often Russian) explaining the reasoning; read it before assuming.
+  comment explaining the reasoning; read it before assuming.
 - `StrEnum` classes are paired with a derived tuple that feeds a
   `CheckConstraint`, so the enum and the DB constraint can't drift apart.
 - Config (`backend/app/config.py`) validates required settings at startup and
@@ -81,4 +81,4 @@ README duplicates them for humans but CI is ground truth.
   in `frontend/src/styles.css` (4px step, plus 2 and 6 below 8), never a bare
   pixel literal — `spacing-scale.test.ts` fails CI otherwise. A geometric
   exception (border compensation, chevron width) is marked on the line with a
-  `вне шкалы` comment. Sizes and positions are not part of the scale.
+  `off-scale` comment. Sizes and positions are not part of the scale.
