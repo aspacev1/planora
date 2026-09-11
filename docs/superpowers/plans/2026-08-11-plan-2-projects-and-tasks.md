@@ -1,4 +1,4 @@
-# План 2: заведение проекта и задач — план реализации
+# Plan 2: creating a project and tasks — implementation plan
 
 > **Historical.** This is one of the original build plans this codebase
 > was built from — every step below has since shipped. It reflects the plan
@@ -9,26 +9,26 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Довести интерфейс до состояния, в котором человек создаёт проект, заводит категории и задачи и видит их на настоящей диаграмме Ганта с дневной шкалой — пока без перетаскивания и правки.
+**Goal:** Bring the interface to a state where a person creates a project, creates categories and tasks, and sees them on a real Gantt chart with a daily scale — without dragging and editing for now.
 
-**Architecture:** Диаграмма — единственный нетривиальный компонент, и он разбивается на части с ясными границами: шкала времени переводит даты в пиксели и обратно, строки рисуют содержимое, оболочка отвечает за прокрутку и закреплённую левую колонку. Все данные приходят одним запросом состояния проекта; все изменения уходят операциями. Клиент не считает даты окончания — их считает сервер и присылает готовыми.
+**Architecture:** The chart is the only non-trivial component, and it breaks down into parts with clear boundaries: the time scale converts dates into pixels and back, the rows draw the content, the shell is responsible for the scroll and the pinned left column. All the data arrives in one project-state request; all the changes leave as operations. The client does not compute end dates — the server computes them and sends them ready.
 
-**Tech Stack:** Как в плане 1: Vite, React, TypeScript, react-router, TanStack Query, Vitest, Testing Library, MSW, свой CSS.
+**Tech Stack:** As in plan 1: Vite, React, TypeScript, react-router, TanStack Query, Vitest, Testing Library, MSW, our own CSS.
 
 ## Global Constraints
 
-- Даты окончания приходят с сервера. Клиент не воспроизводит календарную арифметику ни при каких обстоятельствах: правила рабочих дней живут в одном месте, и это не браузер.
-- Все изменения данных проекта идут операциями через `POST /api/projects/{id}/mutations`. Прямых обновлений сущностей нет.
-- Публичный контракт операции не принимает поля восстановления (`task_id`, `category_id` при создании, `position`). Их назначает сервер.
-- Языки: `az` по умолчанию, `en`, `ru`. Чрома переводится, содержимое пользователя — никогда.
-- Сервер отвечает машинными кодами; клиент переводит код в текст и никогда не показывает `detail` как есть.
-- Нерабочие дни приходят в состоянии проекта и заливаются фоном по всей высоте диаграммы.
-- Порядок строк рисуется по `(position, id)`: позиции могут совпасть в одном краевом случае, и без второго ключа порядок между перерисовками неустойчив.
-- Свой CSS с переменными и тёмной темой через `prefers-color-scheme`.
+- The end dates come from the server. The client does not reproduce calendar arithmetic under any circumstances: the working-day rules live in one place, and it is not the browser.
+- All changes to a project's data go as operations through `POST /api/projects/{id}/mutations`. There are no direct entity updates.
+- An operation's public contract does not accept the restoration fields (`task_id`, `category_id` on creation, `position`). They are assigned by the server.
+- Languages: `az` by default, `en`, `ru`. The chrome is translated, the user's content never.
+- The server answers with machine codes; the client translates a code into text and never shows `detail` as is.
+- The non-working days arrive in the project's state and are filled in as a background across the chart's full height.
+- The rows' order is drawn by `(position, id)`: positions can coincide in one edge case, and without a second key the order is unstable between repaints.
+- Our own CSS with variables and a dark theme through `prefers-color-scheme`.
 
 ---
 
-### Task 1: Список проектов и создание проекта
+### Task 1: The list of projects and creating a project
 
 **Files:**
 - Modify: `frontend/src/screens/Projects.tsx`
@@ -37,9 +37,9 @@
 - Test: `frontend/src/screens/Projects.test.tsx`
 
 **Interfaces:**
-- Produces: `listProjects()`, `createProject(name)`, `getProject(id)`, `applyOp(projectId, op, reason?)`; модальное окно многоразового пользования.
+- Produces: `listProjects()`, `createProject(name)`, `getProject(id)`, `applyOp(projectId, op, reason?)`; a reusable modal dialog.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```tsx
 it("создаёт проект и уводит на него", async () => {
@@ -94,44 +94,44 @@ it("объясняет отказ сервера переведённым тек
 });
 ```
 
-Второй тест закрепляет правило, которое легко нарушить из лучших побуждений: слаг строится по таблице транслитерации на сервере, и повторять эту логику в браузере нельзя — расхождение даст ссылку, которая не открывается.
+The second test pins down a rule that is easy to break with the best of intentions: the slug is built from a transliteration table on the server, and that logic must not be repeated in the browser — a divergence would give a link that does not open.
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
 ```bash
 cd frontend && npx vitest run src/screens/Projects.test.tsx
 ```
 
-- [ ] **Step 3: Реализовать клиент проектов**
+- [ ] **Step 3: Implement the projects client**
 
-- [ ] **Step 4: Реализовать модальное окно**
+- [ ] **Step 4: Implement the modal dialog**
 
-Многоразовое: закрывается по Esc и по клику вне, возвращает фокус туда, откуда открылось, и ставит фокус на первое поле при открытии. Всё это нужно и для доступности, и для того, чтобы дальнейшие экраны не изобретали своё окно заново.
+Reusable: it closes on Esc and on a click outside, returns the focus where it was opened from, and puts the focus on the first field when opening. All of that is needed both for accessibility and so that the later screens do not reinvent a dialog of their own.
 
-- [ ] **Step 5: Реализовать экран**
+- [ ] **Step 5: Implement the screen**
 
-- [ ] **Step 6: Прогнать тесты и закоммитить**
+- [ ] **Step 6: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run
 git add frontend/src/
-git commit -m "feat: список проектов и создание проекта"
+git commit -m "feat: the list of projects and creating a project"
 ```
 
 ---
 
-### Task 2: Шкала времени
+### Task 2: The time scale
 
 **Files:**
 - Create: `frontend/src/gantt/timescale.ts`
 - Test: `frontend/src/gantt/timescale.test.ts`
 
 **Interfaces:**
-- Produces: `buildScale({from, to, dayWidth}) -> Scale`; у `Scale` — `days`, `months`, `width`, `xOf(date)`, `widthOf(startISO, endISO)`, `dateAt(x)`.
+- Produces: `buildScale({from, to, dayWidth}) -> Scale`; a `Scale` has `days`, `months`, `width`, `xOf(date)`, `widthOf(startISO, endISO)`, `dateAt(x)`.
 
-Чистый модуль без React. Он переводит даты в пиксели и обратно; всё остальное в диаграмме опирается на него. Отдельный модуль потому, что перетаскивание в плане 3 будет спрашивать `dateAt(x)`, и логика перевода должна быть проверена без участия DOM.
+A pure module with no React. It converts dates into pixels and back; everything else in the chart rests on it. A separate module because dragging in plan 3 will ask for `dateAt(x)`, and the conversion logic must be checked without the DOM taking part.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```ts
 const scale = buildScale({ from: "2026-03-01", to: "2026-06-15", dayWidth: 26 });
@@ -166,29 +166,29 @@ it("месяцы идут в порядке и покрывают всю лен�
 });
 
 it("день недели считается по календарю, а не по остатку от деления", () => {
-  expect(scale.days[0].weekday).toBe(0); // 1 марта 2026 — воскресенье
+  expect(scale.days[0].weekday).toBe(0); // 1 March 2026 is a Sunday
 });
 ```
 
-Последний тест не формальность: вычислять день недели индексом от начала ленты — обычная ошибка, и она вылезает только при смене границ окна.
+The last test is not a formality: computing the weekday by an index from the strip's start is a common mistake, and it only shows up when the window's bounds change.
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
-- [ ] **Step 3: Реализовать модуль**
+- [ ] **Step 3: Implement the module**
 
-Даты внутри — строки ISO, а не объекты `Date`: объект тянет за собой часовой пояс, и полоска, посчитанная в одном поясе, съезжает на день в другом. Арифметика идёт по UTC-полуночи, наружу отдаются те же строки, что пришли с сервера.
+The dates inside are ISO strings rather than `Date` objects: an object drags a time zone along with it, and a bar computed in one zone slips by a day in another. The arithmetic runs on UTC midnight, and what goes out are the same strings that came from the server.
 
-- [ ] **Step 4: Прогнать тесты и закоммитить**
+- [ ] **Step 4: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/gantt/timescale.test.ts
 git add frontend/src/gantt/
-git commit -m "feat: шкала времени диаграммы"
+git commit -m "feat: the chart's time scale"
 ```
 
 ---
 
-### Task 3: Диаграмма на чтение
+### Task 3: The chart, read-only
 
 **Files:**
 - Create: `frontend/src/gantt/Gantt.tsx`, `Header.tsx`, `Row.tsx`, `Grid.tsx`
@@ -197,10 +197,10 @@ git commit -m "feat: шкала времени диаграммы"
 - Test: `frontend/src/gantt/Gantt.test.tsx`
 
 **Interfaces:**
-- Consumes: `buildScale`, состояние проекта из `getProject`.
-- Produces: компонент `<Gantt state={...} />`, рисующий шапку, сетку, строки категорий и задач.
+- Consumes: `buildScale`, the project's state from `getProject`.
+- Produces: a `<Gantt state={...} />` component drawing the header, the grid, the category rows and the task rows.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```tsx
 const STATE = {
@@ -218,7 +218,7 @@ const STATE = {
 it("рисует задачу полоской нужной ширины", () => {
   render(<Gantt state={STATE} />);
   const bar = screen.getByRole("button", { name: /Логотип/ });
-  // 4-10 марта — семь календарных дней
+  // 4-10 March is seven calendar days
   expect(bar).toHaveStyle({ width: `${7 * 26}px` });
 });
 
@@ -255,35 +255,35 @@ it("пустой проект объясняет, что делать", () => {
 });
 ```
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
-- [ ] **Step 3: Реализовать шапку и сетку**
+- [ ] **Step 3: Implement the header and the grid**
 
-Шапка двухуровневая: месяцы сверху, дни снизу с числом и днём недели. Нерабочие дни заливаются и в шапке, и на всю высоту строк. Сетка строится один раз и переиспользуется всеми строками — на сотне задач сто одинаковых наборов из ста дней это десять тысяч узлов, и страница начинает тормозить.
+The header has two levels: the months on top, the days below with the date and the weekday. The non-working days are filled in both in the header and across the rows' full height. The grid is built once and reused by every row — with a hundred tasks, a hundred identical sets of a hundred days each is ten thousand nodes, and the page starts to lag.
 
-- [ ] **Step 4: Реализовать строки и полоски**
+- [ ] **Step 4: Implement the rows and the bars**
 
-Полоска — кнопка, а не `div`: по ней будут кликать и водить с клавиатуры, и это единственный способ получить доступность даром. Прогресс рисуется заливкой внутри полоски. Задача, заканчивающаяся позже дедлайна, красится и получает флажок в левой колонке.
+A bar is a button rather than a `div`: it will be clicked and walked with the keyboard, and that is the only way to get accessibility for free. The progress is drawn as a fill inside the bar. A task ending later than the deadline is painted and gets a flag in the left column.
 
-- [ ] **Step 5: Реализовать оболочку с прокруткой**
+- [ ] **Step 5: Implement the shell with the scroll**
 
-Горизонтальная прокрутка с закреплённой левой колонкой (`position: sticky`). При открытии лента проматывается к сегодняшнему дню.
+A horizontal scroll with a pinned left column (`position: sticky`). On opening, the strip scrolls to today.
 
-- [ ] **Step 6: Реализовать экран проекта**
+- [ ] **Step 6: Implement the project screen**
 
-Загрузка, ошибка и успех — три явных состояния. Ошибка 404 показывает «проект не найден», а не пустую диаграмму: чужой и несуществующий проект неразличимы, и интерфейс не должен делать вид, что знает разницу.
+Loading, error and success are three explicit states. A 404 shows "the project was not found" rather than an empty chart: somebody else's project and a non-existent one are indistinguishable, and the interface must not pretend it knows the difference.
 
-- [ ] **Step 7: Прогнать тесты и закоммитить**
+- [ ] **Step 7: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/gantt
 git add frontend/src/gantt/ frontend/src/screens/Project.tsx
-git commit -m "feat: диаграмма Ганта на чтение"
+git commit -m "feat: the Gantt chart, read-only"
 ```
 
 ---
 
-### Task 4: Создание категорий
+### Task 4: Creating categories
 
 **Files:**
 - Create: `frontend/src/screens/CategoryForm.tsx`
@@ -291,9 +291,9 @@ git commit -m "feat: диаграмма Ганта на чтение"
 - Test: `frontend/src/screens/CategoryForm.test.tsx`
 
 **Interfaces:**
-- Produces: форма создания категории, отправляющая операцию `create_category`.
+- Produces: a category creation form that sends the `create_category` operation.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```tsx
 it("отправляет операцию создания категории и обновляет диаграмму", async () => {
@@ -317,7 +317,7 @@ it("отправляет операцию создания категории и
 });
 
 it("не шлёт в операции полей, которых нет в публичном контракте", async () => {
-  // position и category_id назначает сервер; клиент их не знает и знать не должен
+  // position and category_id are assigned by the server; the client does not know them and should not
   const sent: any[] = [];
   server.use(
     http.get("/api/projects/p1", () => HttpResponse.json(STATE)),
@@ -335,23 +335,23 @@ it("не шлёт в операции полей, которых нет в пу�
 });
 ```
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
-- [ ] **Step 3: Реализовать форму**
+- [ ] **Step 3: Implement the form**
 
-Цвет предлагается из палитры по числу уже существующих категорий, но выбирается человеком. После успеха состояние проекта перезапрашивается — не дописывается руками в кэш: сервер мог назначить позицию не так, как ожидает клиент, и расхождение вылезет позже в самом неудобном месте.
+The colour is suggested from the palette by the number of already existing categories, but it is chosen by the person. After a success the project's state is refetched rather than written into the cache by hand: the server may have assigned a position differently from what the client expects, and the divergence would show up later in the most inconvenient place.
 
-- [ ] **Step 4: Прогнать тесты и закоммитить**
+- [ ] **Step 4: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/screens/CategoryForm.test.tsx
 git add frontend/src/screens/
-git commit -m "feat: создание категорий"
+git commit -m "feat: creating categories"
 ```
 
 ---
 
-### Task 5: Создание задач
+### Task 5: Creating tasks
 
 **Files:**
 - Create: `frontend/src/screens/TaskForm.tsx`
@@ -359,9 +359,9 @@ git commit -m "feat: создание категорий"
 - Test: `frontend/src/screens/TaskForm.test.tsx`
 
 **Interfaces:**
-- Produces: форма создания задачи с полями названия, описания, категории, критичности, даты старта, длительности и исполнителей.
+- Produces: a task creation form with fields for the name, the description, the category, the criticality, the start date, the duration and the owners.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```tsx
 it("подставляет категорию, из строки которой открыли форму", async () => {
@@ -426,40 +426,40 @@ it("не даёт длительность меньше одного дня", as
 });
 ```
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
-- [ ] **Step 3: Реализовать выбор исполнителей**
+- [ ] **Step 3: Implement the owner selection**
 
-Список приходит из `GET /api/org/members`. Роль `client` этот маршрут не получает вовсе, поэтому при отказе 403 блок исполнителей просто не показывается — а не ломает форму.
+The list comes from `GET /api/org/members`. The `client` role does not get this route at all, so on a 403 refusal the owners block is simply not shown — rather than breaking the form.
 
-- [ ] **Step 4: Реализовать форму и точку входа**
+- [ ] **Step 4: Implement the form and its entry point**
 
-Плюс на строке категории открывает форму с уже подставленной категорией. Подпись кнопки включает название категории, иначе на десятке категорий все плюсы неразличимы для чтения с экрана.
+The plus on a category's row opens the form with the category already filled in. The button's caption includes the category's name, otherwise with a dozen categories all the pluses are indistinguishable on a screen reader.
 
-Поле длительности подписано «рабочих дней», а не «дней»: это разные вещи, и человек, поставивший 5 в пятницу, должен понимать, почему задача кончается в четверг.
+The duration field is captioned "working days" rather than "days": these are different things, and a person who put 5 on a Friday should understand why the task ends on a Thursday.
 
-- [ ] **Step 5: Прогнать весь набор и собрать**
+- [ ] **Step 5: Run the whole suite and build**
 
 ```bash
 cd frontend && npx vitest run && npm run build
 ```
 
-- [ ] **Step 6: Проверить вживую**
+- [ ] **Step 6: Check it live**
 
-Против настоящего бэкенда: создать проект, две категории, три задачи с разными длительностями и критичностью. Убедиться, что даты окончания совпадают с тем, что показывает `GET /api/projects/{id}` — и что задача, начатая в пятницу, перепрыгивает выходные.
+Against the real backend: create a project, two categories, three tasks with different durations and criticalities. Make sure the end dates match what `GET /api/projects/{id}` shows — and that a task started on a Friday jumps over the weekend.
 
-- [ ] **Step 7: Закоммитить**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add frontend/
-git commit -m "feat: создание задач"
+git commit -m "feat: creating tasks"
 ```
 
 ---
 
-## Что этот план не делает
+## What this plan does not do
 
-- Перетаскивание, правку на месте, карточку задачи, историю и анимацию — план 3.
-- Стрелки связей рисуются планом 3 вместе с остальной интерактивностью; в этом плане `dependencies` приходят в состоянии, но не отображаются.
-- Утверждение плана, базовый план и порог с причиной — следующий план после фронтового цикла. Поля в состоянии уже есть и игнорируются.
-- Редактирование настроек проекта: дедлайн, календарь, порог. Отображаются, но не меняются.
+- Dragging, editing in place, the task card, the history and the animation — plan 3.
+- The link arrows are drawn by plan 3 together with the rest of the interactivity; in this plan `dependencies` arrive in the state but are not displayed.
+- Plan approval, the baseline plan and the threshold with a reason — the next plan after the frontend cycle. The fields are already in the state and are ignored.
+- Editing the project's settings: the deadline, the calendar, the threshold. They are displayed but not changed.
