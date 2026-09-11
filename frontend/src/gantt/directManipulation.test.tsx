@@ -16,12 +16,12 @@ import { DAY_WIDTH } from "./scale";
 
 beforeEach(projectFixtures);
 
-/** Полоска задачи по её названию: она объявлена кнопкой с именем и датами. */
+/** A task's bar by its name: it is declared a button with a name and dates. */
 async function bar(name: RegExp | string) {
   return screen.findByRole("button", { name });
 }
 
-/** Ручка внутри полоски: грани и заливка скрыты от чтения с экрана. */
+/** A grip inside the bar: the edges and the fill are hidden from screen readers. */
 function grip(element: HTMLElement, kind: "start" | "end" | "progress"): HTMLElement {
   const found = element.querySelector<HTMLElement>(`.gantt__grip--${kind}`);
   if (found === null) throw new Error(`у полоски нет ручки «${kind}»`);
@@ -34,9 +34,9 @@ describe("грани полоски", () => {
     renderProject();
     const logo = await bar(/Логотип/);
 
-    // Задача идёт со среды 4 марта пять рабочих дней — по вторник 10-го
-    // (в календаре оснастки 20-е выходное, но оно дальше). Тянем конец на
-    // два дня вправо: до четверга 12-го, то есть на семь рабочих дней.
+    // The task runs from Wednesday 4 March for five working days — through Tuesday the 10th (in
+    // the fixture's calendar the 20th is a day off, but that is further on). We drag the end two
+    // days to the right: to Thursday the 12th, that is, to seven working days.
     drag(grip(logo, "end"), { fromX: 300, toX: 300 + 2 * DAY_WIDTH.day });
 
     await waitFor(() => expect(sent).toHaveLength(1));
@@ -48,8 +48,8 @@ describe("грани полоски", () => {
     renderProject();
     const logo = await bar(/Логотип/);
 
-    // Начало уезжает на день влево — конец остаётся на месте, значит задача
-    // становится длиннее ровно на этот день (3 марта — вторник, рабочий).
+    // The start travels a day to the left — the end stays put, which means the task becomes
+    // longer by exactly that day (3 March is a Tuesday, a working day).
     drag(grip(logo, "start"), { fromX: 100, toX: 100 - DAY_WIDTH.day });
 
     await waitFor(() => expect(sent).toHaveLength(1));
@@ -66,8 +66,8 @@ describe("грани полоски", () => {
     renderProject();
     const logo = await bar(/Логотип/);
 
-    // Левую грань тащат далеко за правую: полоска упирается в один день, а не
-    // выворачивается наизнанку.
+    // The left edge is dragged far past the right one: the bar runs into one day rather than
+    // turning itself inside out.
     drag(grip(logo, "start"), { fromX: 100, toX: 100 + 40 * DAY_WIDTH.day });
 
     await waitFor(() => expect(sent).toHaveLength(1));
@@ -79,7 +79,7 @@ describe("грани полоски", () => {
     renderProject();
     const logo = await bar(/Логотип/);
 
-    drag(grip(logo, "end"), { fromX: 300, toX: 312 }); // меньше половины дня
+    drag(grip(logo, "end"), { fromX: 300, toX: 312 }); // less than half a day
 
     expect(sent).toHaveLength(0);
   });
@@ -99,11 +99,10 @@ describe("грани полоски", () => {
     renderProject();
     const logo = await bar(/Логотип/);
 
-    // fireEvent отдаёт false, когда обработчик отменил умолчание. Проверка не
-    // формальная: ручка — `span` внутри полоски, и без отмены браузер считает
-    // нажатие на неё началом выделения. Живая проверка показала жест, который
-    // вместо растягивания полоски подсвечивал названия соседних задач и не
-    // отправлял ничего вовсе.
+    // fireEvent returns false when a handler prevented the default. The check is not a
+    // formality: a grip is a `span` inside the bar, and without preventing it the browser treats
+    // a press on it as the start of a selection. Live testing showed a gesture that highlighted
+    // neighbouring task names instead of stretching the bar and sent nothing at all.
     const allowed = fireEvent.pointerDown(grip(logo, "end"), {
       pointerId: 1,
       button: 0,
@@ -128,10 +127,10 @@ describe("заливка выполненного", () => {
     renderProject();
     const logo = await bar(/Логотип/);
 
-    // Полоска занимает семь календарных дней (4–10 марта), сорок процентов
-    // из них уже залито. Тянем границу до семидесяти — числа считаются из
-    // ширины дня, а не записаны литералами: масштаб по умолчанию однажды
-    // сменится, и тест обязан проверять процент, а не масштаб.
+    // The bar takes seven calendar days (4–10 March), forty percent of which is already filled.
+    // We drag the boundary to seventy — the numbers are computed from a day's width rather than
+    // written as literals: the default scale will change one day, and the test must check the
+    // percentage rather than the scale.
     const width = 7 * DAY_WIDTH.day;
     drag(grip(logo, "progress"), { fromX: width * 0.4, toX: width * 0.7 });
 
@@ -152,8 +151,8 @@ describe("заливка выполненного", () => {
   });
 
   it("не появляется там, где заливки не видно", async () => {
-    // Запланированная задача заливки не рисует: процент лёг бы в поле, а на
-    // полоске не отразился, и жест выглядел бы сорвавшимся.
+    // A planned task draws no fill: the percentage would land in the field but not show on the
+    // bar, and the gesture would look as if it had failed.
     renderProject(WITH_MILESTONE);
     const planned = await bar(/Сдача/);
 
@@ -193,7 +192,7 @@ describe("вехи", () => {
 });
 
 describe("связь перетаскиванием", () => {
-  /** Кружок на краю полоски. Скрыт от чтения с экрана — ищем по классу. */
+  /** The circle at a bar's edge. Hidden from screen readers — we look it up by class. */
   function dot(row: HTMLElement, side: "start" | "end"): HTMLElement {
     const found = row.querySelector<HTMLElement>(`.gantt__link-dot--${side}`);
     if (found === null) throw new Error(`у строки нет кружка «${side}»`);
@@ -207,8 +206,8 @@ describe("связь перетаскиванием", () => {
   }
 
   /**
-   * Связь тянут указателем, а цель ищут попаданием в точку: `elementFromPoint`
-   * в jsdom не работает, поэтому его подменяет строка, названная тестом.
+   * A link is dragged with the pointer while the target is found by hit-testing a point:
+   * `elementFromPoint` does not work in jsdom, so a row named by the test stands in for it.
    */
   function dropOn(handle: HTMLElement, target: HTMLElement) {
     const original = document.elementFromPoint;
@@ -272,9 +271,8 @@ describe("связь перетаскиванием", () => {
     fireEvent.pointerMove(handle, { pointerId: 1, clientX: 300, clientY: 70 });
     expect(document.querySelector(".is-linking")).not.toBeNull();
 
-    // Кружок исчез вместе со строкой — отпускание достаётся окну. Без этого
-    // линия висела бы за курсором, а кадр подкачки крутился бы до следующего
-    // нажатия.
+    // The circle disappeared along with the row — the release goes to the window. Without this
+    // the line would hang after the cursor, and the scroll frame would spin until the next press.
     fireEvent.pointerUp(window, { pointerId: 1, clientX: 300, clientY: 70 });
 
     expect(document.querySelector(".is-linking")).toBeNull();
@@ -311,12 +309,12 @@ describe("перенос категории", () => {
     renderProject(TWO_TASKS);
     await bar(/Логотип/);
     const days = () => document.querySelectorAll(".gantt__grid-day").length;
-    expect(days()).toBe(122); // март — июнь: окно заглушки кончается 30 июня
+    expect(days()).toBe(122); // March to June: the fixture's window ends on 30 June
 
     fireEvent.pointerDown(span(), { pointerId: 1, button: 0, clientX: 100 });
     fireEvent.pointerMove(span(), { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
-    // Конец этапа пришёлся на 25 июля — окно доросло до его конца: этап, как
-    // и полоска, не должен выезжать за сетку в пустоту без дат.
+    // The stage's end landed on 25 July — the window grew to its end: a stage, like a bar, must
+    // not run past the grid into emptiness with no dates.
     expect(days()).toBe(153);
 
     fireEvent.pointerUp(span(), { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
@@ -371,9 +369,9 @@ describe("колонки таблицы", () => {
 
     fireEvent.click(within(row).getByText("10 марта"));
     const input = within(row).getByLabelText(/Окончание/);
-    // Задача идёт с 4 марта; конец 12-го — это семь рабочих дней (7-е и 8-е
-    // выходные). Записать дату окончания напрямую нельзя, и ячейка переводит
-    // названный день в длительность тем же счётом, что и правая грань.
+    // The task runs from 4 March; the 12th as the end is seven working days (the 7th and 8th are
+    // days off). The end date cannot be written directly, and the cell converts the named day
+    // into a duration by the same reckoning as the right edge.
     fireEvent.change(input, { target: { value: "2026-03-12" } });
     fireEvent.blur(input);
 
@@ -402,7 +400,7 @@ describe("колонки таблицы", () => {
     });
     const row = (await bar(/Логотип/)).closest(".gantt__row") as HTMLElement;
 
-    // Начало — «День 3»; ноль и минус — не день проекта, а середина набора.
+    // The start is "Day 3"; zero and minus are not a project day but the middle of typing.
     fireEvent.click(within(row).getByText("День 3"));
     const input = within(row).getByLabelText(/Начало/);
     fireEvent.change(input, { target: { value: "0" } });
@@ -514,8 +512,8 @@ describe("клавиатура", () => {
     renderProject(WITH_MILESTONE);
     const milestone = await bar(/Сдача/);
 
-    // Alt+← у браузера — «назад по истории». Сочетание, выученное на обычных
-    // полосках, на вехе обязано хотя бы молчать, а не закрывать проект.
+    // Alt+← is the browser's "back in history". A combination learned on ordinary bars must at
+    // least stay silent on a milestone rather than close the project.
     const kept = fireEvent.keyDown(milestone, { key: "ArrowLeft", altKey: true });
 
     expect(kept).toBe(false);

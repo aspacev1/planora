@@ -24,16 +24,16 @@ describe("шапка", () => {
   it("ведёт «Проектами» туда же, куда приводит вход", async () => {
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Вход, приглашение и неизвестный адрес приводят на `/projects` — пункт
-    // колонки обязан вести туда же. Пока он указывал на «/», щелчок по
-    // единственному пункту про проекты открывал другой экран.
+    // A sign-in, an invitation and an unknown address all lead to `/projects` — the column's item
+    // must lead there too. While it pointed at "/", a click on the only item about projects opened
+    // a different screen.
     expect(await screen.findByRole("link", { name: "Проекты" })).toHaveAttribute(
       "href",
       "/projects",
     );
-    // Про проекты в колонке один пункт, а не три: соседние «Портфель» и
-    // «Отчёты» показывали те же проекты под своим заголовком, и различить их
-    // снаружи было нечем.
+    // There is one item about projects in the column rather than three: the neighbouring
+    // "Portfolio" and "Reports" showed the same projects under their own heading, and there was
+    // nothing to tell them apart from the outside.
     expect(screen.queryByRole("link", { name: "Портфель" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Отчёты" })).toBeNull();
   });
@@ -63,9 +63,9 @@ describe("шапка", () => {
 
     renderApp({ route: "/projects/p1", locale: "ru" });
 
-    // Страница проекта — часть раздела «Проекты», и колонка обязана это
-    // показывать: иначе человек стоит на экране, который не подсвечивает ни
-    // один пункт, и по колонке не видно, где он.
+    // A project's page is part of the "Projects" section, and the column must show that:
+    // otherwise a person stands on a screen that highlights no item, and the column does not show
+    // where they are.
     const projects = await screen.findByRole("link", { name: "Проекты" });
     expect(projects).toHaveClass("is-current");
     expect(screen.getByRole("link", { name: "Мои задачи" })).not.toHaveClass("is-current");
@@ -78,8 +78,8 @@ describe("шапка", () => {
       "href",
       "/settings",
     );
-    // Организация, участники и профиль стали вкладками внутри — своих пунктов
-    // в колонке у них больше нет.
+    // The organization, the members and the profile became tabs inside — they no longer have
+    // items of their own in the column.
     expect(screen.queryByRole("link", { name: "Организация" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Профиль" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Команда" })).toBeNull();
@@ -99,13 +99,13 @@ describe("шапка", () => {
 
     const chooser = await screen.findByRole("group", { name: "Язык интерфейса" });
     const settings = screen.getByRole("link", { name: "Настройки" });
-    // Над «Настройками» и под разделами работы — в нижнем ряду колонки.
+    // Above "Settings" and below the sections of work — in the column's bottom row.
     expect(settings.previousElementSibling).toBe(chooser);
 
     await userEvent.click(within(chooser).getByRole("button", { name: "AZ" }));
 
-    // Выбор ушёл в профиль, а не только в память браузера, и интерфейс
-    // переключился сразу, не дожидаясь ответа сервера.
+    // The choice went into the profile rather than only into the browser's memory, and the
+    // interface switched at once without waiting for the server's answer.
     await waitFor(() => expect(patches).toEqual([{ locale: "az" }]));
     expect(await screen.findByRole("link", { name: "Layihələr" })).toBeInTheDocument();
   });
@@ -119,8 +119,8 @@ describe("шапка", () => {
 
     const projects = await screen.findByRole("link", { name: "Проекты" });
     expect(screen.queryByText(/Привет/)).toBeNull();
-    // Между логотипом и первым разделом не осталось строки с именем: колонка
-    // начинается организацией и сразу переходит к работе.
+    // There is no line with a name left between the logo and the first section: the column starts
+    // with the organization and goes straight to the work.
     const sidebar = projects.closest(".sidebar")!;
     expect(sidebar.querySelector(".sidebar__user")).toBeNull();
   });
@@ -135,13 +135,13 @@ describe("шапка", () => {
   it("сворачивается щелчком по логотипу и запоминает выбор", async () => {
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Сворачивает сам логотип: отдельной кнопки со стрелкой в колонке нет.
+    // The logo itself collapses: there is no separate arrow button in the column.
     const logo = await screen.findByRole("button", { name: "Скрыть меню" });
     expect(logo).toContainElement(await screen.findByText("Şəhər Studiyası"));
 
     await userEvent.click(logo);
 
-    // Кнопка сменила имя — колонка свёрнута, и выбор пережил бы перезагрузку.
+    // The button changed its name — the column is collapsed, and the choice would survive a reload.
     expect(screen.getByRole("button", { name: "Показать меню" })).toBeInTheDocument();
     expect(localStorage.getItem("planora.sidebar_collapsed")).toBe("1");
 
@@ -154,10 +154,10 @@ describe("шапка", () => {
   it("держит подпись каждого пункта отдельным узлом", async () => {
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Свёрнутая колонка прячет подписи, оставляя значки. Спрятать подпись
-    // можно только тогда, когда она — свой узел: голым текстом внутри ссылки
-    // она гасится вместе со значком, и от рейки остаётся пустая полоса. Ровно
-    // так колонка и выглядела — один логотип, без единого пункта.
+    // A collapsed column hides the captions, leaving the icons. A caption can only be hidden when
+    // it is its own node: as bare text inside a link it is dimmed along with the icon, and an
+    // empty band is all that is left of the rail. That is exactly how the column looked — a lone
+    // logo, without a single item.
     for (const name of ["Проекты", "Мои задачи"]) {
       const link = await screen.findByRole("link", { name });
       expect(link.querySelector(".sidebar__label")).toHaveTextContent(name);
@@ -168,9 +168,9 @@ describe("шапка", () => {
   it("называет каждый пункт помимо видимой подписи", async () => {
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Свёрнутая колонка прячет подпись — и с экрана, и из дерева доступности:
-    // значок рядом `aria-hidden`, и пункт остался бы вовсе безымянным. Имя
-    // поэтому задано отдельно, и задано у всех пунктов, а не только у нижних.
+    // A collapsed column hides the caption — both from the screen and from the accessibility tree:
+    // the icon next to it is `aria-hidden`, and the item would be left with no name at all. So the
+    // name is set separately, and set on every item rather than only on the bottom ones.
     await screen.findByRole("link", { name: "Проекты" });
     for (const item of document.querySelectorAll(".sidebar__nav .sidebar__link")) {
       expect(item).toHaveAttribute("aria-label", item.textContent);
@@ -180,17 +180,17 @@ describe("шапка", () => {
   it("объясняет свёрнутую колонку своей подсказкой, а не атрибутом `title`", async () => {
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Нативную подсказку рисует система: приложение не знает ни где она
-    // встанет, ни когда погаснет. Эта вставала поверх пункта «Проекты» и
-    // висела ещё пару секунд после ухода курсора — своя знает про колонку.
+    // A native tooltip is drawn by the system: the application knows neither where it will stand
+    // nor when it will go out. This one stood on top of the "Projects" item and hung around for
+    // another couple of seconds after the cursor left — ours knows about the column.
     const logo = await screen.findByRole("button", { name: "Скрыть меню" });
     expect(logo).not.toHaveAttribute("title");
     expect(logo.querySelector(".sidebar__tip")).toHaveTextContent("Скрыть меню");
 
     await userEvent.click(logo);
 
-    // Подсказка говорит про действие, а не про состояние, и меняется вместе с
-    // именем кнопки: в рейке она — единственное, что объясняет квадрат.
+    // The tooltip speaks about the action rather than the state, and changes along with the
+    // button's name: in the rail it is the only thing that explains the square.
     const rail = screen.getByRole("button", { name: "Показать меню" });
     expect(rail.querySelector(".sidebar__tip")).toHaveTextContent("Показать меню");
   });
@@ -198,8 +198,8 @@ describe("шапка", () => {
   it("называет `aria-expanded` то, что сворачивает", async () => {
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Без `aria-controls` читалка сообщает «свёрнуто», не говоря чего. Обе
-    // области перечислены: подписи пропадают и у разделов, и у нижнего блока.
+    // Without `aria-controls` the screen reader reports "collapsed" without saying what. Both
+    // areas are listed: the captions disappear from the sections and from the bottom block alike.
     const logo = await screen.findByRole("button", { name: "Скрыть меню" });
     const controls = logo.getAttribute("aria-controls")?.split(" ") ?? [];
 
@@ -210,10 +210,9 @@ describe("шапка", () => {
   it("ставит в квадрат первую букву организации, а не продукта", async () => {
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Тема рисовала здесь `content: "P"` поверх погашенной разметки, и у
-    // организации «Şəhər Studiyası» квадрат опознавал Planora. В свёрнутой
-    // колонке этот квадрат — единственное, что от неё остаётся, и говорить он
-    // обязан про место работы.
+    // The theme drew a `content: "P"` here on top of the dimmed markup, and for the "Şəhər
+    // Studiyası" organization the square identified Planora. In a collapsed column this square is
+    // all that is left of it, and it must speak about the place of work.
     await screen.findByText("Şəhər Studiyası");
     expect(document.querySelector(".sidebar__avatar")).toHaveTextContent("Ş");
   });
