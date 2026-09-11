@@ -37,9 +37,8 @@ const STATE: ProjectState = {
   plan_approved_at: null,
   plan_version: 0,
   undoable: null,
-  // Календарный режим: заглушки существующих тестов живут настоящими датами.
-  // Относительные проекты собирают своё состояние поверх этого (см. тесты
-  // относительной шкалы).
+  // Calendar mode: the existing tests' fixtures live on real dates. Relative projects
+  // build their own state on top of this (see the relative-scale tests).
   schedule_mode: "calendar" as const,
   start_date: null,
 
@@ -56,17 +55,16 @@ const NAMES = new Map([
 ]);
 
 /**
- * Лента с карточкой наведения.
+ * The strip with the hover card.
  *
- * `onSelectTask` передаётся всегда: с ним полоска — кнопка, а без него
- * картинка, и половина проверок ниже (фокус с клавиатуры) на картинке
- * невозможна в принципе.
+ * `onSelectTask` is always passed: with it the bar is a button, without it a picture, and
+ * half the checks below (keyboard focus) are impossible on a picture in principle.
  */
 function draw(
   options: {
     state?: ProjectState;
     names?: ReadonlyMap<string, string>;
-    /** Право двигать полоску: от него зависит строка сочетаний в карточке. */
+    /** The right to move the bar: the shortcuts line in the card depends on it. */
     canWrite?: boolean;
   } = {},
 ) {
@@ -87,22 +85,22 @@ function bar() {
 }
 
 /**
- * Наведение с ожиданием карточки.
+ * Hovering with a wait for the card.
  *
- * Ждать приходится по-настоящему: карточка выходит с выдержкой, и без
- * ожидания каждая проверка ниже читала бы пустую ленту.
+ * The wait has to be real: the card comes out after a delay, and without waiting every
+ * check below would read an empty strip.
  */
 async function hoverBar() {
   await userEvent.hover(bar());
   return screen.findByTestId("bar-tip");
 }
 
-/** Ожидание настоящего времени: выдержку карточки отсчитывает таймер. */
+/** Waiting on real time: the card's delay is counted by a timer. */
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Проект с теми же задачами, но с назначенными исполнителями. */
+/** The same project with the same tasks, but with assignees. */
 function withAssignees(...ids: string[]): ProjectState {
   return { ...STATE, tasks: [{ ...TASK, assignee_ids: ids }] };
 }
@@ -143,16 +141,16 @@ describe("карточка наведения на полоску", () => {
   it("нескольких сводит к первому и счётчику остальных", async () => {
     draw({ state: withAssignees("u1", "u2", "u3"), names: NAMES });
 
-    // Перечисления карточка такой ширины не выдержит, а «+2» отвечает на
-    // вопрос «одна ли это работа» не хуже трёх имён.
+    // A card this wide will not take an enumeration, and "+2" answers the question "is this
+    // one person's work" no worse than three names.
     const tip = await hoverBar();
     expect(tip).toHaveTextContent("Алексей +2");
     expect(tip).not.toHaveTextContent("Мария");
   });
 
   it("без имён обходится без строки исполнителей, но процент оставляет", async () => {
-    // Ровно то, что происходит на публичной странице: состав организации
-    // гостю не отдают, и назначенные исполнители остаются безымянными.
+    // Exactly what happens on the public page: the organization's roster is not given to a
+    // guest, and the assignees stay nameless.
     draw({ state: withAssignees("u1", "u2") });
 
     const tip = await hoverBar();
@@ -161,8 +159,8 @@ describe("карточка наведения на полоску", () => {
   });
 
   it("не пишет имён, которых нет в составе", async () => {
-    // Ушедший из организации остаётся в `assignee_ids`, но имени у него уже
-    // нет: карточка молчит о нём, а не пишет «undefined».
+    // Someone who has left the organization stays in `assignee_ids` but no longer has a
+    // name: the card stays silent about them rather than writing "undefined".
     draw({ state: withAssignees("u9"), names: NAMES });
 
     expect(await hoverBar()).not.toHaveTextContent("undefined");
@@ -173,16 +171,15 @@ describe("карточка наведения на полоску", () => {
 
     await hoverBar();
 
-    // Карточка, идущая за курсором, закрывала бы ровно ту сетку дней, по
-    // которой человек целится.
+    // A card following the cursor would cover the very grid of days the person is aiming at.
     fireEvent.pointerDown(bar(), { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
     expect(screen.queryByTestId("bar-tip")).not.toBeInTheDocument();
 
     fireEvent.pointerMove(bar(), { pointerId: 1, clientX: 160, clientY: 100 });
     expect(screen.queryByTestId("bar-tip")).not.toBeInTheDocument();
 
-    // И после отпускания тоже: указатель всё ещё стоит на полоске, а наведения
-    // заново не было.
+    // And after the release too: the pointer is still on the bar, and there was no fresh
+    // hover.
     fireEvent.pointerUp(bar(), { pointerId: 1, clientX: 160, clientY: 100 });
     expect(screen.queryByTestId("bar-tip")).not.toBeInTheDocument();
 
@@ -193,8 +190,8 @@ describe("карточка наведения на полоску", () => {
   it("показывается по фокусу с клавиатуры сразу и прячется, когда фокус ушёл", () => {
     draw();
 
-    // Без выдержки: полоску под фокусом выбрали, а не задели по дороге к
-    // соседней, и ждать здесь нечего.
+    // Without a delay: a bar under focus was chosen rather than brushed on the way to a
+    // neighbouring one, and there is nothing to wait for here.
     fireEvent.focus(bar());
     expect(screen.getByTestId("bar-tip")).toBeInTheDocument();
 
@@ -203,25 +200,23 @@ describe("карточка наведения на полоску", () => {
   });
 
   it("называет сочетания клавиш тому, кто может двигать полоску", async () => {
-    // Карточка наведения — единственное место, где человек читает про задачу,
-    // ничего не открыв: подсказка про клавиши живёт здесь, а не в справке,
-    // которую никто не ищет.
+    // The hover card is the only place where a person reads about a task without opening
+    // anything: the hint about the keys lives here rather than in a help page nobody looks for.
     draw({ canWrite: true });
 
     const tip = await hoverBar();
 
     expect(tip).toHaveTextContent("Shift + ←→");
     expect(tip).toHaveTextContent("Esc");
-    // Модификатор зовётся так, как он зовётся в этой системе: «Ctrl» на Маке
-    // назвал бы клавишу, которая там ничего не отменяет.
+    // The modifier is called what it is called on this system: "Ctrl" on a Mac would name a
+    // key that cancels nothing there.
     expect(tip).toHaveTextContent(/(Ctrl|⌘)\+Z/);
   });
 
   it("читателю сочетаний не обещает", async () => {
     draw();
 
-    // Двигать полоску читатель не может, и клавиши обещали бы ему работу,
-    // которую сервер отклонит.
+    // A reader cannot move the bar, and the keys would promise them work the server will reject.
     expect(await hoverBar()).not.toHaveTextContent("Shift");
   });
 
@@ -229,8 +224,8 @@ describe("карточка наведения на полоску", () => {
     draw();
 
     expect(await hoverBar()).toHaveAttribute("aria-hidden", "true");
-    // Нативной подсказки у полоски нет: браузерная всплывала бы поверх этой
-    // карточки и говорила бы то же самое вторым окном.
+    // The bar has no native tooltip: the browser's would pop up on top of this card and say
+    // the same thing in a second window.
     expect(bar()).not.toHaveAttribute("title");
     expect(bar()).toHaveAccessibleName("Логотип, 4 марта — 10 марта");
   });
@@ -246,8 +241,8 @@ describe("карточка наведения на полоску", () => {
   it("не оставляет вспышки за курсором, прошедшим ленту насквозь", async () => {
     draw();
 
-    // Курсор через полоску, а не на полоску: без выдержки каждая полоска на
-    // пути высекала бы по карточке.
+    // The cursor goes across the bar rather than onto it: without a delay every bar on the
+    // way would strike a card.
     await userEvent.hover(bar());
     await userEvent.unhover(bar());
     await wait(SHOW_DELAY * 2);
@@ -260,16 +255,16 @@ describe("карточка наведения на полоску", () => {
 
     await hoverBar();
 
-    // Карточка стоит по координатам окна и за лентой не едет: оставшись
-    // висеть, она приписывала бы работу одной задачи другой.
+    // The card stands by window coordinates and does not travel with the strip: left
+    // hanging, it would attribute one task's work to another.
     fireEvent.scroll(container.querySelector(".gantt__scroll")!);
     expect(screen.queryByTestId("bar-tip")).not.toBeInTheDocument();
   });
 
   it("переворачивается у нижнего края по своей настоящей высоте", async () => {
-    // Высота — измеренная, а не взятая из головы: у задачи с длинным именем
-    // карточка выше, и по числу из кода она у низа окна не переворачивалась
-    // бы, а обрезалась.
+    // The height is measured rather than taken out of thin air: a task with a long name has
+    // a taller card, and by a number from the code it would be cut off at the bottom of the
+    // window rather than flipped.
     const height = 200;
     const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
     Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
@@ -293,8 +288,8 @@ describe("карточка наведения на полоску", () => {
     draw();
 
     expect(await hoverBar()).toHaveAttribute("aria-hidden", "true");
-    // Нативной подсказки у полоски нет: браузерная всплывала бы поверх этой
-    // карточки и говорила бы то же самое вторым окном.
+    // The bar has no native tooltip: the browser's would pop up on top of this card and say
+    // the same thing in a second window.
     expect(bar()).not.toHaveAttribute("title");
     expect(bar()).toHaveAccessibleName("Логотип, 4 марта — 10 марта");
   });

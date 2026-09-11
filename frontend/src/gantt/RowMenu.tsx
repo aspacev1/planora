@@ -5,34 +5,33 @@ import { createPortal } from "react-dom";
 import { useEscape } from "../components/useEscape";
 
 /**
- * Единое место для вторичных действий строки — кнопка «⋯» и панель под ней.
+ * A single place for a row's secondary actions — the "⋯" button and the panel under it.
  *
- * До неё у строки задачи было четыре независимых знака, всплывающих по
- * наведению: комментарий, исполнители, «плюс» на границе строк и сама ручка
- * перестановки. Каждый отъедал своё место у имени, и длинное название
- * обрезалось тем раньше, чем больше знаков решало показаться разом. Здесь —
- * одна кнопка постоянной ширины и одна панель, куда вторичные действия
- * переехали целиком; строка от того, что панель открыта, не меняется ни
- * шириной, ни высотой — панель стоит поверх всего по координатам окна, а не
- * внутри строки (тот же приём, что у AssignMenu и карточки наведения).
+ * Before it a task's row had four independent signs surfacing on hover: the comment, the
+ * assignees, the "plus" on the row boundary and the reordering handle itself. Each ate its
+ * own room from the name, and a long title was truncated the sooner the more signs decided
+ * to show at once. Here there is one button of constant width and one panel the secondary
+ * actions moved into entirely; the row changes neither in width nor in height from the
+ * panel being open — the panel stands on top of everything by window coordinates rather
+ * than inside the row (the same device as AssignMenu's and the hover card's).
  */
 
 const PANEL_WIDTH = 232;
-// Не измеряется — оценивается заранее, тем же приёмом, что и высота панели
-// исполнителей (см. AssignMenu.PANEL_HEIGHT). Панель ограничена `max-height` в
-// стилях, и вложенные виды (роспись по исполнителям, список категорий)
-// раскрываются в те же рамки — оценка остаётся верной для любого из них.
+// Not measured — estimated in advance, by the same device as the assignees panel's height
+// (see AssignMenu.PANEL_HEIGHT). The panel is bounded by `max-height` in the styles, and
+// the nested views (the assignee roll, the list of categories) unfold within the same
+// bounds — the estimate stays correct for any of them.
 const PANEL_ESTIMATED_HEIGHT = 300;
-/** Просвет между кнопкой и панелью — и минимальный отступ от края окна. */
+/** The gap between the button and the panel — and the minimum offset from the window's edge. */
 const GAP = 6;
 
 type Point = { left: number; top: number };
 
 /**
- * Место панели: по умолчанию вниз-вправо от кнопки, как раскрывающееся меню.
- * Разворот в обе стороны — единственная причина, по которой это не копия
- * `placeBelow` из AssignMenu: там нет строк длиннее панели, которым тесно
- * справа, а здесь есть — список категорий у пункта «Переместить».
+ * The panel's place: by default down and to the right of the button, like a dropdown menu.
+ * Opening in both directions is the only reason this is not a copy of AssignMenu's
+ * `placeBelow`: there are no rows longer than the panel there that are cramped on the right,
+ * and here there are — the list of categories under the "Move" item.
  */
 function place(rect: DOMRect): Point {
   const spaceRight = window.innerWidth - rect.left;
@@ -58,24 +57,24 @@ export function RowMenu({
   describedBy,
   testId,
 }: {
-  /** Имя кнопки для чтения с экрана — общее на все строки, см. `describedBy`. */
+  /** The button's name for a screen reader — shared across all rows, see `describedBy`. */
   label: string;
-  /** Содержимое панели. Функция получает `close`, чтобы закрыть меню после выбора. */
+  /** The panel's content. The function receives `close`, to close the menu after a choice. */
   children: (close: () => void) => ReactNode;
   /**
-   * Меню закрылось — любым путём: Esc, щелчок мимо, выбор пункта. Строка,
-   * умеющая нырять во вложенный вид (роспись по исполнителям, список
-   * категорий), возвращает себя в корень здесь же — иначе меню, открытое
-   * заново, помнило бы, на каком виде его застали в прошлый раз.
+   * The menu closed — by any path: Esc, a click outside, choosing an item. A row that can
+   * dive into a nested view (the assignee roll, the list of categories) returns itself to
+   * the root right here — otherwise a menu opened anew would remember which view it was
+   * caught on last time.
    */
   onClose?: () => void;
   /**
-   * Узел с именем строки — так же, как у кнопки исполнителей (см. AssignMenu):
-   * подпись кнопки одна и та же на всех задачах («Действия с задачей») или
-   * всех категориях («Действия с категорией»), а какой из них принадлежит эта
-   * кнопка, говорит описание. Имя строки нарочно не входит в подпись: будь оно
-   * там, кнопка совпадала бы с полоской задачи в любом поиске по этому имени —
-   * обе тогда читались бы как «кнопка «Логотип»».
+   * The node with the row's name — the same as with the assignees button (see AssignMenu):
+   * the button's caption is one and the same on all tasks ("Task actions") or all categories
+   * ("Category actions"), while which of them this button belongs to is said by the
+   * description. The row's name is deliberately not part of the caption: were it there, the
+   * button would coincide with the task's bar in any search by that name — both would then
+   * read as "the "Logo" button".
    */
   describedBy?: string;
   testId?: string;
@@ -96,9 +95,9 @@ export function RowMenu({
 
   useEffect(() => {
     if (!open) return;
-    // Локальная копия, а не внешний `close`: эффект перезаводится только по
-    // `open`, и внешняя версия (новая ссылка на каждый рендер) заставляла бы
-    // его следовать за всяким чужим обновлением строки.
+    // A local copy rather than the external `close`: the effect is only re-created on `open`,
+    // and the external version (a new reference on every render) would make it follow every
+    // unrelated update of the row.
     const dismiss = () => {
       setAt(null);
       onCloseRef.current?.();
@@ -110,8 +109,8 @@ export function RowMenu({
       if (!inside) dismiss();
     }
     document.addEventListener("pointerdown", onPointerDown);
-    // Захват, а не всплытие — по той же причине, что и у панели исполнителей:
-    // прокручивается лента, а не окно, и её событие до окна иначе не доходит.
+    // Capture rather than bubbling — for the same reason as the assignees panel: what scrolls
+    // is the strip, not the window, and its event otherwise never reaches the window.
     window.addEventListener("scroll", dismiss, true);
     window.addEventListener("resize", dismiss);
     return () => {
@@ -164,21 +163,21 @@ export function RowMenu({
   );
 }
 
-/** Обычный пункт меню: знак и подпись, действие по щелчку. */
+/** An ordinary menu item: a sign and a caption, an action on click. */
 export function MenuAction({
   icon,
   tone = "quiet",
   disabled = false,
-  /** Отмеченный пункт — например, уже назначенный исполнитель в росписи. */
+  /** A ticked item — for example, an already assigned person in the roll. */
   pressed,
   onClick,
   children,
 }: {
   icon?: ReactNode;
-  /** «danger» — необратимое действие: цвет называет его раньше подписи. */
+  /** "danger" — an irreversible action: the colour names it before the caption does. */
   tone?: "quiet" | "danger";
   disabled?: boolean;
-  /** `undefined` — пункт не переключаемый, и `aria-pressed` ему не за чем. */
+  /** `undefined` — the item is not toggleable, and `aria-pressed` is of no use to it. */
   pressed?: boolean;
   onClick: () => void;
   children: ReactNode;
@@ -203,12 +202,12 @@ export function MenuAction({
   );
 }
 
-/** Черта между смысловыми группами пунктов. */
+/** A rule between meaningful groups of items. */
 export function MenuSeparator() {
   return <span className="gantt__more-sep" role="separator" aria-hidden="true" />;
 }
 
-/** Заголовок вложенного вида: имя вида и возврат к списку действий. */
+/** A nested view's heading: the view's name and the way back to the list of actions. */
 export function MenuBack({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button type="button" className="gantt__more-back" onClick={onClick}>

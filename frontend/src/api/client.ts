@@ -1,20 +1,20 @@
 /**
- * Ошибка запроса, названная машинным кодом.
+ * A request error named by a machine code.
  *
- * `code` — единственное, что можно показывать человеку, и то через словарь.
- * `message` существует для журнала разработчика и намеренно не содержит ни
- * кода, ни тела ответа: иначе однажды его выведут в интерфейс как есть, и
- * азербайджанский читатель увидит `session_expired`.
+ * `code` is the only thing that can be shown to a person, and even then through a
+ * dictionary. `message` exists for the developer's log and deliberately contains neither
+ * the code nor the response body: otherwise it would one day be printed into the interface
+ * as is, and an Azerbaijani reader would see `session_expired`.
  */
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
   /**
-   * Числа, которые сервер приложил к отказу заголовками.
+   * The numbers the server attached to a refusal as headers.
    *
-   * Их место именно в заголовках, а не в `detail`: тело отказа обязано
-   * оставаться машинным кодом, который клиент переводит по словарю, и
-   * подмешивать в него числа значило бы заставить клиент разбирать строку.
+   * Their place is precisely in the headers rather than in `detail`: a refusal's body must
+   * stay a machine code the client translates by dictionary, and mixing numbers into it
+   * would mean making the client parse a string.
    */
   readonly hints: Record<string, number>;
 
@@ -28,12 +28,11 @@ export class ApiError extends Error {
 }
 
 /**
- * Заголовки, из которых читаются числовые подсказки, и имена, под которыми
- * они ложатся в `hints`.
+ * The headers the numeric hints are read from, and the names they land under in `hints`.
  *
- * Список явный, а не «возьмём всё, что похоже на число»: иначе случайный
- * заголовок промежуточного прокси однажды превратился бы в подсказку, на
- * которую опирается интерфейс.
+ * The list is explicit rather than "we will take anything that looks like a number":
+ * otherwise a stray header from an intermediate proxy would one day turn into a hint the
+ * interface relies on.
  */
 const NUMERIC_HINT_HEADERS: Record<string, string> = {
   "x-shift-deviation-days": "deviationDays",
@@ -51,19 +50,19 @@ function hintsFrom(headers: Headers): Record<string, number> {
   return hints;
 }
 
-/** Код, под которым в словаре лежит «сервер недоступен». */
+/** The code "the server is unavailable" lies under in the dictionary. */
 export const NETWORK_ERROR_CODE = "network";
 
 function codeFromBody(body: unknown): string {
   if (body === null || typeof body !== "object") return "unknown";
   const detail = (body as { detail?: unknown }).detail;
 
-  // У FastAPI две формы ошибки. `detail` строкой — наш машинный код.
+  // FastAPI has two error shapes. `detail` as a string is our machine code.
   if (typeof detail === "string" && detail !== "") return detail;
 
-  // `detail` массивом — отбраковка схемы Pydantic. Её сворачиваем в один код:
-  // показывать человеку английскую прозу Pydantic на азербайджанском
-  // интерфейсе нельзя, а разбирать её по полям — задача не этого плана.
+  // `detail` as an array is Pydantic's schema rejection. We fold it into a single code:
+  // showing a person Pydantic's English prose on an Azerbaijani interface will not do, and
+  // parsing it field by field is a task of a different order.
   if (Array.isArray(detail)) return "validation_error";
 
   return "unknown";
@@ -73,8 +72,8 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
     response = await fetch(path, {
-      // Сессия живёт в HTTP-only куке: клиент её не читает, но обязан
-      // отправлять — без этого каждый запрос выглядит анонимным.
+      // The session lives in an HTTP-only cookie: the client does not read it but must send
+      // it — without that every request looks anonymous.
       credentials: "include",
       ...init,
       headers: {
@@ -83,9 +82,8 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
       },
     });
   } catch {
-    // Сеть не ответила: сервер лежит, DNS не разрешился, кабель выдернут.
-    // Отдельный код, потому что это единственная ошибка, которую человек
-    // может починить сам.
+    // The network did not answer: the server is down, DNS did not resolve, the cable was
+    // pulled. A separate code, because this is the only error a person can fix themselves.
     throw new ApiError(NETWORK_ERROR_CODE, 0);
   }
 
@@ -98,16 +96,16 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-/** Файл, скачанный с сервера: содержимое и имя, под которым его сохранять. */
+/** A file downloaded from the server: the content and the name to save it under. */
 export type DownloadedFile = { blob: Blob; filename: string };
 
 /**
- * Запрос, ответ на который — файл, а не JSON.
+ * A request whose answer is a file rather than JSON.
  *
- * Отдельная функция, а не флаг у `request`: та всегда разбирает тело как JSON
- * и обязана такой остаться — иначе каждый её вызов начнёт возвращать
- * объединение двух типов. Общее у них — разбор отказа: код ошибки приходит
- * тем же телом и переводится тем же словарём.
+ * A separate function rather than a flag on `request`: that one always parses the body as
+ * JSON and must stay that way — otherwise every call to it would start returning a union of
+ * two types. What they have in common is the refusal parsing: the error code arrives in the
+ * same body and is translated by the same dictionary.
  */
 export async function requestFile(
   path: string,
@@ -121,8 +119,8 @@ export async function requestFile(
   }
 
   if (!response.ok) {
-    // Отказ приходит JSON'ом даже у маршрута, отдающего файл: сервер меняет
-    // тип ответа вместе со статусом.
+    // A refusal arrives as JSON even from a route that serves a file: the server changes the
+    // response type along with the status.
     const body = await response.json().catch(() => null);
     throw new ApiError(codeFromBody(body), response.status, hintsFrom(response.headers));
   }
@@ -134,13 +132,12 @@ export async function requestFile(
 }
 
 /**
- * Имя файла из `Content-Disposition`.
+ * The file name from `Content-Disposition`.
  *
- * Читается `filename*` (RFC 5987), а не `filename`: второй по стандарту
- * ограничен ASCII, и сервер кладёт в него заглушку с подчёркиваниями — имя
- * проекта на русском или азербайджанском живёт только в первом. Пустая
- * строка — не поломка: вызывающий подставит своё имя, а не сохранит файл под
- * «undefined».
+ * `filename*` (RFC 5987) is read rather than `filename`: the second is limited to ASCII by
+ * the standard, and the server puts a placeholder with underscores in it — a project's name
+ * in Russian or Azerbaijani lives only in the first. An empty string is not a breakage: the
+ * caller will substitute a name of its own rather than save the file as "undefined".
  */
 export function filenameFrom(header: string | null): string {
   if (header === null) return "";
@@ -150,7 +147,7 @@ export function filenameFrom(header: string | null): string {
     try {
       return decodeURIComponent(encoded[1].trim());
     } catch {
-      // Испорченная процентная кодировка — не повод ронять скачивание.
+      // A broken percent-encoding is no reason to bring the download down.
     }
   }
 
@@ -159,11 +156,11 @@ export function filenameFrom(header: string | null): string {
 }
 
 /**
- * Сохранить полученный файл под его именем.
+ * Save the received file under its name.
  *
- * Ссылка создаётся и убирается тут же: узел, оставленный в документе, копился
- * бы на каждое скачивание. `revokeObjectURL` — в следующем кадре, а не сразу:
- * часть браузеров не успевает начать загрузку по уже отозванному адресу.
+ * The link is created and removed right here: a node left in the document would accumulate
+ * on every download. `revokeObjectURL` goes on the next frame rather than at once: some
+ * browsers do not manage to start the download from an already revoked address.
  */
 export function saveFile(file: DownloadedFile, fallbackName: string): void {
   const url = URL.createObjectURL(file.blob);

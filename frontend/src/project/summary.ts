@@ -4,48 +4,49 @@ import { statusCounts } from "./progress";
 import { pastDeadlineTasks } from "./verdict";
 
 /**
- * Сводка проекта числами: срок работ и полоса метрик.
+ * A project's summary in figures: the work's dates and the metrics bar.
  *
- * Считается вне разметки, потому что показывают её теперь в трёх местах —
- * полная шапка публичной страницы, строка сводки над лентой и (в дальнейшем)
- * карточка проекта, — а разойтись эти трое не имеют права: два вида шапки
- * однажды уже могли назвать одному проекту разные числа. Подписи ячеек здесь
- * не живут: модуль отдаёт ключ, а слово к нему подбирает язык интерфейса.
+ * Computed outside the markup, because it is now shown in three places — the public page's
+ * full header, the summary line above the strip and (later on) the project card — and these
+ * three have no right to diverge: two kinds of header could once already name different
+ * numbers for one project. The cells' captions do not live here: the module gives a key,
+ * and the interface language picks the word for it.
  */
 
-/** Одна ячейка полосы. `warn` — красное число: состояние, требующее решения. */
+/** One cell of the bar. `warn` — a red figure: a state that demands a decision. */
 export type Metric = { key: string; value: number; warn?: boolean };
 
 /**
- * До семи цифр полосы — до шести на публичной странице; нулевые не входят,
- * кроме «Всего» и «Заблокировано» — эти стоят всегда.
+ * Up to seven figures in the bar — up to six on the public page; zero ones are excluded
+ * except for "Total" and "Blocked", which always stand.
  *
- * «Вне плана» считается по базовому плану, и её нет там, где нет и самой
- * строки плана: версия плана и расхождения с ним по ссылке не выводятся
- * (`showPlan`), и одна цифра не должна обходить это правило с чёрного хода.
+ * "Beyond the plan" is computed from the baseline plan, and it is absent where the plan line
+ * itself is absent: the plan's version and the divergences from it are not shown by link
+ * (`showPlan`), and one figure must not go round that rule by the back door.
  *
- * Просрочка меряется дедлайном проекта, а не собственным сроком задачи —
- * тем же счётом, которым лента ставит на полоску засечку. Дедлайн в модели
- * один на проект; отклонение задачи от её базового плана — другая величина,
- * и её показывает бейдж «+N дн.» рядом с полоской. Подпись ячейки называет
- * дедлайн проекта прямо, чтобы эти двое не читались как одно.
+ * Being overdue is measured by the project's deadline rather than by a task's own dates —
+ * the same reckoning the strip puts a notch on a bar with. In the model the deadline is one
+ * per project; a task's deviation from its baseline plan is a different quantity, and it is
+ * shown by the "+N d." badge next to the bar. The cell's caption names the project's
+ * deadline outright, so that the two are not read as one.
  */
 export function projectMetrics(state: ProjectState, showPlan: boolean): Metric[] {
   const counts = statusCounts(state.tasks);
-  // Считает общий модуль: та же величина под тем же именем живёт на карточке
-  // проекта и в отчётах, и три её счёта разошлись бы на первом же спорном дне.
+  // Computed by the shared module: the same quantity under the same name lives on the
+  // project card and in the reports, and three reckonings of it would diverge on the very
+  // first disputable day.
   const overdue = pastDeadlineTasks(state).length;
 
   const metrics: Metric[] = [
     { key: "total", value: state.tasks.length },
     { key: "in_progress", value: counts.in_progress },
-    // Красный — только ненулевой счёт: постоянная ячейка с красным нулём
-    // держала бы тревогу на экране, где тревожиться не о чем.
+    // Red only for a non-zero count: a permanent cell with a red zero would keep an alarm on
+    // a screen with nothing to be alarmed about.
     { key: "blocked", value: counts.blocked, warn: counts.blocked > 0 },
     { key: "overdue", value: overdue, warn: true },
     { key: "not_started", value: counts.planned },
-    // Работа сверх плана тревогой не набирается: добавлять её нормально —
-    // тревожен скрытый перенос сроков, и о нём говорит бейдж отклонения.
+    // Work beyond the plan is not set in the alarm colour: adding it is normal — what is
+    // alarming is a hidden shift of dates, and the deviation badge speaks about that.
     ...(showPlan
       ? [
           {
@@ -57,34 +58,32 @@ export function projectMetrics(state: ProjectState, showPlan: boolean): Metric[]
     { key: "completed", value: counts.done },
   ];
 
-  // Нулевые ячейки полоса не показывает: семь ячеек, где половина нули,
-  // прячут те, ради которых полоса существует. Два исключения — ячейки, чьё
-  // исчезновение читается как поломка счёта, а не как «всё хорошо»:
-  // «Всего» — итог, у пустого проекта единственная цифра; «Заблокировано» —
-  // единственный статус, который назначает человек, и его счёт ищут глазами
-  // на привычном месте даже при нуле — пропавшую ячейку уже приняли за
-  // пропавший счётчик. Ноль в ней стоит чёрным: тревогу включает только
-  // ненулевое значение.
+  // The bar does not show zero cells: seven cells, half of them zeros, hide the ones the bar
+  // exists for. There are two exceptions — the cells whose disappearance reads as a broken
+  // count rather than as "everything is fine": "Total" is the bottom line, the only figure an
+  // empty project has; "Blocked" is the only status a person assigns, and its count is looked
+  // for by eye in its usual place even at zero — a vanished cell has already been taken for a
+  // vanished counter. A zero in it is set in black: only a non-zero value turns the alarm on.
   return metrics.filter(
     (metric) => metric.value > 0 || metric.key === "total" || metric.key === "blocked",
   );
 }
 
 /**
- * Срок проекта: от самого раннего старта до самого позднего окончания.
+ * The project's dates: from the earliest start to the latest end.
  *
- * Не окно ленты: то округлено до целых месяцев, чтобы шапка диаграммы не
- * начиналась с обрезанного месяца, и «27 июля — 6 сентября» превратилось бы в
- * нём в «1 июля — 30 сентября». Здесь нужен именно срок работ.
+ * Not the strip's window: that one is rounded to whole months so that the chart's header does
+ * not start with a truncated month, and "27 July — 6 September" would turn in it into "1 July
+ * — 30 September". What is needed here is the work's dates specifically.
  *
- * Посчитанное сервером окончание проекта учитывается наравне с задачами: оно
- * бывает позже последней из них, и сводка, забывшая про него, обещала бы срок
- * короче настоящего. Проект без задач срока не имеет — и строки о нём тоже.
+ * The project end computed by the server is taken into account on a par with the tasks: it can
+ * be later than the last of them, and a summary that forgot about it would promise a shorter
+ * span than the real one. A project with no tasks has no dates — and no line about them either.
  */
 export function projectPeriod(state: ProjectState): { from: string; to: string } | null {
   if (state.tasks.length === 0) return null;
-  // Строки ISO сравниваются лексикографически ровно как даты: у них
-  // фиксированная ширина полей и старший разряд слева.
+  // ISO strings compare lexicographically exactly like dates: their fields have a fixed width
+  // and the most significant one is on the left.
   const from = state.tasks.map((task) => task.start_date).reduce((a, b) => (a < b ? a : b));
   const to = [
     ...state.tasks.map((task) => task.end_date),
