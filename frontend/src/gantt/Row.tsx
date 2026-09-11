@@ -32,37 +32,38 @@ import { useTruncatedTitle } from "./useTruncatedTitle";
 import type { Scale } from "./timescale";
 
 /**
- * Как строка показывает даты и как их принимает обратно.
+ * How a row shows dates and how it accepts them back.
  *
- * Приходит из ленты, а не собирается здесь: у относительного плана настоящих
- * дат нет, и «14 августа» на его шкале — это выдумка. Ввод зеркален показу —
- * там, где строка показала «День 8», она и принимает восьмой день, а не дату.
+ * It comes from the chart rather than being assembled here: a relative plan has no real
+ * dates, and "14 August" on its scale is an invention. Input mirrors display — where a row
+ * showed "Day 8", that is the eighth day it accepts rather than a date.
  */
 export type DayFormat = {
-  /** Дата в том виде, в каком её читают глазами. */
+  /** The date in the form it is read by eye. */
   label: (iso: string) => string;
-  /** Ось относительная: правка старта идёт номером дня проекта, а не датой. */
+  /** The axis is relative: editing the start goes by a project day number rather than by a date. */
   relative: boolean;
-  /** Начало относительной оси: эпоха либо назначенный старт. */
+  /** The relative axis's beginning: the epoch or the assigned start. */
   anchor: string;
 };
 
 /**
- * Подписи ячеек. Собраны лентой один раз и переданы вниз, а не взяты словарём
- * в каждой строке: на сотне задач это сотня одинаковых обращений к словарю за
- * теми же шестью строками.
+ * The cell labels. Gathered once by the chart and passed down rather than taken from a
+ * dictionary in every row: with a hundred tasks that is a hundred identical lookups for the
+ * same six strings.
  */
 export type CellLabels = {
   columns: Record<ColumnKey, string>;
-  /** «Изменить {что} у {задачи}» — подпись поля, открытого на месте. */
+  /** "Change {what} of {task}" — the label of a field opened in place. */
   edit: (column: string, name: string) => string;
 };
 
 /**
- * Ячейки закреплённой колонки для одной строки.
+ * The cells of the pinned column for one row.
  *
- * Первая колонка отдана содержимым — в ней живут шеврон, ручка, имя и флажки;
- * остальные раскладываются одинаково и потому собираются здесь по списку.
+ * The first column is given over to content — the chevron, the handle, the name and the
+ * flags live in it; the rest are laid out identically and are therefore assembled here from
+ * a list.
  */
 function LabelCells({
   layout,
@@ -70,9 +71,9 @@ function LabelCells({
   cells,
 }: {
   layout: ColumnLayout;
-  /** Содержимое колонки названия: у категории и задачи оно разное. */
+  /** The content of the name column: it differs for a category and a task. */
   task: ReactNode;
-  /** Готовое содержимое остальных колонок. Пустая — прочерк. */
+  /** The ready content of the other columns. An empty one becomes a dash. */
   cells: Partial<Record<ColumnKey, ReactNode>>;
 }) {
   return (
@@ -87,15 +88,14 @@ function LabelCells({
 }
 
 /**
- * Строка-заголовок категории: шеврон и название.
+ * A category heading row: the chevron and the name.
  *
- * Полоса рисуется по крайним датам содержимого, а не по отдельно хранимым
- * границам категории: вторых не существует, и заводить их значило бы держать
- * значение, которое обязано совпадать с задачами, но однажды разойдётся.
+ * The bar is drawn from the extreme dates of its content rather than from separately stored
+ * category bounds: the latter do not exist, and introducing them would mean keeping a value
+ * that is obliged to match the tasks but will one day diverge.
  *
- * За эту же полосу категорию и двигают: этап целиком уезжает на неделю —
- * обычное дело, и до этого оно означало перетащить каждую полоску по очереди
- * (см. useDragCategory).
+ * That same bar is also what a category is moved by: a whole stage riding a week is an
+ * everyday thing, and before this it meant dragging every bar in turn (see useDragCategory).
  */
 export function CategoryRow({
   projectId,
@@ -124,71 +124,72 @@ export function CategoryRow({
   category: Category;
   tasks: Task[];
   scale: Scale;
-  /** Полосу держат за краем окна — лента достраивает его (см. reach в Gantt). */
+  /** The bar is held past the window's edge — the chart extends it (see reach in Gantt). */
   onReach?: (endISO: string | null) => void;
   layout: ColumnLayout;
-  /** Строка категории — сводка, а не правка: её ячейки только показывают. */
+  /** A category row is a summary rather than an edit: its cells only display. */
   format: DayFormat;
   addLabel: string;
   /**
-   * Что написать в пустой полосе категории вместо пустоты. Не передано —
-   * полоса остаётся пустой.
+   * What to write in a category's empty lane instead of emptiness. Not passed — the lane
+   * stays empty.
    *
-   * Решает лента, а не строка: подсказку показывают одной категории на весь
-   * экран, а строка знает только про себя (см. `hintedCategoryId` в Gantt).
+   * The chart decides rather than the row: the hint is shown for one category per screen,
+   * while a row knows only about itself (see `hintedCategoryId` in Gantt).
    */
   emptyHint?: string;
   onAddTask?: (categoryId: string) => void;
   deleteLabel?: string;
-  /** Крестик удаления. Спрашивает подтверждение не он, а экран: вместе с
-      категорией уходят её задачи, и назвать их число строка не может — она
-      знает только свои (см. onDeleteCategory в Gantt). */
+  /** The delete cross. Confirmation is asked not by it but by the screen: a category's tasks
+      go away with it, and the row cannot name their number — it knows only its own (see
+      onDeleteCategory in Gantt). */
   onDelete?: (categoryId: string) => void;
   reorder?: Reorder;
-  /** Может ли этот человек двигать категорию целиком. */
+  /** Whether this person can move the whole category. */
   canWrite?: boolean;
   moveLabel?: string;
-  /** Подпись ручки перестановки этапов. */
+  /** The label of the stage reorder handle. */
   reorderLabel?: string;
-  /** Развёрнута ли категория: свёрнутая прячет свои строки задач. */
+  /** Whether the category is expanded: a collapsed one hides its task rows. */
   open?: boolean;
   onToggle?: () => void;
   toggleLabel?: string;
-  /** Место категории в списке этапов — знает пункт «Переместить» в меню. */
+  /** The category's place in the list of stages — the "Move" item in the menu knows it. */
   index?: number;
   categoriesCount?: number;
 }) {
   const { t } = useLocale();
   const { apply } = useProjectMutation(projectId);
-  // Узел с названием категории: им описана кнопка «⋯» — так же, как у строки
-  // задачи (см. nameId в TaskRow и describedBy в RowMenu).
+  // The node with the category's name: the "⋯" button is described by it — the same way as
+  // on a task row (see nameId in TaskRow and describedBy in RowMenu).
   const categoryNameId = useId();
   const span = rollUp(tasks);
-  // Пустая категория говорит о себе разметкой: по этому признаку «плюс» на
-  // строке перестаёт прятаться до наведения (см. .gantt__row--category.is-empty
-  // в gantt.css). Пока в категории есть задачи, знаки строки ведут себя как
-  // везде — молчат, пока на строку не навели.
+  // An empty category reports itself through the markup: by that flag the "plus" on the row
+  // stops hiding until hover (see .gantt__row--category.is-empty in gantt.css). While a
+  // category has tasks, the row's signs behave as everywhere — they stay silent until the row
+  // is hovered.
   const empty = tasks.length === 0;
   const drag = useDragCategory({
     projectId,
     category,
     scale,
-    // Конец сводной полосы: от него жест считает, докуда дотянул весь этап,
-    // когда полосу держат за краем окна (см. `onReach`).
+    // The end of the summary bar: the gesture counts from it how far the whole stage has
+    // been dragged when the bar is held past the window's edge (see `onReach`).
     spanEnd: span?.end ?? null,
     onReach,
-    // Пустую категорию двигать нечем: сервер откажет, полосы на ленте и так нет.
+    // An empty category has nothing to move: the server would refuse, and there is no bar on
+    // the chart anyway.
     enabled: canWrite && tasks.length > 0,
   });
 
-  // Открывает поле названия не щелчком по нему, а пунктом «Переименовать
-  // категорию» в меню «⋯». Число, а не признак: второй выбор того же пункта
-  // подряд (передумал, отменил, выбрал снова) обязан открыть поле заново, а
-  // неизменный `true` для эффекта — не повод.
+  // The name field is opened not by a click on it but by the "Rename category" item in the
+  // "⋯" menu. A number rather than a flag: choosing the same item twice in a row (changed
+  // one's mind, cancelled, chose again) must open the field anew, and an unchanged `true` is
+  // no reason for an effect.
   const [renameToken, setRenameToken] = useState(0);
-  // Вложенный вид меню — список этапов у пункта «Переместить». Живёт здесь, а
-  // не внутри RowMenu: панель не помнит своего содержимого, и `onClose` ниже
-  // возвращает вид в корень при любом способе закрытия.
+  // The menu's nested view — the list of stages under the "Move" item. It lives here rather
+  // than inside RowMenu: the panel does not remember its content, and `onClose` below returns
+  // the view to the root however it is closed.
   const [menuView, setMenuView] = useState<"root" | "move">("root");
 
   const duplicate = () => {
@@ -211,18 +212,18 @@ export function CategoryRow({
       className={`gantt__row gantt__row--category${empty ? " is-empty" : ""} ${
         reorder?.markFor("category", category.id) ?? ""
       }`.trimEnd()}
-      // Заголовок категории — тоже цель броска: перенести задачу в другую
-      // категорию иначе можно было бы только через список в карточке.
+      // A category heading is a drop target too: otherwise moving a task into another
+      // category would only be possible through the list on the card.
       //
-      // Чем строка приходится броску, сказано прямо в разметке: пальцем
-      // события до неё не доходят вовсе, и ручка ищет её попаданием в точку —
-      // по найденному элементу узнать строку больше не по чему (см. `targetAt`
-      // в useReorder).
+      // What the row is to the drop is stated directly in the markup: with a finger, events
+      // do not reach it at all, and the handle finds it by hit-testing a point — there is
+      // nothing else to learn the row from the found element by (see `targetAt` in
+      // useReorder).
       data-drop-kind="category"
       data-drop-id={category.id}
-      // Половина строки названа настоящая, а не всегда нижняя: задаче она не
-      // нужна вовсе (бросок на заголовок кладёт её в конец этапа), но
-      // категория именно ею и выбирает, встать до этого этапа или после.
+      // The half of the row named is the real one rather than always the lower one: a task
+      // does not need it at all (a drop on a heading puts it at the stage's end), but a
+      // category uses precisely it to choose whether to stand before this stage or after it.
       onPointerMove={(event) =>
         reorder?.over({
           kind: "category",
@@ -243,20 +244,20 @@ export function CategoryRow({
           task={
             <>
               {reorder?.enabled && (
-                // Этапы переставляют тем же жестом, что и задачи: ручка,
-                // ведущая себя по-разному на заголовке и на строке под ним,
-                // была бы двумя вещами, выглядящими как одна.
+                // Stages are reordered with the same gesture as tasks: a handle that behaved
+                // differently on a heading and on a row beneath it would be two things looking
+                // like one.
                 //
-                // Стоит левее шеврона — в поле, которое колонка держит под
-                // ручки (см. --gantt-pad в gantt.css): у задачи ручка занимает
-                // столбец шеврона, у категории он занят самим шевроном, и
-                // единственное место, где они не наезжают друг на друга, — на
-                // ступеньку левее. Заодно это читается как вложенность: этап
-                // берут за край, задачу — изнутри него.
+                // It stands to the left of the chevron — in the padding the column holds for
+                // handles (see --gantt-pad in gantt.css): on a task the handle occupies the
+                // chevron column, while on a category that column is taken by the chevron
+                // itself, and the only place where they do not run over each other is one step
+                // to the left. That also reads as nesting: a stage is taken by its edge, a task
+                // from inside it.
                 //
-                // Не кнопка и скрыта от чтения с экрана — как и у задачи, и по
-                // той же причине: перестановка строк с клавиатуры в этот план
-                // не входит (см. TaskRow ниже).
+                // Not a button and hidden from screen reading — as with a task, and for the
+                // same reason: reordering rows from the keyboard is not part of this plan (see
+                // TaskRow below).
                 <span
                   className="gantt__handle gantt__handle--category"
                   aria-hidden="true"
@@ -267,8 +268,8 @@ export function CategoryRow({
                 </span>
               )}
               {onToggle && (
-                // Шеврон — кнопка сворачивания, как в макете: свёрнутая категория
-                // остаётся строкой с полосой охвата, её задачи прячутся.
+                // The chevron is the collapse button, as in the mockup: a collapsed category
+                // stays a row with its span bar, and its tasks are hidden.
                 <button
                   type="button"
                   className="row-chevron"
@@ -298,10 +299,10 @@ export function CategoryRow({
                   ).catch(() => {});
                 }}
               />
-              {/* Быстрое добавление задачи остаётся своим знаком рядом с
-                  именем — категория заводит задачи чаще, чем всё остальное,
-                  что есть в меню «⋯», и просить два щелчка там, где хватало
-                  одного, было бы шагом назад. Остальные действия — в меню. */}
+              {/* Quick task adding keeps a sign of its own next to the name — a category
+                  creates tasks more often than anything else in the "⋯" menu, and asking for
+                  two clicks where one was enough would be a step backwards. The other actions
+                  are in the menu. */}
               {onAddTask && (
                 <span className="row-icons">
                   <RowIcon label={addLabel} onClick={() => onAddTask(category.id)}>
@@ -391,9 +392,9 @@ export function CategoryRow({
                               icon={<span aria-hidden="true">×</span>}
                               tone="danger"
                               onClick={() => {
-                                // Сам пункт ничего не удаляет: он открывает
-                                // вопрос «вместе с этими задачами?», который
-                                // задаёт экран (см. onDeleteCategory в Gantt).
+                                // The item itself deletes nothing: it opens the question
+                                // "together with these tasks?", which is asked by the screen
+                                // (see onDeleteCategory in Gantt).
                                 onDelete(category.id);
                                 close();
                               }}
@@ -423,34 +424,34 @@ export function CategoryRow({
               left: scale.xOf(span.start),
               width: scale.widthOf(span.start, span.end),
               background: category.color,
-              // Тем же цветом красятся засечки-стрелки по краям полосы: они
-              // рисуются рамкой на псевдоэлементах и берут его через
-              // `currentColor` — второго места с цветом категории не заводим.
+              // The arrow ticks at the bar's ends are painted the same colour: they are drawn
+              // as a border on pseudo-elements and take it through `currentColor` — no second
+              // place with the category's colour is introduced.
               color: category.color,
             }}
             title={drag.handlers ? moveLabel : undefined}
-            // Полоса не орган управления даже когда её тащат: перенос этапа
-            // мышью — ускорение, а не единственный путь, и с клавиатуры те же
-            // задачи двигаются каждая своей полоской. Кнопка здесь обещала бы
-            // действие по Enter, которого нет.
+            // The bar is not a control even while it is being dragged: moving a stage with
+            // the mouse is an acceleration rather than the only path, and from the keyboard
+            // the same tasks are moved each by its own bar. A button here would promise an
+            // action on Enter that does not exist.
             aria-hidden="true"
             {...drag.handlers}
           />
         )}
         {empty && emptyHint !== undefined && onAddTask && (
-          // Подсказка стоит в полосе, а не отдельной строкой: полоса пустой
-          // категории всё равно ничем не занята, и объяснение, вставшее в неё,
-          // не двигает вниз ни одной строки ленты и исчезает с первой же
-          // задачей само.
+          // The hint stands in the lane rather than in a row of its own: an empty category's
+          // lane is unoccupied anyway, and an explanation placed in it moves not a single
+          // chart row down and disappears with the first task by itself.
           //
-          // Кнопка, а не надпись: она предлагает действие и обязана его
-          // выполнять — нарисованное приглашение, которое не нажимается,
-          // отправляло бы искать «плюс» глазами (тот же довод, что у кнопки
-          // посреди пустой ленты, см. gantt__empty-add).
+          // A button rather than a caption: it offers an action and must perform it — a drawn
+          // invitation that cannot be pressed would send a person hunting for the "plus" with
+          // their eyes (the same argument as with the button in the middle of an empty chart,
+          // see gantt__empty-add).
           //
-          // Имя категории — описанием, а не подписью: видимый текст один и тот
-          // же на любой категории, и подменять им произносимое значило бы
-          // рассказывать читалке не то, что написано (см. describedBy у «⋯»).
+          // The category's name goes as a description rather than as a label: the visible
+          // text is the same on any category, and substituting it for what is spoken would
+          // mean telling the screen reader something other than what is written (see
+          // describedBy on "⋯").
           <button
             type="button"
             className="gantt__lane-hint"
@@ -469,13 +470,13 @@ export function CategoryRow({
 }
 
 /**
- * Строка задачи.
+ * A task row.
  *
- * Полоска — кнопка, а не `div` с обработчиком, везде, где по ней кликают или
- * ходят с клавиатуры: кнопка приносит фокус, роль и реакцию на Enter даром,
- * `div` пришлось бы доводить до того же руками и забыть половину. Там, где она
- * не делает ни того ни другого — на публичной странице, — она объявляется
- * картинкой; см. `Bar` ниже.
+ * The bar is a button rather than a `div` with a handler everywhere it is clicked or walked
+ * to from the keyboard: a button brings focus, a role and a reaction to Enter for free, while
+ * a `div` would have to be brought to the same state by hand, and half of it would be
+ * forgotten. Where it does neither — on the public page — it is declared a picture; see `Bar`
+ * below.
  */
 export function TaskRow({
   projectId,
@@ -512,9 +513,9 @@ export function TaskRow({
   projectId: string;
   task: Task;
   scale: Scale;
-  /** Полоску держат за краем окна — лента достраивает его (см. reach в Gantt). */
+  /** The bar is held past the window's edge — the chart extends it (see reach in Gantt). */
   onReach?: (endISO: string | null) => void;
-  /** Рабочий календарь: им правая грань переводит день в длительность. */
+  /** The working calendar: the right edge converts a day into a duration with it. */
   calendar: Calendar;
   layout: ColumnLayout;
   cellLabels: CellLabels;
@@ -523,61 +524,61 @@ export function TaskRow({
   lateLabel: string;
   title: string;
   canWrite?: boolean;
-  /** Открыта ли карточка этой задачи. */
+  /** Whether this task's card is open. */
   selected?: boolean;
   onSelect?: (taskId: string) => void;
   reorder?: Reorder;
-  /** Протягивание связи от кружка на краю полоски. У гостя его нет. */
+  /** Dragging a link from the dot at the bar's edge. A guest does not have it. */
   link?: LinkDrag;
   handleLabel?: string;
-  /** Задача добавлена после согласования плана — см. isBeyondPlan. */
+  /** The task was added after the plan was agreed — see isBeyondPlan. */
   beyondPlan?: boolean;
-  /** Короткая подпись метки у полоски: «Сверх плана». */
+  /** The short label of the marker by the bar: "Beyond the plan". */
   beyondPlanLabel?: string;
-  /** Подсказка метки: почему у задачи нет призрака базового плана. */
+  /** The marker's tooltip: why the task has no baseline plan ghost. */
   beyondPlanHint?: string;
-  /** Подпись призрака: даты утверждённого плана. */
+  /** The ghost's label: the dates of the approved plan. */
   baselineLabel?: string;
-  /** Готовая подпись бейджа отклонения, например «+7 дней». */
+  /** The ready label of the deviation badge, for example "+7 days". */
   deviationLabel?: string;
-  /** Подпись плашки статуса — нужна только полоске «заблокировано». */
+  /** The status chip's label — needed only by a "blocked" bar. */
   statusLabel?: string;
-  /** Рисовать ли призрак и засечку базового плана — флажок меню «Вид». */
+  /** Whether to draw the baseline plan's ghost and tick — a "View" menu checkbox. */
   showBaseline?: boolean;
   /**
-   * Состав организации: имена по идентификаторам. Им подписаны исполнители
-   * задачи — и из него же выбирают новых (см. AssignMenu). `undefined` —
-   * состава не знаем вовсе (публичная страница, роль без права на список), и
-   * тогда колонка исполнителей молчит, а назначать некого.
+   * The organization's membership: names by identifier. The task's assignees are labelled
+   * with them — and new ones are chosen from them (see AssignMenu). `undefined` means the
+   * membership is not known at all (the public page, a role with no right to the list), and
+   * then the assignee column stays silent and there is nobody to assign.
    */
   assigneeNames?: ReadonlyMap<string, string>;
-  /** Сколько реплик у задачи. Ноль числа не показывает — показывать нечего. */
+  /** How many remarks the task has. Zero shows no number — there is nothing to show. */
   commentCount?: number;
-  /** Открыть обсуждение задачи. `undefined` — карточки нет (гость). */
+  /** Open the task's discussion. `undefined` means there is no card (a guest). */
   onOpenComments?: (taskId: string) => void;
-  /** Завести задачу прямо над этой строкой. `undefined` — читателю. */
+  /** Create a task right above this row. `undefined` for a reader. */
   onInsertBefore?: () => void;
-  /** Все категории проекта — знает пункт «Переместить» в меню строки. */
+  /** Every category of the project — the "Move" item in the row menu knows them. */
   categories?: Category[];
-  /** Сколько задач уже в каждой категории — туда, куда переносят, задача
-      встаёт в конец, а конец и есть текущее число строк. */
+  /** How many tasks are already in each category — a task goes to the end of wherever it is
+      moved, and the end is exactly the current number of rows. */
   taskCountByCategory?: ReadonlyMap<string, number>;
 }) {
   const { t } = useLocale();
   const { apply } = useProjectMutation(projectId);
-  // Узел с названием задачи: им подписана кнопка исполнителей — она называет
-  // себя «Исполнители», а какой задачи, говорит описанием (см. AssignMenu).
+  // The node with the task's name: the assignees button is labelled by it — it calls itself
+  // "Assignees" and states which task through a description (see AssignMenu).
   const nameId = useId();
-  // Полное имя тултипом — но только когда оно и правда обрезано многоточием
-  // (см. useTruncatedTitle). Ширина колонки — во втором параметре: её тянут
-  // за границу, и обрезка меняется без единой правки самого имени.
+  // The full name as a tooltip — but only when it really is truncated with an ellipsis (see
+  // useTruncatedTitle). The column's width is the second parameter: it is dragged by its
+  // boundary, and the truncation changes with no edit to the name itself.
   const nameTitle = useTruncatedTitle<HTMLSpanElement>(task.name, layout.widths.task);
-  // Место полоски по датам. Считается здесь, а не в разметке ниже, потому что
-  // его знать нужно двоим: самой разметке и слою движения — тот сравнивает его
-  // с местом на прошлом рендере и по разнице показывает переезд.
+  // The bar's place by dates. It is computed here rather than in the markup below because two
+  // things need to know it: the markup itself and the motion layer — the latter compares it
+  // with the place on the previous render and shows the travel from the difference.
   const left = scale.xOf(task.start_date);
-  // Веха занимает один день независимо от того, что лежит в длительности:
-  // ромб стоит в своём дне, а не растягивается по нему.
+  // A milestone occupies one day regardless of what lies in its duration: the diamond stands
+  // on its day rather than stretching along it.
   const width = task.milestone
     ? scale.dayWidth
     : scale.widthOf(task.start_date, task.end_date);
@@ -595,13 +596,13 @@ export function TaskRow({
   const baseline = baselineOf(task);
   const shift = endShiftDays(task);
 
-  // Правки прямо в таблице. Каждая — та же операция, что и в карточке задачи:
-  // ячейка не заводит своего способа менять срок, она вызывает уже
-  // существующий. Отказ откатывает `apply`, и ячейка возвращается к правде
-  // сама — своего состояния «не сохранилось» у неё нет.
-  // День проекта считается с первого: нулевой и отрицательный — не дата, а
-  // середина набора или опечатка, и превращать их в дату до начала оси (см.
-  // RELATIVE_EPOCH) значило бы увести полоску за левый край ленты.
+  // Edits right in the table. Each is the same operation as on the task card: a cell does not
+  // introduce a way of its own to change a date, it calls the one that already exists. A
+  // refusal rolls `apply` back, and the cell returns to the truth by itself — it has no
+  // "did not save" state of its own.
+  // A project day is counted from the first: zero and negative are not a date but the middle
+  // of typing or a typo, and turning them into a date before the axis's start (see
+  // RELATIVE_EPOCH) would mean taking the bar past the chart's left edge.
   const projectDay = (value: string): string | null => {
     const day = Number(value);
     return Number.isInteger(day) && day >= 1 ? dateOfProjectDay(day, format.anchor) : null;
@@ -643,15 +644,16 @@ export function TaskRow({
     .map((id) => assigneeNames?.get(id))
     .filter((name): name is string => name !== undefined);
 
-  // Раздаёт исполнителей своя колонка, когда она показана (её кнопка там не
-  // меняется — см. AssignMenu), и меню «⋯», когда её нет или для того, кто ей
-  // не заглядывал. Признак доступности один на оба места: назначать некого,
-  // если состав организации не пришёл вовсе или пуст.
+  // Assignees are handed out by their own column when it is shown (its button does not change
+  // there — see AssignMenu) and by the "⋯" menu when it is absent or for someone who has not
+  // looked into it. The availability flag is one for both places: there is nobody to assign if
+  // the organization's membership did not arrive at all or is empty.
   const assignAvailable = canWrite && assigneeNames !== undefined && assigneeNames.size > 0;
   const assignInColumn = assignAvailable && layout.shown.includes("assignee");
-  // Рядом с именем, когда колонки нет, — не кнопка, а метка: кто уже назначен,
-  // а не приглашение назначить. Приглашение и сама раздача — в меню «⋯» (см.
-  // ниже), а здесь остаётся то, что действием никогда не было: состояние.
+  // Next to the name, when there is no column, it is a marker rather than a button: who is
+  // already assigned rather than an invitation to assign. The invitation and the handing out
+  // itself are in the "⋯" menu (see below), and what is left here is what was never an action:
+  // a state.
   const assignIndicator =
     !assignInColumn && assignees.length > 0 ? (
       <span className="gantt__row-indicator" title={assignees.join(", ")}>
@@ -660,9 +662,9 @@ export function TaskRow({
       </span>
     ) : null;
 
-  // Счётчик обсуждения — только когда есть что считать: у задачи без реплик
-  // это не приглашение начать разговор (оно теперь в меню «⋯»), а состояние —
-  // и нулю показывать нечего.
+  // The discussion counter appears only when there is something to count: on a task with no
+  // remarks it is not an invitation to start a conversation (that is now in the "⋯" menu) but
+  // a state — and zero has nothing to show.
   const commentsLabel = t("comments.aria", { name: task.name, count: commentCount });
   const comments =
     commentCount === 0 ? null : (
@@ -676,8 +678,8 @@ export function TaskRow({
       </RowBadge>
     );
 
-  // Каждый исполнитель — своя операция, как и в панели у колонки: снимают их
-  // по одному, и в истории они читаются как отдельные события.
+  // Every assignee is an operation of its own, as in the column's panel: they are removed one
+  // by one, and in the history they read as separate events.
   const toggleAssignee = (userId: string) => {
     const assigned = task.assignee_ids.includes(userId);
     void apply(
@@ -725,13 +727,13 @@ export function TaskRow({
 
   const otherCategories = (categories ?? []).filter((category) => category.id !== task.category_id);
 
-  // Вложенный вид меню «⋯»: роспись по исполнителям, список категорий у
-  // «Переместить», подтверждение удаления. Живёт здесь, а не внутри RowMenu —
-  // у панели своего состояния нет, и `onClose` ниже возвращает вид в корень
-  // при любом способе закрытия (Esc, щелчок мимо, потеря прокрутки).
+  // The "⋯" menu's nested view: the roster by assignee, the list of categories under "Move",
+  // the delete confirmation. It lives here rather than inside RowMenu — the panel has no state
+  // of its own, and `onClose` below returns the view to the root however it is closed (Esc, a
+  // click outside, losing the scroll).
   const [menuView, setMenuView] = useState<"root" | "assign" | "move" | "delete">("root");
-  // Кнопка «⋯» появляется, только если в ней есть хоть одно действие: у
-  // публичной страницы без карточки и обсуждения меню было бы пустой рамкой.
+  // The "⋯" button appears only if it has at least one action in it: on the public page, with
+  // no card and no discussion, the menu would be an empty frame.
   const showMenu = canWrite || Boolean(onSelect) || Boolean(onOpenComments);
 
   return (
@@ -769,14 +771,13 @@ export function TaskRow({
                 onCommit={edit.start}
               />
             ),
-            // Дата окончания правится не собой, а длительностью: сервер
-            // считает её по рабочему календарю, и записать её напрямую нельзя
-            // — но «эта задача кончается такого-то числа» человек говорит
-            // именно так. Ячейка переводит названный день в число рабочих
-            // дней ровно тем же счётом, каким это делает правая грань полоски,
-            // и шлёт ту же операцию. Сервер пересчитает конец сам и пришлёт
-            // свой — если календарь у вкладки устарел, ячейка встанет по его
-            // ответу, а не по догадке.
+            // The finish date is edited not by itself but through the duration: the server
+            // computes it against the working calendar, and it cannot be written directly —
+            // but "this task ends on such a date" is exactly how a person says it. The cell
+            // converts the named day into a number of working days by exactly the same count
+            // the bar's right edge uses, and sends the same operation. The server will
+            // recompute the end itself and send its own — if the tab's calendar is stale, the
+            // cell will stand by its answer rather than by the guess.
             end: (
               <EditableCell
                 type={format.relative ? "number" : "date"}
@@ -797,9 +798,8 @@ export function TaskRow({
                 type="number"
                 value={String(task.duration_days)}
                 display={
-                  // У вехи длительности нет — есть день, в который она
-                  // случается. Показать «1 дн.» значило бы назвать отрезком то,
-                  // что нарисовано точкой.
+                  // A milestone has no duration — it has the day on which it happens. Showing
+                  // "1 d" would mean calling what is drawn as a point a segment.
                   task.milestone
                     ? t("gantt.milestone.short")
                     : t("common.days_short", { count: task.duration_days })
@@ -822,13 +822,13 @@ export function TaskRow({
                 onCommit={edit.progress}
               />
             ),
-            // Тернарник, а не `&&`: пустой список обязан дойти до ячейки как
-            // «нечего показать» (прочерк), а `false` от неё неотличим от
-            // намеренно пустого содержимого и стёр бы прочерк.
-            // Кнопка выбора занимает эту ячейку целиком, когда назначать
-            // можно: она же и показывает назначенных — аватарами. `!` — не
-            // догадка: `assignInColumn` сам собой означает, что состав
-            // организации пришёл и не пуст (см. `assignAvailable` выше).
+            // A ternary rather than `&&`: an empty list must reach the cell as "nothing to
+            // show" (a dash), while `false` is indistinguishable from deliberately empty
+            // content and would erase the dash.
+            // The selection button occupies this cell entirely when assigning is possible: it
+            // also shows who is assigned — through avatars. The `!` is not a guess:
+            // `assignInColumn` by itself means that the organization's membership arrived and
+            // is not empty (see `assignAvailable` above).
             assignee: assignInColumn
               ? (
                   <AssignMenu
@@ -849,33 +849,32 @@ export function TaskRow({
           task={
             <>
               {reorder?.enabled && (
-                // Ручка отдельно от полоски: за неё меняют порядок, за полоску —
-                // даты.
+                // The handle is separate from the bar: the order is changed by it, the dates
+                // by the bar.
                 //
-                // Не кнопка и скрыта от чтения с экрана намеренно. Кнопка обещала бы
-                // работу с клавиатуры, а перестановка строк с клавиатуры в этот план
-                // не входит: объявить десять кнопок, ни одна из которых не
-                // срабатывает по Enter, хуже, чем не объявлять их вовсе. Полоска
-                // задачи при этом остаётся кнопкой и по-прежнему двигается стрелками.
+                // Deliberately not a button and hidden from screen reading. A button would
+                // promise keyboard operation, while reordering rows from the keyboard is not
+                // part of this plan: declaring ten buttons, none of which fires on Enter, is
+                // worse than not declaring them at all. The task's bar meanwhile stays a
+                // button and is still moved with the arrow keys.
                 <span
                   className="gantt__handle"
                   aria-hidden="true"
                   title={handleLabel}
-                  // Весь жест — на ручке, а не только его начало: пальцем
-                  // указатель захвачен ею до самого броска, и строки под
-                  // пальцем событий не получают (см. useReorder).
+                  // The whole gesture is on the handle rather than only its start: with a
+                  // finger the pointer is captured by it until the very drop, and the rows
+                  // under the finger receive no events (see useReorder).
                   {...reorder.handleProps("task", task.id)}
                 >
                   ⠿
                 </span>
               )}
-              {/* Имя — тоже открывает карточку, не только полоска: его читают
-                  раньше полоски и по нему кликают первым, особенно когда
-                  полоска обрезана краем ленты. Кнопкой имя не становится —
-                  полоска уже даёт то же действие с клавиатуры и для чтения с
-                  экрана, а вторая кнопка с тем же именем на строке была бы для
-                  них лишним, неотличимым от первой шагом Tab. Клик остаётся
-                  доступен указателем и не обещает того, чего не выполняет. */}
+              {/* The name opens the card too, not only the bar: it is read before the bar and
+                  clicked first, especially when the bar is cut off by the chart's edge. The
+                  name does not become a button — the bar already gives the same action from
+                  the keyboard and for screen reading, and a second button with the same name
+                  on a row would be an extra, indistinguishable Tab stop for them. The click
+                  stays available to the pointer and promises nothing it does not perform. */}
               <span
                 id={nameId}
                 ref={nameTitle.ref}
@@ -891,13 +890,12 @@ export function TaskRow({
                 </span>
               )}
 
-              {/* Хвост колонки имени: то, что у задачи уже есть, — не то, что с
-                  ней можно сделать. Число реплик и метка исполнителя — это
-                  состояние, и оно не молчит до наведения: молчать, пока на
-                  строку не навели, свойственно органам управления, а не
-                  значениям (тот же довод у назначенного исполнителя в
-                  колонке). Само действие — назначить, обсудить, вставить,
-                  удалить — теперь одно и то же место: меню «⋯» справа. */}
+              {/* The tail of the name column: what a task already has rather than what can be
+                  done with it. The number of remarks and the assignee marker are a state, and
+                  it does not stay silent until hover: staying silent until the row is hovered
+                  is proper to controls rather than to values (the same argument as with an
+                  assigned person in the column). The action itself — assign, discuss, insert,
+                  delete — is now one and the same place: the "⋯" menu on the right. */}
               {(comments !== null || assignIndicator !== null) && (
                 <span className="row-icons">
                   {comments}
@@ -1055,12 +1053,12 @@ export function TaskRow({
 
       <div className="gantt__lane" style={{ width: scale.width }}>
         {showBaseline && baseline && (
-          // Призрак базового плана — тонкая серая полоска под текущей.
+          // The ghost of the baseline plan is a thin grey bar beneath the current one.
           //
-          // Именно под, а не продлением текущей: залить разрыв между плановым
-          // и фактическим окончанием прямо в полоске выглядит нагляднее, но
-          // тогда её начало означает плановую дату, а конец — фактическую, и
-          // полоска перестаёт означать реальные даты задачи.
+          // Beneath specifically rather than as an extension of the current one: filling
+          // the gap between the planned and the actual finish right inside the bar looks
+          // more vivid, but then its start means the planned date and its end the actual
+          // one, and the bar stops meaning the task's real dates.
           <div
             className="gantt__ghost"
             style={{
@@ -1074,8 +1072,8 @@ export function TaskRow({
         )}
 
         {showBaseline && baseline && shift !== null && shift > 0 && (
-          // Засечка первоначального дедлайна, как в макете: вертикальная
-          // красная черта там, где задача должна была кончиться по плану.
+          // The tick of the original deadline, as in the mockup: a vertical red rule where
+          // the task was supposed to end under the plan.
           <i
             className="gantt__mark"
             style={{ left: scale.xOf(baseline.end) + scale.dayWidth }}
@@ -1086,9 +1084,9 @@ export function TaskRow({
         )}
 
         {shift !== null && shift !== 0 && deviationLabel && (
-          // Бейдж отклонения справа от полоски. Отсчитывается от окончания:
-          // оно одно отвечает на вопрос «когда это будет готово» и вбирает в
-          // себя и перенос начала, и растяжение срока.
+          // The deviation badge to the right of the bar. It is counted from the finish: that
+          // alone answers the question "when will this be ready" and absorbs both a shift of
+          // the start and a stretch of the duration.
           <span
             className={`gantt__deviation${shift > 0 ? " is-late" : " is-early"}`}
             style={{ left: scale.xOf(task.end_date) + scale.dayWidth }}
@@ -1099,17 +1097,16 @@ export function TaskRow({
         )}
 
         {beyondPlan && beyondPlanLabel && (
-          // «Сверх плана»: задача добавлена после согласования и базового плана
-          // не имеет. Метка нужна не как украшение — без неё отсутствие
-          // призрака под полоской читается как «задача никуда не уехала», а на
-          // деле сравнивать её просто не с чем.
+          // "Beyond the plan": the task was added after agreement and has no baseline plan.
+          // The marker is not decoration — without it the absence of a ghost under the bar
+          // reads as "the task has not moved anywhere", while in fact there is simply
+          // nothing to compare it with.
           //
-          // Справа от полоски, на месте бейджа отклонения: обе метки отвечают
-          // на один вопрос — как задача соотносится с согласованным планом, —
-          // а у задачи без базового плана отклонения быть не может, так что
-          // место свободно. Раньше это был «плюс» в колонке имени, вплотную к
-          // меню «⋯», и его принимали за кнопку: «+» во всей ленте означает
-          // «добавить», а этот знак не нажимался.
+          // To the right of the bar, in the deviation badge's place: both markers answer one
+          // question — how the task relates to the agreed plan — and a task with no baseline
+          // plan cannot have a deviation, so the place is free. This used to be a "plus" in
+          // the name column, flush against the "⋯" menu, and it was taken for a button: "+"
+          // across the whole chart means "add", and this sign was not pressable.
           <span
             className="gantt__beyond-plan"
             style={{ left: scale.xOf(task.end_date) + scale.dayWidth }}
@@ -1120,11 +1117,10 @@ export function TaskRow({
           </span>
         )}
 
-        {/* Кнопка — только когда полоска действительно что-то делает: открывает
-            карточку или двигается. На публичной странице она не делает ни
-            того, ни другого, и кнопка там обещала бы действие, которого нет, —
-            забирала бы фокус с клавиатуры и читалась бы с экрана как
-            нажимаемая. Тогда это картинка с подписью, а не орган управления. */}
+        {/* A button only when the bar really does something: opens a card or moves. On the
+            public page it does neither, and a button there would promise an action that does
+            not exist — it would take keyboard focus and be read from the screen as
+            pressable. In that case it is a picture with a caption rather than a control. */}
         <Bar
           interactive={Boolean(onSelect) || canWrite}
           barRef={motion.ref}
@@ -1133,29 +1129,29 @@ export function TaskRow({
           }${canWrite ? " is-draggable" : ""}${dragging !== null ? " is-dragging" : ""}`}
           data-criticality={task.criticality}
           data-status={task.status}
-          // Точка риска — только у жёлтого и красного и только у живой
-          // задачи: у «сделано» флаг уже история, а не сигнал.
+          // The risk dot appears only for yellow and red and only on a live task: on "done"
+          // the flag is history rather than a signal.
           data-risk={task.status !== "done" && task.risk !== "green" ? task.risk : undefined}
-          // Признак, а не класс: критичность — свойство расчёта, и рисуется
-          // она только когда слой включён (см. `.gantt.show-critical`).
+          // An attribute rather than a class: criticality is a property of a computation, and
+          // it is drawn only when the layer is on (see `.gantt.show-critical`).
           data-critical={task.critical ? "" : undefined}
           data-testid={`bar-${task.id}`}
           style={
             {
-              // Место по датам, и только по ним: `left` и `width` выставляются
-              // на рендер и дальше не меняются никем. И сдвиг под пальцем, и
-              // ожидание ответа на месте броска, и переезд после ответа
-              // сервера идут через `transform` и `--bar-dw` — см. useBarMotion,
-              // там же и о том, почему не через эти два.
+              // The place by dates, and only by them: `left` and `width` are set on render
+              // and are not changed by anyone afterwards. The shift under the finger, the
+              // wait for an answer at the drop point and the travel after the server's answer
+              // all go through `transform` and `--bar-dw` — see useBarMotion, which also
+              // explains why not through those two.
               left,
               "--bar-w": `${width}px`,
               "--progress": `${task.progress_pct}%`,
             } as CSSProperties
           }
           {...handlers}
-          // Наведение и жест живут на одних и тех же событиях, поэтому
-          // обработчики сложены руками, а не наложены спредом: спред оставил бы
-          // от каждой пары только последнюю.
+          // Hover and the gesture live on the same events, so the handlers are composed by
+          // hand rather than applied with a spread: a spread would leave only the last of
+          // each pair.
           onPointerEnter={tip.onPointerEnter}
           onPointerMove={(event) => {
             handlers.onPointerMove(event);
@@ -1176,26 +1172,24 @@ export function TaskRow({
           onPointerLeave={tip.onPointerLeave}
           onFocus={tip.onFocus}
           onBlur={tip.onBlur}
-          // Имя названо явно вместе с датами, а не оставлено содержимому
-          // кнопки: у полоски есть обрезаемый по ширине текст, и браузеры
-          // расходятся в том, что из этого станет доступным именем. Живая
-          // проверка показала полоску, которая читается с экрана как
-          // «14 августа — 20 августа» — без названия задачи вовсе.
+          // The name is stated explicitly together with the dates rather than left to the
+          // button's content: the bar has text truncated by width, and browsers differ on
+          // what of that becomes the accessible name. A live check showed a bar that reads
+          // from the screen as "14 August — 20 August" — with no task name at all.
           //
-          // Нативного `title` у полоски нет намеренно: поверх карточки
-          // наведения через секунду вылезала бы вторая, браузерная, и об одном
-          // и том же говорили бы два разных окна.
+          // The bar deliberately has no native `title`: over the hover card a second,
+          // browser one would crawl out a second later, and two different windows would speak
+          // about the same thing.
           aria-label={`${task.name}, ${title}`}
-          // Сочетания названы вслух: сдвинуть задачу с клавиатуры можно было и
-          // раньше, но узнать об этом — только из исходников. Читателю здесь
-          // пусто: стрелки у него ничего не двигают, и обещать их значило бы
-          // отправить его нажимать клавиши, которые молчат.
+          // The shortcuts are named aloud: moving a task from the keyboard was possible before
+          // too, but learning about it was only possible from the sources. For a reader it is
+          // empty here: the arrows move nothing for them, and promising them would mean
+          // sending them to press keys that stay silent.
           aria-keyshortcuts={
             canWrite
               ? task.milestone
-                // У вехи граней нет: тянуть нечего, и обещать сочетание,
-                // которое молчит, значило бы отправить человека нажимать
-                // клавиши впустую.
+                // A milestone has no edges: there is nothing to drag, and promising a shortcut
+                // that stays silent would mean sending a person to press keys for nothing.
                 ? "Shift+ArrowLeft Shift+ArrowRight"
                 : "Shift+ArrowLeft Shift+ArrowRight Alt+ArrowLeft Alt+ArrowRight Shift+Alt+ArrowLeft Shift+Alt+ArrowRight"
               : undefined
@@ -1204,24 +1198,24 @@ export function TaskRow({
           onClick={() => onSelect?.(task.id)}
         >
           {task.milestone ? (
-            // Веха — ромб в своём дне. Повёрнутый квадрат внутри полоски, а не
-            // сама полоска: её `transform` занят движением, и второй поворот
-            // на том же узле стёр бы сдвиг под пальцем.
+            // A milestone is a diamond on its day. A rotated square inside the bar rather
+            // than the bar itself: its `transform` is taken up by movement, and a second
+            // rotation on the same node would erase the shift under the finger.
             <span className="gantt__diamond" aria-hidden="true" />
           ) : (
             <>
-              {/* Заливка внутри полоски, а не отдельная полоска рядом: прогресс —
-                  это часть задачи, а не вторая задача под ней. */}
+              {/* A fill inside the bar rather than a separate bar beside it: progress is part
+                  of the task rather than a second task beneath it. */}
               <span className="gantt__progress" aria-hidden="true" />
-              {/* Галочка готовой задачи — как в макете: знак «сделано» виден с
-                  расстояния, на котором плашка статуса уже не читается. */}
+              {/* A completed task's checkmark, as in the mockup: the "done" sign is visible at
+                  a distance at which the status chip can no longer be read. */}
               {task.status === "done" && (
                 <span className="gantt__check" aria-hidden="true">
                   ✓
                 </span>
               )}
-              {/* Заблокированная называет своё состояние прямо на полоске: это
-                  редкое и требующее действия состояние, и цвета одного мало. */}
+              {/* A blocked one names its state right on the bar: this is a rare state that
+                  calls for action, and one colour is not enough for it. */}
               {task.status === "blocked" && statusLabel && (
                 <span className="gantt__bar-blocked" aria-hidden="true">
                   <span>⚠</span>
@@ -1230,17 +1224,16 @@ export function TaskRow({
               )}
 
               {canWrite && (
-                // Грани полоски: левая двигает начало, не трогая конца, правая
-                // растягивает срок. Отдельными узлами, а не зонами внутри
-                // общего обработчика: у каждой свой курсор, и зонами его
-                // пришлось бы решать в момент нажатия — когда курсор уже
-                // показал что-то одно.
+                // The bar's edges: the left one moves the start without touching the end, the
+                // right one stretches the duration. As separate nodes rather than zones inside
+                // a shared handler: each has its own cursor, and with zones that would have to
+                // be decided at the moment of the press — when the cursor has already shown
+                // one thing or the other.
                 //
-                // От чтения с экрана скрыты: то же, что они делают, доступно с
-                // клавиатуры полями «Начало» и «Длительность» — и в таблице
-                // слева, и в карточке задачи. Две ручки, ни одна из которых не
-                // работает по Enter, были бы лишними шагами Tab на каждой из
-                // сотни строк.
+                // They are hidden from screen reading: the same thing they do is available
+                // from the keyboard through the "Start" and "Duration" fields — both in the
+                // table on the left and on the task card. Two handles, neither of which works
+                // on Enter, would be extra Tab stops on each of a hundred rows.
                 <>
                   <span
                     className="gantt__grip gantt__grip--start"
@@ -1256,9 +1249,9 @@ export function TaskRow({
               )}
 
               {canWrite && task.status === "in_progress" && (
-                // Ручка выполненного — только там, где заливка вообще видна.
-                // У запланированной её нет: процент лёг бы в поле, а на
-                // полоске не отразился, и жест выглядел бы сорвавшимся.
+                // The completion handle appears only where the fill is visible at all. A
+                // planned task does not have one: the percentage would land in the field
+                // without showing on the bar, and the gesture would look as if it had failed.
                 <span
                   className="gantt__grip gantt__grip--progress"
                   aria-hidden="true"
@@ -1270,13 +1263,13 @@ export function TaskRow({
         </Bar>
 
         {link?.enabled && dragging === null && (
-          // Кружки связи — снаружи полоски, а не внутри: у полоски обрезается
-          // содержимое (иначе подпись вылезала бы за её края), и кружок на
-          // границе срезало бы пополам.
+          // The link dots go outside the bar rather than inside: the bar clips its content
+          // (otherwise the label would spill past its edges), and a dot on the boundary would
+          // be cut in half.
           //
-          // Пока полоску тащат, кружков нет: они стоят по датам задачи, а
-          // полоска в этот момент идёт за пальцем, и кружки отставали бы от
-          // неё, показывая связь не оттуда, откуда её тянут.
+          // While a bar is being dragged there are no dots: they stand by the task's dates,
+          // and at that moment the bar is following the finger, so the dots would lag behind
+          // it, showing a link from somewhere other than where it is being dragged.
           <>
             <LinkDot
               side="start"
@@ -1300,12 +1293,12 @@ export function TaskRow({
 }
 
 /**
- * Кружок, от которого тянут связь.
+ * The dot a link is dragged from.
  *
- * Не кнопка: связь заводится перетаскиванием, а нажатие Enter на ней не значит
- * ничего. Тот же путь с клавиатуры даёт список связей в карточке задачи —
- * поэтому кружок скрыт и от чтения с экрана, а подпись остаётся подсказкой
- * указателю.
+ * Not a button: a link is created by dragging, and pressing Enter on it means nothing. The
+ * same path from the keyboard is given by the list of dependencies on the task card — which
+ * is why the dot is hidden from screen reading too, while the label stays as a tooltip for
+ * the pointer.
  */
 function LinkDot({
   side,
@@ -1332,13 +1325,13 @@ function LinkDot({
 }
 
 /**
- * Полоска задачи: орган управления или картинка с подписью.
+ * A task's bar: a control or a picture with a caption.
  *
- * Различие не косметическое. Кнопка забирает фокус с клавиатуры и читается с
- * экрана как нажимаемая; на публичной странице, где карточки задачи нет и
- * даты не двигаются, это обещание действия, которого не существует. Тогда
- * полоска объявляется картинкой — `role="img"` с тем же именем: она
- * по-прежнему называет задачу и её даты, но не притворяется кнопкой.
+ * The distinction is not cosmetic. A button takes keyboard focus and is read from the screen
+ * as pressable; on the public page, where there is no task card and the dates do not move,
+ * that is a promise of an action that does not exist. In that case the bar is declared a
+ * picture — `role="img"` with the same name: it still names the task and its dates, but does
+ * not pretend to be a button.
  */
 function Bar({
   interactive,
@@ -1349,11 +1342,11 @@ function Bar({
   interactive: boolean;
   children: ReactNode;
   /**
-   * Ссылка на узел полоски для слоя движения.
+   * The reference to the bar's node for the motion layer.
    *
-   * Отдельным пропсом, а не `ref`: `Bar` рисует то кнопку, то `div`, и `ref`
-   * пришлось бы объявлять сразу для обоих — а он всё равно нужен не самому
-   * `Bar`, а тому, кто в этот узел пишет.
+   * As a separate prop rather than a `ref`: `Bar` renders either a button or a `div`, and a
+   * `ref` would have to be declared for both — while it is needed not by `Bar` itself but by
+   * whoever writes into that node.
    */
   barRef?: RefCallback<HTMLElement>;
 } & HTMLAttributes<HTMLElement>) {
@@ -1364,9 +1357,9 @@ function Bar({
       </button>
     );
   }
-  // aria-expanded и onClick сюда не доходят: без onSelect они пусты, а пустой
-  // обработчик на неинтерактивном элементе — след, который читается как забытая
-  // возможность.
+  // aria-expanded and onClick do not reach here: without onSelect they are empty, and an
+  // empty handler on a non-interactive element is a trace that reads as a forgotten
+  // capability.
   const { onClick, "aria-expanded": expanded, ...plain } = rest;
   void onClick;
   void expanded;
