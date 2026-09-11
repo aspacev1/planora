@@ -2,12 +2,12 @@ import type { ProjectState, Task, TaskStatus } from "../api/projects";
 import { addDays } from "../gantt/timescale";
 
 /**
- * Преобразования состояния «как оно будет выглядеть», пока сервер не ответил.
+ * State transformations of "how it will look" until the server answers.
  *
- * Здесь нет и не должно быть календарной арифметики: дату окончания считает
- * сервер, и посчитанная тут «на глаз» она разъедется с настоящей на первом же
- * празднике. Полоска до ответа сдвигается началом, а длину берёт прежнюю —
- * это честнее, чем показать неверный конец уверенно.
+ * There is and must be no calendar arithmetic here: the end date is computed by the
+ * server, and computed "by eye" here it would diverge from the real one on the very
+ * first holiday. Before the answer a bar moves by its start and keeps its former
+ * length — that is more honest than showing a wrong end confidently.
  */
 
 export function patchTask(state: ProjectState, taskId: string, patch: Partial<Task>): ProjectState {
@@ -18,17 +18,18 @@ export function patchTask(state: ProjectState, taskId: string, patch: Partial<Ta
 }
 
 /**
- * Сцепка статуса и прогресса — та же, что на сервере, и только она.
+ * The coupling of status and progress — the same as on the server, and only it.
  *
- * Догадка обязана совпасть с будущим ответом: прогресс в сто процентов делает
- * задачу готовой, откат ниже ста возвращает готовую в работу, а «готово»
- * руками доводит прогресс до ста. Больше сервер ничего не выводит — и клиент
- * не должен, иначе полоска мигнёт чужим значением между догадкой и ответом.
+ * A guess must coincide with the future answer: a hundred percent of progress makes a
+ * task done, a fall below a hundred returns a done one to work, and "done" by hand
+ * brings the progress up to a hundred. The server derives nothing more — and neither
+ * must the client, otherwise the bar will flash somebody else's value between the guess
+ * and the answer.
  *
- * Правило вынесено двумя чистыми функциями, потому что спрашивают его не
- * только догадки: форма создания задачи сводит те же два поля до отправки —
- * `create_task` кладёт статус и прогресс такими, какими их прислали, и без
- * этой сцепки задача рождалась бы «готовой» с нулём процентов.
+ * The rule is extracted as two pure functions, because it is asked for not only by the
+ * guesses: the task creation form reconciles the same two fields before sending —
+ * `create_task` stores the status and the progress as they were sent, and without this
+ * coupling a task would be born "done" with zero percent.
  */
 export function statusForProgress(status: TaskStatus, pct: number): TaskStatus {
   return pct >= 100 ? "done" : status === "done" ? "in_progress" : status;
@@ -61,13 +62,13 @@ export function patchStatus(state: ProjectState, taskId: string, status: TaskSta
 }
 
 /**
- * Веха схлопывает длительность в один день — та же сцепка, что на сервере, и
- * только она. Снятый признак длительности не трогает: настоящей у вехи не
- * было, и придумывать её на выходе не из чего.
+ * A milestone collapses the duration into one day — the same coupling as on the server,
+ * and only it. Clearing the flag does not touch the duration: a milestone never had a
+ * real one, and there is nothing to invent one from on the way out.
  *
- * Дату окончания догадка не считает — её считает сервер по календарю проекта.
- * Полоска до ответа остаётся прежней ширины и только потом становится ромбом;
- * это честнее, чем показать неверный конец уверенно.
+ * The guess does not compute the end date — that is computed by the server from the
+ * project's calendar. Before the answer the bar stays its former width and only then
+ * becomes a diamond; that is more honest than showing a wrong end confidently.
  */
 export function patchMilestone(
   state: ProjectState,
@@ -85,11 +86,11 @@ export function patchMilestone(
 }
 
 /**
- * Сдвиг всей категории на N календарных дней.
+ * Shifting a whole category by N calendar days.
  *
- * Считается по календарным дням, а не по рабочим, потому что операция задана
- * в них же: полосу тащат по шкале, и деление шкалы — календарный день.
- * Настоящие даты окончания пересчитает сервер по календарю проекта.
+ * Counted in calendar days rather than working ones, because the operation is defined in
+ * them: the band is dragged along the scale, and the scale's division is a calendar day.
+ * The real end dates will be recomputed by the server from the project's calendar.
  */
 export function shiftCategory(
   state: ProjectState,
@@ -107,8 +108,8 @@ export function shiftCategory(
 }
 
 /**
- * Название категории меняется на месте — так же, как правится название
- * задачи: строка не должна дёргаться, пока сервер не ответил.
+ * A category's name changes in place — the same way a task's name is edited: the row
+ * must not jerk about until the server answers.
  */
 export function renameCategory(state: ProjectState, categoryId: string, name: string): ProjectState {
   return {
@@ -120,10 +121,10 @@ export function renameCategory(state: ProjectState, categoryId: string, name: st
 }
 
 /**
- * Задача исчезает вместе со своими связями — ровно так, как сделает каскад на
- * сервере. Оставить связи было бы не осторожностью, а ошибкой: стрелки к
- * несуществующей строке некуда рисовать, и до ответа сервера лента мигала бы
- * ими.
+ * A task disappears together with its links — exactly as the cascade will do on the
+ * server. Leaving the links would not be caution but a mistake: there is nowhere to draw
+ * arrows to a non-existent row, and until the server's answer the strip would flash with
+ * them.
  */
 export function deleteTask(state: ProjectState, taskId: string): ProjectState {
   return {
@@ -136,11 +137,10 @@ export function deleteTask(state: ProjectState, taskId: string): ProjectState {
 }
 
 /**
- * Категория исчезает вместе со своим содержимым — ровно так, как сделает
- * сервер: этап отменяют целиком, и заголовок без задач под ним был бы
- * состоянием, которого не бывает. Связи удалённых задач уходят с ними по той
- * же причине, что и у одиночного удаления: стрелки к несуществующей строке
- * некуда рисовать.
+ * A category disappears together with its contents — exactly as the server will do: a
+ * stage is cancelled whole, and a heading with no tasks under it would be a state that
+ * does not occur. The deleted tasks' links go with them for the same reason as with a
+ * single deletion: there is nowhere to draw arrows to a non-existent row.
  */
 export function deleteCategory(state: ProjectState, categoryId: string): ProjectState {
   const gone = new Set(
@@ -157,9 +157,9 @@ export function deleteCategory(state: ProjectState, categoryId: string): Project
 }
 
 /**
- * Связи — без проверки циклов: их ловит сервер, и отказ откатит догадку.
- * Повторную связь заглушить обязан вызывающий — он же прячет её из списка
- * кандидатов.
+ * Links — without a cycle check: those are caught by the server, and a refusal will roll
+ * the guess back. A duplicate link must be suppressed by the caller — the same caller
+ * hides it from the list of candidates.
  */
 export function addDependency(state: ProjectState, from: string, to: string): ProjectState {
   return {
@@ -178,11 +178,11 @@ export function removeDependency(state: ProjectState, from: string, to: string):
 }
 
 /**
- * Строка встаёт на новое место — и соседи расступаются.
+ * A row takes a new place — and the neighbours step aside.
  *
- * Позиции пересчитываются целиком по обеим затронутым категориям, а не только
- * у переносимой строки: сервер делает ровно это, и оптимистичный порядок,
- * отличающийся от будущего ответа, дал бы заметный скачок строк при обновлении.
+ * The positions are recomputed in full across both affected categories rather than only
+ * for the row being moved: the server does exactly this, and an optimistic order
+ * differing from the future answer would give a noticeable jump of rows on refresh.
  */
 export function reorderTask(
   state: ProjectState,
@@ -197,8 +197,8 @@ export function reorderTask(
     .filter((task) => task.category_id === categoryId && task.id !== taskId)
     .sort((a, b) => a.position - b.position || (a.id < b.id ? -1 : 1));
 
-  // Позиция за концом списка — не ошибка: бросок в самый низ присылает индекс,
-  // равный длине.
+  // A position past the end of the list is not an error: a drop at the very bottom sends
+  // an index equal to the length.
   const index = Math.min(position, siblings.length);
   const ordered = [...siblings.slice(0, index), moved, ...siblings.slice(index)];
 
@@ -214,12 +214,13 @@ export function reorderTask(
 }
 
 /**
- * Категория встаёт на другое место в списке этапов — и соседи расступаются.
+ * A category takes another place in the list of stages — and the neighbours step aside.
  *
- * Позиции пересчитываются подряд по всему списку, как и у задач: сервер делает
- * ровно это, и порядок, отличающийся от будущего ответа, дал бы заметный
- * скачок этапов при обновлении. Задачи при этом не трогаются вовсе — у них
- * своя нумерация внутри своей категории, и перестановка этапов её не задевает.
+ * The positions are recomputed in sequence across the whole list, as with tasks: the
+ * server does exactly this, and an order differing from the future answer would give a
+ * noticeable jump of stages on refresh. The tasks are not touched at all at that — they
+ * have their own numbering inside their own category, and reordering the stages does not
+ * affect it.
  */
 export function reorderCategory(
   state: ProjectState,
