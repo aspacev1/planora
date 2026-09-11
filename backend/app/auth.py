@@ -17,21 +17,21 @@ from app.text import normalize_email
 SESSION_COOKIE = "planora_session"
 SESSION_TTL = timedelta(days=30)
 
-# Сессия, которой не пользуются, умирает раньше своего срока годности:
-# украденная кука с брошенного устройства не должна жить месяц только
-# потому, что её однажды выдали. Простой — с последнего обращения.
+# A session that goes unused dies before its expiry date: a stolen cookie from an
+# abandoned device must not live for a month merely because it was issued once.
+# Idleness is counted from the last request.
 SESSION_IDLE_TTL = timedelta(days=7)
 
-# Отметка «пользовались» пишется не чаще этого шага: иначе каждое чтение
-# проекта — это ещё и UPDATE по таблице сессий. Для таймаута в дни точность
-# в четверть часа — более чем.
+# The "used" mark is written no more often than this step: otherwise every read
+# of a project is also an UPDATE on the sessions table. For a timeout measured in
+# days, quarter-hour precision is more than enough.
 _LAST_USED_WRITE_STEP = timedelta(minutes=15)
 
-# Посчитан один раз при импорте модуля, а не на каждый запрос: используется в
-# ветке authenticate(), где пользователь не найден, чтобы эта ветка стоила
-# столько же по времени, сколько ветка с неверным паролем существующего
-# пользователя. Без этого разница во времени ответа /api/auth/login выдаёт
-# перебором, какие адреса зарегистрированы.
+# Computed once at module import rather than per request: it is used in the
+# authenticate() branch where the user is not found, so that this branch costs
+# the same in time as the branch with a wrong password for an existing user.
+# Without it, the difference in /api/auth/login response time reveals by
+# enumeration which addresses are registered.
 _DUMMY_PASSWORD_HASH = hash_password("timing-safety-dummy-password")
 
 
@@ -49,22 +49,23 @@ def register(
     company_name: str | None = None,
     invitation: Invitation | None = None,
 ) -> User:
-    """Заводит аккаунт. С приглашением на руках — сразу внутрь позвавшей
-    организации, без него — со своей собственной.
+    """Creates an account. With an invitation in hand — straight into the
+    inviting organization; without one — with an organization of their own.
 
-    Пришедший по ссылке своей организации не получает. Она была бы пустышкой
-    с ним одним внутри, а в закрытой установке (`SIGNUP_MODE=invite_only`)
-    ещё и делала бы каждого приглашённого владельцем — пусть своей
-    организации, но с правом звать в неё кого угодно, то есть в обход
-    закрытости. Правило «при регистрации создаётся своя организация» описывает
-    свободный вход с улицы; вход по приглашению — другая дверь.
+    Someone arriving by link does not get an organization of their own. It would
+    be a dummy with them alone inside, and in a closed installation
+    (`SIGNUP_MODE=invite_only`) it would additionally make every invitee an owner
+    — of their own organization, granted, but with the right to invite anyone
+    into it, that is, around the closure. The rule "registration creates your own
+    organization" describes free entry off the street; entry by invitation is a
+    different door.
 
-    `company_name` называет эту новую организацию. HTTP-маршрут требует его
-    всегда, когда организация действительно заводится (см. auth_routes.py,
-    company_name_required), а здесь параметр остаётся необязательным: этой
-    функцией пользуются и вызовы рангом ниже маршрута — например, тесты,
-    которым имя организации безразлично, — и без компании они по-прежнему
-    получают организацию, названную именем самого человека.
+    `company_name` names this new organization. The HTTP route always requires it
+    when an organization is genuinely created (see auth_routes.py,
+    company_name_required), while here the parameter stays optional: this function
+    is also used by callers below the route — tests, for instance, which do not
+    care about the organization's name — and without a company they still get an
+    organization named after the person themselves.
     """
     normalized = normalize_email(email)
     if db.scalar(select(User).where(User.email == normalized)) is not None:
@@ -75,16 +76,16 @@ def register(
         email=normalized,
         password_hash=hash_password(password),
         name=name.strip(),
-        # Язык при первом появлении — из заголовка браузера, если тот просит
-        # один из поддерживаемых. Дальше это значение меняет только человек:
-        # заголовок больше не спрашивается никогда, иначе смена языка в
-        # браузере молча переписывала бы сделанный выбор.
+        # The language on first appearance comes from the browser's header, if it
+        # asks for one of the supported ones. After that only a person changes
+        # this value: the header is never consulted again, otherwise changing the
+        # language in the browser would silently overwrite a deliberate choice.
         locale=locale or settings.default_locale,
     )
     try:
-        # SAVEPOINT: если конкурентный запрос успел вставить тот же адрес
-        # между проверкой выше и этим flush(), откатывается только эта
-        # вставка — не вся транзакция сессии.
+        # SAVEPOINT: if a concurrent request managed to insert the same address
+        # between the check above and this flush(), only this insert is rolled
+        # back — not the session's whole transaction.
         with db.begin_nested():
             db.add(user)
             db.flush()
@@ -96,12 +97,13 @@ def register(
         return user
 
     org_name = (company_name or name).strip()
-    # Язык организации — язык её основателя, а не значение по умолчанию из
-    # модели. На этом языке уходят письма организации, и прежде всего
-    # приглашения: их язык брался из `organizations.default_locale`, куда при
-    # регистрации никто ничего не клал, — и русскоязычный владелец рассылал
-    # команде приглашения по-азербайджански, не имея способа заметить это из
-    # интерфейса. Язык человека в этот момент уже известен и лежит в профиле.
+    # The organization's language is its founder's language rather than the
+    # model's default value. The organization's messages go out in this language,
+    # and invitations above all: their language was taken from
+    # `organizations.default_locale`, where registration put nothing — and a
+    # Russian-speaking owner sent the team invitations in Azerbaijani with no way
+    # to notice it from the interface. The person's language is already known at
+    # that moment and sits in their profile.
     org = insert_with_unique_slug(
         db,
         lambda slug: Organization(name=org_name, slug=slug, default_locale=user.locale),
@@ -125,19 +127,19 @@ def authenticate(db: DbSession, *, email: str, password: str) -> User | None:
 
 def open_session(db: DbSession, user: User, *, active_org_id: uuid.UUID | None = None) -> str:
     now = datetime.now(timezone.utc)
-    # Попутная уборка: просроченные сессии этого человека никому больше не
-    # нужны, а другого регулярного места, где их подметать, у архитектуры без
-    # планировщика нет. Вход — естественный момент: он и так пишет в таблицу.
+    # A cleanup along the way: this person's expired sessions are of no use to
+    # anyone, and an architecture without a scheduler has no other regular place
+    # to sweep them. Sign-in is the natural moment: it writes to the table anyway.
     db.execute(
         Session.__table__.delete().where(
             Session.user_id == user.id,
             Session.expires_at < now,
         )
     )
-    # Вход и регистрация — тоже активность. Без этой строки свежий аккаунт
-    # показывал бы панели директора «не заходил» весь первый шаг обновления
-    # (см. _LAST_USED_WRITE_STEP) — до первого чтения, случившегося позже,
-    # чем через четверть часа после входа.
+    # Signing in and registering are activity too. Without this line a fresh
+    # account would show "never visited" in the director's panel for the whole
+    # first refresh step (see _LAST_USED_WRITE_STEP) — until the first read, which
+    # happens later than a quarter of an hour after signing in.
     user.last_active_at = now
     raw, hashed = new_token()
     db.add(
@@ -145,9 +147,9 @@ def open_session(db: DbSession, user: User, *, active_org_id: uuid.UUID | None =
             user_id=user.id,
             token_hash=hashed,
             expires_at=now + SESSION_TTL,
-            # Задаётся при входе по приглашению: человек только что вошёл в
-            # чужую организацию и должен увидеть именно её, а не ту, что
-            # оказалась первой по порядку.
+            # Set when signing in through an invitation: the person has just
+            # entered someone else's organization and must see that one rather
+            # than whichever came first in order.
             active_org_id=active_org_id,
         )
     )
@@ -156,10 +158,11 @@ def open_session(db: DbSession, user: User, *, active_org_id: uuid.UUID | None =
 
 
 def close_other_sessions(db: DbSession, user: User, *, keep_raw_token: str | None) -> int:
-    """«Выйти на всех устройствах»: закрывает все сессии, кроме текущей.
+    """"Sign out on all devices": closes every session except the current one.
 
-    Текущая остаётся: человек, нажавший кнопку после смены пароля, не должен
-    вылететь сам — иначе кнопка выглядит как поломка.
+    The current one stays: a person who pressed the button after changing their
+    password must not be thrown out themselves — otherwise the button looks like a
+    breakage.
     """
     query = Session.__table__.delete().where(Session.user_id == user.id)
     if keep_raw_token:
@@ -169,11 +172,11 @@ def close_other_sessions(db: DbSession, user: User, *, keep_raw_token: str | Non
 
 
 def change_password(db: DbSession, user: User, *, current: str, new: str) -> None:
-    """Смена пароля с проверкой прежнего.
+    """Changing the password, with the previous one verified.
 
-    Прежний пароль обязателен: смена пароля — это ровно то действие, которое
-    делает украденную сессию бесполезной, и выполняться по одной лишь сессии
-    оно не должно. ValueError — неверный прежний пароль.
+    The previous password is mandatory: changing the password is exactly the
+    action that renders a stolen session useless, and it must not be performed on
+    the strength of a session alone. ValueError means a wrong previous password.
     """
     if not verify_password(current, user.password_hash):
         raise ValueError("прежний пароль не подошёл")
@@ -188,17 +191,17 @@ def close_session(db: DbSession, raw_token: str) -> None:
 
 
 def session_for_token(db: DbSession, raw_token: str | None) -> Session | None:
-    """Запись сессии по сырому токену куки. `None` — токена нет, он не
-    находится или просрочен.
+    """The session row for a raw cookie token. `None` means there is no token, it
+    cannot be found, or it has expired.
 
-    Отдельно от current_session, потому что у WebSocket нет ни статуса ответа,
-    ни заголовков: отказ там — это код закрытия сокета. Общая часть обязана
-    быть одной функцией, иначе однажды разойдётся проверка срока годности, и
-    просроченная сессия будет отбиваться в HTTP, но проходить в сокет.
+    Separate from current_session, because a WebSocket has neither a response
+    status nor headers: a refusal there is a socket close code. The shared part
+    has to be one function, otherwise the expiry check will one day diverge and an
+    expired session will be rejected over HTTP but let through into the socket.
 
-    Отдаётся запись, а не только её владелец: на ней живёт выбранная
-    организация, и сокету она нужна ровно затем же, зачем HTTP-маршрутам, —
-    чтобы отвечать в той организации, которую человек выбрал.
+    The row is returned rather than only its owner: the chosen organization lives
+    on it, and the socket needs it for the same reason the HTTP routes do — to
+    answer within the organization the person chose.
     """
     if not raw_token:
         return None
@@ -208,19 +211,19 @@ def session_for_token(db: DbSession, raw_token: str | None) -> Session | None:
     if record is None or record.expires_at < now:
         return None
 
-    # Idle-таймаут: сессией не пользовались дольше SESSION_IDLE_TTL — она
-    # мертва, каким бы ни был её формальный срок годности.
+    # The idle timeout: the session went unused for longer than SESSION_IDLE_TTL —
+    # it is dead, whatever its formal expiry date.
     if record.last_used_at is not None and now - record.last_used_at > SESSION_IDLE_TTL:
         db.delete(record)
         db.flush()
         return None
 
-    # Отметка «пользовались» — с шагом, а не на каждый запрос (см. константу).
+    # The "used" mark — by a step rather than on every request (see the constant).
     if record.last_used_at is None or now - record.last_used_at > _LAST_USED_WRITE_STEP:
         record.last_used_at = now
-        # Тем же шагом обновляется последняя активность самого человека — она
-        # переживает уборку строк сессии (см. комментарий у User.last_active_at
-        # в models.py) и кормит панель директора.
+        # The person's own last activity is refreshed by the same step — it
+        # outlives the cleanup of session rows (see the comment at
+        # User.last_active_at in models.py) and feeds the director's panel.
         user = db.get(User, record.user_id)
         if user is not None:
             user.last_active_at = now
@@ -233,10 +236,10 @@ def current_session(
     planora_session: str | None = Cookie(default=None, alias=SESSION_COOKIE),
     db: DbSession = Depends(get_db),
 ) -> Session:
-    """Запись сессии, а не только её владелец: на ней живёт выбранная
-    организация, и переключателю нужна сама запись, чтобы её переписать."""
-    # Отсутствие куки и негодная кука — разные коды: первое значит «войди»,
-    # второе — «войди заново», и человеку это разные сообщения.
+    """The session row rather than only its owner: the chosen organization lives
+    on it, and the switcher needs the row itself in order to rewrite it."""
+    # A missing cookie and a bad cookie are different codes: the first means "sign
+    # in", the second "sign in again", and to a person those are different messages.
     if not planora_session:
         raise HTTPException(status_code=401, detail="not_authenticated")
 

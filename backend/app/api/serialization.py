@@ -1,10 +1,10 @@
-"""Состояние проекта и лента комментариев в том виде, в каком они уходят по проводу.
+"""The project's state and the comment feed as they go over the wire.
 
-Вынесено из маршрута, потому что читателей у одного и того же состояния стало
-двое: рабочий экран участника и публичная страница гостя. Разница между ними —
-не другой набор полей, а два признака видимости, и держать её здесь дешевле,
-чем поддерживать вторую сборку того же ответа, которая однажды разойдётся с
-первой ровно на то поле, которое гостю видеть нельзя.
+Extracted from the route because one and the same state gained two readers: a
+member's working screen and a guest's public page. The difference between them
+is not a different set of fields but two visibility flags, and holding it here is
+cheaper than maintaining a second assembly of the same answer, which would one
+day diverge from the first on exactly the field a guest must not see.
 """
 
 from collections.abc import Sequence
@@ -39,30 +39,32 @@ def project_state(
     show_people: bool = True,
     undoable: dict | None = None,
 ) -> dict:
-    """Проект целиком: календарь, категории, задачи, связи.
+    """The whole project: the calendar, categories, tasks, dependencies.
 
-    `undoable` — то, что отменит кнопка «Отменить», уже приведённое к виду,
-    в каком его вправе увидеть спрашивающий. Собирается снаружи: решение «кому
-    что видно» живёт в матрице прав, а не здесь, и снимок удалённой задачи
-    несёт внутреннюю заметку, которую подпись кнопки выдать не должна.
+    `undoable` is what the "Undo" button will undo, already reduced to the form
+    the caller is entitled to see. It is assembled outside: the "who sees what"
+    decision lives in the permission matrix rather than here, and the snapshot of
+    a deleted task carries an internal note that the button's label must not give
+    away.
 
-    `show_notes` — внутренняя заметка; её не видят ни `client`, ни гость.
-    `show_people` — исполнители задач. Гостю они не отдаются даже
-    идентификаторами: состав организации — не то, что публикуют вместе с
-    планом, и по спецификации его не видит даже `client` с аккаунтом.
+    `show_notes` is the internal note; neither `client` nor a guest sees it.
+    `show_people` is the task assignees. A guest is not given them even as
+    identifiers: an organization's membership is not something published
+    alongside the plan, and per the specification not even a `client` with an
+    account sees it.
 
-    Поднимает `CalendarError`, если рабочих дней в календаре не осталось:
-    решение, каким кодом это назвать, принимает маршрут.
+    Raises `CalendarError` if no working days are left in the calendar: which code
+    to call that is the route's decision.
     """
-    # Относительный план живёт на оси без настоящих дат, и календарь у него —
-    # одна недельная маска: праздники и объявленные рабочие дни лягут на план
-    # при привязке к дате старта (см. app.schedule).
+    # A relative plan lives on an axis with no real dates, and its calendar is a
+    # single weekly mask: holidays and declared working days will land on the plan
+    # when it is anchored to a start date (see app.schedule).
     relative = project.schedule_mode == ScheduleMode.RELATIVE
     calendar = relative_calendar(project, org) if relative else project_calendar(project, org)
 
-    # Позиции могут совпадать в одном крайнем случае (строка, восстановленная
-    # отменой на позицию, которую с тех пор занял другой ряд), поэтому id —
-    # обязательный второй ключ сортировки, а не только position.
+    # Positions can coincide in one edge case (a row restored by an undo to a
+    # position another row has taken since), so the id is a mandatory second sort
+    # key rather than position alone.
     categories = db.scalars(
         select(Category)
         .where(Category.project_id == project.id)
@@ -72,8 +74,8 @@ def project_state(
         select(Task).where(Task.project_id == project.id).order_by(Task.position, Task.id)
     ).all()
 
-    # Один запрос на весь проект, а не по запросу на задачу: на сотне задач
-    # второе дало бы сотню запросов ради одного экрана.
+    # One query for the whole project rather than a query per task: with a hundred
+    # tasks the latter would mean a hundred queries for one screen.
     assignees: dict[str, list[str]] = {str(t.id): [] for t in tasks}
     if show_people:
         for task_id, user_id in db.execute(
@@ -91,20 +93,21 @@ def project_state(
     ).all()
 
     ends = [end_date(t.start_date, t.duration_days, calendar) for t in tasks]
-    # Критический путь — вместе с состоянием, а не отдельным запросом: он
-    # рисуется на тех же полосках, и второй поход к серверу означал бы
-    # диаграмму, которая дорисовывается через кадр после появления. Считает
-    # сервер: запас меряется рабочими днями, а календарь — свойство проекта
-    # (см. app/critical.py).
+    # The critical path travels with the state rather than as a separate request:
+    # it is drawn on the same bars, and a second trip to the server would mean a
+    # chart that finishes drawing itself a frame after it appears. The server
+    # computes it: slack is measured in working days, and the calendar is a
+    # property of the project (see app/critical.py).
     critical = critical_tasks(
         {t.id: t.start_date for t in tasks},
         {t.id: finish for t, finish in zip(tasks, ends)},
         dependencies,
         calendar,
     )
-    # Конец базового плана считает сервер по тому же календарю, что и текущий:
-    # призрак под полоской обязан стоять там же, где стояла бы настоящая
-    # полоска с теми датами, а клиент календарной арифметики не повторяет.
+    # The baseline plan's end is computed by the server against the same calendar
+    # as the current one: the ghost under a bar must stand where a real bar with
+    # those dates would stand, and the client does not repeat the calendar
+    # arithmetic.
     baseline_ends = [
         end_date(t.baseline_start, t.baseline_duration, calendar)
         if t.baseline_start is not None and t.baseline_duration is not None
@@ -117,47 +120,47 @@ def project_state(
         "name": project.name,
         "slug": project.slug,
         "deadline": project.deadline.isoformat() if project.deadline else None,
-        # План: утверждён ли и какой версией. По этим двум значениям интерфейс
-        # отличает черновик (правки свободны) от утверждённого плана и знает,
-        # какую кнопку показать — «Утвердить» или «Переутвердить».
+        # The plan: whether it is approved and under which version. From these two
+        # values the interface tells a draft (edits are free) from an approved plan
+        # and knows which button to show — "Approve" or "Re-approve".
         "plan_approved_at": (
             project.plan_approved_at.isoformat() if project.plan_approved_at else None
         ),
         "plan_version": project.plan_version,
-        # Режим расписания и назначенный старт. По ним интерфейс выбирает
-        # шкалу — «Месяц 1 / Неделя 1» или настоящие месяцы — и знает, какую
-        # кнопку показать: «Назначить дату старта» или «Изменить».
+        # The schedule mode and the assigned start. From them the interface picks
+        # the scale — "Month 1 / Week 1" or real months — and knows which button to
+        # show: "Assign a start date" or "Change".
         "schedule_mode": project.schedule_mode,
         "start_date": project.start_date.isoformat() if project.start_date else None,
-        # Автоперенос по связям: включён ли он на этом проекте. Интерфейсу
-        # нужен не только рубильник в настройках — при включённом переносе он
-        # не предлагает подвинуть задачу вручную (см. DependencyNudge):
-        # предложение сделать то, что уже сделано, читается как сбой.
+        # Automatic shifting along dependencies: whether it is on for this project.
+        # The interface needs more than the switch in the settings — with shifting
+        # on it does not offer to move a task by hand (see DependencyNudge): an
+        # offer to do what has already been done reads as a malfunction.
         "auto_schedule": project.auto_schedule,
-        # То, что отменит кнопка «Отменить», — вместе с состоянием, а не
-        # отдельным запросом: кнопка обязана быть неактивной сразу, а не
-        # оживать через кадр после отрисовки.
+        # What the "Undo" button will undo — together with the state rather than as
+        # a separate request: the button must be inactive right away rather than
+        # coming to life a frame after the render.
         "undoable": undoable,
-        # Максимум по датам окончания задач; пустой проект не имеет конца.
+        # The maximum over the tasks' finish dates; an empty project has no end.
         "project_end": max(ends).isoformat() if ends else None,
-        # Календарь едет вместе с состоянием: интерфейс заливает нерабочие дни
-        # и рисует выходные ещё до первого клика, а не догадывается о них.
+        # The calendar travels with the state: the interface fills non-working days
+        # and draws weekends before the first click rather than guessing at them.
         "calendar": {
             "working_days": calendar.working_days,
             "holidays": sorted(d.isoformat() for d in calendar.holidays),
             "extra_workdays": sorted(d.isoformat() for d in calendar.extra_workdays),
         },
-        # Разрешённые значения, а не сырые nullable-колонки проекта: кто их
-        # унаследовал от организации, а кто задал сам — не дело интерфейса.
+        # The resolved values rather than the project's raw nullable columns: which
+        # of them were inherited from the organization and which were set directly
+        # is not the interface's business.
         "settings": {
             "shift_threshold_days": resolve_shift_threshold(project, org),
             "timezone": resolve_timezone(project, org),
         },
-        # Сырые переопределения — рядом с разрешёнными значениями, но отдельно
-        # от них. Экрану настроек нужно именно это различие: `null` там
-        # означает «наследовать», и показать его как унаследованное число
-        # значило бы предложить человеку переопределить то, что он и не
-        # переопределял.
+        # The raw overrides — next to the resolved values, but separate from them.
+        # The settings screen needs exactly this distinction: `null` there means
+        # "inherit", and showing it as an inherited number would mean offering a
+        # person to override what they never overrode.
         "overrides": {
             "timezone": project.timezone,
             "working_days": project.working_days,
@@ -178,34 +181,38 @@ def project_state(
                 "start_date": t.start_date.isoformat(),
                 "duration_days": t.duration_days,
                 "end_date": task_end.isoformat(),
-                # Веха рисуется ромбом в своём дне, а не отрезком. Признак, а
-                # не вывод из «длительность равна одному дню»: однодневных
-                # задач полно, и вехой они не становятся.
+                # A milestone is drawn as a diamond on its day rather than as a
+                # segment. A flag rather than an inference from "the duration equals
+                # one day": one-day tasks are plentiful and do not become
+                # milestones.
                 "milestone": t.milestone,
-                # Задача без запаса: сдвинь её на день — на день уедет весь
-                # проект. Считанное значение, а не хранимое: оно выводится из
-                # дат и связей и разошлось бы с ними на первой же правке.
+                # A task with no slack: move it by a day and the whole project moves
+                # by a day. A computed value rather than a stored one: it is derived
+                # from dates and dependencies and would diverge from them on the
+                # very first edit.
                 "critical": t.id in critical,
                 "criticality": t.criticality,
-                # Флаг риска — слово исполнителя, не секретнее статуса: точка
-                # на полоске рисуется и гостю, как и штриховка блокировки.
+                # The risk flag is the contributor's word, no more secret than the
+                # status: the dot on the bar is drawn for a guest too, as is the
+                # blocked hatching.
                 "risk": t.risk,
                 "risk_note": t.risk_note,
                 "progress_pct": t.progress_pct,
-                # Статус не секретнее прогресса: публичная страница показывает
-                # те же полоски, и обе выдачи собираются этой одной функцией.
+                # The status is no more secret than the progress: the public page
+                # shows the same bars, and both outputs are assembled by this one
+                # function.
                 "status": t.status,
                 "position": t.position,
                 "assignee_ids": assignees[str(t.id)],
-                # Базовый план едет с задачей всегда, а не по отдельному
-                # запросу: под каждой полоской рисуется его призрак, и второй
-                # поход к серверу ради него означал бы диаграмму, которая
-                # дорисовывается через кадр после появления.
+                # The baseline plan always travels with the task rather than via a
+                # separate request: its ghost is drawn under every bar, and a second
+                # trip to the server for it would mean a chart that finishes drawing
+                # itself a frame after it appears.
                 #
-                # Пустые baseline_* при утверждённом плане — это и есть
-                # признак «сверх первоначального плана»: отдельного флага нет,
-                # потому что он был бы вычислим из этих же двух полей и однажды
-                # разошёлся бы с ними.
+                # Empty baseline_* under an approved plan is itself the "beyond the
+                # original plan" flag: there is no separate flag, because it would be
+                # computable from these same two fields and would one day diverge
+                # from them.
                 "baseline_start": t.baseline_start.isoformat() if t.baseline_start else None,
                 "baseline_duration": t.baseline_duration,
                 "baseline_end": baseline_end.isoformat() if baseline_end else None,
@@ -221,12 +228,12 @@ def project_state(
 
 
 def comments_out(db: DbSession, comments: Sequence[Comment]) -> list[dict]:
-    """Лента реплик.
+    """The feed of remarks.
 
-    Автор отдаётся одинаково для участника и для гостя — именем и признаком
-    `guest`. Идентификатор участника наружу не выходит: подписи под репликой
-    он не нужен, а публичная страница показывает ту же ленту, что и рабочий
-    экран.
+    The author is returned identically for a member and for a guest — by name and
+    by the `guest` flag. A member's identifier does not go outward: a signature
+    under a remark does not need it, and the public page shows the same feed as
+    the working screen.
     """
     names: dict[UUID, str] = author_names(db, comments)
     return [
@@ -243,10 +250,10 @@ def comments_out(db: DbSession, comments: Sequence[Comment]) -> list[dict]:
             },
             "body": comment.body,
             "created_at": comment.created_at.isoformat(),
-            # Гостю поле не врёт: в его ленту внутренние реплики не попадают
-            # вовсе (list_comments include_internal=False), так что здесь
-            # у него всегда false. Участнику признак нужен, чтобы лента
-            # различала «в сторону» и общий разговор.
+            # The field does not lie to a guest: internal remarks do not reach
+            # their feed at all (list_comments include_internal=False), so here it
+            # is always false for them. A member needs the flag so that the feed
+            # distinguishes "aside" from the general conversation.
             "internal": comment.internal,
         }
         for comment in comments

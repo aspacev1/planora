@@ -1,29 +1,31 @@
-"""Относительный план и его привязка к календарной дате старта.
+"""The relative plan and its anchoring to a calendar start date.
 
-Относительный план не привязан к настоящим датам: у задач есть смещение от
-начала проекта в рабочих днях, длительность и связи, а шкала читается как
-«Месяц 1 / Неделя 1 / День 1». Хранится смещение при этом не отдельной
-колонкой, а той же `Task.start_date` — координатой на относительной оси:
+A relative plan is not tied to real dates: tasks have an offset from the
+project's beginning in working days, a duration and dependencies, while the
+scale reads as "Month 1 / Week 1 / Day 1". The offset, however, is stored not in
+a column of its own but in that same `Task.start_date` — as a coordinate on the
+relative axis:
 
-    день N проекта  =  RELATIVE_EPOCH + (N - 1) календарных дней.
+    day N of the project  =  RELATIVE_EPOCH + (N - 1) calendar days.
 
-RELATIVE_EPOCH — понедельник, поэтому «Неделя 1» начинается с понедельника, а
-маска рабочей недели ложится на относительную ось без поправок. Праздники в
-относительном режиме не применяются осознанно: праздник — свойство настоящей
-даты, которой у плана ещё нет, и календарь относительного проекта состоит из
-одной недельной маски (см. relative_calendar).
+RELATIVE_EPOCH is a Monday, so "Week 1" starts on a Monday and the working-week
+mask lands on the relative axis without corrections. Holidays are deliberately
+not applied in relative mode: a holiday is a property of a real date, which the
+plan does not have yet, and a relative project's calendar consists of a single
+weekly mask (see relative_calendar).
 
-Почему координата, а не колонка со смещением: смещение и координата взаимно
-однозначны при фиксированной маске, но координатой уже говорят журнал ревизий,
-отмена, порог сдвига, снимки плана и весь клиент. Вторая колонка с тем же
-содержанием была бы вторым представлением одного и того же — и однажды
-разошлась бы с первым.
+Why a coordinate rather than a column with an offset: an offset and a coordinate
+are in one-to-one correspondence for a fixed mask, but a coordinate is already
+what the revision journal, undo, the shift threshold, the plan snapshots and the
+entire client speak in. A second column with the same content would be a second
+representation of one and the same thing — and would one day diverge from the
+first.
 
-Привязка к дате старта переводит план в календарный режим без дрейфа:
-координата каждой задачи читается как смещение в рабочих днях от эпохи, и то
-же смещение откладывается от назначенного старта уже по настоящему календарю —
-с выходными и праздниками. Источник истины и до, и после — старт + длительности
-+ связи + рабочий календарь, а не дата окончания.
+Anchoring to a start date moves the plan into calendar mode with no drift: every
+task's coordinate is read as an offset in working days from the epoch, and that
+same offset is laid off from the assigned start along the real calendar — with
+weekends and holidays. The source of truth, both before and after, is the start
+plus durations plus dependencies plus the working calendar, not the finish date.
 """
 
 import uuid
@@ -37,64 +39,65 @@ from app.calendar import Calendar, count_working_days, end_date, first_working_o
 from app.models import Organization, Project, ScheduleMode, Task
 from app.settings_resolution import project_calendar, resolve_working_days
 
-#: Начало относительной оси. Понедельник — чтобы «День 1» открывал «Неделю 1»,
-#: а маска рабочей недели совпадала с колонками сетки. Год взят заведомо
-#: раньше любого настоящего плана: относительная координата не должна быть
-#: перепутана с настоящей датой даже глазами.
+#: The beginning of the relative axis. A Monday — so that "Day 1" opens "Week 1"
+#: and the working-week mask lines up with the grid's columns. The year is taken
+#: knowingly earlier than any real plan: a relative coordinate must not be
+#: confused with a real date even by eye.
 RELATIVE_EPOCH = date(2001, 1, 1)
 
 
 def relative_calendar(project: Project, org: Organization) -> Calendar:
-    """Календарь относительной оси: одна недельная маска, без праздников.
+    """The calendar of the relative axis: a single weekly mask, no holidays.
 
-    Праздники и объявленные рабочие дни — свойства настоящих дат; на оси,
-    где дат ещё нет, им не на что лечь (настроенные в организации даты
-    настоящих лет с координатами 2001 года и не пересеклись бы — но правило
-    здесь по смыслу, а не по совпадению диапазонов).
+    Holidays and declared working days are properties of real dates; on an axis
+    where there are no dates yet, there is nothing for them to land on (dates of
+    real years configured in the organization would not intersect coordinates in
+    2001 anyway — but the rule here is by meaning, not by a coincidence of
+    ranges).
     """
     return Calendar(working_days=resolve_working_days(project, org))
 
 
 def offset_of(coordinate: date, anchor: date, cal: Calendar) -> int:
-    """Смещение задачи от якоря в рабочих днях, начиная с нуля.
+    """A task's offset from the anchor in working days, starting from zero.
 
-    Старт на нерабочем дне читается как ближайший рабочий после него — ровно
-    так же, как его читает расчёт даты окончания (см. calendar.end_date):
-    смещение обязано называть тот день, в который работа и начнётся.
+    A start on a non-working day reads as the nearest working day after it —
+    exactly as the finish-date computation reads it (see calendar.end_date): the
+    offset must name the day on which the work will actually begin.
 
-    Для координаты раньше якоря смещения в рабочих днях нет — вызывающий
-    решает сам (см. _shifted_dates); здесь это ValueError, как и в
-    count_working_days.
+    For a coordinate earlier than the anchor there is no offset in working days —
+    the caller decides for itself (see _shifted_dates); here it is a ValueError,
+    as in count_working_days.
     """
     started = first_working_on_or_after(coordinate, cal)
     return count_working_days(anchor, started, cal) - 1
 
 
 def date_at_offset(anchor: date, offset: int, cal: Calendar) -> date:
-    """Дата, отстоящая от якоря на `offset` рабочих дней (ноль — первый
-    рабочий день на якоре или после него).
+    """The date standing `offset` working days from the anchor (zero being the
+    first working day on or after the anchor).
 
-    Тот же счёт, что у длительности: `offset + 1`-й рабочий день отрезка,
-    начатого на якоре. Отдельное имя, потому что вопрос другой — «где стоит
-    задача», а не «когда кончится».
+    The same counting as for duration: the `offset + 1`-th working day of a range
+    started at the anchor. A separate name, because the question is different —
+    "where does the task stand" rather than "when will it finish".
     """
     return end_date(anchor, offset + 1, cal)
 
 
 @dataclass(frozen=True)
 class SchedulePlan:
-    """Результат пересчёта плана к новой дате старта — до его применения.
+    """The result of recomputing a plan for a new start date — before it is applied.
 
-    Держит новые старты по задачам и итоговые границы: предпросмотр
-    показывает их человеку до подтверждения, применение — записывает.
+    It holds the new starts by task and the resulting bounds: the preview shows
+    them to a person before confirmation, and applying writes them.
     """
 
     start_date: date
-    #: Конец проекта по новым датам; None у проекта без задач.
+    #: The project's end under the new dates; None for a project with no tasks.
     end_date: date | None
-    #: Новые старты задач по их идентификаторам.
+    #: The new task starts, by their identifiers.
     starts: dict[uuid.UUID, date]
-    #: Новые базовые старты — только у задач, где базовый план есть.
+    #: The new baseline starts — only for tasks that have a baseline plan.
     baseline_starts: dict[uuid.UUID, date]
 
 
@@ -114,13 +117,13 @@ def _shifted_dates(
     new_anchor: date,
     new_cal: Calendar,
 ) -> SchedulePlan:
-    """Переносит каждую задачу со старой оси на новую, сохраняя смещение в
-    рабочих днях от якоря.
+    """Moves every task from the old axis to the new one, preserving its offset in
+    working days from the anchor.
 
-    Задача, начатая раньше якоря (в календарном проекте так бывает после
-    ручных переносов), сдвигается на календарную разницу якорей: смещения в
-    рабочих днях у неё нет, а терять её взаимное положение с началом проекта
-    нельзя.
+    A task starting before the anchor (in a calendar project that happens after
+    manual moves) is shifted by the calendar difference between the anchors: it
+    has no offset in working days, and its relative position to the project's
+    beginning must not be lost.
     """
     calendar_delta = (new_anchor - old_anchor).days
 
@@ -147,11 +150,11 @@ def _shifted_dates(
 
 
 def _current_anchor(project: Project, tasks: list[Task]) -> date:
-    """Точка, от которой читаются смещения текущего плана.
+    """The point the current plan's offsets are read from.
 
-    В относительном режиме это эпоха. В календарном — назначенный старт, а у
-    проекта, календарного с рождения (созданного до появления режимов), —
-    самый ранний старт задачи: другого начала у него нет.
+    In relative mode it is the epoch. In calendar mode it is the assigned start,
+    and for a project that has been calendar-based since birth (created before the
+    modes existed) it is the earliest task start: it has no other beginning.
     """
     if project.schedule_mode == ScheduleMode.RELATIVE:
         return RELATIVE_EPOCH
@@ -175,17 +178,18 @@ def planned_schedule(
     working_days: int | None = None,
     shift_tasks: bool = True,
 ) -> SchedulePlan:
-    """Считает, где встанут задачи после привязки к дате старта, не меняя их.
+    """Computes where the tasks will stand after anchoring to a start date, without changing them.
 
-    `working_days` — маска новой рабочей недели, если человек выбрал её в том
-    же окне; None — оставить действующую. Смещения при этом читаются по
-    старому календарю (план рисовали под ним), а раскладываются — по новому.
+    `working_days` is the mask of the new working week, if a person chose one in
+    the same dialog; None means keep the one in force. The offsets are read
+    against the old calendar (the plan was drawn under it) and laid out against
+    the new one.
 
-    `shift_tasks=False` — вариант «оставить даты как есть» при повторной
-    смене старта календарного проекта: задачи стоят, меняется только якорь
-    (и, возможно, календарь — от него пересчитываются даты окончания). Для
-    относительного проекта варианта «как есть» не существует: без пересчёта
-    его координаты остались бы на относительной оси.
+    `shift_tasks=False` is the "leave the dates as they are" option when the start
+    of a calendar project is changed again: the tasks stay put and only the anchor
+    changes (and possibly the calendar — finish dates are recomputed from it). For
+    a relative project the "as they are" option does not exist: without a
+    recomputation its coordinates would stay on the relative axis.
     """
     tasks = _project_tasks(db, project)
     current = project_calendar(project, org)
@@ -222,26 +226,27 @@ def apply_schedule(
     working_days: int | None = None,
     shift_tasks: bool = True,
 ) -> SchedulePlan:
-    """Назначает дату старта: записывает её, переводит проект в календарный
-    режим и раскладывает задачи по настоящему календарю.
+    """Assigns the start date: writes it down, moves the project into calendar
+    mode and lays the tasks out along the real calendar.
 
-    Смещения, длительности и связи сохраняются — меняется только ось, на
-    которой они отложены. Вместе со стартами переезжают и базовые планы:
-    обещание, данное в относительных днях, после привязки обязано стоять на
-    тех же рабочих днях от старта, иначе весь план разом оказался бы «со
-    сдвигом» без единой правки.
+    Offsets, durations and dependencies are preserved — only the axis they are
+    laid off on changes. The baseline plans move across together with the starts:
+    a promise made in relative days must, after anchoring, stand on the same
+    working days from the start, otherwise the whole plan would suddenly be "off
+    schedule" without a single edit.
 
-    `shift_tasks=False` — перенос даты старта без пересчёта задач («оставить
-    даты как есть»): выбор человека при повторной смене старта уже
-    календарного проекта. Для относительного проекта выбора нет — без
-    пересчёта его координаты остались бы в 2001 году.
+    `shift_tasks=False` moves the start date without recomputing the tasks
+    ("leave the dates as they are"): a person's choice when changing the start of
+    an already calendar-based project again. For a relative project there is no
+    choice — without a recomputation its coordinates would stay in 2001.
 
-    Снимки прежних версий плана (PlanVersion.snapshot) остаются как были:
-    это летопись обещаний в той оси, в которой их давали.
+    Snapshots of earlier plan versions (PlanVersion.snapshot) are left as they
+    were: they are a chronicle of promises in the axis they were made in.
 
-    Через журнал ревизий не проходит — как и правки настроек: это смена
-    системы отсчёта, а не правка плана, и записи «подвинуты все задачи»
-    журнал бы не отменил одной кнопкой.
+    It does not go through the revision journal — like edits to the settings: this
+    is a change of the frame of reference rather than an edit of the plan, and an
+    entry saying "every task was moved" is not something the journal could undo
+    with one button.
     """
     plan = planned_schedule(
         db, project, org, start=start, working_days=working_days, shift_tasks=shift_tasks
