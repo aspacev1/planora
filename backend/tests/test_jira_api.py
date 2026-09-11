@@ -1,8 +1,8 @@
-"""Интеграция с Jira: подключение, импорт проекта, повторная синхронизация.
+"""The Jira integration: connecting, importing a project, re-syncing.
 
-Сети в тестах нет: `RecordedJiraClient` подменяет `client_for` в маршрутах —
-не заглушка «чтобы компилировалось», а полноправная реализация того же
-протокола, что и боевой HTTP-клиент (см. app/jira/client.py).
+There is no network in the tests: `RecordedJiraClient` substitutes `client_for` in
+the routes — not a stub "so it compiles" but a full implementation of the same
+protocol as the production HTTP client (see app/jira/client.py).
 """
 
 import uuid
@@ -43,9 +43,9 @@ def client(db):
 
 @pytest.fixture
 def authed(client):
-    # Accept-Language: ru — иначе локаль по умолчанию (az) даёт категории
-    # «по умолчанию» на азербайджанском, а тесты этого файла написаны и
-    # читаются по-русски.
+    # Accept-Language: ru — otherwise the default locale (az) gives "default"
+    # categories in Azerbaijani, while this file's tests are written and read in
+    # Russian.
     client.post(
         "/api/auth/register",
         json={
@@ -107,7 +107,7 @@ def _patch_client(monkeypatch, recorded: RecordedJiraClient) -> None:
     monkeypatch.setattr("app.api.jira_routes.client_for", lambda db, org: recorded)
 
 
-# --- подключение --------------------------------------------------------------
+# --- the connection ------------------------------------------------------------
 
 
 def test_the_token_is_stored_encrypted_and_never_returned(authed, db, org):
@@ -180,7 +180,7 @@ def test_only_the_owner_manages_the_connection(authed, db):
     assert _connect(authed).status_code == 403
 
 
-# --- список проектов Jira ------------------------------------------------------
+# --- the list of Jira projects -------------------------------------------------
 
 
 def test_listing_jira_projects_without_a_connection_is_a_plain_refusal(authed):
@@ -198,7 +198,7 @@ def test_listing_jira_projects(authed, monkeypatch):
     assert response.json() == [{"key": "PROJ", "name": "Демо проект"}]
 
 
-# --- импорт --------------------------------------------------------------------
+# --- the import ----------------------------------------------------------------
 
 
 _EPIC = _issue("PROJ-1", summary="Запуск сайта", issuetype="Epic")
@@ -227,7 +227,7 @@ def test_import_creates_a_project_with_categories_and_tasks(authed, db, org, use
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["created_categories"] == 2  # эпик + категория по умолчанию
+    assert body["created_categories"] == 2  # the epic + the default category
     assert body["created_tasks"] == 3
 
     project_id = uuid.UUID(body["project_id"])
@@ -248,8 +248,8 @@ def test_import_creates_a_project_with_categories_and_tasks(authed, db, org, use
     assert by_name["[PROJ-4] Домен куплен"].category_id == epic_category.id
     assert by_name["[PROJ-3] Разобрать бэклог"].category_id == default_category.id
 
-    # Привязки заведены — без них повторная синхронизация не узнала бы,
-    # что эти строки уже существуют.
+    # The links are created — without them a repeated sync would not know that these
+    # rows already exist.
     project_link = db.scalar(select(JiraProjectLink).where(JiraProjectLink.project_id == project_id))
     assert project_link.jira_project_key == "PROJ"
     assert project_link.last_synced_at is not None
@@ -261,8 +261,8 @@ def test_import_creates_a_project_with_categories_and_tasks(authed, db, org, use
         == 3
     )
 
-    # Всё заведено одной пачкой — «Отменить» одной кнопкой откатывает импорт
-    # целиком.
+    # Everything was created as one batch — "Undo" rolls the whole import back with
+    # one button.
     undo = authed.get(f"/api/projects/{project_id}")
     assert undo.json()["undoable"] is not None
 
@@ -288,7 +288,7 @@ def test_a_scoped_editor_cannot_import(authed, db):
     assert response.status_code == 403
 
 
-# --- синхронизация ---------------------------------------------------------------
+# --- the sync ---------------------------------------------------------------------
 
 
 def test_syncing_an_unlinked_project_is_a_plain_refusal(authed):
@@ -306,7 +306,7 @@ def test_sync_updates_existing_rows_and_adds_new_ones(authed, db, org, user, mon
     ).json()
     project_id = imported["project_id"]
 
-    # Второй прогон: PROJ-2 закрыт, PROJ-3 — новая задача без эпика.
+    # The second run: PROJ-2 is closed, PROJ-3 is a new issue with no epic.
     task_done = _issue(
         "PROJ-2",
         summary="Логотип",
@@ -321,7 +321,7 @@ def test_sync_updates_existing_rows_and_adds_new_ones(authed, db, org, user, mon
     body = response.json()
     assert body["created_tasks"] == 1
     assert body["updated_tasks"] == 1
-    assert body["created_categories"] == 1  # категория по умолчанию — только теперь
+    assert body["created_categories"] == 1  # the default category — only now
 
     tasks = db.scalars(select(Task).where(Task.project_id == uuid.UUID(project_id))).all()
     by_name = {t.name: t for t in tasks}
@@ -415,7 +415,7 @@ def test_a_viewer_cannot_trigger_a_sync(authed, db, monkeypatch):
     assert response.status_code == 403
 
 
-# --- отправка сроков в Jira -----------------------------------------------------
+# --- pushing dates to Jira --------------------------------------------------------
 
 
 def test_pushing_to_an_unlinked_project_is_a_plain_refusal(authed):
@@ -436,7 +436,7 @@ def test_push_sends_the_current_due_date_and_the_next_sync_leaves_it_alone(authe
     task_id = db.scalar(
         select(Task.id).where(Task.project_id == uuid.UUID(project_id), Task.name.like("%Логотип%"))
     )
-    # Человек в Planora продлевает задачу до пятницы той же недели.
+    # A person in Planora extends the task to the Friday of the same week.
     resize = authed.post(
         f"/api/projects/{project_id}/mutations",
         json={
@@ -457,15 +457,15 @@ def test_push_sends_the_current_due_date_and_the_next_sync_leaves_it_alone(authe
     assert push.json() == {"pushed": 1, "unchanged": 0, "failed": []}
     assert recorded.due_date_calls == [("PROJ-2", date(2026, 3, 6))]
 
-    # Повторная отправка без изменений ничего не шлёт второй раз.
+    # A repeated push with no changes sends nothing a second time.
     recorded_again = _recorded_client(issues=[_EPIC, _TASK_IN_EPIC])
     _patch_client(monkeypatch, recorded_again)
     push_again = authed.post(f"/api/projects/{project_id}/jira/push").json()
     assert push_again == {"pushed": 0, "unchanged": 1, "failed": []}
     assert recorded_again.due_date_calls == []
 
-    # Обычная синхронизация после отправки не двигает даты этой задачи назад —
-    # с этого момента её сроки ведёт Planora, а не выборка Jira.
+    # An ordinary sync after a push does not move this task's dates back — from that
+    # moment Planora drives its dates rather than the Jira selection.
     _patch_client(monkeypatch, _recorded_client(issues=[_EPIC, _TASK_IN_EPIC]))
     sync = authed.post(f"/api/projects/{project_id}/jira/sync").json()
     assert sync["updated_tasks"] == 0
@@ -485,8 +485,8 @@ def test_push_reports_a_rejected_task_without_failing_the_rest(authed, db, monke
         issues=[_EPIC, _TASK_IN_EPIC, _TASK_DONE], due_date_failures=frozenset({"PROJ-2"})
     )
     _patch_client(monkeypatch, recorded)
-    # Обе задачи не совпадают с pushed_due_date (он ещё не задан ни у одной) —
-    # обе задачи должны быть отправлены, PROJ-2 при этом отказом.
+    # Neither task matches pushed_due_date (it is not set on either yet) — both tasks
+    # must be pushed, with PROJ-2 refused.
     response = authed.post(f"/api/projects/{project_id}/jira/push")
     body = response.json()
     assert body["pushed"] == 1

@@ -1,9 +1,9 @@
-"""Настройки уровней 2–4 по проводу.
+"""Level 2-4 settings over the wire.
 
-Наследование `null` уже покрыто в tests/test_settings_resolution.py на уровне
-функций. Здесь проверяется то, чего до сих пор не было вовсе: что эти значения
-вообще можно изменить снаружи — и что правка дефолта организации доходит до
-проектов, которые его не переопределяли.
+Inheritance of `null` is already covered in tests/test_settings_resolution.py at the
+level of the functions. What is checked here is what did not exist at all until now:
+that these values can be changed from the outside — and that an edit to an
+organization's default reaches the projects that did not override it.
 """
 
 import pytest
@@ -48,7 +48,7 @@ def _set_role(authed, db, role: str) -> None:
     db.flush()
 
 
-# --- уровень 2: организация --------------------------------------------------
+# --- level 2: the organization -------------------------------------------------
 
 
 def test_organization_settings_come_with_the_organization(authed):
@@ -73,15 +73,15 @@ def test_the_owner_edits_the_defaults(authed):
     settings = response.json()["settings"]
     assert settings["default_timezone"] == "Europe/Moscow"
     assert settings["default_shift_threshold_days"] == 5
-    # Календарь — множество дат: отсортировано и без повторов.
+    # A calendar is a set of dates: sorted and with no repeats.
     assert settings["holiday_calendar"] == ["2026-03-20", "2026-03-21"]
 
 
 def test_a_changed_default_reaches_projects_that_inherit_it(authed):
-    """Наследование живое, а не копия при создании.
+    """Inheritance is live rather than a copy made at creation.
 
-    Проект создан до правки дефолта — и всё равно видит новое значение,
-    потому что хранит `null`, а не снимок.
+    The project was created before the default was edited — and still sees the new
+    value, because it stores `null` rather than a snapshot.
     """
     project_id = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
 
@@ -109,8 +109,8 @@ def test_an_unknown_timezone_is_refused(authed):
 
 
 def test_an_empty_working_day_mask_is_refused(authed):
-    # Календарь без рабочих дней не позволяет посчитать ни одну дату
-    # окончания — проект перестал бы читаться целиком.
+    # A calendar with no working days makes it impossible to compute any finish date
+    # — the project would stop being readable altogether.
     assert authed.patch("/api/org", json={"working_days": 0}).status_code == 422
 
 
@@ -130,7 +130,7 @@ def test_a_typo_in_a_field_name_is_refused_not_ignored(authed):
     assert response.status_code == 422
 
 
-# --- слаги -------------------------------------------------------------------
+# --- slugs ---------------------------------------------------------------------
 
 
 def test_a_free_organization_slug_is_reported_as_free(authed):
@@ -148,8 +148,8 @@ def test_a_taken_organization_slug_suggests_a_free_one(authed, db):
     body = authed.get("/api/org/slug-check", params={"slug": "globex"}).json()
 
     assert body["available"] is False
-    # Номер по порядку, а не случайные шестнадцатеричные цифры: подсказку
-    # читают глазами и диктуют голосом.
+    # A sequential number rather than random hexadecimal digits: a suggestion is read
+    # by eye and dictated aloud.
     assert body["suggestion"] == "globex-2"
 
 
@@ -193,7 +193,7 @@ def test_a_taken_project_slug_suggests_a_free_one(authed):
 
 
 def test_the_same_slug_in_another_organization_is_free(authed, db):
-    """Слаг проекта уникален в пределах организации, а не глобально."""
+    """A project's slug is unique within an organization rather than globally."""
     project_id = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
     other_org = Organization(name="Globex", slug="globex")
     db.add(other_org)
@@ -208,14 +208,14 @@ def test_the_same_slug_in_another_organization_is_free(authed, db):
     assert body["available"] is True
 
 
-# --- уровень 3: проект -------------------------------------------------------
+# --- level 3: the project ------------------------------------------------------
 
 
 def test_project_settings_round_trip(authed):
     project_id = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
-    # Календарный режим: блок calendar показывает праздники и объявленные
-    # рабочие дни только там, где у плана есть настоящие даты, — у
-    # относительной оси календарь состоит из одной недельной маски.
+    # Calendar mode: the calendar block shows holidays and declared working days only
+    # where the plan has real dates — a relative axis's calendar consists of a single
+    # weekly mask.
     authed.post(f"/api/projects/{project_id}/schedule", json={"start_date": "2026-05-01"})
 
     response = authed.patch(
@@ -250,10 +250,10 @@ def test_a_null_resets_an_override_back_to_inherited(authed):
 
 
 def test_a_field_that_was_not_sent_is_not_touched(authed):
-    """«Не прислали» и «прислали null» — разные вещи.
+    """"Not sent" and "sent as null" are different things.
 
-    Без этой разницы сброс переопределения был бы невыразим: любой запрос без
-    поля стирал бы его.
+    Without that difference, clearing an override would be inexpressible: any request
+    without the field would erase it.
     """
     project_id = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
     authed.patch(f"/api/projects/{project_id}", json={"timezone": "Europe/Moscow"})
@@ -282,7 +282,7 @@ def test_a_foreign_project_is_not_found(authed, db):
     assert authed.patch(f"/api/projects/{foreign.id}", json={"name": "Моё"}).status_code == 404
 
 
-# --- уровень 4: профиль ------------------------------------------------------
+# --- level 4: the profile ------------------------------------------------------
 
 
 def test_the_language_lives_in_the_profile(authed, db):
@@ -290,7 +290,7 @@ def test_the_language_lives_in_the_profile(authed, db):
 
     assert response.status_code == 200
     assert response.json()["locale"] == "ru"
-    # И это именно профиль, а не память браузера: следующий вход увидит то же.
+    # And it really is the profile rather than the browser's memory: the next sign-in will see the same.
     assert authed.get("/api/auth/me").json()["locale"] == "ru"
     assert db.scalar(select(User.locale).where(User.email == "alex@example.com")) == "ru"
 
@@ -307,10 +307,11 @@ def test_the_profile_needs_a_session(client):
 
 
 def test_a_new_account_has_no_timezone_of_its_own(authed):
-    """Пустой пояс — не пропуск, а «считать сутки по браузеру».
+    """An empty timezone is not an omission but "count days by the browser".
 
-    Копия пояса организации при заведении аккаунта выглядела бы как
-    сознательный выбор человека и пережила бы правку дефолта организации.
+    A copy of the organization's timezone made when the account was created would look
+    like a deliberate choice by the person and would outlive an edit to the
+    organization's default.
     """
     assert authed.get("/api/auth/me").json()["timezone"] is None
 
@@ -320,8 +321,8 @@ def test_the_timezone_lives_in_the_profile(authed, db):
 
     assert response.status_code == 200
     assert response.json()["timezone"] == "Europe/Moscow"
-    # И это именно профиль, а не память браузера: тот же человек с другого
-    # компьютера обязан увидеть свои сутки, а не сутки чужого браузера.
+    # And it really is the profile rather than the browser's memory: the same person
+    # from another computer must see their own days rather than another browser's.
     assert authed.get("/api/auth/me").json()["timezone"] == "Europe/Moscow"
     assert db.scalar(select(User.timezone).where(User.email == "alex@example.com")) == "Europe/Moscow"
 
@@ -336,10 +337,10 @@ def test_a_null_timezone_returns_the_profile_to_the_browser(authed):
 
 
 def test_a_profile_field_that_was_not_sent_is_not_touched(authed):
-    """«Не прислали» и «прислали null» — разные вещи и здесь.
+    """"Not sent" and "sent as null" are different things here too.
 
-    Иначе смена языка стирала бы выбранный пояс: экран настроек шлёт каждое
-    поле само по себе, когда с ним закончили.
+    Otherwise changing the language would erase the chosen timezone: the settings
+    screen sends every field on its own, once it is done with it.
     """
     authed.patch("/api/auth/me", json={"timezone": "Europe/Moscow"})
 
