@@ -16,39 +16,42 @@ import { dayIn } from "../time/zone";
 import { planChanges, removedTasks } from "./planChanges";
 import type { PlanChange } from "./planChanges";
 
-// Слой и три яруса панель берёт у карточки задачи — стили оттуда же, а не
-// переписанные заново: две выдвижные колонки на одном месте обязаны выезжать
-// одинаково, иначе переход из списка в карточку выглядит переездом в другое
-// приложение.
+// The panel takes its layer and three tiers from the task card — the styles come
+// from there too rather than being rewritten from scratch: two sliding columns
+// in the same place must slide out identically, otherwise moving from the list
+// into the card looks like moving into a different application.
 import "../task/panel.css";
 import "./planChanges.css";
 
 /**
- * Операции, которые двигают сроки, — и только они.
+ * The operations that move dates — and only they.
  *
- * Тот же набор, что стоит за группой «Сроки» в фильтре истории: причины сдвигов
- * ищутся среди них, потому что причину спрашивают именно за уход от базового
- * плана, а переименование или смена статуса её не требуют и не имеют.
+ * The same set that stands behind the "Dates" group in the history filter: the
+ * reasons for shifts are looked for among them, because a reason is asked for
+ * precisely for departing from the baseline plan, while a rename or a status
+ * change neither requires nor has one.
  */
-// Веха тоже здесь: она схлопывает длительность до дня, и сервер спрашивает
-// причину за это так же, как за растяжение (см. `_guard_shift_threshold`).
+// A milestone is here too: it collapses the duration to a day, and the server
+// asks for a reason for that just as it does for a stretch (see
+// `_guard_shift_threshold`).
 const DATE_OPS = ["move_task", "set_duration", "resize_task", "move_category", "set_milestone"];
 
 type GroupKey = "shifts" | "durations" | "added" | "removed";
 
 /**
- * Боковая панель «что изменилось после согласования».
+ * The "what has changed since approval" side panel.
  *
- * Панель, а не окно с подложкой: список и лента рассказывают одно и то же
- * двумя языками — строками и призраками полосок, — и читать их нужно вместе.
- * Окно накрывало бы диаграмму ровно в тот миг, когда тумблер «показывать
- * утверждённый план» включает на ней то, ради чего его и включают.
+ * A panel rather than a dialog with a backdrop: the list and the strip tell the
+ * same thing in two languages — as lines and as ghost bars — and they need to be
+ * read together. A dialog would cover the chart at the very moment the "show the
+ * approved plan" toggle turns on the thing it is turned on for.
  *
- * Считается всё из состояния проекта — оно уже на экране. Два запроса, которые
- * панель всё же делает, лениво и только за тем, чего в состоянии нет по
- * определению: снимок версии знает удалённые задачи, журнал — причины сдвигов.
- * Обоих может не быть (отказ, роль без права на журнал) — тогда панель
- * показывает то же, что и без них, и молчит: список расхождений от этого не портится.
+ * Everything is computed from the project's state — it is already on screen. The
+ * two requests the panel does make are lazy and only for what the state does not
+ * have by definition: a version's snapshot knows the deleted tasks, the journal
+ * knows the reasons for shifts. Either may be missing (a refusal, a role without
+ * the right to the journal) — the panel then shows the same as it would without
+ * them and stays silent: the divergence list is none the worse for it.
  */
 export function PlanChangesPanel({
   projectId,
@@ -62,14 +65,14 @@ export function PlanChangesPanel({
 }: {
   projectId: string;
   state: ProjectState;
-  /** Право переутвердить план — владелец при живой связи. */
+  /** The right to re-approve the plan — the owner, with a live connection. */
   canReapprove: boolean;
-  /** Показывает ли лента призрак согласованного плана. */
+  /** Whether the strip shows the ghost of the approved plan. */
   baselineShown: boolean;
   onBaselineToggle: () => void;
-  /** Открыть карточку задачи. Окно при этом закрывается: карточка встаёт на его место. */
+  /** Open the task's card. The dialog closes at that: the card takes its place. */
   onOpenTask: (taskId: string) => void;
-  /** Перейти к подтверждению переутверждения — тому же, что и у кнопки в шапке. */
+  /** Go to the re-approval confirmation — the same one as the header button's. */
   onReapprove: () => void;
   onClose: () => void;
 }) {
@@ -77,17 +80,18 @@ export function PlanChangesPanel({
   const [group, setGroup] = useState<GroupKey | "all">("all");
   const zone = useTimeZone(state.settings?.timezone);
 
-  // Летопись версий — ради имён удалённых задач и имени согласовавшего. Ключ
-  // тот же, что у ленты истории: она уже могла её загрузить, и второй раз
-  // ходить незачем.
+  // The version chronicle — for the names of deleted tasks and the name of
+  // whoever approved. The key is the same as the history feed's: it may already
+  // have loaded it, and there is no point going a second time.
   const approvals = useQuery({
     queryKey: ["project", projectId, "plan-approvals"] as const,
     queryFn: () => listPlanApprovals(projectId),
     retry: false,
   });
 
-  // Причины сдвигов. Одной страницей: причина нужна к последнему уходу задачи
-  // от плана, а не ко всем подряд, и она стоит в верхних записях журнала.
+  // The reasons for shifts. One page: a reason is needed for a task's last
+  // departure from the plan, not for all of them, and it stands in the journal's
+  // top entries.
   const feedFilters = { types: DATE_OPS };
   const feed = useQuery({
     queryKey: feedQueryKey(projectId, feedFilters),
@@ -103,7 +107,7 @@ export function PlanChangesPanel({
     (approval) => approval.version === state.plan_version,
   )?.approved_by;
 
-  /** Дата в том виде, в каком её показывает лента: у плана без старта — день проекта. */
+  /** The date as the strip shows it: for a plan without a start — a project day. */
   const day = (iso: string) =>
     state.schedule_mode === "relative" ? relativeDayLabel(t, iso) : formatShortDate(t, iso);
 
@@ -115,25 +119,26 @@ export function PlanChangesPanel({
   ];
   const filled = groups.filter((row) => row.rows.length > 0);
   const shown = filled.filter((row) => group === "all" || group === row.key);
-  // Сумма групп, а не отдельный счёт: группы делят задачи между собой, и это
-  // число обязано сходиться со счётом на чипе в шапке — иначе список опровергал
-  // бы пометку, которая его открыла.
+  // The sum of the groups rather than a separate count: the groups divide the
+  // tasks between themselves, and this number must agree with the count on the
+  // chip in the header — otherwise the list would contradict the marker that
+  // opened it.
   const total = filled.reduce((sum, row) => sum + row.rows.length, 0);
 
-  // Esc через общую стопку слоёв: панель почти всегда всплывает поверх ленты,
-  // а поверх неё могут открыться окно сдвига или вопрос о переутверждении, и
-  // собственный слушатель на документе закрывал бы всех разом.
+  // Esc through the shared layer stack: the panel almost always pops up on top
+  // of the strip, and the shift dialog or the re-approval question may open on
+  // top of it, and an own listener on the document would close them all at once.
   useEscape(onClose);
 
   const title = t("plan.changes_title", { version: state.plan_version });
 
   return (
-    // Панель, а не окно: подложки у неё нет намеренно — лента слева остаётся и
-    // видимой, и рабочей, и призраки согласованного плана на ней читаются
-    // вместе со списком.
+    // A panel, not a dialog: it deliberately has no backdrop — the strip on the
+    // left stays both visible and workable, and the ghosts of the approved plan
+    // on it are read together with the list.
     <aside className="panel plan-changes" role="complementary" aria-label={title}>
-      {/* Шапка закреплена: заголовок, сводка и рубильник призрака не уезжают с
-          прокруткой списка — фильтр нужен ровно тогда, когда список длинный. */}
+      {/* The header is pinned: the heading, the summary and the ghost switch do
+          not travel with the list's scroll — the filter is needed exactly when the list is long. */}
       <header className="panel__head plan-changes__head">
         <div className="panel__head-top">
           <h2 className="panel__title">{title}</h2>
@@ -148,26 +153,27 @@ export function PlanChangesPanel({
           </button>
         </div>
 
-        {/* Когда согласовали и кто — то, относительно чего считается весь
-            список. Без этой строки «после v1» остаётся отсылкой к неизвестной
-            дате. */}
+        {/* When it was approved and by whom — what the whole list is measured
+            against. Without this line "after v1" stays a reference to an unknown
+            date. */}
         {state.plan_approved_at && (
           <p className="plan-changes__since">
             {t("plan.changes_since", {
-              // Сутки читателя, а не сервера: обрезка ISO-строки давала день
-              // по UTC, и согласование в час ночи датировалось вчерашним
-              // числом — тем же, что и лента истории, только та считает верно.
+              // The reader's day, not the server's: truncating the ISO string
+              // gave the day in UTC, and an approval at one in the morning was
+              // dated yesterday — the same as in the history feed, only that one
+              // counts correctly.
               date: formatDate(t, dayIn(zone, new Date(state.plan_approved_at))),
             })}
-            {/* Имя человека — содержимое пользователя: без перевода. */}
+            {/* A person's name is user content: not translated. */}
             {approvedBy && <span className="muted"> · {approvedBy.name}</span>}
           </p>
         )}
 
-        {/* Сводка отвечает на «что вообще случилось» до того, как список
-            прочитан, и она же фильтр: у групп разная срочность, и «покажи
-            только сдвиги» — первое, что просят, увидев число. Пустые группы не
-            показываются: тег с нулём предлагает открыть пустоту. */}
+        {/* The summary answers "what happened at all" before the list is read,
+            and it is also the filter: the groups differ in urgency, and "show
+            only the shifts" is the first thing asked once the number is seen.
+            Empty groups are not shown: a tag with a zero offers to open emptiness. */}
         <div className="plan-changes__summary">
           <GroupTag active={group === "all"} onClick={() => setGroup("all")}>
             {t("plan.changes_all")} · {total}
@@ -183,14 +189,15 @@ export function PlanChangesPanel({
           ))}
         </div>
 
-        {/* Тот же слой, что включает флажок «Вид» на ленте, — не второй такой
-            же: список и диаграмма рассказывают одно и то же двумя языками, и
-            переключаться между ними человек должен там, где смотрит. Ради
-            этого рубильника панель и не накрывает ленту.
+        {/* The same layer the "View" checkbox turns on in the strip — not a
+            second one like it: the list and the chart tell the same thing in two
+            languages, and a person must switch between them where they are
+            looking. It is for the sake of this switch that the panel does not
+            cover the strip.
 
-            Рубильником, а не флажком: состояние меняется сразу и без кнопки
-            «сохранить» — это ровно тот случай, ради которого в приложении и
-            заведён `Switch`. */}
+            A switch rather than a checkbox: the state changes at once and with
+            no "save" button — exactly the case `Switch` exists in the
+            application for. */}
         <div className="plan-changes__ghost">
           <Switch
             id="plan-changes-ghost"
@@ -212,12 +219,13 @@ export function PlanChangesPanel({
               {rows.map((change) => (
                 <li key={rowKey(change)} className="plan-changes__row">
                   <div className="plan-changes__main">
-                    {/* Имя задачи ведёт в её карточку: увидев расхождение, идут
-                        чинить именно эту задачу, и путь туда не должен идти
-                        через закрытие панели и поиск строки глазами. Панель при
-                        этом уходит: карточка выезжает на то же место справа, и
-                        двум панелям там не разойтись. У удалённой задачи вести
-                        некуда — она остаётся текстом. */}
+                    {/* A task's name leads into its card: having seen a
+                        divergence, people go to fix that very task, and the way
+                        there must not run through closing the panel and hunting
+                        for the row by eye. The panel leaves at that: the card
+                        slides out into the same place on the right, and two
+                        panels cannot fit there. A deleted task has nowhere to
+                        lead — it stays as text. */}
                     {change.kind === "removed" ? (
                       <span className="plan-changes__name plan-changes__name--gone">
                         {change.name}
@@ -238,9 +246,9 @@ export function PlanChangesPanel({
                     <Badge change={change} />
                   </div>
 
-                  {/* Растяжение, случившееся тем же движением, что и перенос:
-                      задача стоит в одной группе, но поехало у неё двое, и
-                      умолчать о втором значило бы показать половину правды. */}
+                  {/* A stretch that happened in the same motion as a move: the
+                      task stands in one group, but two things moved for it, and
+                      passing over the second would mean showing half the truth. */}
                   {change.kind === "shift" && change.stretch && (
                     <p className="plan-changes__also">
                       {t("plan.changes_also_duration", {
@@ -250,8 +258,8 @@ export function PlanChangesPanel({
                     </p>
                   )}
 
-                  {/* Причина — то, ради чего её и спрашивали при сдвиге: без неё
-                      список отвечает «что изменилось», а с ней — «почему». */}
+                  {/* The reason is what it was asked for at the shift: without it
+                      the list answers "what changed", with it — "why". */}
                   {change.kind !== "removed" && reasons.get(change.task.id) && (
                     <p className="plan-changes__reason">{reasons.get(change.task.id)}</p>
                   )}
@@ -262,11 +270,12 @@ export function PlanChangesPanel({
         ))}
       </div>
 
-      {/* Переутверждение отсюда ведёт к тому же вопросу, что и кнопка в шапке
-          проекта, — не к своему собственному: подтверждение у действия одно, и
-          второе, заведённое ради второй кнопки, однажды разойдётся с первым в
-          формулировке или в правах. Многоточие на кнопке о том и говорит:
-          нажатие не переутверждает, а спрашивает. */}
+      {/* Re-approval from here leads to the same question as the button in the
+          project's header — not to one of its own: an action has one
+          confirmation, and a second one created for the sake of a second button
+          will one day diverge from the first in wording or in permissions. The
+          ellipsis on the button says exactly that: the press does not re-approve
+          but asks. */}
       {canReapprove && (
         <div className="panel__foot plan-changes__foot">
           <span className="plan-changes__hint">
@@ -289,13 +298,14 @@ export function PlanChangesPanel({
 }
 
 /**
- * Бейдж расхождения — та же величина и тот же цвет, что у бейджа на полоске
- * ленты: «+2 дн.» красным, «−2 дн.» зелёным. Приближение — не тревога, и
- * набирать его цветом тревоги значило бы сообщать о хорошей новости плохим
- * голосом.
+ * The divergence badge — the same value and the same colour as the badge on the
+ * strip's bar: "+2 d." in red, "−2 d." in green. Coming in early is not an
+ * alarm, and setting it in an alarm's colour would mean announcing good news in
+ * a bad voice.
  *
- * У работы сверх плана числа нет вовсе: сравнивать не с чем, и вместо цифры
- * стоит слово. У удалённой — бейджа нет: её расхождение уже названо в строке.
+ * Work beyond the plan has no number at all: there is nothing to compare with,
+ * and a word stands in place of a figure. A deleted task has no badge — its
+ * divergence is already named in the line.
  */
 function Badge({ change }: { change: PlanChange }) {
   const { t } = useLocale();
@@ -329,12 +339,12 @@ function GroupTag({
   );
 }
 
-/** Ключ строки. Задача стоит ровно в одной группе, поэтому хватает её самой. */
+/** The row's key. A task stands in exactly one group, so the task itself is enough. */
 function rowKey(change: PlanChange): string {
   return change.kind === "removed" ? `removed-${change.taskId}` : change.task.id;
 }
 
-/** Было и стало — то, ради чего строка существует. */
+/** Before and after — what the line exists for. */
 function diffOf(
   change: PlanChange,
   t: (key: string, params?: Record<string, string | number>) => string,
@@ -355,15 +365,15 @@ function diffOf(
 }
 
 /**
- * Последняя объяснённая причина по каждой задаче — из журнала.
+ * The last explained reason for each task — from the journal.
  *
- * Берётся только то, что случилось после согласования: причина, названная до
- * него, объясняет сдвиг, который сам же и вошёл в базовый план.
+ * Only what happened after the approval is taken: a reason named before it
+ * explains a shift that itself went into the baseline plan.
  *
- * Записи приходят новыми вперёд, поэтому первая найденная причина и есть
- * последняя по времени — дальше по задаче не заглядываем. Сдвиг категории
- * объясняет все её задачи разом: причина у движения одна, а уехали от него
- * многие, и повторить её у каждой строки честнее, чем не показать ни у одной.
+ * The entries arrive newest first, so the first reason found is the latest in
+ * time — we do not look further for that task. A category shift explains all its
+ * tasks at once: the movement has one reason while many moved because of it, and
+ * repeating it on every line is more honest than showing it on none.
  */
 function reasonsByTask(state: ProjectState, entries: RevisionEntry[]): Map<string, string> {
   const reasons = new Map<string, string>();

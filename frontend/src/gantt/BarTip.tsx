@@ -16,80 +16,83 @@ import { formatShortDate } from "../i18n/dates";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Карточка, которая показывает под курсором то, чего на полоске не написано.
+ * The card that shows under the cursor what is not written on the bar.
  *
- * Полоска умещает название и проценты, а остальное — статус, даты, исполнителей
- * — человек узнаёт, только открыв карточку задачи. Наведение отвечает на те же
- * вопросы, не уводя с ленты и ничего не открывая.
+ * A bar fits the name and the percentage, and the rest — the status, the dates,
+ * the assignees — a person only learns by opening the task's card. Hovering
+ * answers the same questions without taking them off the strip and without
+ * opening anything.
  *
- * Узел один на всю ленту, а не по одному на полоску: на сотне задач это сотня
- * скрытых узлов ни за чем. Отсюда и контекст — иначе через строку пришлось бы
- * протаскивать пять новых пропсов, ни один из которых строке не нужен.
+ * There is one node for the whole strip rather than one per bar: with a hundred
+ * tasks that would be a hundred hidden nodes for nothing. Hence the context —
+ * otherwise five new props would have to be dragged through the row, not one of
+ * which the row needs.
  */
 
-/** Точка, от которой карточка отсчитывает своё место: курсор или край полоски. */
+/** The point the card measures its place from: the cursor or the bar's edge. */
 type Anchor = { x: number; y: number };
 
 type BarTipApi = {
   /**
-   * Навести. Карточка не появляется сразу: `immediate` нужен там, где ждать
-   * нечего, — при переходе фокуса с клавиатуры.
+   * Hover. The card does not appear at once: `immediate` is needed where there
+   * is nothing to wait for — when the focus moves from the keyboard.
    *
-   * `keys` — показывать ли строку сочетаний: она про то, чего гость не может.
+   * `keys` — whether to show the shortcuts line: it is about what a guest cannot do.
    */
   show: (task: Task, anchor: Anchor, keys: boolean, immediate?: boolean) => void;
-  /** Двигать за курсором — но только ту карточку, которая уже назначена. */
+  /** Move with the cursor — but only the card that is already assigned. */
   track: (anchor: Anchor) => void;
   hide: () => void;
-  /** Нажатие: карточка гаснет и запирается до конца жеста. */
+  /** A press: the card goes out and is locked until the gesture ends. */
   press: () => void;
-  /** Отпускание: замок снимается, но карточка сама не возвращается. */
+  /** A release: the lock comes off, but the card does not come back on its own. */
   release: () => void;
 };
 
 /**
- * Назначенная карточка. `shown` отделяет назначенную от показанной: пока
- * выдержка не вышла, задача и точка уже известны, а на экране ничего нет.
+ * The assigned card. `shown` separates the assigned one from the shown one:
+ * while the delay has not run out the task and the point are already known,
+ * while there is nothing on screen.
  */
 type Pending = { task: Task; anchor: Anchor; keys: boolean; shown: boolean };
 
 const BarTipContext = createContext<BarTipApi | null>(null);
 
-/** Отступ карточки от курсора — как в макете. */
+/** The card's offset from the cursor — as in the mockup. */
 export const GAP = 14;
-/** Ширина карточки. Та же величина стоит в стилях: шире имени она не станет. */
+/** The card's width. The same value stands in the styles: it will not grow wider than the name. */
 const TIP_WIDTH = 235;
 /**
- * Высота до первого измерения — на один кадр разметки, не больше.
+ * The height before the first measurement — for one layout frame, no more.
  *
- * Настоящая высота у каждой карточки своя: имя задачи переносится на вторую
- * строку, и по этому числу карточка с длинным именем у нижнего края экрана не
- * переворачивалась бы, а обрезалась. Живой узел меряется сразу после
- * отрисовки (см. `BarTip`), а запас здесь взят с избытком: ошибка в большую
- * сторону лишь раньше переворачивает карточку, в меньшую — оставила бы её за
- * обрезом.
+ * Every card's real height is its own: a task's name wraps onto a second line,
+ * and by this number a card with a long name at the bottom edge of the screen
+ * would be cut off rather than flipped. The live node is measured right after
+ * the render (see `BarTip`), and the reserve here is taken generously: erring on
+ * the large side only flips the card sooner, on the small side it would leave it
+ * beyond the cut.
  */
 const TIP_HEIGHT = 96;
 /**
- * Сколько курсор стоит на полоске, прежде чем появится карточка.
+ * How long the cursor stands on a bar before the card appears.
  *
- * Без выдержки проведённый поперёк ленты курсор высекает по вспышке на каждой
- * полоске: карточка успевает показаться и погаснуть там, где её никто не
- * звал. Столько же держат наведение системные подсказки — меньше читается как
- * дребезг, больше как задумчивость.
+ * Without a delay a cursor drawn across the strip strikes a flash on every bar:
+ * the card manages to appear and go out where nobody called it. System tooltips
+ * hold a hover for the same amount — less reads as jitter, more as hesitation.
  */
 export const SHOW_DELAY = 300;
 
 /**
- * Карточка не выходит за край экрана: у края она переворачивается на другую
- * сторону, а если и перевёрнутой не помещается — прижимается к краю.
+ * The card does not go beyond the screen's edge: at the edge it flips to the
+ * other side, and if it does not fit flipped either, it is pinned to the edge.
  */
 function placeTip({ x, y }: Anchor, height: number): CSSProperties {
   const left = x + GAP + TIP_WIDTH > window.innerWidth ? x - GAP - TIP_WIDTH : x + GAP;
   const top = y + GAP + height > window.innerHeight ? y - GAP - height : y + GAP;
-  // Нижняя граница считается по измеренной высоте, поэтому карточка выше
-  // окна прижимается к верхнему краю, а не уезжает за него: `Math.max`
-  // стоит снаружи и в споре двух прижатий побеждает верхнее.
+  // The lower bound is computed from the measured height, so a card taller than
+  // the window is pinned to the top edge rather than travelling beyond it:
+  // `Math.max` stands on the outside and wins the argument between the two
+  // pinnings in the top one's favour.
   return {
     left: Math.max(GAP, left),
     top: Math.max(GAP, Math.min(top, window.innerHeight - height - GAP)),
@@ -102,25 +105,25 @@ export function BarTipProvider({
   children,
 }: {
   /**
-   * Имена исполнителей по идентификаторам. Приходят пропсом сверху и никогда
-   * не спрашиваются отсюда: лента не должна решать, у кого что спрашивать, —
-   * на публичной странице состав организации не отдаётся вовсе.
+   * Assignee names by id. They arrive as a prop from above and are never asked
+   * for from here: the strip must not decide who to ask what — on a public page
+   * the organization's roster is not handed out at all.
    */
   names?: ReadonlyMap<string, string>;
   /**
-   * Подпись дня вместо короткой даты — для относительного представления:
-   * карточка обязана говорить на языке шкалы за её спиной, «День 8», а не
-   * настоящей датой, которой у плана нет.
+   * A day caption instead of a short date — for the relative view: the card must
+   * speak the language of the scale behind it, "Day 8", not a real date, which
+   * the plan does not have.
    */
   formatDay?: (iso: string) => string;
   children: ReactNode;
 }) {
   const [tip, setTip] = useState<Pending | null>(null);
-  // Идёт ли жест. В ref, а не в состоянии: значение читается в обработчиках
-  // указателя и на отрисовку не влияет.
+  // Whether a gesture is running. In a ref, not in state: the value is read in
+  // the pointer handlers and does not affect the render.
   const pressed = useRef(false);
-  // Отложенный показ. Тоже ref: отсчёт идёт мимо отрисовки, а отменять его
-  // приходится из каждого второго обработчика.
+  // The deferred show. Also a ref: the countdown runs past the render, and it
+  // has to be cancelled from every other handler.
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const api = useMemo<BarTipApi>(() => {
@@ -139,11 +142,11 @@ export function BarTipProvider({
           setTip((current) => (current === null ? null : { ...current, shown: true }));
         }, SHOW_DELAY);
       },
-      // Наведение показывает, движение только переставляет: иначе карточка
-      // возвращалась бы прямо под пальцем сразу после перетаскивания — а
-      // человек к этому моменту уже целится в соседний день. Пока идёт
-      // выдержка, движение переставляет будущее место карточки: за это время
-      // курсор уходит с той точки, на которой вошёл на полоску.
+      // Hovering shows, movement only repositions: otherwise the card would come
+      // back right under the finger straight after a drag — and by that moment
+      // the person is already aiming at the neighbouring day. While the delay
+      // runs, movement repositions the card's future place: in that time the
+      // cursor leaves the point at which it entered the bar.
       track: (anchor) => setTip((current) => (current === null ? null : { ...current, anchor })),
       hide: () => {
         forget();
@@ -160,17 +163,17 @@ export function BarTipProvider({
     };
   }, []);
 
-  // Отсчёт не должен пережить ленту: сработавший после размонтирования таймер
-  // ставит состояние отсутствующему узлу.
+  // The countdown must not outlive the strip: a timer that fires after unmount
+  // sets state on a node that is not there.
   useEffect(() => () => clearTimeout(timer.current), []);
 
   /**
-   * Прокрутка уводит полоску из-под карточки.
+   * Scrolling takes the bar out from under the card.
    *
-   * Карточка стоит по координатам окна и сама за лентой не едет — оставшись
-   * висеть, она приписывала бы работу одной задачи другой, оказавшейся под
-   * ней. Слушаем на перехвате: событие прокрутки не всплывает, а прокручиваются
-   * здесь и лента, и страница под ней.
+   * The card stands by window coordinates and does not travel with the strip
+   * itself — left hanging, it would attribute one task's work to another that
+   * happened to be underneath. We listen in the capture phase: a scroll event
+   * does not bubble, and both the strip and the page under it scroll here.
    */
   const armed = tip !== null;
   useEffect(() => {
@@ -191,15 +194,16 @@ export function BarTipProvider({
 }
 
 /**
- * Обработчики полоски.
+ * The bar's handlers.
  *
- * Возвращаются готовым набором, а не по одному: полоска и без того несёт на
- * себе перетаскивание, и разбирать, какое событие чьё, в разметке не надо.
- * Вне провайдера все они молчат — диаграмма рисуется и там, где карточки нет.
+ * Returned as a ready set rather than one at a time: the bar already carries the
+ * drag, and there is no need to work out which event belongs to whom in the
+ * markup. Outside the provider they all stay silent — the chart is also drawn
+ * where there is no card.
  *
- * `keys` — право двигать полоску: строка сочетаний показывается только тому,
- * кому есть что ими сделать. Читателю и гостю она обещала бы работу, которую
- * сервер отклонит.
+ * `keys` — the right to move the bar: the shortcuts line is shown only to
+ * someone who has something to do with them. To a reader and a guest it would
+ * promise work the server will reject.
  */
 export function useBarTip(task: Task, keys = false) {
   const api = useContext(BarTipContext);
@@ -216,10 +220,10 @@ export function useBarTip(task: Task, keys = false) {
       onPointerDown: () => api?.press(),
       onPointerUp: () => api?.release(),
       onPointerCancel: () => api?.release(),
-      // С клавиатуры курсора нет, и карточка встаёт у самой полоски: место под
-      // курсором означало бы точку, которой на экране никто не видит. И без
-      // выдержки: ждать её незачем там, где полоску выбрали, а не задели по
-      // дороге к соседней.
+      // From the keyboard there is no cursor, and the card stands right by the
+      // bar: a place under the cursor would mean a point nobody sees on screen.
+      // And without a delay: there is no reason to wait for it where the bar was
+      // chosen rather than brushed on the way to a neighbouring one.
       onFocus: (event: FocusEvent<HTMLElement>) => {
         const box = event.currentTarget.getBoundingClientRect();
         api?.show(task, { x: box.left, y: box.bottom }, keys, true);
@@ -231,11 +235,11 @@ export function useBarTip(task: Task, keys = false) {
 }
 
 /**
- * Сама карточка.
+ * The card itself.
  *
- * Скрыта от чтения с экрана: всё, что в ней написано, полоска уже называет
- * своим `aria-label`, и второй голос об одном и том же только удлиняет
- * прочтение ленты.
+ * Hidden from screen readers: everything written in it is already named by the
+ * bar in its `aria-label`, and a second voice on the same thing only makes
+ * reading the strip longer.
  */
 function BarTip({
   task,
@@ -255,27 +259,28 @@ function BarTip({
   const [height, setHeight] = useState(TIP_HEIGHT);
 
   /**
-   * Настоящая высота карточки — по живому узлу.
+   * The card's real height — from the live node.
    *
-   * Меряем в разметочном эффекте: он идёт после отрисовки, но до кадра, и
-   * перевёрнутой у нижнего края карточка появляется сразу, а не переставляет
-   * себя у человека на глазах. В зависимостях написанное, а не точка под
-   * курсором: ширина карточки постоянна, высота меняется только от текста, а
-   * мерить её заново на каждом движении курсора значило бы столько же раз
-   * пересчитывать разметку страницы. Нулевую высоту не берём: столько узел
-   * показывает, пока разметки нет вовсе, — тогда честнее запас.
+   * We measure it in a layout effect: it runs after the render but before the
+   * frame, and at the bottom edge the card appears already flipped rather than
+   * repositioning itself before the person's eyes. The dependencies are the
+   * text, not the point under the cursor: the card's width is constant, its
+   * height changes only with the text, and measuring it anew on every cursor
+   * movement would mean recomputing the page's layout just as many times. We do
+   * not take a zero height: that is what the node reports while there is no
+   * layout at all — the reserve is more honest then.
    *
-   * Строка сочетаний в зависимостях по той же причине, что и текст: она
-   * прибавляет карточке две строки, и без пересчёта карточка у нижнего края
-   * экрана перекрывала бы ими собственную полоску.
+   * The shortcuts line is in the dependencies for the same reason as the text:
+   * it adds two lines to the card, and without a recount a card at the bottom
+   * edge of the screen would cover its own bar with them.
    */
   useLayoutEffect(() => {
     const measured = node.current?.offsetHeight ?? 0;
     if (measured > 0) setHeight(measured);
   }, [task, names, keys, t]);
 
-  // Короткая форма даты, а не полная: карточка шириной 235px, и «12 августа —
-  // 14 августа» в её правой колонке переносится на вторую строку.
+  // The short date form rather than the full one: the card is 235px wide, and
+  // "12 August — 14 August" wraps onto a second line in its right column.
   const day = formatDay ?? ((iso: string) => formatShortDate(t, iso));
   const dates = `${day(task.start_date)} → ${day(task.end_date)}`;
   const status =
@@ -292,42 +297,42 @@ function BarTip({
       data-testid="bar-tip"
       aria-hidden="true"
     >
-      {/* Название — содержимое пользователя: не переводится. */}
+      {/* The name is user content: it is not translated. */}
       <strong className="gantt__tip-name">{task.name}</strong>
       <div className="gantt__tip-grid">
         <span>{status}</span>
         <b>{dates}</b>
         {people !== null && <span>{people}</span>}
-        {/* Без исполнителей процент остаётся в своей колонке: сдвинутый влево,
-            он читался бы приглушённой подписью к пустоте. */}
+        {/* With no assignees the percentage stays in its own column: shifted
+            left, it would read as a muted caption to emptiness. */}
         <b className={people === null ? "gantt__tip-alone" : undefined}>{task.progress_pct}%</b>
       </div>
-      {/* Флаг риска — слово исполнителя, и подсказка повторяет его дословно:
-          «есть риск — жду доступ» отвечает на вопрос, ради которого на
-          полоску навели. У «сделано» флаг уже история. */}
+      {/* The risk flag is the assignee's word, and the tooltip repeats it
+          verbatim: "at risk — waiting for access" answers the question the bar
+          was hovered for. For "done" the flag is already history. */}
       {task.status !== "done" && task.risk !== "green" && (
         <div className="gantt__tip-risk" data-risk={task.risk}>
           <b>{t("gantt.tip.risk", { risk: t(`task.risk.${task.risk}`) })}</b>
           {task.risk_note && ` — ${task.risk_note}`}
         </div>
       )}
-      {/* Сочетания клавиш — здесь, а не в отдельной справке: карточка и так
-          висит над той самой полоской, к которой они относятся, и это
-          единственное место, где человек читает про задачу, ничего не открыв.
-          Скрыта от чтения с экрана вместе со всей карточкой — тому, кто читает
-          с экрана, о том же говорит `aria-keyshortcuts` полоски. */}
+      {/* The keyboard shortcuts live here rather than in a separate help page:
+          the card already hangs over the very bar they apply to, and this is the
+          only place where a person reads about a task without opening anything.
+          Hidden from screen readers along with the whole card — someone reading
+          from the screen is told the same by the bar's `aria-keyshortcuts`. */}
       {keys && <div className="gantt__tip-keys">{t("gantt.tip.keys", { mod: modKeyLabel() })}</div>}
     </div>
   );
 }
 
 /**
- * Строка исполнителей: одного зовут по имени, нескольких — «первый и ещё N».
+ * The assignees line: one is called by name, several become "the first and N more".
  *
- * Перечисления карточка такой ширины не выдержит, а «и ещё 2» отвечает на
- * вопрос «одна ли это работа» не хуже трёх имён. Имён нет вовсе — строки нет:
- * пустое место честнее прочерка, который читался бы как «никто не назначен»
- * там, где состав просто не спрашивали.
+ * A card this wide will not take an enumeration, and "and 2 more" answers the
+ * question "is this one person's work" no worse than three names. No names at
+ * all means no line: an empty space is more honest than a dash, which would read
+ * as "nobody is assigned" where the roster was simply never asked for.
  */
 function assigneeText(
   task: Task,

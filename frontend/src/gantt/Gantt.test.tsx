@@ -19,9 +19,9 @@ const STATE: ProjectState = {
   plan_approved_at: null,
   plan_version: 0,
   undoable: null,
-  // Календарный режим: заглушки существующих тестов живут настоящими датами.
-  // Относительные проекты собирают своё состояние поверх этого (см. тесты
-  // относительной шкалы).
+  // Calendar mode: the existing tests' fixtures live on real dates. Relative
+  // projects build their own state on top of this (see the relative-scale
+  // tests).
   schedule_mode: "calendar" as const,
   start_date: null,
 
@@ -53,21 +53,23 @@ const STATE: ProjectState = {
 };
 
 /**
- * Диаграмма читает язык из провайдера: итог по дедлайну — это фраза, а не
- * картинка. Поэтому рисуем её всегда внутри провайдеров, как в приложении.
+ * The chart reads the language from the provider: the deadline verdict is a
+ * phrase, not a picture. So we always render it inside the providers, as in the
+ * application.
  *
- * Без `canWrite` и без `onSelectTask` — то есть на чтение, как на публичной
- * странице. В этом виде полоска объявляется картинкой, а не кнопкой (см. Bar
- * в Row.tsx), и тесты ниже спрашивают её по роли `img`. Проверяют они рисунок
- * — ширину, класс, порядок, — а не поведение органа управления.
+ * Without `canWrite` and without `onSelectTask` — that is, read-only, as on a
+ * public page. In that form a bar is declared an image rather than a button (see
+ * Bar in Row.tsx), and the tests below ask for it by the `img` role. What they
+ * check is the drawing — width, class, order — and not a control's behaviour.
  */
 function draw(state: ProjectState, locale: Locale = "ru") {
   return renderWithProviders(<Gantt projectId="p1" state={state} />, { locale });
 }
 
 /**
- * Лента, чьим видом распоряжается экран, — как на рабочем экране проекта, где
- * масштаб и «Вид» стоят в шапке, а не над лентой (см. `viewState`).
+ * A strip whose view is owned by the screen — as on the project's working
+ * screen, where the scale and "View" stand in the header rather than above the
+ * strip (see `viewState`).
  */
 function Controlled({ state }: { state: ProjectState }) {
   const view = useGanttView("p1");
@@ -80,16 +82,16 @@ describe("диаграмма", () => {
   it("рисует задачу полоской нужной ширины", () => {
     draw(STATE);
     const bar = screen.getByRole("img", { name: /Логотип/ });
-    // 4-10 марта — семь календарных дней. Ширина стоит свойством, а не
-    // `width`: полоску растягивают за грань, и к ней прибавляется сдвиг
-    // пальца (см. --bar-dw в gantt.css).
+    // 4-10 March is seven calendar days. The width is set as a property rather
+    // than as `width`: the bar is stretched by its edge, and the finger's offset
+    // is added to it (see --bar-dw in gantt.css).
     expect(bar.style.getPropertyValue("--bar-w")).toBe(`${7 * DAY_WIDTH.day}px`);
   });
 
   it("ставит полоску в её день, а не в начало ленты", () => {
     const { container } = draw(STATE);
-    // Окно открывается с первого числа месяца самой ранней задачи: 4 марта
-    // отстоит от 1 марта на три дня.
+    // The window opens from the first day of the earliest task's month: 4 March
+    // is three days away from 1 March.
     expect(container.querySelector<HTMLElement>(".gantt__bar")).toHaveStyle({
       left: `${3 * DAY_WIDTH.day}px`,
     });
@@ -103,7 +105,7 @@ describe("диаграмма", () => {
 
   it("рабочий день не залит", () => {
     const { container } = draw(STATE);
-    // 19 марта 2026 — четверг и не праздник.
+    // 19 March 2026 is a Thursday and not a holiday.
     expect(container.querySelector('[data-day="2026-03-19"]')).not.toHaveClass("is-nonworking");
   });
 
@@ -120,8 +122,8 @@ describe("диаграмма", () => {
     vi.setSystemTime(new Date(Date.UTC(2026, 2, 11, 9, 0)));
     try {
       const { container } = draw(STATE);
-      // 11 марта — десятый день от начала окна (1 марта), и линия стоит
-      // посередине его колонки, а не по её левому краю.
+      // 11 March is the tenth day from the window's start (1 March), and the
+      // line stands in the middle of its column rather than at its left edge.
       expect(container.querySelector<HTMLElement>(".gantt__today")).toHaveStyle({
         left: `${10 * DAY_WIDTH.day + DAY_WIDTH.day / 2}px`,
       });
@@ -135,8 +137,8 @@ describe("диаграмма", () => {
 
   it("ведёт линию «сегодня» по поясу проекта, а не по UTC", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    // 02:30 одиннадцатого марта в Баку — это ещё 22:30 десятого по UTC. До
-    // починки лента всю ночь показывала вчерашнее число.
+    // 02:30 on the eleventh of March in Baku is still 22:30 on the tenth in UTC.
+    // Before the fix the strip showed yesterday's date all night.
     vi.setSystemTime(new Date(Date.UTC(2026, 2, 10, 22, 30)));
     try {
       const { container } = draw({
@@ -181,8 +183,9 @@ describe("диаграмма", () => {
         { ...STATE.tasks[0], id: "t1", name: "Первая", position: 1 },
       ],
     });
-    // По доступному имени, а не по содержимому: имя задачи живёт в левой
-    // колонке и в aria-label полоски, самой полоске текст не принадлежит.
+    // By the accessible name rather than by the content: a task's name lives in
+    // the left column and in the bar's aria-label, the text does not belong to
+    // the bar itself.
     const names = screen
       .getAllByRole("img", { name: /Первая|Вторая/ })
       .map((node) => node.getAttribute("aria-label"));
@@ -198,8 +201,8 @@ describe("диаграмма", () => {
   });
 
   it("категория без задач всё равно видна", () => {
-    // Иначе только что созданная категория исчезает, и человек решает, что
-    // создание не сработало.
+    // Otherwise a just-created category disappears, and the person decides that
+    // the creation did not work.
     draw({ ...STATE, tasks: [] }, "ru");
     expect(screen.getByText("Дизайн")).toBeInTheDocument();
     expect(screen.queryByText(/ни одной категории/i)).not.toBeInTheDocument();
@@ -215,8 +218,8 @@ describe("диаграмма", () => {
       ],
     });
     const one = draw(STATE);
-    // Клеток дня столько же, сколько при одной задаче: сетка общая. Сотня
-    // задач на сотне дней иначе дала бы десять тысяч узлов.
+    // There are as many day cells as with a single task: the grid is shared. A
+    // hundred tasks over a hundred days would otherwise give ten thousand nodes.
     expect(many.container.querySelectorAll(".gantt__grid-day").length).toBe(
       one.container.querySelectorAll(".gantt__grid-day").length,
     );
@@ -224,16 +227,16 @@ describe("диаграмма", () => {
 
   it("прогресс задачи виден в полоске", () => {
     draw(STATE);
-    // Процент — свойством на полоске: по нему считается и ширина заливки, и
-    // место ручки, которой её тянут, и второе число здесь разошлось бы с
-    // первым при первой же правке.
+    // The percentage is a property on the bar: both the fill's width and the
+    // place of the grip that drags it are computed from it, and a second number
+    // here would diverge from the first on the very first edit.
     const bar = screen.getByRole("img", { name: /Логотип/ });
     expect(bar.style.getPropertyValue("--progress")).toBe("40%");
   });
 
   it("легенда включается через меню «Вид» и расшифровывает статусы", async () => {
     const { container } = draw(STATE, "ru");
-    // По умолчанию легенды нет — как в макете.
+    // By default there is no legend — as in the mockup.
     expect(container.querySelector(".gantt__legend")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Вид" }));
@@ -251,14 +254,14 @@ describe("диаграмма", () => {
   it("«Вид» несёт и колонки таблицы, и слои: двух кнопок об одном в ряду нет", async () => {
     draw(STATE, "ru");
 
-    // Отдельной кнопки «Колонки» в тулбаре больше нет — ряд был перегружен, а
-    // обе кнопки отвечали на один вопрос «что показывать».
+    // There is no separate "Columns" button in the toolbar any more — the row
+    // was overloaded, and both buttons answered the one question "what to show".
     expect(screen.queryByRole("button", { name: "Колонки" })).toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "Вид" }));
 
-    // Обе части названы заголовками: без них список из девяти галочек пришлось
-    // бы вычитывать целиком ради любой из них.
+    // Both parts are named with headings: without them a list of nine
+    // checkboxes would have to be read through in full for the sake of any one.
     const menu = screen.getByRole("button", { name: "Вид" }).nextElementSibling;
     expect(menu).toHaveTextContent("Колонки");
     expect(menu).toHaveTextContent("Слои");
@@ -270,8 +273,8 @@ describe("диаграмма", () => {
     const { container } = draw(STATE, "ru");
     const header = () => container.querySelector(".gantt__corner");
 
-    // По умолчанию длительности в таблице нет — она из числа тех колонок,
-    // которые просят.
+    // By default there is no duration in the table — it is one of the columns
+    // that have to be asked for.
     expect(header()).not.toHaveTextContent("Длительность");
 
     await userEvent.click(screen.getByRole("button", { name: "Вид" }));
@@ -281,8 +284,8 @@ describe("диаграмма", () => {
   });
 
   it("статус полоски — хранимое поле, а не вывод из дат", () => {
-    // Смысл переезда на хранимый статус: «заблокировано» из дат не выводится,
-    // а «запланировано» может стоять и на уже начатой по датам задаче.
+    // The point of moving to a stored status: "blocked" cannot be derived from
+    // dates, and "planned" can also stand on a task already started by its dates.
     draw({
       ...STATE,
       tasks: [
@@ -322,15 +325,15 @@ describe("диаграмма", () => {
 
   it("окно ленты дотягивается до дедлайна, даже если задачи кончились раньше", () => {
     const { container } = draw(STATE);
-    // Дедлайн 1 июня и окончание проекта 8 июня обязаны быть на ленте: иначе
-    // красная вертикаль рисуется за краем и её не видно.
+    // The 1 June deadline and the project's 8 June end must both be on the
+    // strip: otherwise the red vertical is drawn beyond the edge and is invisible.
     expect(container.querySelector('[data-day="2026-06-08"]')).toBeInTheDocument();
   });
 
   it("меню масштаба называет текущий масштаб и меняет его", async () => {
     const { container } = draw(STATE, "ru");
-    // Свёрнутое меню обязано называть выбранное само: иначе, в отличие от
-    // прежнего ряда сегментов, текущий масштаб виден только раскрытым.
+    // A collapsed menu must name the selection itself: otherwise, unlike the
+    // former row of segments, the current scale is only visible when unfolded.
     const button = screen.getByRole("button", { name: "Масштаб: День" });
     expect(container.querySelector(".gantt")).toHaveClass("gantt--day");
 
@@ -347,15 +350,15 @@ describe("диаграмма", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Неделя" }));
     expect(first.container.querySelector(".gantt")).toHaveClass("gantt--week");
 
-    // Уход с экрана размонтирует ленту — ровно то, что происходит при
-    // переключении вкладки или уходе на другой экран приложения.
+    // Leaving the screen unmounts the strip — exactly what happens when a tab
+    // is switched or another screen of the application is opened.
     first.unmount();
 
     const again = renderWithProviders(<Gantt projectId="p1" state={STATE} />, { locale: "ru" });
     expect(again.container.querySelector(".gantt")).toHaveClass("gantt--week");
     again.unmount();
 
-    // Другой проект не наследует чужой выбор: у него своя память масштаба.
+    // Another project does not inherit someone else's choice: it has its own scale memory.
     const other = renderWithProviders(<Gantt projectId="p2" state={STATE} />, { locale: "ru" });
     expect(other.container.querySelector(".gantt")).toHaveClass("gantt--day");
   });
@@ -374,12 +377,14 @@ describe("диаграмма", () => {
 });
 
 /**
- * Свёртка таблицы: полгода плана иначе видно только кусками.
+ * Collapsing the table: half a year of a plan is otherwise only visible in
+ * pieces.
  *
- * Таблица слева отнимает у шкалы треть экрана, и на длинном проекте форму
- * плана — где густо, где пусто — приходится собирать из двух прокруток. По
- * кнопке она уезжает целиком, оставляя полосу с самой этой кнопкой, а лента
- * занимает всё освободившееся место.
+ * The table on the left takes a third of the screen from the scale, and on a
+ * long project the plan's shape — where it is dense, where it is empty — has to
+ * be assembled from two scrolls. At the press of a button it slides away
+ * entirely, leaving a strip with that very button, and the chart takes all the
+ * freed space.
  */
 describe("свёртка таблицы", () => {
   const labelWidth = (container: HTMLElement) =>
@@ -391,12 +396,12 @@ describe("свёртка таблицы", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Свернуть таблицу задач" }));
 
-    // Ни имени задачи, ни заголовков колонок: полоса шириной в кнопку, и
-    // ячейки в ней вылезали бы поверх шкалы.
+    // Neither task names nor column headings: the strip is a button wide, and
+    // cells in it would spill over the scale.
     expect(screen.queryByText("Логотип")).not.toBeInTheDocument();
     expect(screen.queryByText("Начало")).not.toBeInTheDocument();
     expect(labelWidth(container)).toBe(`${COLLAPSED_WIDTH}px`);
-    // Полоски на месте: свернули таблицу, а не ленту.
+    // The bars are in place: it was the table that was collapsed, not the strip.
     expect(screen.getByRole("img", { name: /Логотип/ })).toBeInTheDocument();
   });
 
@@ -418,8 +423,8 @@ describe("свёртка таблицы", () => {
     expect(labelWidth(again.container)).toBe(`${COLLAPSED_WIDTH}px`);
     again.unmount();
 
-    // Соседний проект открывается развёрнутым: раскладка — выбор для этого
-    // проекта, а не для всего приложения.
+    // A neighbouring project opens expanded: the layout is a choice for this
+    // project, not for the whole application.
     const other = renderWithProviders(<Gantt projectId="p2" state={STATE} />, { locale: "ru" });
     expect(labelWidth(other.container)).not.toBe(`${COLLAPSED_WIDTH}px`);
   });
@@ -442,7 +447,7 @@ describe("свёртка таблицы", () => {
       </Providers>,
     );
 
-    // Поле, которого не видно, читается как бездействие кнопки «Новая задача».
+    // A field that cannot be seen reads as the "New task" button doing nothing.
     expect(
       await screen.findByRole("textbox", { name: "Новая задача в «Дизайн»" }),
     ).toBeInTheDocument();
@@ -450,30 +455,32 @@ describe("свёртка таблицы", () => {
 });
 
 /**
- * Прокрутка ленты по горизонтали.
+ * Scrolling the strip horizontally.
  *
- * Сама лента прокручивается ровно дважды: к сегодняшнему дню, когда проект
- * открыли, и обратно к тому дню, на который человек смотрел, когда шкала
- * пересобралась под ним. Всё остальное время положение принадлежит человеку, и
- * тесты ниже проверяют именно это — что лента его не отбирает.
+ * The strip scrolls itself exactly twice: to today when the project is opened,
+ * and back to the day the person was looking at when the scale was rebuilt under
+ * them. The rest of the time the position belongs to the person, and the tests
+ * below check exactly that — that the strip does not take it away.
  *
- * Положение читается в пикселях: в jsdom нет раскладки, `clientWidth` равен
- * нулю, и середина видимой области совпадает с её левым краем. Для расчётов
- * это ничего не меняет — они те же, что в браузере, просто с нулевой шириной.
+ * The position is read in pixels: jsdom has no layout, `clientWidth` is zero,
+ * and the middle of the visible area coincides with its left edge. For the
+ * computations that changes nothing — they are the same as in a browser, just
+ * with zero width.
  */
 describe("прокрутка ленты", () => {
   const scrollerOf = (container: HTMLElement) =>
     container.querySelector<HTMLElement>(".gantt__scroll") as HTMLElement;
 
-  /** Поставить ленту на день так, как это сделал бы человек колесом мыши. */
+  /** Put the strip on a day the way a person would with the mouse wheel. */
   const scrollTo = (element: HTMLElement, x: number) => {
     element.scrollLeft = x;
     fireEvent.scroll(element);
   };
 
   beforeEach(() => {
-    // Масштаб живёт в localStorage и переживает тест — соседний тест мог
-    // оставить здесь «неделю», а расчёты ниже написаны в дневном масштабе.
+    // The scale lives in localStorage and outlives the test — a neighbouring
+    // test could have left "week" here, while the computations below are
+    // written at the day scale.
     localStorage.clear();
   });
 
@@ -484,9 +491,9 @@ describe("прокрутка ленты", () => {
       const { container } = renderWithProviders(<Gantt projectId="s1" state={STATE} />, {
         locale: "ru",
       });
-      // 11 марта — десятый день от начала окна, и лента встаёт так, чтобы
-      // слева осталось три дня прошлого: сегодня у самого края экрана читается
-      // как край проекта.
+      // 11 March is the tenth day from the window's start, and the strip stands
+      // so that three days of the past remain on the left: today at the very
+      // edge of the screen reads as the project's edge.
       expect(scrollerOf(container).scrollLeft).toBe((10 - 3) * DAY_WIDTH.day);
     } finally {
       vi.useRealTimers();
@@ -494,20 +501,20 @@ describe("прокрутка ленты", () => {
   });
 
   it("смена масштаба оставляет на экране тот же день", async () => {
-    // Без подмены времени: окно ленты стоит на датах задачи, а не на
-    // сегодняшнем дне, и все числа ниже от «сегодня» не зависят.
+    // Without faking the time: the strip's window stands on the task's dates
+    // rather than on today, and none of the numbers below depend on "today".
     const { container } = renderWithProviders(<Gantt projectId="s2" state={STATE} />, {
       locale: "ru",
     });
     const scroller = scrollerOf(container);
-    // 25 марта — двадцать четвёртый день от начала окна.
+    // 25 March is the twenty-fourth day from the window's start.
     scrollTo(scroller, 24 * DAY_WIDTH.day);
 
     await userEvent.click(screen.getByRole("button", { name: "Масштаб: День" }));
     await userEvent.click(screen.getByRole("radio", { name: "Месяц" }));
 
-    // Тот же день, новая мерка. Раньше здесь оставалось прежнее число
-    // пикселей, и лента уезжала на полгода вперёд.
+    // The same day, a new measure. This used to leave the previous number of
+    // pixels here, and the strip travelled half a year forward.
     expect(scroller.scrollLeft).toBe(24 * DAY_WIDTH.month);
   });
 
@@ -522,9 +529,9 @@ describe("прокрутка ленты", () => {
       const scroller = scrollerOf(container);
       scrollTo(scroller, 24 * DAY_WIDTH.day);
 
-      // Ответ сервера на правку задачи: другой объект состояния и окно,
-      // растянутое до июля. Шкала пересобирается — человек по-прежнему
-      // смотрит на конец марта.
+      // The server's answer to a task edit: a different state object and a
+      // window stretched to July. The scale is rebuilt — the person is still
+      // looking at the end of March.
       rerender(
         <Providers locale="ru">
           <Gantt
@@ -551,9 +558,9 @@ describe("прокрутка ленты", () => {
       const scroller = scrollerOf(container);
       scrollTo(scroller, 24 * DAY_WIDTH.day);
 
-      // Экран проекта не размонтирует ленту при переходе — меняется только
-      // `projectId`. Новый проект человек ещё не листал, и его лента
-      // здоровается тем же, чем и первая.
+      // The project screen does not unmount the strip on navigation — only
+      // `projectId` changes. The person has not scrolled the new project yet,
+      // and its strip greets them with the same thing the first one did.
       rerender(
         <Providers locale="ru">
           <Gantt projectId="s5" state={STATE} />
@@ -568,10 +575,12 @@ describe("прокрутка ленты", () => {
 });
 
 /**
- * Относительная шкала: план без дат живёт на оси «Месяц 1 / Неделя 1 / День 1».
+ * The relative scale: a plan without dates lives on a "Month 1 / Week 1 / Day 1"
+ * axis.
  *
- * Состояние — поверх календарной заглушки: серверные координаты стоят у эпохи
- * (2001-01-01, понедельник), как их отдаёт сериализация относительного проекта.
+ * The state sits on top of the calendar fixture: the server's coordinates stand
+ * at the epoch (2001-01-01, a Monday), the way the serialization of a relative
+ * project hands them out.
  */
 const RELATIVE: ProjectState = {
   ...STATE,
@@ -594,11 +603,11 @@ describe("относительная шкала", () => {
 
     expect(screen.getByText("Месяц 1")).toBeInTheDocument();
     expect(screen.getByText("Неделя 1")).toBeInTheDocument();
-    // Конец проекта — день 12, вторая неделя; окно всё равно не короче
-    // четырёх недель — одной группы «Месяц 1».
+    // The project ends on day 12, in the second week; the window is still no
+    // shorter than four weeks — one "Month 1" group.
     expect(container.querySelectorAll(".gantt__week")).toHaveLength(4);
     expect(container.querySelectorAll(".gantt__month")).toHaveLength(1);
-    // Названий настоящих месяцев в шапке нет.
+    // There are no real month names in the header.
     expect(screen.queryByText(/март/i)).not.toBeInTheDocument();
   });
 
@@ -607,16 +616,16 @@ describe("относительная шкала", () => {
 
     expect(container.querySelector(".gantt__today")).toBeNull();
     expect(container.querySelector(".gantt__deadline")).toBeNull();
-    // Сводка по дедлайну тоже молчит: сравнивать нечего.
+    // The deadline summary stays silent too: there is nothing to compare.
     expect(container.querySelector(".gantt__summary")).toBeNull();
   });
 
   it("объясняет режим подсказкой бейджа, а не строкой над лентой", () => {
     const { container } = draw(RELATIVE);
 
-    // Отдельной строки над лентой больше нет: она говорила третий раз то же,
-    // что уже сказали бейдж и кнопка рядом, и стоила ленте полсотни пикселей
-    // высоты (см. тулбар в Gantt.tsx).
+    // There is no separate line above the strip any more: it said for the third
+    // time what the badge and the button next to it had already said, and cost
+    // the strip fifty pixels of height (see the toolbar in Gantt.tsx).
     expect(container.querySelector(".gantt__plan-hint")).toBeNull();
     expect(screen.getByText("Относительный план")).toHaveAttribute(
       "title",
@@ -632,8 +641,8 @@ describe("относительная шкала", () => {
   it("ряда над лентой нет, когда видом распоряжается экран", () => {
     const { container } = renderWithProviders(<Controlled state={RELATIVE} />, { locale: "ru" });
 
-    // Масштаб, «Вид» и плашка режима живут тогда в шапке проекта: второй ярус
-    // над лентой стоил бы строки плана (см. ProjectBar).
+    // The scale, "View" and the mode badge then live in the project's header: a
+    // second tier above the strip would cost a row of the plan (see ProjectBar).
     expect(container.querySelector(".project-toolbar")).toBeNull();
     expect(screen.queryByRole("button", { name: /Масштаб/ })).toBeNull();
     expect(screen.queryByText("Относительный план")).toBeNull();
@@ -660,14 +669,14 @@ describe("относительная шкала", () => {
   });
 
   it("занимает всю отведённую ширину целыми неделями", () => {
-    // Ширину ленты jsdom не считает вовсе — её приходится назвать. Заодно это
-    // и есть проверяемое: окно относительного плана не выведено ни из чего,
-    // кроме этой меры (см. weeksAcross в relative.ts).
+    // jsdom does not compute the strip's width at all — it has to be named. That
+    // is also what is being checked: a relative plan's window is derived from
+    // nothing but this measure (see weeksAcross in relative.ts).
     const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
-    // 2300 = колонка названий (468 — имя и обе даты по умолчанию) + 1832 под
-    // шкалу: лента открывается в дневном масштабе, неделя в нём 364 пикселя,
-    // и целых недель помещается пять — остаток в 12 пикселей на неделю не
-    // тянет и уходит под полосу «вне плана».
+    // 2300 = the names column (468 — the name and both dates by default) + 1832
+    // for the scale: the strip opens at the day scale, a week is 364 pixels in
+    // it, and five whole weeks fit — the remaining 12 pixels do not add up to a
+    // week and go under the "beyond the plan" band.
     Object.defineProperty(HTMLElement.prototype, "clientWidth", {
       value: 2300,
       configurable: true,
@@ -675,12 +684,13 @@ describe("относительная шкала", () => {
     try {
       const { container } = draw(RELATIVE);
       expect(container.querySelectorAll(".gantt__week")).toHaveLength(5);
-      // Второй «месяц» неполный — так шкалу и режет relativeMonths.
+    // The second "month" is incomplete — that is how relativeMonths cuts the scale.
       expect(container.querySelectorAll(".gantt__month")).toHaveLength(2);
     } finally {
-      // Своего `clientWidth` у HTMLElement нет — он объявлен выше, на Element,
-      // и вернуть подменённое можно только сняв подмену: `defineProperty` с
-      // `undefined` оставил бы её висеть на всех следующих тестах файла.
+    // HTMLElement has no `clientWidth` of its own — it is declared higher up, on
+    // Element, and what was overridden can only be returned by removing the
+    // override: `defineProperty` with `undefined` would leave it hanging over
+    // all the file's following tests.
       if (original) Object.defineProperty(HTMLElement.prototype, "clientWidth", original);
       else Reflect.deleteProperty(HTMLElement.prototype, "clientWidth");
     }
@@ -689,21 +699,22 @@ describe("относительная шкала", () => {
   it("остаток за краем плана размечен, а не оставлен белым", () => {
     const { container } = draw(RELATIVE);
 
-    // Полоса стоит дважды — в шапке и в теле — и обе невидимы для чтения с
-    // экрана: это фон, а не содержимое (см. .gantt__beyond в gantt.css).
+    // The band stands twice — in the header and in the body — and both are
+    // invisible to a screen reader: this is background, not content (see
+    // .gantt__beyond in gantt.css).
     const strips = container.querySelectorAll(".gantt__beyond");
     expect(strips).toHaveLength(2);
     for (const strip of strips) expect(strip).toHaveAttribute("aria-hidden", "true");
-    // Ширина шкалы уехала в стили: по ней полоса и находит своё начало.
-    // Четыре недели дневного масштаба: 28 дней по 52 пикселя.
+    // The scale's width has moved into the styles: the band finds its own start
+    // by it. Four weeks of the day scale: 28 days at 52 pixels.
     expect((container.querySelector(".gantt") as HTMLElement).style.getPropertyValue("--gantt-lane"))
       .toBe("1456px");
   });
 
   it("календарный проект с датой старта не предлагает переключиться в относительный вид", () => {
-    // Старт — понедельник 2 марта: задача 4–10 марта легла бы во «Неделю 1-2»
-    // относительной оси, будь она показана, — но показывать её больше нечем:
-    // у календарного проекта переключателя представления в тулбаре нет.
+    // The start is Monday 2 March: a 4-10 March task would land on "Week 1-2" of
+    // the relative axis, were it shown — but there is nothing left to show it
+    // with: a calendar project has no view switcher in the toolbar.
     const bound: ProjectState = { ...STATE, start_date: "2026-03-02" };
     draw(bound);
 
@@ -716,10 +727,10 @@ describe("относительная шкала", () => {
     const { rerender } = draw(RELATIVE);
     expect(screen.getByText("Относительный план")).toBeInTheDocument();
 
-    // Тот же пропс, что лента получает после успешного применения
-    // StartDateDialog: мутация кладёт в кэш готовое календарное состояние, и
-    // вниз оно приходит без промежуточного кадра — рендер бьёт этот переход
-    // напрямую, а не через кэш запроса.
+    // The same prop the strip receives after StartDateDialog is applied
+    // successfully: the mutation puts a ready calendar state into the cache, and
+    // it arrives downwards with no intermediate frame — the render hits this
+    // transition directly rather than through the query cache.
     rerender(
       <Providers locale="ru">
         <Gantt
