@@ -9,11 +9,10 @@ import { Modal } from "../components/Modal";
 import { useLocale } from "../i18n/LocaleProvider";
 import { CATEGORY_COLORS, suggestColor } from "../project/categoryColors";
 
-// Палитра и подбор цвета переехали в `project/categoryColors.ts` — у них
-// появился второй потребитель (быстрое добавление категории с низа ленты), и
-// вторая копия тех же чисел однажды разошлась бы с этой. Реэкспорт оставляет
-// прежний путь импорта рабочим — форма как звалась их источником, так им и
-// осталась для всех, кто уже на неё ссылается.
+// The palette and the colour picking moved into `project/categoryColors.ts` — they gained a second
+// consumer (quickly adding a category from the bottom of the strip), and a second copy of the same
+// numbers would one day diverge from this one. The re-export keeps the former import path working —
+// the form was called their source and stays so for everyone who already refers to it.
 export { CATEGORY_COLORS, suggestColor };
 
 export function CategoryForm({
@@ -34,29 +33,28 @@ export function CategoryForm({
     mutationFn: (payload: { name: string; color: string }) =>
       applyOp(projectId, { type: "create_category", name: payload.name, color: payload.color }),
     onSuccess: async () => {
-      // Состояние перезапрашивается целиком, а не дописывается руками в кэш.
-      // Идентификатор и позицию назначил сервер; сочинить их на клиенте
-      // значит завести в кэше строку, которой на сервере нет, — и узнать об
-      // этом при первом же действии над ней.
+      // The state is refetched whole rather than written into the cache by hand. The id and the
+      // position were assigned by the server; inventing them on the client means creating a row in
+      // the cache that does not exist on the server — and finding out about it on the very first
+      // action over it.
       await queryClient.invalidateQueries({ queryKey: projectQueryKey(projectId) });
       onClose();
     },
   });
 
-  // Название уходит так, как набрано, — только без краевых пробелов. Раньше
-  // форма поднимала его в прописные, чтобы заголовок группы в ленте читался
-  // единообразно; на деле капс при том же кегле, что у задач, раздувал
-  // строку категории и обрезал длинные имена многоточием раньше времени, а
-  // единообразие строке даёт начертание (см. .gantt__row--category в
-  // gantt.css), а не регистр букв.
+  // The name goes as typed — only without the edge whitespace. The form used to raise it to capitals
+  // so that a group's heading in the strip read uniformly; in practice caps at the same size as the
+  // tasks inflated a category's row and truncated long names with an ellipsis prematurely, while
+  // uniformity is given to the row by the typeface (see .gantt__row--category in gantt.css) rather
+  // than by the letters' case.
   const trimmed = name.trim();
 
   return (
     <Modal
       title={t("category.new.title")}
       onClose={onClose}
-      // Цвет тоже считается введённым: подобранный вручную из десяти кружков,
-      // он пропадает от промаха мимо окна так же, как название.
+      // The colour counts as input too: picked by hand from ten circles, it is lost to a stray click
+      // outside the dialog just as the name is.
       dirty={name !== "" || color !== suggested}
     >
       <form
@@ -72,11 +70,11 @@ export function CategoryForm({
           onChange={setName}
         />
 
-        {/* Набор переключателей, а не список: выбран ровно один цвет, и
-            стрелки клавиатуры обязаны ходить по нему сами — это поведение
-            даёт браузер группе радиокнопок с общим `name`. Сам кружок — это и
-            есть радиокнопка, перекрашенная в CSS: подменять её собственной
-            разметкой значило бы отбирать у браузера и клавиатуру, и читалку. */}
+        {/* A set of radios rather than a list: exactly one colour is chosen, and the keyboard arrows
+            must walk it by themselves — that behaviour is given by the browser to a group of radio
+            buttons with a shared `name`. The circle itself is the radio button, repainted in CSS:
+            replacing it with markup of our own would mean taking the keyboard and the screen reader
+            away from the browser. */}
         <fieldset className="fieldset swatches">
           <legend>{t("category.new.color")}</legend>
           <div className="swatches__row">

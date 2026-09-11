@@ -1,34 +1,34 @@
-/* Дизайн-система в духе Notion.
+/* A design system in the spirit of Notion.
    ────────────────────────────────────────────────────────────────────────
-   Три правила, из которых выведено всё остальное.
+   Three rules from which everything else is derived.
 
-   1. Бумага, а не панели. Фон один и тот же почти везде, а границы между
-      частями показывает не рамка, а расстояние и тонкая линия в 9% чернил.
-      Коробка вокруг каждого блока дробит экран на отсеки и мешает читать
-      подряд.
-   2. Интерфейс молчит, пока к нему не обратились. Кнопки строк, ручки,
-      действия проявляются при наведении и фокусе; постоянно видимые, они
-      перекрикивают содержимое, ради которого человек сюда пришёл.
-   3. Цвет — знак, а не украшение. Синий значит «действие», красный —
-      «просрочено», зелёный — «в срок». Всё прочее набрано чернилами разной
-      плотности, и это единственная градация, которая не спорит с данными.
+   1. Paper, not panels. The background is one and the same almost everywhere,
+      and what shows the boundaries between parts is not a border but distance
+      and a thin line at 9% ink. A box around every block chops the screen into
+      compartments and makes it hard to read straight through.
+   2. The interface stays silent until it is addressed. Row buttons, handles and
+      actions appear on hover and focus; permanently visible, they shout over the
+      content a person came here for.
+   3. Colour is a sign, not decoration. Blue means "action", red means "overdue",
+      green means "on time". Everything else is set in ink of varying density, and
+      that is the one gradation that does not compete with the data.
 
-   Палитра задаётся переменными, а не значениями по месту: тема поверх
-   (northstar-theme.css) переопределяет только их, и ни один компонент об
-   этом не знает. */
+   The palette is set through variables rather than by values in place: the theme
+   on top (northstar-theme.css) overrides only those, and no component knows about
+   it. */
 
 :root {
-  /* Чернила Notion — не чёрные: rgb(55 53 47) теплее и мягче на белом, а
-     степени приглушённости заданы прозрачностью, а не отдельными серыми.
-     Так текст поверх любой подложки остаётся согласован с ней сам. */
+  /* Notion's ink is not black: rgb(55 53 47) is warmer and softer on white, while
+     the degrees of muting are set by transparency rather than by separate greys.
+     That way text over any backing stays in agreement with it by itself. */
   --ink: 55 53 47;
   --text: rgb(var(--ink));
   --text-muted: rgb(var(--ink) / 65%);
   --text-faint: rgb(var(--ink) / 45%);
 
   --bg: #ffffff;
-  /* Подложка боковой колонки и «вторичных» поверхностей. Notion отделяет
-     навигацию не рамкой, а тем, что страница светлее её. */
+  /* The backing of the sidebar and of "secondary" surfaces. Notion separates
+     navigation not by a border but by the page being lighter than it. */
   --bg-subtle: #f7f7f5;
   --surface: #ffffff;
 
@@ -47,20 +47,20 @@
   --ok: #448361;
   --ok-soft: rgb(68 131 97 / 12%);
 
-  /* Поле ввода — не белая коробка в рамке, а чуть притопленный участок
-     страницы: рамка вокруг каждого поля превращает форму в решётку. */
+  /* An input is not a white box in a border but a slightly sunken patch of the
+     page: a border around every field turns a form into a grid. */
   --input-bg: rgb(242 241 238 / 60%);
 
-  /* Цвета меток. Те же пять, что и у Notion: они выбраны так, чтобы текст
-     чернилами читался поверх любого из них без исключений. */
+  /* The label colours. The same five as Notion's: they are chosen so that ink-
+     coloured text reads over any of them without exception. */
   --tag-gray: #e3e2e0;
   --tag-blue: #d3e5ef;
   --tag-yellow: #fdecc8;
   --tag-red: #ffe2dd;
   --nonworking: #f7f7f5;
 
-  /* Тени Notion многослойные: первый слой заменяет рамку, второй и третий
-     дают глубину. Одна размытая тень вместо них читается как ореол. */
+  /* Notion's shadows are multi-layered: the first layer replaces a border, the
+     second and third give depth. One blurred shadow in their place reads as a halo. */
   --shadow-sm: rgb(15 15 15 / 10%) 0 1px 2px;
   --shadow-md:
     rgb(15 15 15 / 5%) 0 0 0 1px, rgb(15 15 15 / 10%) 0 3px 6px,
@@ -70,14 +70,14 @@
   --radius-sm: 3px;
   --radius: 6px;
   --radius-lg: 10px;
-  /* Шкала расстояний — единственный источник отступов, полей и просветов
-     (`padding`, `margin`, `gap`). Шаг 4px, ниже 8 — половинные ступени 2 и
-     6: просвет между значком и подписью в 6px есть в каждом ряду, а 4 его
-     сплющивает, 8 — разрывает. Значений между ступенями (10, 14, 18…) в
-     стилях нет намеренно: глаз их не отличает от соседних, и рядом стоящие
-     блоки читались как «почти ровные». Тест `spacing-scale.test.ts` не даёт
-     литералу вернуться. Размеры (ширина, высота, положение) шкале не
-     подчинены — это геометрия, а не воздух. */
+  /* The spacing scale is the only source of padding, margin and gaps (`padding`,
+     `margin`, `gap`). The step is 4px, and below 8 there are the half-steps 2 and
+     6: a 6px gap between an icon and a label occurs in every row, while 4 squashes
+     it and 8 tears it apart. Values between the steps (10, 14, 18...) are
+     deliberately absent from the styles: the eye does not tell them from their
+     neighbours, and blocks standing next to each other read as "almost even". The
+     `spacing-scale.test.ts` test does not let a literal come back. Sizes (width,
+     height, position) are not subject to the scale — that is geometry, not air. */
   --space-2: 2px;
   --space-4: 4px;
   --space-6: 6px;
@@ -93,50 +93,53 @@
   --space-80: 80px;
   --space-96: 96px;
 
-  /* Поле содержимого — расстояние от края экрана до первой буквы. Два
-     значения на два рода страниц: рабочая область проекта идёт во всю ширину
-     окна, и её шапка, полосы под ней, выноски над лентой и тела вкладок
-     стоят по одной вертикали — `--gutter`; обычная страница (список проектов,
-     настройки) — колонка по центру со своим, более широким полем —
-     `--gutter-page`. Прежде каждый ярус называл поле сам: шапка 24, выноска
-     32, вкладка истории — 0, и первая буква на каждом стояла на своём месте.
-     Узкие окна сужают поле здесь же, а не в правилах каждого яруса. */
+  /* The content gutter is the distance from the screen's edge to the first letter.
+     Two values for two kinds of page: the project's workspace runs the window's
+     full width, and its header, the strips beneath it, the callouts above the chart
+     and the tab bodies all stand on one vertical — `--gutter`; an ordinary page (the
+     project list, the settings) is a centred column with its own, wider gutter —
+     `--gutter-page`. Each tier used to name its own gutter: the header 24, a callout
+     32, the history tab 0, and the first letter on each stood in its own place.
+     Narrow windows narrow the gutter right here rather than in every tier's rules. */
   --gutter: var(--space-24);
   --gutter-page: var(--space-40);
   --sidebar: 240px;
-  /* Свёрнутая колонка: ширина одного значка с полями. Пункты со значком в ней
-     остаются — виден значок, а подпись выезжает подсказкой вбок. */
+  /* A collapsed sidebar: the width of one icon with its padding. Items with an icon
+     stay in it — the icon is visible while the label slides out sideways as a tooltip. */
   --sidebar-collapsed: 52px;
-  /* Высота всех органов управления одна: кнопка, поле и список, стоящие в
-     строку, обязаны совпасть по высоте, иначе строка «пляшет». */
+  /* Every control has one height: a button, a field and a select standing in a row
+     must match in height, otherwise the row "dances". */
   --control: 32px;
-  /* Высота кнопки — одна на всё приложение. Отдельная от `--control`, потому
-     что кнопка невысока намеренно: она действие *при* содержимом, а не само
-     содержимое, и в полный рост поля отбирает у него первый взгляд. Ряд
-     действий в шапке проекта («Поделиться», «Пригласить», «Настройки») этот
-     рост и задаёт — остальные кнопки приложения повторяют его, а не свой. */
+  /* The button's height is one for the whole application. Separate from `--control`
+     because a button is deliberately short: it is an action *on* content rather than
+     the content itself, and at a field's full height it takes the first glance away
+     from it. The row of actions in the project's header ("Share", "Invite",
+     "Settings") is what sets that height — every other button in the application
+     repeats it rather than its own. */
   --control-button: 29px;
 
-  /* Движение. Две длительности на весь продукт и одна кривая — как и у цвета,
-     значение выбирается здесь, а не по месту. Прежде в коде жили четыре
-     режима (20, 120, 140 и 180 мс) в четырёх подсистемах, и переходы,
-     одинаковые по смыслу, шли с разной скоростью: подсветка строки списка —
-     за 20 мс, подсветка строки ленты — за 180.
-       Быстрая — отклик на курсор: смена фона, проявление кнопки строки.
-       Базовая — смена состояния или положения: переключатель, выезд карточки,
-     переезд полоски на ленте. Ей нужно время, чтобы глаз проследил путь.
-     Кривая одна на оба случая: ease тормозит к концу, и движение выглядит
-     доведённым до места. Прежний ease-in на переходах наведения делал ровно
-     обратное — начинал вяло и обрывался на полном ходу. */
+  /* Motion. Two durations for the whole product and one curve — as with colour, the
+     value is chosen here rather than in place. There used to be four regimes in the
+     code (20, 120, 140 and 180 ms) across four subsystems, and transitions identical
+     in meaning ran at different speeds: highlighting a list row took 20 ms,
+     highlighting a chart row took 180.
+       The fast one is the response to the cursor: a background change, a row button
+     appearing.
+       The base one is a change of state or position: a toggle, a card sliding out, a
+     bar moving on the chart. It needs time for the eye to follow the path. The curve
+     is one for both cases: ease slows towards the end, and the movement looks brought
+     to its place. The previous ease-in on hover transitions did exactly the opposite —
+     it started sluggishly and broke off at full speed. */
   --motion-fast: 120ms;
   --motion-base: 180ms;
   --motion-ease: ease;
 
-  /* Появление всплывающих слоёв — та же пара длительностей, названная по месту
-     применения: правила шкалы в разделе «движение всплывающих слоёв» ниже.
-     Величины берутся из продуктовых токенов, а не задаются заново, иначе тема,
-     переопределившая скорость, разошлась бы со слоями. Кривая здесь своя:
-     у входа ease-out гасит движение к концу, и слой встаёт, а не влетает. */
+  /* The appearance of popup layers uses the same pair of durations, named by their
+     place of use: the scale's rules are in the "popup layer motion" section below. The
+     values are taken from the product tokens rather than being set anew, otherwise a
+     theme that overrode the speed would diverge from the layers. The curve here is its
+     own: on entry ease-out damps the movement towards the end, and a layer settles
+     rather than flying in. */
   --motion-layer: var(--motion-fast);
   --motion-layer-lg: var(--motion-base);
   --motion-layer-ease: ease-out;
@@ -150,20 +153,20 @@
   box-sizing: border-box;
 }
 
-/* Человек попросил меньше движения — переходов нет вовсе, а не «покороче»:
-   быстрое движение остаётся движением, и для части людей это не «менее
-   приятно», а тошнота и головная боль.
+/* A person asked for less motion — so there are no transitions at all rather than
+   "shorter ones": fast motion is still motion, and for some people that is not "less
+   pleasant" but nausea and a headache.
 
-   Два способа узнать об этом, потому что у них разные сроки. Медиа-запрос
-   действует сразу, ещё до первого кадра разметки, и покрывает всё подряд.
-   Класс ставит разметка, спросив ту же настройку, — он нужен там, где от неё
-   зависит не только оформление. Правила одинаковы, и порядок между ними
-   значения не имеет.
+   There are two ways of learning about this, because their timings differ. The media
+   query applies immediately, before the first frame of layout, and covers everything
+   alike. The class is set by the markup after asking the same setting — it is needed
+   where more than the styling depends on it. The rules are identical, and the order
+   between them does not matter.
 
-   Свести их в один блок нельзя: условие медиа-запроса не выражается
-   селектором, поэтому объявления приходится держать в двух копиях. Копии уже
-   однажды разошлись — из класса выпал scroll-behavior. Меняя одно правило,
-   меняйте второе. */
+   They cannot be merged into one block: a media query's condition cannot be expressed
+   as a selector, so the declarations have to be kept in two copies. The copies have
+   already diverged once — scroll-behavior fell out of the class. When changing one
+   rule, change the second. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -182,32 +185,31 @@
   scroll-behavior: auto !important;
 }
 
-/* --- движение всплывающих слоёв ---
+/* --- popup layer motion ---
 
-   Всё, что появляется поверх страницы, движется по одной шкале: окно с
-   подложкой, выпадающая панель меню, тост, карточка задачи, карточка
-   наведения на ленте. Шкалы раньше не было — окно въезжало за 120 мс,
-   карточка за 180, а тост, меню и подложка возникали срезом, — и одинаковые
-   по смыслу слои вели себя по-разному в зависимости от того, в каком файле
-   их дописали.
+   Everything that appears over the page moves on one scale: a dialog with its
+   backdrop, a menu's dropdown panel, the toast, the task card, the chart's hover
+   card. There used to be no scale — the dialog slid in over 120 ms, the card over
+   180, while the toast, the menus and the backdrop appeared as a cut — and layers
+   identical in meaning behaved differently depending on which file they were added to.
 
-   Появление — 120 мс тому, кто возникает на своём месте, и 180 мс тому, кто
-   приезжает издалека: путь длиннее, и на 120 мс он читается рывком, а не
-   движением. Направление говорит, откуда слой взялся: меню разворачивается
-   вниз из своей кнопки, тост и окно поднимаются, карточка задачи выезжает
-   сбоку — от полоски, по которой щёлкнули. Подложке двигаться некуда, ей
-   остаётся проявление: экран темнеет на 60–80%, и срез такой величины
-   читается вспышкой.
+   Appearance takes 120 ms for whatever comes into being in its own place and 180 ms
+   for whatever travels from afar: the path is longer, and at 120 ms it reads as a jerk
+   rather than as movement. The direction says where the layer came from: a menu unfolds
+   downwards out of its button, the toast and the dialog rise, the task card slides in
+   from the side — from the bar that was clicked. A backdrop has nowhere to move, so a
+   fade is what is left to it: the screen darkens by 60-80%, and a cut of that magnitude
+   reads as a flash.
 
-   Уход — мгновенный у всех, и это решение, а не недосмотр. Слой снимается
-   размонтированием, и чтобы проводить его анимацией, каждому из пяти
-   компонентов понадобилось бы состояние «уже закрыт, но ещё виден» и таймер
-   к нему. Появление объясняет, откуда слой взялся; уходить ему объяснять
-   нечего — его закрыли, и это уже известно тому, кто закрыл.
+   Departure is instant for all of them, and that is a decision rather than an
+   oversight. A layer is removed by unmounting, and to see it off with an animation each
+   of the five components would need an "already closed but still visible" state and a
+   timer to go with it. Appearance explains where a layer came from; on leaving it has
+   nothing to explain — it was closed, and whoever closed it already knows that.
 
-   Само движение гасится общими правилами выше, когда человек просил меньше
-   движения. Своих таких правил у слоёв нет — второе такое же однажды
-   разошлось бы с первым. */
+   The movement itself is suppressed by the shared rules above when a person has asked
+   for less motion. The layers have no such rules of their own — a second set like that
+   would one day diverge from the first. */
 
 @keyframes layer-fade {
   from {
@@ -234,15 +236,14 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  /* 14px — размер интерфейса Notion. Не «мелко»: при этом кегле в строку
-     помещается свойство целиком, и карточка задачи не превращается в
-     колонку переносов по одному слову. */
+  /* 14px is Notion's interface size. Not "small": at this size a whole property fits
+     on one line, and a task card does not turn into a column of one-word wraps. */
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-/* --- оболочка: боковая колонка и страница --- */
+/* --- the shell: the sidebar and the page --- */
 
 .app {
   display: flex;
@@ -256,10 +257,10 @@ body {
   background: var(--bg);
 }
 
-/* Навигация слева, а не сверху. Причина не в моде: разделов у приложения
-   немного, но растут они вниз — проекты, состав, настройки, — и колонка
-   принимает новый пункт, не отбирая ширину у диаграммы. Горизонтальная шапка
-   на пятом пункте начала бы переноситься на вторую строку. */
+/* Navigation on the left rather than on top. The reason is not fashion: the
+   application has few sections, but they grow downwards — projects, members,
+   settings — and a column takes a new item without stealing width from the chart. A
+   horizontal header would have started wrapping onto a second line at the fifth item. */
 .sidebar {
   flex: 0 0 var(--sidebar);
   width: var(--sidebar);
@@ -269,36 +270,36 @@ body {
   padding: var(--space-8);
   background: var(--bg-subtle);
   border-right: 1px solid var(--border);
-  /* Колонка стоит на месте, пока прокручивается страница: это карта, а
-     уехавшая за верхний край карта бесполезна. Высота — весь экран, а не
-     высота содержимого: подложка, обрывающаяся под последним пунктом,
-     превращает колонку в первый блок страницы. */
+  /* The sidebar stays put while the page scrolls: it is a map, and a map that has
+     ridden past the top edge is useless. Its height is the whole screen rather than the
+     height of its content: a backing that breaks off under the last item turns the
+     sidebar into the page's first block. */
   position: sticky;
   top: 0;
   height: 100vh;
   overflow-y: auto;
-  /* Ширина едет, а не прыгает. Скачок в полтораста пикселей вместе с
-     перекладыванием всей рабочей области читается как сбой отрисовки, а не как
-     движение: на записи диаграмма разом показывала другой месяц. Общее правило
-     `prefers-reduced-motion` (см. выше) гасит этот переход вместе со всеми
-     остальными — отдельной оговорки здесь не нужно. */
+  /* The width slides rather than jumping. A jump of a hundred and fifty pixels
+     together with the whole workspace being re-laid reads as a rendering glitch rather
+     than as movement: on a recording the chart showed a different month all at once.
+     The shared `prefers-reduced-motion` rule (see above) suppresses this transition
+     along with all the others — no separate mention is needed here. */
   transition:
     flex-basis var(--motion-base) var(--motion-ease),
     width var(--motion-base) var(--motion-ease);
-  /* Три меры на всю колонку — левое поле строки, ширина колонки значков и
-     просвет между значком и подписью. Одни и те же для логотипа, разделов и
-     кнопки выхода: только так подписи встают в один столбец под названием
-     организации, а значки — под квадратом логотипа. Тема правит значения, а
-     не каждое правило по отдельности. */
+  /* Three measurements for the whole sidebar — the row's left padding, the icon
+     column's width and the gap between an icon and a label. The same ones for the
+     logo, the sections and the sign-out button: only that way do the labels line up in
+     one column under the organization's name, and the icons under the logo's square.
+     The theme edits the values rather than every rule separately. */
   --sidebar-gutter: 8px;
   --sidebar-mark: 20px;
   --sidebar-gap: 8px;
 }
 
-/* Строка организации — верхний пункт колонки: квадрат с первой буквой и
-   название. Квадрат не украшение, а якорь для глаза: в списке одинаковых
-   строк цветное пятно находится быстрее слова. Строка же и сворачивает
-   колонку, поэтому она кнопка. */
+/* The organization row is the sidebar's top item: a square with the first letter and
+   the name. The square is not decoration but an anchor for the eye: in a list of
+   identical rows a patch of colour is found faster than a word. That row is also what
+   collapses the sidebar, so it is a button. */
 .sidebar__workspace {
   display: flex;
   align-items: center;
@@ -307,9 +308,9 @@ body {
   min-width: 0;
   padding: var(--space-6) var(--sidebar-gutter);
   border-radius: var(--radius);
-  /* Якорь для подсказки свёрнутой колонки: она встаёт от края этой строки, а
-     не от края колонки, — иначе её пришлось бы отмерять от верха вручную и
-     заново при каждой правке высоты. */
+  /* An anchor for the collapsed sidebar's tooltip: it stands from this row's edge
+     rather than from the sidebar's — otherwise it would have to be measured from the
+     top by hand, and anew on every edit to the height. */
   position: relative;
 }
 
@@ -336,9 +337,10 @@ body {
   font-weight: 600;
 }
 
-/* Логотип-кнопка гасит всё, чем кнопка выдаёт себя: заливку, тень, высоту
-   органа управления. Она орган самой колонки, а не действие страницы, и
-   выглядеть обязана строкой с логотипом — в том числе под курсором. */
+/* The logo button suppresses everything by which a button gives itself away: the
+   fill, the shadow, the control height. It is a control of the sidebar itself rather
+   than an action on the page, and must look like a row with a logo — under the cursor
+   included. */
 button.sidebar__workspace {
   height: auto;
   color: inherit;
@@ -347,36 +349,36 @@ button.sidebar__workspace {
   text-align: left;
 }
 
-/* Под курсором логотип подсвечивается как пункт колонки, а не как главное
-   действие: заливка показывает границы мишени, но не обещает перехода —
-   переход обещал бы цвет. Правило не лишнее и в этой части: без него общее
-   `button:hover` залило бы строку акцентом.
+/* Under the cursor the logo is highlighted like a sidebar item rather than like a
+   primary action: the fill shows the target's bounds but promises no navigation — that
+   would be promised by colour. The rule is not redundant in this part either: without it
+   the shared `button:hover` would fill the row with the accent colour.
 
-   Раньше здесь стояла прозрачность, и объяснялась она тем, что подпись
-   приложения не должна мигать под курсором. Довод верен ровно до тех пор,
-   пока строка — только подпись; но сворачивает колонку она же, и в свёрнутом
-   виде это вообще единственный орган управления. Строка, которая ничем не
-   отвечает на курсор, читается как неживая — что на записи и произошло.
+   There used to be opacity here, explained by the application's label not having to
+   blink under the cursor. The argument holds exactly as long as the row is only a
+   label; but it is also what collapses the sidebar, and in the collapsed state it is the
+   only control at all. A row that does not respond to the cursor in any way reads as
+   lifeless — which is what happened on the recording.
 
-   Прежде это правило вдобавок защищало строку от общего `button:hover`,
-   заливавшего её акцентом. Общее правило теперь ничего не весит
-   (`button:where(:hover)` ниже), и здесь остался только собственный отклик
-   строки — ради которого правило и заводилось. */
+   This rule additionally used to protect the row from the shared `button:hover`, which
+   filled it with the accent colour. The shared rule now weighs nothing
+   (`button:where(:hover)` below), and what is left here is only the row's own response —
+   the very thing the rule was created for. */
 button.sidebar__workspace:hover,
 button.sidebar__workspace:focus-visible {
   background: var(--hover);
   box-shadow: none;
 }
 
-/* Стрелка сворачивания. Лежит в строке логотипа справа, но проявляется только
-   под курсором или по фокусу: постоянная, она соперничала бы с названием
-   организации, а её место в потоке всё равно занято — строка не дёргается,
-   когда стрелка появляется. */
+/* The collapse arrow. It lies in the logo row on the right but appears only under the
+   cursor or on focus: permanently visible, it would compete with the organization's name,
+   while its place in the flow is taken anyway — the row does not twitch when the arrow
+   appears. */
 .sidebar__fold {
-  /* Вне потока: в потоке стрелка отнимала бы свои шестнадцать пикселей у
-     названия организации всегда — а видна она под курсором. Название и так
-     обрезается многоточием, и терять на невидимом рисунке ещё и его хвост не
-     за что. */
+  /* Out of the flow: in the flow the arrow would always take its sixteen pixels from
+     the organization's name — while it is visible under the cursor. The name is truncated
+     with an ellipsis as it is, and there is no reason to lose its tail to an invisible
+     glyph as well. */
   position: absolute;
   right: var(--sidebar-gutter);
   color: var(--text-faint);
@@ -389,48 +391,48 @@ button.sidebar__workspace:focus-visible {
   opacity: 1;
 }
 
-/* Своя подсказка вместо атрибута `title`. Нативную рисует система: приложение
-   не знает ни где она встанет, ни когда погаснет, — и на записи она вставала
-   поверх «Проектов», закрывая значок и половину подписи, а потом висела ещё
-   пару секунд после ухода курсора. Своя стоит справа от рейки, гаснет вместе
-   с курсором и в развёрнутой колонке не показывается вовсе: там подписи и так
-   на месте. */
+/* A tooltip of our own instead of the `title` attribute. The native one is drawn by the
+   system: the application knows neither where it will stand nor when it will go out — and
+   on the recording it stood over "Projects", covering the icon and half the label, and
+   then hung around for another couple of seconds after the cursor left. Ours stands to
+   the right of the rail, goes out with the cursor and is not shown at all in an expanded
+   sidebar: the labels are in place there anyway. */
 .sidebar__tip {
   display: none;
 }
 
-/* Свёрнутая колонка. Не исчезает целиком, а сжимается до узкой рейки: пустой
-   левый край читался бы как сломанная вёрстка, а рейка говорит «меню здесь,
-   оно свёрнуто».
+/* The collapsed sidebar. It does not vanish entirely but shrinks to a narrow rail: an
+   empty left edge would read as broken layout, while a rail says "the menu is here, it is
+   collapsed".
 
-   В рейке остаются все пункты, у которых есть значок, — разделы, панель
-   директора, настройки и выход. Раньше здесь гасли разом и разделы, и нижний
-   блок, и от колонки оставался один логотип: чтобы выйти, надо было сначала
-   развернуть её обратно. Свёрнутое меню — это меню без подписей, а не
-   отсутствие меню; значки у каждого пункта уже нарисованы, и прятать надо было
-   именно подписи. */
+   Every item that has an icon stays in the rail — the sections, the director's panel, the
+   settings and sign-out. Both the sections and the bottom block used to go out at once,
+   and one logo was all that was left of the sidebar: to sign out you first had to expand
+   it back. A collapsed menu is a menu without labels rather than the absence of a menu;
+   every item already has an icon drawn, and what had to be hidden was precisely the
+   labels. */
 @media (min-width: 761px) {
-  /* Класс удвоен намеренно. Тема грузится после этой таблицы и правит
-     `.sidebar` теми же полями — при равной силе селектора выигрывала бы она, и
-     рейка осталась бы с полями развёрнутой колонки. Удвоение перевешивает её,
-     не поднимая правило до `!important`. */
+  /* The class is doubled deliberately. The theme loads after this stylesheet and edits
+     `.sidebar` with the same properties — at equal selector strength it would win, and
+     the rail would be left with the expanded sidebar's padding. The doubling outweighs it
+     without raising the rule to `!important`. */
   .sidebar.sidebar--collapsed {
     flex-basis: var(--sidebar-collapsed);
     width: var(--sidebar-collapsed);
-    /* Поля уже общих: в рейке шириной с один значок каждый пиксель бокового
-       поля отнимается у самого значка. */
+    /* The padding is narrower than the shared one: in a rail as wide as a single icon
+       every pixel of side padding is taken from the icon itself. */
     padding-left: var(--space-8);
     padding-right: var(--space-8);
-    /* Подсказки выходят за правый край рейки, и `overflow-y: auto` развёрнутой
-       колонки обрезал бы их. Прятать нечего: в рейке пунктов на треть экрана,
-       и прокручивать её незачем. */
+    /* Tooltips extend past the rail's right edge, and the expanded sidebar's
+       `overflow-y: auto` would clip them. There is nothing to hide: the rail holds a third
+       of a screen's worth of items, and there is no reason to scroll it. */
     overflow: visible;
-    /* Выше рабочей области, иначе подсказка уезжает под диаграмму. */
+    /* Above the workspace, otherwise a tooltip slides under the chart. */
     z-index: 3;
   }
 
-  /* В рейке строка — это один значок, и он встаёт по центру, а не жмётся к
-     краю: поле слева, за которым нет подписи, читается как сдвиг. */
+  /* In the rail a row is a single icon, and it stands centred rather than pressed to the
+     edge: padding on the left with no label behind it reads as an offset. */
   .sidebar--collapsed .sidebar__workspace,
   .sidebar--collapsed .sidebar__link,
   .sidebar--collapsed button.sidebar__button {
@@ -439,12 +441,12 @@ button.sidebar__workspace:focus-visible {
     padding-right: 0;
   }
 
-  /* Из рейки уходит всё, у чего нет значка: название организации,
-     переключатель организаций и выбор языка. Значок — это одна мишень, по
-     которой видно, куда попадёшь; список из трёх кодов языка, поставленный
-     столбиком, мишенью не становится, а занимает в рейке больше места, чем все
-     разделы вместе. За языком и организацией колонку разворачивают — за
-     разделами, настройками и выходом больше нет. */
+  /* Everything without an icon leaves the rail: the organization's name, the
+     organization switcher and the language choice. An icon is a single target that shows
+     where you will end up; a list of three language codes stacked in a column does not
+     become a target while taking up more room in the rail than all the sections together.
+     The sidebar is expanded for the language and the organization — it no longer is for
+     the sections, the settings and sign-out. */
   .sidebar--collapsed .sidebar__brand,
   .sidebar--collapsed .org-switch,
   .sidebar--collapsed .locale-switch,
@@ -452,10 +454,10 @@ button.sidebar__workspace:focus-visible {
     display: none;
   }
 
-  /* Подпись пункта в рейке не пропадает, а становится подсказкой справа: то
-     же слово, то же место в разметке — просто выведено из строки наружу.
-     Отдельного узла под подсказку поэтому не нужно, а читалке ничего не
-     меняется: имя пункта как было в разметке, так и осталось. */
+  /* An item's label does not vanish in the rail but becomes a tooltip on the right: the
+     same word, the same place in the markup — simply brought out of the row. No separate
+     node is needed for a tooltip because of this, and nothing changes for a screen reader:
+     the item's name is in the markup as it was. */
   .sidebar--collapsed .sidebar__label,
   .sidebar--collapsed .sidebar__tip {
     display: block;
@@ -471,15 +473,15 @@ button.sidebar__workspace:focus-visible {
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
-    /* Подсказка не мишень: курсор, доехавший до неё, не должен считаться
-       ушедшим со строки и гасить её же. */
+    /* A tooltip is not a target: a cursor that has reached it must not count as having
+       left the row and suppress it. */
     pointer-events: none;
     opacity: 0;
     transform: translateY(-50%);
-    /* Появляется с задержкой, гаснет сразу. Задержка — чтобы подсказки не
-       вспыхивали одна за другой, пока курсор пересекает рейку насквозь;
-       мгновенное гашение — чтобы не повторить нативную, которая висела над
-       чужим пунктом уже после ухода курсора. */
+    /* It appears with a delay and goes out at once. The delay is so that tooltips do not
+       flash one after another while the cursor crosses the rail; instant extinction is so
+       as not to repeat the native one, which hung over another item after the cursor had
+       already left. */
     visibility: hidden;
     transition:
       opacity var(--motion-fast) var(--motion-ease),
@@ -507,9 +509,9 @@ button.sidebar__workspace:focus-visible {
   gap: 1px;
 }
 
-/* Пункт колонки. Заливка при наведении вместо подчёркивания: подчёркнутая
-   ссылка в списке из пяти строк рисует частокол, а заливка показывает ровно
-   то, что произойдёт по щелчку, — целиком строку. */
+/* A sidebar item. A fill on hover instead of an underline: an underlined link in a list
+   of five rows draws a picket fence, while a fill shows exactly what will happen on a
+   click — the whole row. */
 .sidebar__link {
   display: flex;
   align-items: center;
@@ -521,7 +523,7 @@ button.sidebar__workspace:focus-visible {
   font-weight: 500;
   text-decoration: none;
   transition: background var(--motion-fast) var(--motion-ease);
-  /* Якорь для подсказки — см. `.sidebar__workspace`. */
+  /* An anchor for the tooltip — see `.sidebar__workspace`. */
   position: relative;
 }
 
@@ -529,17 +531,17 @@ button.sidebar__workspace:focus-visible {
   background: var(--hover);
 }
 
-/* Текущий раздел — заливка и полная плотность чернил. Не цветом: цветной
-   пункт среди серых читался бы как «важный», а он всего лишь «этот». */
+/* The current section gets a fill and full ink density. Not colour: a coloured item among
+   grey ones would read as "important", while it is merely "this one". */
 .sidebar__link.is-current {
   background: var(--active);
   color: var(--text);
 }
 
-/* Значок занимает столько же места, сколько квадрат логотипа, — рисунок при
-   этом остаётся мелким и просто стоит в середине отведённой колонки. Так
-   «Проекты», «Мои задачи» и «Отчёты» начинаются ровно там же, где название
-   организации, а не на четыре пикселя левее. */
+/* An icon takes up as much room as the logo's square — the glyph itself stays small and
+   simply stands in the middle of the column allotted to it. That way "Projects", "My
+   tasks" and "Reports" begin exactly where the organization's name does rather than four
+   pixels further left. */
 .sidebar__icon {
   flex: 0 0 var(--sidebar-mark);
   color: var(--text-faint);
@@ -549,8 +551,8 @@ button.sidebar__workspace:focus-visible {
   color: var(--text-muted);
 }
 
-/* Низ колонки прижат к низу: там живёт человек — его профиль, язык и
-   выход. Всё, что относится к нему, а не к работе. */
+/* The sidebar's bottom is pressed to the bottom: that is where the person lives — their
+   profile, their language and sign-out. Everything that concerns them rather than the work. */
 .sidebar__foot {
   margin-top: auto;
   padding-top: var(--space-8);
@@ -560,10 +562,10 @@ button.sidebar__workspace:focus-visible {
   gap: var(--space-2);
 }
 
-/* Кнопка выхода выглядит как пункт колонки, а не как кнопка: она стоит в
-   ряду ссылок, и синяя заливка среди них означала бы «главное действие
-   экрана» — а это ровно наоборот. Отступы и просвет — общие с пунктами:
-   значок и подпись обязаны попасть в те же два столбца. */
+/* The sign-out button looks like a sidebar item rather than like a button: it stands in a
+   row of links, and a blue fill among them would mean "the screen's primary action" —
+   which is exactly the opposite. The padding and the gap are shared with the items: the
+   icon and the label must land in the same two columns. */
 button.sidebar__button {
   justify-content: flex-start;
   gap: var(--sidebar-gap);
@@ -573,7 +575,7 @@ button.sidebar__button {
   background: transparent;
   color: var(--text-muted);
   box-shadow: none;
-  /* Якорь для подсказки — см. `.sidebar__workspace`. */
+  /* An anchor for the tooltip — see `.sidebar__workspace`. */
   position: relative;
 }
 
@@ -582,16 +584,16 @@ button.sidebar__button:hover {
   color: var(--text);
 }
 
-/* Узкий экран: колонка ложится сверху и становится строкой. Прятать её за
-   кнопкой-гамбургером здесь не за чем — пунктов мало, и они помещаются.
+/* A narrow screen: the sidebar lies down on top and becomes a row. There is no reason to
+   hide it behind a hamburger button here — there are few items and they fit.
 
-   Порог — 760, а не 900, и он же в теме (northstar-theme.css). Разошедшись,
-   две таблицы делали между 761 и 900 пикселями невозможное: базовая уже
-   укладывала колонку строкой, тема ещё держала её столбцом, а сворачивание
-   (оно жило от 901) не действовало вовсе — логотип щёлкал, состояние менялось,
-   на экране не менялось ничего. Порог обязан быть один; переносить проще
-   базовую — тема правит метрики, но не решает, где приложение перестаёт быть
-   настольным. */
+   The breakpoint is 760 rather than 900, and the same one is in the theme
+   (northstar-theme.css). Having diverged, the two stylesheets did the impossible between
+   761 and 900 pixels: the base one already laid the sidebar out as a row while the theme
+   still held it as a column, and collapsing (which lived from 901) did not work at all —
+   the logo clicked, the state changed, and nothing changed on the screen. The breakpoint
+   must be single; the base one is easier to move — the theme edits metrics but does not
+   decide where the application stops being a desktop one. */
 @media (max-width: 760px) {
   .app {
     display: block;
@@ -638,19 +640,18 @@ button.sidebar__button:hover {
     width: auto;
   }
 
-  /* Свёрнутая колонка действует и здесь — иначе логотип на телефоне был бы
-     кнопкой, которая ничего не делает: щелчок менял состояние и `aria-expanded`
-     вслед за ним, а на экране не происходило ничего. Рейки в строке не
-     получится, но смысл сворачивания тот же и тут: меню без подписей. Нижний
-     блок подписи прячет и так (см. тему), свёрнутое состояние доводит это до
-     разделов — строка сверху становится короче, а на узком экране она и
-     переполняется первой. */
+  /* The collapsed sidebar applies here too — otherwise on a phone the logo would be a
+     button that does nothing: a click changed the state and `aria-expanded` after it, and
+     nothing happened on screen. A rail is not possible in a row, but the meaning of
+     collapsing is the same here: a menu without labels. The bottom block hides its labels
+     anyway (see the theme), and the collapsed state extends that to the sections — the top
+     row becomes shorter, and on a narrow screen it is the first to overflow. */
   .sidebar--collapsed .sidebar__label {
     display: none;
   }
 
-  /* Значку в строке без подписи поля не нужны — иначе пункт остаётся шириной
-     со слово, которого в нём больше нет. */
+  /* An icon in a row with no label needs no padding — otherwise an item stays as wide as a
+     word that is no longer in it. */
   .sidebar--collapsed .sidebar__link,
   .sidebar--collapsed button.sidebar__button {
     justify-content: center;
@@ -658,19 +659,19 @@ button.sidebar__button:hover {
     padding-right: var(--space-8);
   }
 
-  /* Стрелки здесь нет: в строке сверху от логотипа остаётся один квадрат, и
-     стрелка, стоящая по правому краю строки, легла бы прямо на него. Мишень и
-     без неё очевидна — квадрат тут единственное, по чему можно попасть. */
+  /* There is no arrow here: in the top row only a square is left of the logo, and an arrow
+     standing at the row's right edge would lie straight on it. The target is obvious
+     without it — the square is the only thing here that can be hit. */
   .sidebar__fold {
     display: none;
   }
 }
 
-/* --- шапка публичной страницы --- */
+/* --- the public page's header --- */
 
-/* У страницы по ссылке нет ни разделов, ни человека: колонка слева была бы
-   пустой рамой вокруг единственного содержимого. Поэтому здесь — тонкая
-   строка сверху, как заголовок опубликованной страницы Notion. */
+/* A page reached by link has neither sections nor a person: a sidebar on the left would be
+   an empty frame around the only content. So here there is a thin strip on top, like the
+   heading of a published Notion page. */
 .header {
   display: flex;
   flex-wrap: wrap;
@@ -690,19 +691,19 @@ button.sidebar__button:hover {
   flex-wrap: wrap;
 }
 
-/* --- страница --- */
+/* --- the page --- */
 
-/* Ширина колонки текста ограничена, как у страницы Notion: строка во весь
-   монитор не читается — глаз теряет начало следующей. */
+/* The text column's width is bounded, as on a Notion page: a line spanning a whole monitor
+   does not read — the eye loses the start of the next one. */
 .screen {
   max-width: 900px;
   margin: 0 auto;
   padding: var(--space-48) var(--space-64) var(--space-96);
 }
 
-/* Вход и регистрация: узкая колонка по центру и кнопка во всю её ширину.
-   Кнопка по ширине поля — не прихоть: на этом экране действие ровно одно, и
-   целиться в него не приходится вовсе. */
+/* Sign-in and registration: a narrow centred column and a button across its full width. A
+   button as wide as a field is not a whim: on this screen there is exactly one action, and
+   there is no aiming to be done at all. */
 .screen--narrow {
   max-width: 380px;
   padding-top: var(--space-96);
@@ -718,7 +719,7 @@ button.sidebar__button:hover {
   margin-top: var(--space-4);
 }
 
-/* Диаграмма занимает всю ширину экрана: ради неё человек сюда и пришёл. */
+/* The chart takes the screen's full width: it is what a person came here for. */
 .screen--wide {
   max-width: none;
   padding: var(--space-32) var(--space-40) var(--space-64);
@@ -745,16 +746,16 @@ button.sidebar__button:hover {
   margin-bottom: var(--space-24);
 }
 
-/* Заголовок отжимает действия вправо сам, вместо `space-between`: действий
-   на экране проекта пять, и распорка растащила бы их по всей ширине —
-   между «Новой задачей» и «Настройками» оказался бы пустой сантиметр. */
+/* The heading pushes the actions to the right itself, instead of `space-between`: there are
+   five actions on a project's screen, and a spacer would drag them across the whole width —
+   an empty centimetre would end up between "New task" and "Settings". */
 .screen__head h1 {
   margin: 0 auto 0 0;
 }
 
-/* Заголовок страницы крупный и плотный — это опознавательный знак Notion.
-   Кегль здесь работает вместо хлебных крошек: с одного взгляда понятно, куда
-   попал, не читая ничего вокруг. */
+/* A page's heading is large and dense — that is Notion's calling card. The size works here
+   instead of breadcrumbs: one glance makes it clear where you have ended up, without
+   reading anything around it. */
 h1 {
   font-size: 32px;
   font-weight: 700;
@@ -770,10 +771,9 @@ h2 {
   margin: var(--space-32) 0 var(--space-8);
 }
 
-/* Шапка проекта — лесенкой, а не заголовком с действиями в одну строку.
-   Ярусы разного веса, поставленные в ряд, спорят за первый взгляд; поставленные
-   друг под друга — читаются по порядку: чем действовать, что открыто, из чего
-   оно состоит. */
+/* The project's header is a staircase rather than a heading with actions in one row. Tiers
+   of different weight placed in a row compete for the first glance; placed one under
+   another they are read in order: what to act with, what is open, what it consists of. */
 .project-head {
   display: flex;
   flex-direction: column;
@@ -798,8 +798,8 @@ h2 {
   font-size: 12px;
 }
 
-/* «ПЛАН ПРОЕКТА · V2» — капитель вразрядку: служебная строка, набранная так,
-   чтобы её нельзя было спутать ни с названием проекта, ни с кнопкой. */
+/* "PROJECT PLAN · V2" is small caps with letter-spacing: a chrome line set so that it
+   cannot be confused either with the project's name or with a button. */
 .project-head__plan-label {
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -807,9 +807,8 @@ h2 {
   color: var(--text-faint);
 }
 
-/* Расхождение с согласованным планом — цветом тревоги и курсивом. Это не
-   ошибка, которую надо чинить, а состояние, которое требует решения, поэтому
-   набор, а не плашка. */
+/* The divergence from the agreed plan uses the alarm colour and italics. This is not an
+   error to be fixed but a state that calls for a decision, hence type rather than a chip. */
 .project-head__plan-note {
   color: var(--danger);
   font-style: italic;
@@ -821,12 +820,12 @@ h2 {
   gap: var(--space-6);
 }
 
-/* Состояние плана в этой строке стоит вплотную к названию и едет за ним:
-   длиннее имя — правее плашка, а не пост у правого края. flex-wrap — на случай
-   имени во всю ширину: плашка переносится под него, а не выдавливается за
-   экран. Выравнивание по центру, а не по базовой линии: рядом с названием
-   стоит не строка текста, а группа из плашки и кнопки, и опорной линии у неё
-   на всех нет. */
+/* The plan's state in this row stands flush against the name and travels with it: the
+   longer the name, the further right the chip, rather than a post at the right edge.
+   flex-wrap is for the case of a full-width name: the chip wraps beneath it rather than
+   being squeezed off the screen. Alignment is centred rather than on the baseline: what
+   stands next to the name is not a line of text but a group of a chip and a button, and it
+   has no baseline they all share. */
 .project-head__title-row {
   display: flex;
   align-items: center;
@@ -834,30 +833,29 @@ h2 {
   gap: var(--space-8) var(--space-16);
 }
 
-/* Отступ снизу заголовок здесь не несёт: расстояния в шапке задаёт её
-   собственный `gap`, и два источника одного просвета разошлись бы при первой
-   правке. */
+/* The heading carries no bottom margin here: the distances in the header are set by its own
+   `gap`, and two sources of one gap would diverge on the first edit. */
 .project-head__title {
   margin: 0;
 }
 
-/* Сводка — курсивом и приглушённо: подпись под заголовком, а не вторая
-   строка заголовка. */
+/* The summary is italic and muted: a caption under the heading rather than a second line of
+   the heading. */
 .project-head__meta {
   margin: 0;
   color: var(--text-muted);
   font-style: italic;
 }
 
-/* Полоса метрик — единственная рамка в шапке, и она заслужена: семь цифр,
-   стоящих подряд без разделителей, читаются как одно число. Ячейки делит
-   тонкая линия, а всю группу — рамка, чтобы полоса не спорила с лентой ниже,
-   у которой своя сетка.
+/* The metrics strip is the only frame in the header, and it is earned: seven figures
+   standing in a row with no separators read as one number. The cells are divided by a thin
+   line and the whole group by a frame, so that the strip does not compete with the chart
+   below, which has a grid of its own.
 
-   Ширина — по содержимому, а не во всю шапку: растянутые на весь экран семь
-   ячеек уводят последнюю цифру от первой на расстояние, которое глазом уже не
-   охватить. На узком экране полоса прокручивается вбок, а не переносится:
-   перенесённый ряд читается как два разных ряда. */
+   The width follows the content rather than spanning the whole header: seven cells stretched
+   across the whole screen take the last figure away from the first by a distance the eye can
+   no longer span. On a narrow screen the strip scrolls sideways rather than wrapping: a
+   wrapped row reads as two different rows. */
 .project-head__metrics {
   display: flex;
   align-items: stretch;
@@ -890,23 +888,23 @@ h2 {
   line-height: 1.3;
 }
 
-/* Подпись мельче цифры: в ячейке первой читается цифра, а подпись объясняет
-   её тому, кто уже остановился на ней взглядом. 12, а не 11: мельче — это уже
-   не «второстепенно», а «нечитаемо» с рабочего расстояния. */
+/* The label is smaller than the figure: in a cell the figure reads first and the label
+   explains it to whoever has already stopped on it. 12 rather than 11: any smaller is no
+   longer "secondary" but "unreadable" from working distance. */
 .project-head__metric-label {
   font-size: 12px;
   color: var(--text-muted);
 }
 
-/* Красное — только «Заблокировано» и «После дедлайна проекта»: два состояния,
-   которые требуют решения. Цвет — «тревога тёмная» из палитры редизайна (§3
-   плана); светлая на цифре в 15 пикселей контраста не набирает. */
+/* Red is only for "Blocked" and "Past the project's deadline": two states that call for a
+   decision. The colour is "alarm dark" from the redesign palette (§3 of the plan); the light
+   one does not reach contrast on a figure at 15 pixels. */
 .project-head__metric.is-warn .project-head__metric-value {
   color: var(--danger-strong, #bd4263);
 }
 
-/* На узком экране ячейка ужимается до подписи, а не до цифры: полоса всё
-   равно прокручивается, но за один экран её видно больше. */
+/* On a narrow screen a cell shrinks to its label rather than to its figure: the strip scrolls
+   anyway, but more of it is visible per screen. */
 @media (max-width: 900px) {
   .project-head__metric {
     min-width: 104px;
@@ -918,9 +916,9 @@ h2 {
   color: var(--text-muted);
 }
 
-/* Ссылка внутри текста подчёркнута приглушённо, а не синим: цветная ссылка в
-   абзаце перетягивает на себя чтение, а подчёркивание в 20% чернил
-   показывает её, не мешая читать. */
+/* A link inside text is underlined in a muted colour rather than in blue: a coloured link in
+   a paragraph pulls the reading onto itself, while an underline at 20% ink shows it without
+   getting in the way of reading. */
 .screen a,
 .header a {
   color: inherit;
@@ -935,9 +933,9 @@ h2 {
   background: var(--hover);
 }
 
-/* Лента и карточка рядом. Лента забирает всё, что не заняла карточка, и
-   сжимается ниже своей ширины — иначе открытие карточки выталкивало бы её за
-   край экрана вместо того, чтобы поделить место. */
+/* The chart and the card side by side. The chart takes everything the card has not taken and
+   shrinks below its own width — otherwise opening the card would push it off the screen's
+   edge instead of sharing the space. */
 .project__body {
   display: flex;
   align-items: stretch;
@@ -949,20 +947,20 @@ h2 {
   min-width: 0;
 }
 
-/* --- органы управления --- */
+/* --- controls --- */
 
-/* Значок на кнопке. Размер задаёт сама разметка (16×16), здесь — только запрет
-   сжиматься: кнопка растянута флексом, и в узкой строке рисунок сплющило бы
-   первым, вместо того чтобы перенести кнопку целиком. Цвет — от подписи рядом:
-   значок ей ровня, а не вторая по важности деталь. */
+/* An icon on a button. The size is set by the markup itself (16x16); here there is only a ban
+   on shrinking: a button is stretched by flex, and in a narrow row the glyph would be squashed
+   first instead of the whole button wrapping. The colour comes from the label beside it: the
+   icon is its equal rather than a second-most-important detail. */
 .icon {
   flex: none;
   color: currentcolor;
 }
 
-/* Кнопка Notion: невысокая, с полужирной подписью и тенью в один пиксель
-   вместо рамки. Тень, а не рамка, потому что рамка добавляет кнопке размер и
-   при выравнивании в строку с полем даёт расхождение в два пикселя. */
+/* The Notion button: short, with a semibold label and a one-pixel shadow instead of a border.
+   A shadow rather than a border, because a border adds size to a button and, when aligned in a
+   row with a field, produces a two-pixel discrepancy. */
 button {
   display: inline-flex;
   align-items: center;
@@ -984,18 +982,17 @@ button {
   transition: background var(--motion-fast) var(--motion-ease);
 }
 
-/* Отклик голой кнопки — её собственный, и на чужой он больше не распространяется.
+/* A bare button's response is its own, and it no longer extends to anyone else's.
 
-   `:where()` обнуляет вес селектора: правило весит ровно столько же, сколько
-   объявление `background` у самой `button` выше, и любой класс, перекрасивший
-   кнопку, забирает наведение с собой. Прежде здесь стоял `button:hover` —
-   элемент с псевдоклассом, а это больше одиночного класса, — и он побеждал
-   `background: transparent` у тихих кнопок, не трогая при этом цвет подписи:
-   она оставалась тёмной на насыщенном индиго (2,5:1), а знак рядом уходил в
-   фон совсем (1,4:1). Так пропадали подписи строк «+ Добавить задачу» и
-   «Задач пока нет» в ленте и ссылки в Scorecard.
+   `:where()` zeroes the selector's weight: the rule weighs exactly as much as the `background`
+   declaration on `button` itself above, and any class that has repainted a button takes the
+   hover with it. There used to be `button:hover` here — an element with a pseudo-class, which
+   is more than a lone class — and it beat `background: transparent` on quiet buttons without
+   touching the label's colour: it stayed dark on saturated indigo (2.5:1), while the sign next
+   to it went into the background altogether (1.4:1). That is how the labels of the "+ Add task"
+   and "No tasks yet" rows in the chart and the links in the Scorecard disappeared.
 
-   Цвет назван рядом с фоном намеренно: врозь они и разошлись. */
+   The colour is named next to the background deliberately: apart, they are what diverged. */
 button:where(:hover) {
   background: var(--accent-hover);
   color: var(--accent-text);
@@ -1006,14 +1003,14 @@ button:disabled {
   opacity: 0.5;
 }
 
-/* Отключённая под курсором остаётся тем, чем была в покое. Тем же нулевым
-   весом: кнопка с рангом отвечает за своё отключённое состояние сама. */
+/* A disabled one under the cursor stays what it was at rest. By the same zero weight: a button
+   with a rank answers for its own disabled state. */
 button:where(:disabled:hover) {
   background: var(--accent);
 }
 
-/* Второстепенная кнопка. Их на экране проекта пять, и пять синих плашек
-   подряд не оставляют главному действию ни единого шанса быть замеченным. */
+/* A secondary button. There are five of them on a project's screen, and five blue chips in a
+   row leave the primary action not a single chance of being noticed. */
 .button--quiet {
   background: transparent;
   color: var(--text);
@@ -1025,14 +1022,13 @@ button:where(:disabled:hover) {
   background: var(--hover);
 }
 
-/* Ссылка, ведущая себя как второстепенная кнопка. Рамка и цвет ссылки, а не
-   заливка: рядом стоит главное действие, и две плашки подряд отобрали бы у
-   него первый взгляд. Отдельный класс, а не `.button--quiet`, потому что
-   правила кнопок написаны на селектор `button`, до ссылки они не достают. */
-/* Селектор двойной по той же причине, по какой он двойной в теме: правило
-   `.header a` красит ссылки шапки чернилами и подчёркивает их, и одинокий
-   класс оно перебило бы по весу — вход на публичной странице получил бы рамку
-   кнопки и подчёркивание разом. */
+/* A link that behaves like a secondary button. A border and a link colour rather than a fill:
+   the primary action stands next to it, and two chips in a row would take the first glance away
+   from it. A separate class rather than `.button--quiet`, because the button rules are written
+   against the `button` selector and do not reach a link. */
+/* The selector is doubled for the same reason it is doubled in the theme: the `.header a` rule
+   paints header links in ink and underlines them, and it would outweigh a lone class — sign-in
+   on the public page would get a button's border and an underline at once. */
 .button-link,
 .header .button-link {
   display: inline-flex;
@@ -1058,9 +1054,10 @@ button:where(:disabled:hover) {
   background: var(--hover);
 }
 
-/* Тихая кнопка цветом тревоги: пересогласование плана. Оно отвечает на строку
-   о расхождении и обязано читаться вместе с ней, а не как соседняя серая
-   кнопка — но заливки не получает: действие редкое и необратимое. */
+/* A quiet button in the alarm colour: re-agreeing the plan. It answers the line
+   about the divergence and must read together with it rather than as a
+   neighbouring grey button — but it gets no fill: the action is rare and
+   irreversible. */
 .button--alert {
   color: var(--danger);
   box-shadow: inset 0 0 0 1px var(--danger);
@@ -1071,12 +1068,12 @@ button:where(:disabled:hover) {
   background: var(--danger-soft);
 }
 
-/* Та же тихая кнопка, но акцентом: «Назначить дату старта», пока план
-   относительный. Действие важное — им проект переводят из набросков в сроки, —
-   но второй залитой кнопкой в тулбаре оно спорило бы за первый взгляд с
-   «Новой задачей», которую нажимают в этом ряду десятки раз, а его самого
-   нажимают однажды. Контур вместо заливки — тот же приём, каким выделено
-   пересогласование в шапке. */
+/* The same quiet button, but accented: "Assign a start date", while the plan is
+   relative. The action is important — it is what turns a project from sketches
+   into deadlines — but as a second filled button in the toolbar it would compete
+   for first glance with "New task", which is pressed dozens of times in that row
+   while this one is pressed once. An outline instead of a fill is the same
+   technique that marks re-agreement in the header. */
 .button--accent {
   color: var(--accent);
   background: transparent;
@@ -1088,8 +1085,9 @@ button:where(:disabled:hover) {
   background: var(--accent-soft);
 }
 
-/* Призрачная кнопка — без рамки и заливки: органы вида в шапке проекта,
-   рядом с вкладками. Тема (northstar-theme.css) задаёт ей цвет и наведение. */
+/* A ghost button — no border and no fill: the view controls in the project's
+   header, next to the tabs. The theme (northstar-theme.css) gives it its colour
+   and hover. */
 .button--ghost {
   color: var(--text-muted);
   background: transparent;
@@ -1101,12 +1099,13 @@ button:where(:disabled:hover) {
   background: var(--hover);
 }
 
-/* Кнопка, доводящая необратимое до конца, — залитая цветом тревоги. Рядом с
-   ней в окне стоит отказ, и выглядеть она обязана как действие, а не как
-   вторая тихая кнопка. Заливка, а не рамка `.button--alert`: та отвечает
-   строке посреди экрана и соседствует с настоящими кнопками, а эта — то
-   единственное, ради чего окно открыли. Тёмный оттенок тревоги, а не
-   светлый: белая подпись на светлом контраста для текста не набирает. */
+/* The button that carries something irreversible through is filled with the alarm
+   colour. A refusal stands next to it in the dialog, and it must look like an
+   action rather than like a second quiet button. A fill rather than
+   `.button--alert`'s border: that one answers a line in the middle of the screen
+   and sits alongside real buttons, while this is the one thing the dialog was
+   opened for. The dark shade of alarm rather than the light one: a white label on
+   the light shade does not reach text contrast. */
 .button--danger {
   background: var(--danger-strong, #bd4263);
   color: #fff;
@@ -1126,8 +1125,8 @@ button:where(:disabled:hover) {
   box-shadow: inset 0 0 0 1px transparent;
 }
 
-/* Переключатель языка — сегментный: три состояния одного выбора, а не три
-   отдельные кнопки. Общая подложка и говорит, что выбор один. */
+/* The language switcher is segmented: three states of one choice rather than
+   three separate buttons. The shared backing is what says the choice is one. */
 .locale-switch {
   display: flex;
   gap: var(--space-2);
@@ -1136,17 +1135,17 @@ button:where(:disabled:hover) {
   background: var(--hover);
 }
 
-/* В колонке переключатель занимает ровно свою ширину: растянутый на всю
-   колонку, он выглядел бы полосой навигации, а не выбором из трёх букв.
-   Отступ слева — тот же, что у пунктов: буквы начинаются там же, где их
-   значки, и нижний ряд не разъезжается на два левых края. */
+/* In the sidebar the switcher takes exactly its own width: stretched across the
+   whole column it would look like a navigation strip rather than a choice among
+   three letters. The left indent is the same as the items': the letters begin
+   where their icons do, and the bottom row does not split into two left edges. */
 .sidebar .locale-switch {
   align-self: flex-start;
   margin: var(--space-4) 0 var(--space-4) var(--sidebar-gutter);
 }
 
-/* В поле профиля — по той же причине: поле тянет содержимое на всю свою
-   ширину, а выбор из трёх букв шириной в форму читается как панель. */
+/* In a profile field, for the same reason: a field stretches its content to its
+   full width, and a choice among three letters as wide as a form reads as a panel. */
 .field > .locale-switch {
   align-self: flex-start;
 }
@@ -1165,16 +1164,16 @@ button:where(:disabled:hover) {
   color: var(--text);
 }
 
-/* Выбранный язык поднят на поверхность страницы: приподнятая плашка внутри
-   утопленной дорожки — это то же самое различие, что и у переключателя
-   вкладок, и его не приходится объяснять. */
+/* The selected language is raised to the page's surface: a raised chip inside a
+   sunken track is the same distinction as with the tab switcher, and it does not
+   have to be explained. */
 .locale-switch button[aria-pressed="true"] {
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow-sm);
 }
 
-/* --- поля --- */
+/* --- fields --- */
 
 .field {
   display: flex;
@@ -1196,10 +1195,10 @@ button:where(:disabled:hover) {
   gap: var(--space-8);
 }
 
-/* `:where` — не украшение записи: без него `:not([type=…])` поднял бы вес
-   правила выше классов, и карточка задачи, гасящая рамки у своих полей, не
-   смогла бы их погасить, не подражая этому весу. Базовое правило обязано
-   быть самым лёгким в файле: его перебивают все. */
+/* `:where` is not a flourish of notation: without it `:not([type=...])` would
+   raise the rule's weight above classes, and the task card, which suppresses the
+   borders of its fields, could not suppress them without imitating that weight. A
+   base rule must be the lightest in the file: everything overrides it. */
 select,
 textarea,
 input:where(:not([type="checkbox"]):not([type="radio"])) {
@@ -1215,8 +1214,8 @@ input:where(:not([type="checkbox"]):not([type="radio"])) {
 }
 
 select {
-  /* Список — тоже орган управления: он обязан совпасть по высоте с кнопкой
-     рядом, а не задавать её сам своим содержимым. */
+  /* A select is a control too: it must match the height of the button beside it
+     rather than setting it itself from its content. */
   height: var(--control);
   cursor: pointer;
 }
@@ -1235,8 +1234,8 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  /* Синее кольцо вокруг поля — весь фокус целиком, а не только рамка: на
-     подложке того же тона одна рамка почти не видна. */
+  /* The blue ring around a field is the whole focus indicator rather than a
+     border alone: on a backing of the same tone a lone border is barely visible. */
   box-shadow:
     inset 0 0 0 1px var(--accent),
     0 0 0 3px var(--accent-soft);
@@ -1248,8 +1247,8 @@ textarea:focus-visible,
 button:focus-visible,
 a:focus-visible,
 [role="switch"]:focus-visible {
-  /* Видимый фокус обязателен: без него по интерфейсу нельзя ходить с
-     клавиатуры, не угадывая, где ты сейчас. */
+  /* A visible focus is mandatory: without it the interface cannot be walked from
+     the keyboard without guessing where you are. */
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -1291,8 +1290,9 @@ input[type="checkbox"] {
   font-weight: 500;
 }
 
-/* Палитра: готовые цвета кружками в один ряд. Ряд переносится, а не жмёт
-   кружки, — на узком экране лучше две строки, чем десять неразличимых точек. */
+/* The palette: ready-made colours as circles in one row. The row wraps rather
+   than squeezing the circles — on a narrow screen two lines are better than ten
+   indistinguishable dots. */
 .swatches {
   margin: 0 0 var(--space-16);
 }
@@ -1303,9 +1303,10 @@ input[type="checkbox"] {
   gap: var(--space-8);
 }
 
-/* Кружок — это сама радиокнопка: `appearance: none` снимает вид платформы,
-   оставляя поведение. Цвет приходит из разметки через `--swatch`: он берётся
-   из палитры категорий и в стилях повторяться не должен. */
+/* The circle is the radio button itself: `appearance: none` removes the
+   platform's look while keeping the behaviour. The colour comes from the markup
+   through `--swatch`: it is taken from the category palette and must not be
+   repeated in the styles. */
 .swatch {
   appearance: none;
   width: 24px;
@@ -1326,8 +1327,9 @@ input[type="checkbox"] {
     0 0 0 3px var(--border-strong);
 }
 
-/* Выбранное — кольцо цветом самого кружка, отбитое от него полем фона:
-   галочка внутри читалась бы не на всяком цвете, а кольцо видно на любом. */
+/* The selected one gets a ring in the circle's own colour, separated from it by a
+   band of background: a checkmark inside would not read on every colour, while a
+   ring is visible on any. */
 .swatch:checked {
   box-shadow:
     0 0 0 1px rgb(0 0 0 / 12%) inset,
@@ -1340,8 +1342,9 @@ input[type="checkbox"] {
   outline-offset: 3px;
 }
 
-/* Рубильник Notion: дорожка со скользящей точкой. `role="switch"` уже сказал
-   читалке, что это переключатель, — здесь остаётся показать то же глазу. */
+/* The Notion toggle: a track with a sliding dot. `role="switch"` has already told
+   the screen reader it is a switch — what is left here is to show the same to the
+   eye. */
 .switch {
   display: flex;
   align-items: center;
@@ -1389,7 +1392,7 @@ input[type="checkbox"] {
   transform: translateX(14px);
 }
 
-/* --- сообщения --- */
+/* --- messages --- */
 
 .error {
   margin: 0 0 var(--space-16);
@@ -1400,21 +1403,21 @@ input[type="checkbox"] {
   color: var(--ok);
 }
 
-/* Отметка об отправке поля — приписка рядом с ним, а не сообщение страницы:
-   она мельче текста и не отодвигает соседние поля, появляясь и исчезая.
-   Собственного нижнего отступа у неё нет — иначе строка полей прыгала бы на
-   каждое «Сохранено». */
+/* The "saved" mark on a field is a note beside it rather than a page message: it
+   is smaller than the text and does not push neighbouring fields aside as it
+   appears and disappears. It has no bottom margin of its own — otherwise the row
+   of fields would jump on every "Saved". */
 .field__mark {
   margin: 0;
   font-size: 12px;
 }
 
-/* --- списки строк --- */
+/* --- row lists --- */
 
-/* Участники и приглашения — строки списка, а не карточки: рамка вокруг
-   каждой строки в списке из двадцати рисует решётку, в которой не видно самих
-   строк. Разделяет их линия, а наведение показывает границы строки целиком.
-   Проекты из этого ряда ушли: у них есть сводка, и строка её не вмещает. */
+/* Members and invitations are list rows rather than cards: a border around every
+   row in a list of twenty draws a grid in which the rows themselves are invisible.
+   They are separated by a line, and hover shows a row's bounds in full. Projects
+   have left this group: they have a summary, and a row does not hold it. */
 .members,
 .invites,
 .members__list {
@@ -1444,21 +1447,21 @@ input[type="checkbox"] {
   background: var(--hover);
 }
 
-/* Роль — последнее в строке и прижата к правому краю: колонок здесь нет, но
-   одинаковые значения, стоящие в один край, читаются столбцом и сравниваются
-   взглядом, а не по одному.
+/* The role comes last in a row and is pinned to the right edge: there are no
+   columns here, but identical values aligned to one edge read as a column and are
+   compared at a glance rather than one by one.
 
-   Прижимается по имени, а не по `:last-child`: у строки, которой владелец
-   управляет, последним узлом бывает пояснение или отказ, и правило по
-   положению уводило бы вправо именно их. */
+   It is pinned by name rather than by `:last-child`: in a row the owner manages,
+   the last node is sometimes an explanation or a refusal, and a positional rule
+   would move exactly those to the right. */
 .members__role,
 .members__actions {
   margin-left: auto;
 }
 
-/* Управление ролью и вывод из организации. Разворачивающееся подтверждение
-   («вот что сейчас сломается» и две кнопки) живёт здесь же, поэтому переносы
-   разрешены: без них вопрос распирал бы строку наружу. */
+/* Managing a role and removing someone from the organization. The expanding
+   confirmation ("here is what will break" and two buttons) lives right here, so
+   wrapping is allowed: without it the question would burst the row open. */
 .members__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1468,8 +1471,8 @@ input[type="checkbox"] {
   min-width: 0;
 }
 
-/* Пояснение к выключенному выбору и отказ сервера — под строкой, во всю её
-   ширину: сбоку от них не остаётся места ни на первое, ни на второе. */
+/* The explanation for a disabled choice and the server's refusal go under the row,
+   across its full width: there is room for neither of them beside it. */
 .members__note,
 .members__row > .error {
   flex-basis: 100%;
@@ -1477,10 +1480,10 @@ input[type="checkbox"] {
   font-size: 13px;
 }
 
-/* Уход из организации — не строка списка, а отдельное решение: отделён линией
-   и стоит последним, под составом и приглашениями. Рядом с кнопкой «убрать» в
-   чужой строке он читался бы такой же мелочью, какой не является: позвать
-   себя обратно нечем. */
+/* Leaving an organization is not a list row but a decision of its own: it is
+   separated by a line and stands last, under the members and the invitations. Next
+   to the "remove" button in someone else's row it would read as the same trifle,
+   which it is not: there is nothing to invite yourself back with. */
 .members__leave {
   margin-top: var(--space-32);
   padding-top: var(--space-24);
@@ -1499,8 +1502,8 @@ input[type="checkbox"] {
   font-weight: 500;
 }
 
-/* Отозванное, просроченное и принятое приглашение действия не предлагают —
-   и выглядят иначе, чем ждущее ответа. */
+/* A revoked, expired or accepted invitation offers no actions — and looks
+   different from one awaiting an answer. */
 .invite__dead {
   color: var(--text-faint);
   text-decoration: line-through;
@@ -1512,20 +1515,20 @@ input[type="checkbox"] {
   justify-content: flex-end;
   gap: var(--space-4);
   margin-left: auto;
-  /* Без этого развёрнутое подтверждение — предупреждение и две кнопки —
-     распирало бы строку наружу вместо того, чтобы переноситься внутри неё. */
+  /* Without this an expanded confirmation — a warning and two buttons — would
+     burst the row open instead of wrapping inside it. */
   min-width: 0;
 }
 
-/* Действия строки проявляются при наведении и при фокусе внутри неё:
-   постоянно видимые три кнопки в каждой строке превращают список
-   приглашений в панель управления. С клавиатуры они есть всегда — видимость
-   не влияет на доступное дерево.
+/* A row's actions appear on hover and on focus within it: three permanently
+   visible buttons in every row turn a list of invitations into a control panel.
+   From the keyboard they are always there — visibility does not affect the
+   accessibility tree.
 
-   Но только там, где наведение вообще бывает. На планшете и телефоне указатель
-   грубый, `:hover` не наступает никогда, и правило гасило кнопки навсегда:
-   отозвать ошибочное приглашение с телефона было нечем — при том что письма со
-   ссылками и читают чаще всего с телефона. */
+   But only where hover happens at all. On a tablet and a phone the pointer is
+   coarse, `:hover` never occurs, and the rule suppressed the buttons forever:
+   there was nothing to revoke a mistaken invitation with from a phone — even
+   though messages with links are most often read on a phone. */
 @media (hover: hover) and (pointer: fine) {
   .invite__actions button {
     opacity: 0;
@@ -1538,8 +1541,8 @@ input[type="checkbox"] {
   }
 }
 
-/* Развёрнутое подтверждение из этого правила выведено: вопрос, на который
-   ждут ответа, не может исчезать, когда мышь ушла в сторону. */
+/* An expanded confirmation is excluded from this rule: a question awaiting an
+   answer cannot disappear when the mouse moves aside. */
 .invite__actions .plan__confirm,
 .members__actions .plan__confirm {
   max-width: 100%;
@@ -1549,8 +1552,8 @@ input[type="checkbox"] {
   opacity: 1;
 }
 
-/* Ссылка показывается один раз, поэтому занимает всю ширину строки: её надо
-   успеть скопировать, а не разглядывать обрезанной. */
+/* The link is shown once, so it takes the row's full width: it has to be copied in
+   time rather than examined truncated. */
 .issued {
   display: flex;
   gap: var(--space-8);
@@ -1569,17 +1572,17 @@ input[type="checkbox"] {
   margin-bottom: var(--space-16);
 }
 
-/* --- окно --- */
+/* --- the dialog --- */
 
-/* Подложка проявляется, а не включается: она затемняет весь экран на 60% (в
-   темноте на 80%), и такая величина, поставленная одним кадром, читается
-   вспышкой. Проявление идёт по подложке целиком, вместе с окном внутри, —
-   окно поверх этого поднимается своим движением. */
+/* The backdrop fades in rather than switching on: it darkens the whole screen by
+   60% (by 80% in the dark), and a value like that placed in a single frame reads
+   as a flash. The fade runs over the whole backdrop together with the dialog
+   inside it — the dialog rises above that with a movement of its own. */
 .modal__backdrop {
   position: fixed;
   inset: 0;
-  /* Выше карточки задачи (z-index 1000, см. panel.css): «объясните сдвиг» и
-     прочие окна открываются и поверх неё. */
+  /* Above the task card (z-index 1000, see panel.css): "explain the shift" and
+     other dialogs open over it too. */
   z-index: 1100;
   display: flex;
   align-items: center;
@@ -1597,8 +1600,8 @@ input[type="checkbox"] {
   padding: var(--space-24);
   background: var(--surface);
   border-radius: var(--radius-lg);
-  /* Тень вместо рамки: окно висит над страницей, и рамка вокруг него
-     нарисовала бы вторую границу поверх той, что уже дала тень. */
+  /* A shadow instead of a border: the dialog hangs over the page, and a border
+     around it would draw a second edge over the one the shadow already gave. */
   box-shadow: var(--shadow-md);
   animation: layer-rise var(--motion-layer) var(--motion-layer-ease);
 }
@@ -1610,8 +1613,9 @@ input[type="checkbox"] {
   letter-spacing: -0.01em;
 }
 
-/* Вопрос о потере введённого: подложка отделяет его от полей формы, к которым
-   он относится, но не уводит взгляд со дна окна, где человек только что был. */
+/* The question about losing what was entered: the backing separates it from the
+   form fields it concerns without leading the eye away from the dialog's bottom,
+   where the person just was. */
 .modal__confirm {
   margin-top: var(--space-16);
   padding: var(--space-12);
@@ -1627,8 +1631,9 @@ input[type="checkbox"] {
   margin-top: var(--space-12);
 }
 
-/* Главное действие слева, отказ рядом: в окне читают сверху вниз и слева
-   направо, и кнопка, ради которой окно открыли, стоит первой на этом пути. */
+/* The primary action on the left, the refusal beside it: a dialog is read top to
+   bottom and left to right, and the button the dialog was opened for stands first
+   on that path. */
 .modal__actions {
   display: flex;
   align-items: center;
@@ -1636,10 +1641,10 @@ input[type="checkbox"] {
   margin-top: var(--space-24);
 }
 
-/* --- пустое состояние --- */
+/* --- the empty state --- */
 
-/* Пунктирной рамки нет: она обводит пустоту, тем самым делая её заметнее.
-   Приглушённый текст и одна кнопка говорят то же самое и не кричат. */
+/* There is no dashed border: it outlines emptiness and thereby makes it more
+   noticeable. Muted text and one button say the same thing without shouting. */
 .empty {
   padding: var(--space-40) var(--space-24);
   border-radius: var(--radius-lg);
@@ -1662,9 +1667,9 @@ input[type="checkbox"] {
   margin-top: var(--space-16);
 }
 
-/* Подтверждение переутверждения: предупреждение и две кнопки в строке шапки,
-   а не окно поверх экрана. Окно здесь прерывало бы работу ради решения,
-   которое человек и так принял, нажав кнопку. */
+/* The re-agreement confirmation: a warning and two buttons in the header's row
+   rather than a dialog over the screen. A dialog here would interrupt the work for
+   the sake of a decision the person has already made by pressing the button. */
 .plan__confirm {
   display: inline-flex;
   align-items: center;
@@ -1675,14 +1680,14 @@ input[type="checkbox"] {
   background: var(--danger-soft);
 }
 
-/* Вопрос о переутверждении — карточка под строкой плана, а не строка в один
-   ряд с плашками.
+/* The re-agreement question is a card under the plan's row rather than a line in
+   one row with the chips.
 
-   Прежде здесь стояла та же тесная полоска, что и у прочих подтверждений, и
-   для «да/нет» её хватало. Теперь вопрос называет число, перечисляет виды
-   изменений и предлагает на них посмотреть — в строку шапки это не встаёт, а
-   встав, вытеснило бы из неё имя проекта. Ширина ограничена: фраза во весь
-   экран читается хуже, чем в три коротких строки. */
+   There used to be the same cramped strip here as with the other confirmations,
+   and for a yes/no it was enough. Now the question names a figure, lists the kinds
+   of change and offers to look at them — that does not fit into the header's row,
+   and if it did it would push the project's name out of it. The width is bounded: a
+   phrase spanning the whole screen reads worse than three short lines. */
 .plan-reapprove {
   display: flex;
   flex-direction: column;
@@ -1695,9 +1700,9 @@ input[type="checkbox"] {
 }
 
 
-/* Пока в строке одни плашки, они и имя проекта стоят на одной оси. Когда
-   развернулась карточка вопроса, ось теряет смысл: имя уехало бы на середину
-   карточки в полтора десятка строк. */
+/* While the row holds only chips, they and the project's name stand on one axis.
+   Once the question card has unfolded, the axis loses its meaning: the name would
+   ride off to the middle of a card a dozen and a half lines tall. */
 .project-head__title-row:has(.plan-reapprove) {
   align-items: flex-start;
 }
@@ -1720,11 +1725,11 @@ input[type="checkbox"] {
   margin-top: var(--space-4);
 }
 
-/* «Посмотреть изменения» внутри подтверждения — ссылка, а не третья кнопка:
-   в строке уже стоят две, и орган, который ничего не решает, не должен
-   выглядеть равным тем, что решают. Ссылка живёт внутри фразы, поэтому от
-   общего правила кнопки снимается всё, что делает её плашкой: рост, заливка,
-   тень и собственная строка. */
+/* "View the changes" inside a confirmation is a link rather than a third button:
+   two already stand in the row, and a control that decides nothing must not look
+   equal to the ones that do. The link lives inside a phrase, so everything that
+   makes it a chip is stripped from the shared button rule: height, fill, shadow and
+   a line of its own. */
 .plan__link {
   display: inline;
   height: auto;
@@ -1747,9 +1752,9 @@ input[type="checkbox"] {
   color: var(--accent-hover);
 }
 
-/* Предложение подвинуть связанную задачу. Ненавязчивое: приглушённая выноска
-   над лентой, а не окно поверх неё — отказ ничего не ломает, и требовать
-   ответа здесь не за что. */
+/* The suggestion to move a dependent task. Unobtrusive: a muted callout above the
+   chart rather than a dialog over it — a refusal breaks nothing, and there is no
+   reason to demand an answer here. */
 .nudge {
   display: flex;
   align-items: center;
@@ -1766,12 +1771,12 @@ input[type="checkbox"] {
   margin-left: auto;
 }
 
-/* --- настройки --- */
+/* --- settings --- */
 
-/* Вкладки раздела настроек. Стоят над заголовком, а не под ним: они говорят,
-   где человек находится в разделе, и прочитать это он должен прежде, чем
-   прочтёт название страницы, — иначе заголовок «Участники» отвечает на вопрос
-   «куда я попал» раньше, чем стало понятно, что попал он в настройки. */
+/* The settings section's tabs. They stand above the heading rather than below it:
+   they say where a person is within the section, and that must be read before the
+   page's title — otherwise the heading "Members" answers "where have I ended up"
+   before it is clear that they have ended up in the settings. */
 .tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1780,8 +1785,8 @@ input[type="checkbox"] {
   border-bottom: 1px solid var(--border);
 }
 
-/* Подчёркивание, а не заливка: вкладки стоят в ряд у линии, и заливка ушла бы
-   от неё, оставив выбранную вкладку висеть над собственной границей. */
+/* An underline rather than a fill: the tabs stand in a row at a line, and a fill
+   would move away from it, leaving the selected tab hanging above its own border. */
 .tabs__link {
   padding: var(--space-8) var(--space-12);
   margin-bottom: -1px;
@@ -1800,8 +1805,8 @@ input[type="checkbox"] {
   color: var(--text);
 }
 
-/* Одна колонка ограниченной ширины: настройки читают, а не сканируют, и
-   строка длиной в экран для этого не годится. */
+/* One column of bounded width: settings are read rather than scanned, and a line
+   the length of a screen is no good for that. */
 .settings {
   display: flex;
   flex-direction: column;
@@ -1815,8 +1820,8 @@ input[type="checkbox"] {
   gap: var(--space-4);
 }
 
-/* День недели — метка-переключатель, как свойство «мультивыбор» в Notion:
-   семь строк с флажками занимали бы пол-экрана ради семи слов. */
+/* A weekday is a toggle chip, like the "multi-select" property in Notion: seven
+   rows of checkboxes would take up half a screen for the sake of seven words. */
 .settings__day {
   display: inline-flex;
   align-items: center;
@@ -1837,8 +1842,8 @@ input[type="checkbox"] {
   color: var(--accent);
 }
 
-/* Переключатель «наследовать» стоит прежде самого поля: сперва решается, чьё
-   это значение, и только потом — какое. */
+/* The "inherit" toggle stands before the field itself: first it is decided whose
+   value this is, and only then which one. */
 .settings__override {
   display: flex;
   flex-direction: column;
@@ -1852,8 +1857,8 @@ input[type="checkbox"] {
   font-weight: 600;
 }
 
-/* Поле внутри рамки переопределения стоит последним, и нижний отступ ему не
-   нужен: расстояния внутри рамки задаёт она сама. */
+/* The field inside an override frame comes last and needs no bottom margin: the
+   distances inside the frame are set by the frame itself. */
 .settings__override .field {
   margin-bottom: 0;
 }
@@ -1865,8 +1870,8 @@ input[type="checkbox"] {
   color: var(--text-muted);
 }
 
-/* Удаление проекта — под чертой, отдельно от настроек: это не правка, а
-   расставание. */
+/* Deleting a project goes below a rule, apart from the settings: this is not an
+   edit but a parting. */
 .settings__danger {
   margin-top: var(--space-8);
   padding-top: var(--space-16);
@@ -1887,15 +1892,15 @@ input[type="checkbox"] {
   font-size: 13px;
 }
 
-/* Пояснение под полем формы: тем же голосом, что подсказка у слага. */
+/* The explanation under a form field: in the same voice as the slug's hint. */
 .field__hint {
   margin: -6px 0 var(--space-12);
   color: var(--text-muted);
   font-size: 13px;
 }
 
-/* Рассчитанные границы проекта в окне привязки: строка-итог перед кнопками,
-   заметная, но не тревожная — это обещание, а не предупреждение. */
+/* The computed project bounds in the anchoring dialog: a summary line before the
+   buttons, noticeable but not alarming — this is a promise, not a warning. */
 .schedule__preview {
   margin: var(--space-16) 0 0;
   padding: var(--space-12) var(--space-16);
@@ -1905,12 +1910,12 @@ input[type="checkbox"] {
   font-weight: 600;
 }
 
-/* Своего роста кнопке подсказки не задаётся: она такая же кнопка, как в шапке
-   проекта и в окне, и 24 пикселя делали её здесь третьим по счёту размером
-   одного и того же органа. */
+/* The hint button is not given a height of its own: it is the same button as in the
+   project's header and in a dialog, and 24 pixels made it the third size of one and
+   the same control here. */
 
-/* Вопрос интервью — крупная строка над полем ответа: его читают, а не
-   просматривают, и подписью к полю он выглядел бы служебным. */
+/* An interview question is a large line above the answer field: it is read rather
+   than scanned, and as a field label it would look like a piece of chrome. */
 .ai__question {
   margin: 0;
   font-size: 18px;
@@ -1918,10 +1923,11 @@ input[type="checkbox"] {
   letter-spacing: -0.01em;
 }
 
-/* --- переключатель организаций --- */
+/* --- the organization switcher --- */
 
-/* Стоит под названием организации в колонке и выглядит как её продолжение, а
-   не как поле формы: это навигация, а не значение, которое вводят. */
+/* It stands under the organization's name in the sidebar and looks like its
+   continuation rather than like a form field: this is navigation, not a value
+   being entered. */
 .org-switch {
   height: 28px;
   padding: 0 var(--space-8);
@@ -1935,10 +1941,10 @@ input[type="checkbox"] {
   background: var(--hover);
 }
 
-/* --- аватар с инициалами --- */
+/* --- the initials avatar --- */
 
-/* Размер и оттенок задаёт разметка (см. Avatar.tsx): цвет выводится из имени,
-   и класть его сюда значило бы завести палитру во втором месте. */
+/* The size and shade are set by the markup (see Avatar.tsx): the colour is derived
+   from the name, and putting it here would mean keeping a palette in a second place. */
 .avatar {
   display: inline-flex;
   align-items: center;
@@ -1950,12 +1956,11 @@ input[type="checkbox"] {
   user-select: none;
 }
 
-/* --- плашка статуса --- */
+/* --- the status chip --- */
 
-/* Один словарь цветов на весь продукт: список, карточка и легенда обязаны
-   называть «в работе» одним и тем же синим. Зелёный — готово, серый контур —
-   запланировано, янтарный — заблокировано; красный статусом не бывает, он
-   означает нарушение срока. */
+/* One dictionary of colours for the whole product: a list, a card and a legend must
+   all name "in progress" with the same blue. Green is done, a grey outline is
+   planned, amber is blocked; red is never a status, it means a missed deadline. */
 .status-chip {
   display: inline-flex;
   align-items: center;
@@ -1993,11 +1998,11 @@ input[type="checkbox"] {
   color: #b45309;
 }
 
-/* --- кнопка с выпадающей панелью --- */
+/* --- a button with a dropdown panel --- */
 
-/* Кнопка-значок тулбара: квадрат в рост обычной кнопки, без боковых полей.
-   Своей меры не заводит — берёт общую (`--control-button`), иначе ряд читался
-   бы лесенкой. */
+/* A toolbar icon button: a square as tall as an ordinary button, with no side
+   padding. It declares no measure of its own — it takes the shared one
+   (`--control-button`), otherwise the row would read as a staircase. */
 .project-toolbar__icon {
   width: var(--control-button);
   padding: 0;
@@ -2026,8 +2031,8 @@ input[type="checkbox"] {
   background: var(--accent);
 }
 
-/* Панель разворачивается вниз из своей кнопки: она висит под ней и открыта
-   именно ею, и движение сверху вниз — это и есть та связь. */
+/* The panel unfolds downwards out of its button: it hangs beneath it and was
+   opened by it, and the downward movement is that very connection. */
 .menu__pop {
   position: absolute;
   top: calc(100% + 6px);
@@ -2045,9 +2050,9 @@ input[type="checkbox"] {
 .menu__item {
   display: flex;
   align-items: center;
-  /* От левого края, а не по центру: пункт-кнопка иначе наследует
-     `justify-content: center` общего правила кнопок и в столбце пунктов-
-     флажков стоит один по-своему. */
+  /* From the left edge rather than centred: otherwise an item-button inherits
+     `justify-content: center` from the shared button rule and stands out on its own
+     in a column of checkbox items. */
   justify-content: flex-start;
   gap: var(--space-8);
   width: 100%;
@@ -2074,8 +2079,8 @@ input[type="checkbox"] {
   margin: 0;
 }
 
-/* Единственный пункт, который называет себя цветом: удаление необратимо, и
-   рука обязана узнать его прежде, чем глаз дочитает подпись. */
+/* The only item that names itself by colour: deletion is irreversible, and the hand
+   must recognize it before the eye finishes reading the label. */
 .menu__item--danger {
   color: var(--danger);
 }
@@ -2084,12 +2089,13 @@ input[type="checkbox"] {
   background: var(--danger-soft);
 }
 
-/* --- тост --- */
+/* --- the toast --- */
 
-/* Тот же подъём, что у общего `layer-rise`, но своим набором кадров:
-   `transform` тоста занят центрированием, и общий набор, задающий один
-   `translateY`, на время движения сдвинул бы пилюлю к правому краю. Величины
-   взяты оттуда же — расходиться им незачем. */
+/* The same rise as in the shared `layer-rise`, but with a keyframe set of its own:
+   the toast's `transform` is taken up by centring, and the shared set, which
+   specifies a single `translateY`, would shift the pill towards the right edge for
+   the duration of the movement. The values are taken from there — there is no
+   reason for them to diverge. */
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -2097,15 +2103,16 @@ input[type="checkbox"] {
   }
 }
 
-/* Тёмная пилюля внизу по центру, как в макете: подтверждение с лёгким путём
-   отмены. Fixed, а не absolute: лента прокручивается, а тост обязан стоять. */
+/* A dark pill at the bottom centre, as in the mockup: a confirmation with an easy
+   path to undo. Fixed rather than absolute: the chart scrolls while the toast must
+   stand still. */
 .toast {
   position: fixed;
   bottom: 26px;
   left: 50%;
   transform: translateX(-50%);
-  /* Выше и окон, и карточки задачи: подтверждение с кнопкой отмены обязано
-     быть видно, чем бы ни был накрыт экран. */
+  /* Above both dialogs and the task card: a confirmation with an undo button must
+     be visible whatever the screen is covered with. */
   z-index: 1200;
   display: flex;
   align-items: center;
@@ -2133,8 +2140,9 @@ input[type="checkbox"] {
   font-size: 11px;
 }
 
-/* Отказ носит тот же кружок, но с восклицательным знаком вместо галочки:
-   галочка на «задача не найдена» противоречит самому тексту рядом. */
+/* A refusal wears the same circle but with an exclamation mark instead of a
+   checkmark: a checkmark on "the task was not found" contradicts the very text
+   beside it. */
 .toast--error .toast__check {
   border-color: #f87171;
   color: #fca5a5;
@@ -2162,7 +2170,7 @@ input[type="checkbox"] {
   text-decoration: underline;
 }
 
-/* --- мои задачи --- */
+/* --- my tasks --- */
 
 .task-list {
   margin: var(--space-20) 0 0;
@@ -2218,16 +2226,17 @@ input[type="checkbox"] {
   font-weight: 600;
 }
 
-/* --- отчёты --- */
+/* --- reports --- */
 
-/* Без overflow:hidden — строка держит выпадающее меню действий, а оно должно
-   уметь раскрыться ниже последней строки таблицы, а не обрезаться по её
-   нижнему краю. Собственного фона у ячеек нет, и скруглённые углы таблицы
-   от этого не страдают. */
-/* Таблица шире телефона: семь колонок в 390 пикселей не встают, и без
-   собственной прокрутки таблица растягивала страницу вбок — вместе с шапкой,
-   которая обрывалась на краю экрана. Прокручивается контейнер, а не страница;
-   ниже 640 пикселей таблица не сжимается, а уходит за край контейнера. */
+/* No overflow:hidden — a row holds the dropdown menu of actions, and that must be
+   able to open below the table's last row rather than being clipped at its bottom
+   edge. The cells have no background of their own, and the table's rounded corners
+   do not suffer from this. */
+/* The table is wider than a phone: seven columns do not fit into 390 pixels, and
+   without a scroll of its own the table stretched the page sideways — along with
+   the header, which broke off at the screen's edge. What scrolls is the container
+   rather than the page; below 640 pixels the table does not shrink but runs past the
+   container's edge. */
 .report__scroll {
   margin-top: var(--space-20);
   overflow-x: auto;
@@ -2284,18 +2293,17 @@ input[type="checkbox"] {
   color: var(--ok);
 }
 
-/* Столбец действий — по ширине кнопки, а не по ширине заголовка: строка с
-   одной шестерёнкой не должна отъедать у чисел место под пустую четверть
-   таблицы. */
+/* The actions column is as wide as a button rather than as wide as its heading: a
+   row with one gear must not take space away from the figures for an empty quarter
+   of the table. */
 .report__actions {
   width: 1%;
   white-space: nowrap;
   text-align: right;
 }
 
-/* Та же тихая, приглушённая шестерёнка, что раньше стояла на карточке
-   проекта: заливки кнопок она не получает, чтобы не спорить цветом с
-   числами строки. */
+/* The same quiet, muted gear that used to stand on a project card: it gets no
+   button fill, so as not to compete in colour with the row's figures. */
 .report__gear {
   width: var(--control);
   padding: 0;
@@ -2309,8 +2317,9 @@ input[type="checkbox"] {
   color: var(--text);
 }
 
-/* Поиск панели директора: узкое поле над таблицей, а не во всю ширину
-   колонки — фильтр по имени и адресу не набирают строкой в четверть метра. */
+/* The director panel's search: a narrow field above the table rather than one
+   spanning the column's full width — a filter by name and address is not typed into
+   a line a quarter of a metre long. */
 .admin__search {
   max-width: 320px;
   margin-top: var(--space-16);

@@ -78,7 +78,7 @@ cd frontend && npm install && npm run dev
 
 `docker compose down` is safe (data persists in the `pgdata` volume);
 `docker compose down -v` destroys the database — never run it without a
-recent dump in `./backups` (see README "Резервное копирование" for the
+recent dump in `./backups` (see README "Operations checklist" for the
 backup/restore commands).
 
 ## Migrations

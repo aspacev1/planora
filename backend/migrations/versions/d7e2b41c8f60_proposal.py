@@ -1,8 +1,8 @@
 """proposal
 
-Коммерческое предложение проекта: настройки сметы, разделы, строки и реплики
-к строкам. Смета живёт до плана и без плана — своими таблицами, а не полями
-задач: черновик сделки не должен быть виден на диаграмме.
+A project's commercial proposal: the budget's settings, sections, rows and remarks
+on rows. A budget lives before the plan and without the plan — in tables of its own
+rather than in task fields: a draft of a deal must not be visible on the chart.
 
 Revision ID: d7e2b41c8f60
 Revises: a3f9c25e71b0

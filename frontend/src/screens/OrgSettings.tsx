@@ -24,21 +24,19 @@ import {
 } from "../settings/fields";
 
 /**
- * Уровень 2 настроек: дефолты, которые наследуют все проекты организации.
+ * Level 2 of the settings: the defaults every project in the organization inherits.
  *
- * Кнопки «Сохранить» нет — как и в карточке задачи: каждое поле уходит на
- * сервер само, когда с ним закончили. Форма с кнопкой обещала бы, что до
- * нажатия ничего не произошло, и тогда пришлось бы объяснять, почему уход со
- * страницы теряет правки.
+ * There is no "Save" button — as in the task card: every field goes to the server on its own once
+ * you are done with it. A form with a button would promise that nothing happened before the
+ * press, and then it would have to be explained why leaving the page loses the edits.
  *
- * Зато каждое поле само и отчитывается: «сохранено» или отказ словами стоят
- * рядом с ним. Общий баннер вверху страницы для этого не годился — по нему не
- * понять, какое из десяти полей отвергнуто, а от поля до него ещё надо
- * доглядеть.
+ * In exchange every field reports for itself: a "saved" or a refusal in words stands next to it. A
+ * shared banner at the top of the page would not do for that — from it you cannot tell which of
+ * the ten fields was rejected, and from the field you still have to look up at it.
  *
- * Своего `<main>` у экрана нет: он вкладка раздела настроек, и рама его уже
- * дала. Второй `<main>` внутри первого сломал бы переход «к основному
- * содержимому» — читалка не знает, какой из двух основной.
+ * The screen has no `<main>` of its own: it is a tab of the settings section, and the frame has
+ * already given it one. A second `<main>` inside the first would break the "skip to main content"
+ * jump — a screen reader does not know which of the two is the main one.
  */
 export function OrgSettings() {
   const { t } = useLocale();
@@ -54,9 +52,9 @@ export function OrgSettings() {
   const save = useMutation({
     mutationFn: (patch: Partial<OrganizationSettings & { name: string; slug: string }>) =>
       updateOrganization(patch),
-    // Обещание «каждое поле уходит на сервер само» подтверждает само поле —
-    // отметкой рядом с ним (см. `SaveMark`), а не тостом поверх страницы: по
-    // тосту не понять, какое из десяти полей доехало, а какое отвергнуто.
+    // The promise that "every field goes to the server on its own" is confirmed by the field
+    // itself — with a mark next to it (see `SaveMark`) rather than with a toast over the page:
+    // from a toast you cannot tell which of the ten fields got through and which was rejected.
     onSuccess: (org: Organization) => queryClient.setQueryData(ORG_QUERY_KEY, org),
   });
   const saves = useFieldSaves(save.mutateAsync);
@@ -73,8 +71,8 @@ export function OrgSettings() {
 
   const org = query.data;
   const settings = org.settings;
-  // Право решает сервер; здесь оно только выключает поля — предлагать
-  // действие, которое кончится отказом, хуже, чем не предлагать вовсе.
+  // The permission is decided by the server; here it only disables the fields — offering an action
+  // that will end in a refusal is worse than not offering it at all.
   const readOnly = org.role !== "owner";
 
   return (
@@ -201,11 +199,11 @@ export function OrgSettings() {
 }
 
 /**
- * Подключение LLM: провайдер, адрес, модель, ключ.
+ * The LLM connection: the provider, the address, the model, the key.
  *
- * Ключ наружу не отдаётся никогда — только признак «настроен». Поэтому пустое
- * поле ключа означает «оставить прежний»: требовать его при правке адреса
- * значило бы требовать невозможного, потому что взять его человеку неоткуда.
+ * The key is never handed out — only a "configured" flag. So an empty key field means "keep the
+ * previous one": demanding it when editing the address would mean demanding the impossible,
+ * because the person has nowhere to take it from.
  */
 function LlmConnection({ readOnly }: { readOnly: boolean }) {
   const { t } = useLocale();
@@ -224,13 +222,13 @@ function LlmConnection({ readOnly }: { readOnly: boolean }) {
     onSuccess: (result) => {
       queryClient.setQueryData(AI_CREDENTIAL_QUERY_KEY, result);
       setKey("");
-      // Поле ключа очищается при успехе — и без тоста это очищение читается
-      // как «ввод не приняли», ровно наоборот смыслу.
+      // The key field is cleared on success — and without a toast this clearing reads as "the input
+      // was not accepted", exactly the opposite of what it means.
       showToast({ message: t("common.saved") });
     },
   });
 
-  // Отказ 403 здесь — не поломка: не владелец этот блок просто не видит.
+  // A 403 refusal here is not a breakage: a non-owner simply does not see this block.
   if (credential.error || !credential.data) return null;
   const current = credential.data;
 
@@ -306,10 +304,10 @@ function LlmConnection({ readOnly }: { readOnly: boolean }) {
 }
 
 /**
- * Подключение Jira: адрес сайта, email, API-токен.
+ * The Jira connection: the site address, the email, the API token.
  *
- * Та же дисциплина, что у подключения LLM: токен наружу не отдаётся никогда,
- * пустое поле при сохранении значит «оставить прежний».
+ * The same discipline as the LLM connection's: the token is never handed out, and an empty field
+ * on save means "keep the previous one".
  */
 function JiraConnection({ readOnly }: { readOnly: boolean }) {
   const { t } = useLocale();
@@ -344,7 +342,7 @@ function JiraConnection({ readOnly }: { readOnly: boolean }) {
     },
   });
 
-  // Отказ 403 здесь — не поломка: не владелец этот блок просто не видит.
+  // A 403 refusal here is not a breakage: a non-owner simply does not see this block.
   if (credential.error || !credential.data) return null;
   const current = credential.data;
 

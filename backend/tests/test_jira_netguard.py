@@ -1,5 +1,5 @@
-"""SSRF: адрес сайта Jira задаёт пользователь, ходит по нему сервер — тот же
-риск, что у адреса LLM (см. tests/test_wave2_security.py)."""
+"""SSRF: the Jira site address is set by a user while the server is what goes
+there — the same risk as with the LLM address (see tests/test_wave2_security.py)."""
 
 import pytest
 
@@ -41,4 +41,4 @@ def test_a_public_jira_url_passes(strict_urls, monkeypatch):
 
 def test_the_self_hosted_switch_disables_the_guard(monkeypatch):
     monkeypatch.setattr(get_settings(), "jira_allow_private_urls", True)
-    ensure_public_https("http://localhost:8081")  # не поднимает
+    ensure_public_https("http://localhost:8081")  # does not raise

@@ -7,13 +7,13 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { planChanges } from "./planChanges";
 
 /**
- * Согласование плана как действие — одно на всё приложение.
+ * Plan approval as an action — one for the whole application.
  *
- * Зовут его из двух мест: кнопкой в шапке и из окна изменений, где человек
- * только что прочитал, что именно фиксирует. Сама отправка и, главное, сброс
- * состояния после неё у обоих обязаны быть одни: базовые значения меняются
- * сразу у всех задач, и второй вызов, забывший перезапросить проект, оставил
- * бы на экране пометку о расхождении с планом, которого больше нет.
+ * It is called from two places: the header's button and the changes panel, where the
+ * person has just read what exactly is being fixed. The submission itself and, above
+ * all, the state reset after it must be the same for both: the baseline values change at
+ * once on every task, and a second call that forgot to refetch the project would leave a
+ * marker on screen about a divergence from a plan that no longer exists.
  */
 export function useApprovePlan(projectId: string, onDone?: () => void) {
   const queryClient = useQueryClient();
@@ -22,28 +22,28 @@ export function useApprovePlan(projectId: string, onDone?: () => void) {
     mutationFn: () => approvePlan(projectId),
     onSuccess: async () => {
       onDone?.();
-      // Состояние проекта перезапрашивается целиком, а не правится по месту.
+      // The project's state is refetched whole rather than edited in place.
       await queryClient.invalidateQueries({ queryKey: projectQueryKey(projectId) });
     },
   });
 }
 
 /**
- * Кнопка «Согласовать план» — она же «Пересогласовать».
+ * The "Approve the plan" button — which is also "Re-approve".
  *
- * Две подписи у одной кнопки, а не две кнопки: действие одно, и различие
- * только в том, есть ли уже базовый план. Пересогласование доступно владельцу,
- * и решает это сервер — здесь кнопка лишь не показывается тому, кто и так
- * получит отказ.
+ * Two captions on one button rather than two buttons: the action is one, and the
+ * difference is only in whether there already is a baseline plan. Re-approval is
+ * available to the owner, and that is decided by the server — here the button merely is
+ * not shown to someone who would get a refusal anyway.
  *
- * Пересогласование спрашивает подтверждение, а первое согласование — нет.
- * Разница не в осторожности ради осторожности: пересогласование сдвигает базу,
- * от которой считаются все объяснённые сдвиги, то есть обнуляет накопленное
- * отставание. Первое согласование не отменяет ничего.
+ * Re-approval asks for a confirmation while the first approval does not. The difference
+ * is not caution for caution's sake: re-approval moves the baseline all explained shifts
+ * are measured from, that is, resets the accumulated lag. The first approval cancels
+ * nothing.
  *
- * Версии в подписи нет: кнопка стоит в строке плана, где версия уже названа
- * («ПЛАН ПРОЕКТА · V2»), и повторять её на самой кнопке значит написать одно
- * число дважды в двух сантиметрах друг от друга.
+ * There is no version in the caption: the button stands in the plan's line, where the
+ * version is already named ("PROJECT PLAN · V2"), and repeating it on the button itself
+ * means writing one number twice a couple of centimetres apart.
  */
 export function PlanApproval({
   projectId,
@@ -59,17 +59,18 @@ export function PlanApproval({
   canApprove: boolean;
   canReapprove: boolean;
   /**
-   * Задан ли сейчас вопрос о переутверждении.
+   * Whether the re-approval question is currently asked.
    *
-   * Состоянием снаружи, а не своим: этот же вопрос задаёт кнопка в подвале окна
-   * изменений, а вопрос у действия обязан быть один. Второй, заведённый ради
-   * второй кнопки, однажды разойдётся с первым в формулировке или в правах.
+   * As state from outside rather than its own: the same question is asked by the button
+   * in the changes panel's footer, and an action must have one question. A second one,
+   * created for the sake of a second button, will one day diverge from the first in
+   * wording or in permissions.
    */
   confirming: boolean;
   onConfirmingChange: (confirming: boolean) => void;
   /**
-   * Показать, что именно будет зафиксировано. Не передано — подтверждение
-   * обходится своей сводкой: она называет объём, но не поимённо.
+   * Show what exactly will be fixed. Not passed — the confirmation makes do with its own
+   * summary: it names the volume but not by name.
    */
   onShowChanges?: () => void;
 }) {
@@ -85,17 +86,17 @@ export function PlanApproval({
 
   if (approved && confirming) {
     return (
-      // Вопрос — карточкой, а не строкой в ряд с плашками: он называет число,
-      // перечисляет виды изменений и предлагает на них посмотреть, и всё это
-      // в одну строку шапки не встаёт, а встав — вытесняет из неё имя проекта.
+      // The question is a card rather than a line in the row of chips: it names a number,
+      // enumerates the kinds of changes and offers to look at them, and none of that fits
+      // into one line of the header — and having fitted, it pushes the project's name out of it.
       <span className="plan-reapprove" role="group">
         <strong className="plan-reapprove__title">
           {t("plan.reapprove_title", { version: state.plan_version + 1 })}
         </strong>
-        {/* Прежде вопрос предупреждал о последствии, но не называл его размера,
-            и «да» приходилось говорить вслепую. Ссылка рядом показывает те же
-            задачи поимённо: смотреть необязательно, но возможность обязана быть
-            под рукой ровно в тот миг, когда решение принимается. */}
+        {/* The question used to warn about the consequence but not name its size, and "yes"
+            had to be said blindly. The link next to it shows the same tasks by name: looking
+            is optional, but the possibility must be at hand at exactly the moment the
+            decision is made. */}
         <p className="plan-reapprove__text">
           {changed > 0
             ? `${t("plan.reapprove_summary", {
@@ -112,8 +113,8 @@ export function PlanApproval({
             </>
           )}
         </p>
-        {/* Отказ — здесь же, где нажали: карточка не сворачивается по отказу
-            (свернуть её — успех), и ошибка из ветки ниже сюда не доходила. */}
+        {/* The refusal goes right where the press was: the card does not fold on a refusal
+            (folding it is a success), and the error from the branch below never reached here. */}
         {mutation.error !== null && (
           <span className="error" role="alert">
             {t(errorKey(mutation.error))}
@@ -142,12 +143,11 @@ export function PlanApproval({
 
   return (
     <>
-      {/* Контурная, а не залитая: заливку в шапке получает только создание
-          задачи. Согласование плана — действие редкое, и постоянная плашка
-          ради него звала бы нажать себя каждый раз, когда человек открыл
-          проект посмотреть. Пересогласование при этом набрано цветом тревоги:
-          оно стоит в строке, которая сообщает о расхождении, и отвечает
-          именно на неё. */}
+      {/* Outlined rather than filled: only task creation gets a fill in the header. Plan
+          approval is a rare action, and a permanent chip for it would be calling to be
+          pressed every time a person opened the project to look. Re-approval, at that, is
+          set in the alarm colour: it stands in the line that reports a divergence and
+          answers exactly that. */}
       <button
         type="button"
         className={`button--quiet${approved ? " button--alert" : ""}`}
@@ -166,14 +166,14 @@ export function PlanApproval({
 }
 
 /**
- * Перечисление видов изменений: «2 сдвига, 1 длительность, 1 новая задача».
+ * An enumeration of the kinds of changes: "2 shifts, 1 duration, 1 new task".
  *
- * Число само по себе говорит, сколько работы разошлось с планом, но не о чём
- * речь: пять перенесённых задач и пять дописанных — разные новости, и решение
- * о переутверждении принимают по второму, а не только по первому.
+ * The number on its own says how much work has diverged from the plan but not what it is
+ * about: five moved tasks and five added ones are different news, and the re-approval
+ * decision is made on the second rather than only on the first.
  *
- * Удалённых здесь нет: их знает лишь снимок версии, а он грузится только при
- * открытии окна. Перечисление называет то, что известно наверняка.
+ * Deleted ones are not here: only a version's snapshot knows them, and it is loaded only
+ * when the panel is opened. The enumeration names what is known for certain.
  */
 function partsOf(
   changes: ReturnType<typeof planChanges>,

@@ -1,67 +1,71 @@
 import type { Calendar, ProjectState } from "../api/projects";
 import { MS_PER_DAY, addDays, toISO, toUtc } from "./timescale";
 
-/** Масштаб ленты: сколько времени приходится на одно деление шкалы. */
+/** The strip's scale: how much time falls on one division of the axis. */
 export type Zoom = "day" | "week" | "month";
 
 /**
- * Ширина дня в пикселях для каждого масштаба. Живёт в браузере, а не на
- * сервере: это масштаб изображения, а не свойство плана. Числа здесь, а не в
- * разметке, чтобы лента и тесты называли одно и то же число одним именем.
+ * A day's width in pixels for each scale. It lives in the browser rather than on
+ * the server: this is the picture's scale, not a property of the plan. The numbers
+ * are here rather than in the markup so that the strip and the tests call one and
+ * the same number by one name.
  *
- * `day` — то, с чего лента открывается: в нём день читается числом и днём
- * недели. Дальше деление сжимается, и на «месяце» от подписи остаётся число.
+ * `day` is what the strip opens with: in it a day is read as a number and a weekday.
+ * Further on the division shrinks, and at "month" all that is left of the caption is
+ * the number.
  *
- * Числа целые и непропорциональные намеренно. Пропорция от дневных 52 дала бы
- * 33.43 и 17.33, а дробная ширина дня разводит сетку — она рисуется от этой
- * величины — и полоски, которые считаются через `xOf`: расхождение копится к
- * правому краю ленты. Взяты те же три целых, что переключает макет.
+ * The numbers are whole and disproportionate deliberately. A proportion from the
+ * daily 52 would give 33.43 and 17.33, and a fractional day width drives the grid —
+ * which is drawn from this value — apart from the bars, which are computed through
+ * `xOf`: the divergence accumulates towards the strip's right edge. The same three
+ * whole numbers the mockup switches between are taken.
  */
 export const DAY_WIDTH: Record<Zoom, number> = { day: 52, week: 30, month: 18 };
 
 /**
- * Высота строки в пикселях.
+ * A row's height in pixels.
  *
- * Живёт здесь, а не только в CSS, потому что по ней считаются вертикальные
- * координаты стрелок связей. Два числа — одно в стилях, другое в расчёте —
- * расходятся при первой же правке оформления, и стрелки уезжают со строк.
- * Разметка ставит эту величину переменной `--gantt-row`, и CSS берёт её оттуда.
+ * It lives here rather than only in CSS, because the vertical coordinates of the
+ * link arrows are computed from it. Two numbers — one in the styles, the other in
+ * the computation — diverge on the very first styling edit, and the arrows drift off
+ * the rows. The markup sets this value as the `--gantt-row` variable, and CSS takes
+ * it from there.
  */
 export const ROW_HEIGHT = 40;
 
-/** Первое число месяца, в который попала дата. */
+/** The first day of the month the date fell in. */
 function firstOfMonth(iso: string): string {
   return `${iso.slice(0, 7)}-01`;
 }
 
 /**
- * Последнее число месяца, в который попала дата.
+ * The last day of the month the date fell in.
  *
- * Экспортировано: этим же округлением лента достраивает окно под жест, когда
- * полоску держат за его краем (см. reach в Gantt), — и окно под жестом обязано
- * кончаться ровно там же, где кончится после переноса.
+ * Exported: the strip extends the window under a gesture with this same rounding
+ * when a bar is held beyond its edge (see reach in Gantt) — and a window under a
+ * gesture must end exactly where it will end after the move.
  */
 export function lastOfMonth(iso: string): string {
   const moment = new Date(toUtc(iso));
-  // Нулевой день следующего месяца — последний день текущего. Считать
-  // «тридцать дней, кроме февраля» руками незачем.
+  // Day zero of the next month is the current month's last day. There is no point
+  // counting "thirty days, except February" by hand.
   return toISO(Date.UTC(moment.getUTCFullYear(), moment.getUTCMonth() + 1, 0));
 }
 
 /**
- * Границы ленты.
+ * The strip's bounds.
  *
- * Окно натягивается на всё, что диаграмма обязана показать: задачи, дедлайн и
- * посчитанное сервером окончание проекта. Дедлайн включён отдельно от задач
- * потому, что он рисуется вертикалью — за краем ленты её просто не видно, и
- * человек решит, что дедлайна нет.
+ * The window is stretched over everything the chart must show: the tasks, the
+ * deadline and the project end computed by the server. The deadline is included
+ * separately from the tasks because it is drawn as a vertical — beyond the strip's
+ * edge it is simply invisible, and the person will decide there is no deadline.
  *
- * Сегодняшний день в окно не входит: проект, спланированный на прошлую весну,
- * растянул бы ленту на год пустоты. Метка сегодня рисуется, только если день
- * и так попал в окно.
+ * Today is not part of the window: a project planned for last spring would stretch
+ * the strip over a year of emptiness. The today marker is drawn only if the day fell
+ * into the window anyway.
  *
- * Края округляются до месяца: шапка с обрезанным первым месяцем читается как
- * ошибка вёрстки.
+ * The edges are rounded to a month: a header with a truncated first month reads as a
+ * layout error.
  */
 export function projectWindow(state: ProjectState, today: string): { from: string; to: string } {
   const dates = [
@@ -72,56 +76,58 @@ export function projectWindow(state: ProjectState, today: string): { from: strin
   ];
 
   if (dates.length === 0) {
-    // Ни одной даты — окно вокруг сегодняшнего дня: пустой проект всё равно
-    // должен показать шкалу, иначе экран выглядит сломанным. Сегодня приходит
-    // снаружи, посчитанным в поясе читателя: своё, посчитанное здесь по UTC,
-    // расходилось бы с меткой сегодня на той же ленте.
+    // Not a single date — the window goes around today: an empty project must still
+    // show a scale, otherwise the screen looks broken. Today arrives from outside,
+    // computed in the reader's zone: our own, computed here in UTC, would diverge
+    // from the today marker on the same strip.
     return { from: firstOfMonth(today), to: lastOfMonth(addDays(today, 30)) };
   }
 
-  // Строки ISO сравниваются лексикографически ровно как даты: у них
-  // фиксированная ширина полей и старший разряд слева.
+  // ISO strings compare lexicographically exactly like dates: their fields have a
+  // fixed width and the most significant one is on the left.
   const earliest = dates.reduce((a, b) => (a < b ? a : b));
   const latest = dates.reduce((a, b) => (a > b ? a : b));
   return { from: firstOfMonth(earliest), to: lastOfMonth(latest) };
 }
 
 /**
- * Рабочий ли это день по календарю проекта.
+ * Whether this is a working day by the project's calendar.
  *
- * Порядок применения тот же, что на сервере: маска дней недели, затем
- * праздники их убирают, затем `extra_workdays` возвращают конкретные даты
- * обратно. Повторение правила здесь — не расчёт дат: даты считает сервер.
- * Это заливка фона, и без неё человек ставит задачу на воскресенье, не
- * замечая этого.
+ * The order of application is the same as on the server: the weekday mask, then the
+ * holidays remove days from it, then `extra_workdays` bring specific dates back. The
+ * rule being repeated here is not a date computation: dates are computed by the
+ * server. This is a background fill, and without it a person puts a task on a Sunday
+ * without noticing.
  */
 export function isWorkingDay(date: string, calendar: Calendar, weekday: number): boolean {
   if (calendar.extra_workdays.includes(date)) return true;
   if (calendar.holidays.includes(date)) return false;
-  // Маска пришла из Python, где понедельник — нулевой бит. `weekday` пришёл
-  // из `getUTCDay`, где нулевое — воскресенье. Без этого перевода залитыми
-  // оказываются воскресенье с понедельником вместо субботы с воскресеньем.
+  // The mask came from Python, where Monday is bit zero. `weekday` came from
+  // `getUTCDay`, where zero is Sunday. Without this conversion the filled days turn
+  // out to be Sunday and Monday instead of Saturday and Sunday.
   const mondayFirst = (weekday + 6) % 7;
   return (calendar.working_days & (1 << mondayFirst)) !== 0;
 }
 
 /**
- * Сколько рабочих дней в отрезке, включая оба конца. Ноль — рабочих дней в
- * отрезке не нашлось вовсе (неделя праздников) или конец раньше начала.
+ * How many working days are in a stretch, both ends included. Zero — there turned
+ * out to be no working days in the stretch at all (a week of holidays) or the end is
+ * earlier than the start.
  *
- * Нужно ровно одному жесту — растягиванию полоски за грань. Грань тянут по
- * шкале, а шкала размечена календарными днями; длительность же задана в
- * рабочих, и без этого счёта перевод одного в другое сделать нечем.
+ * Needed by exactly one gesture — stretching a bar by its edge. The edge is dragged
+ * along the scale, and the scale is marked out in calendar days; the duration,
+ * meanwhile, is set in working ones, and without this reckoning there is nothing to
+ * convert one into the other with.
  *
- * Это не перенос серверной арифметики на клиент, а догадка на время жеста —
- * тот же контракт, что у переноса полоски: клиент показывает, что получится,
- * сервер считает по-настоящему и присылает дату окончания, по которой полоска
- * и встанет. Разойтись эти два счёта могут только там, где у вкладки устарел
- * календарь, — и тогда полоска встанет по ответу сервера, а не по догадке.
+ * This is not moving the server's arithmetic to the client but a guess for the
+ * duration of a gesture — the same contract as a bar's move: the client shows what
+ * will come out, the server computes for real and sends the end date the bar will
+ * stand by. These two reckonings can only diverge where the tab's calendar is stale
+ * — and then the bar will stand by the server's answer rather than by the guess.
  *
- * Календарь берётся из состояния проекта, а не собирается здесь: маска, дни
- * праздников и объявленные рабочие дни приезжают вместе с состоянием ровно
- * для того, чтобы лента не гадала о них (см. `isWorkingDay`).
+ * The calendar is taken from the project's state rather than assembled here: the
+ * mask, the holiday days and the declared working days arrive with the state
+ * precisely so that the strip does not have to guess about them (see `isWorkingDay`).
  */
 export function workingDaysBetween(fromISO: string, toISO: string, calendar: Calendar): number {
   if (toISO < fromISO) return 0;

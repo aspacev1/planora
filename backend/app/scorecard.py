@@ -1,31 +1,33 @@
-"""Скоркард проекта: недельная панель здоровья плана.
+"""A project's scorecard: a weekly panel of the plan's health.
 
-Устройство в двух словах. Метрики считаются по живому плану (таблицы задач;
-неперенесённые предложения живут отдельно и сюда не попадают) и по журналу
-ревизий. Неделя — ISO-неделя в таймзоне проекта (с наследованием от
-организации), дни везде рабочие — через календарь проекта.
+How it works, in brief. The metrics are computed from the live plan (the task
+tables; proposals not yet carried across live separately and do not reach this)
+and from the revision journal. A week is an ISO week in the project's timezone
+(inherited from the organization), and days are working days everywhere —
+through the project's calendar.
 
-Планировщика в архитектуре нет намеренно, поэтому фиксация недель ленивая:
-первый GET после границы недели дозаписывает недостающие недельные снимки и
-пересчитывает текущую неделю. Снимки прошлых недель неизменяемы — это
-летопись, по ней считаются серии и спарклайн; перезаписывается только строка
-текущей недели, она же служит кэшем живого расчёта на пять минут. Метрики по
-журналу (`date_shifts`, `close_rate`, `scope_growth`) восстанавливаются для
-пропущенных недель точно; срезы состояния восстановить нельзя — они считаются
-по текущему состоянию на конец той недели и помечаются `backfilled: true` в
-details.
+The architecture deliberately has no scheduler, so committing weeks is lazy: the
+first GET after a week boundary appends the missing weekly snapshots and
+recomputes the current week. Snapshots of past weeks are immutable — they are a
+chronicle, and streaks and the sparkline are computed from them; only the current
+week's row is overwritten, and it doubles as a five-minute cache of the live
+computation. Journal-based metrics (`date_shifts`, `close_rate`, `scope_growth`)
+are reconstructed exactly for missed weeks; state cross-sections cannot be
+reconstructed — they are computed from the current state as of the end of that
+week and marked `backfilled: true` in details.
 
-`finish_drift` — сдвиг прогнозного финиша за неделю — считается как разность
-двух соседних снимков, поэтому у пропущенных недель точки отсчёта нет: они
-пишутся `no_data`+`backfilled`, а не восстанавливаются проигрыванием журнала
-(это отдельная задача, несоразмерная пользе). Первая же неделя без прошлого
-снимка — тоже `no_data`: дрейф без базы неизмерим, а не равен нулю.
+`finish_drift` — the shift of the projected finish over a week — is computed as
+the difference between two neighbouring snapshots, so missed weeks have no point
+of reference: they are written as `no_data`+`backfilled` rather than
+reconstructed by replaying the journal (that is a separate task, out of
+proportion to the benefit). The very first week with no previous snapshot is
+`no_data` too: drift with no base is unmeasurable rather than equal to zero.
 
-Правило «красная 2 недели подряд» срабатывает при записи снимка текущей
-недели: через слой мутаций создаётся задача «Разобрать: {метрика}», и след
-остаётся событием `rule_triggered`. Повтор подавляется до разрыва серии — по
-уже записанным событиям, а не по отдельному флагу: событие и есть память о
-том, что для этой серии задача уже создана.
+The "red two weeks running" rule fires when the current week's snapshot is
+written: a "Investigate: {metric}" task is created through the mutation layer,
+and a `rule_triggered` event remains as a trace. Repetition is suppressed until
+the streak breaks — by the events already recorded rather than by a separate
+flag: the event is itself the memory that a task has been created for this streak.
 """
 
 import logging
@@ -67,33 +69,34 @@ from app.settings_resolution import (
 
 logger = logging.getLogger(__name__)
 
-#: Константы MVP. Порог «красного»: цель × 2 для lte (при цели 0 — значение
-#: больше 2), цель × 0.75 для gte; между целью и порогом — «жёлтый».
+#: MVP constants. The "red" threshold: target x 2 for lte (with a target of 0 — a
+#: value greater than 2), target x 0.75 for gte; between the target and the
+#: threshold lies "yellow".
 RISK_LTE_FACTOR = Decimal("2")
 RISK_LTE_ZERO_LIMIT = Decimal("2")
 RISK_GTE_FACTOR = Decimal("0.75")
-#: «Зависла в работе» — больше стольких рабочих дней в in_progress.
+#: "Stalled in progress" — more than this many working days in in_progress.
 STALE_WORKDAYS = 5
-#: «Нереальный срок» — просрочка больше стольких рабочих дней без единой
-#: правки дат в журнале.
+#: "An unrealistic deadline" — overdue by more than this many working days with
+#: not a single date edit in the journal.
 UNREAL_OVERDUE_WORKDAYS = 10
-#: Окно истории по умолчанию и потолок кэша текущей недели.
+#: The default history window and the cache ceiling for the current week.
 DEFAULT_WEEKS = 13
 CURRENT_WEEK_TTL_SECONDS = 300
-#: Сколько недель серия может тянуться в прошлое при чтении. Потолок, а не
-#: точность: серия длиннее двух лет ничего не добавляет к бейджу.
+#: How many weeks a streak may stretch back on a read. A ceiling rather than a
+#: matter of precision: a streak longer than two years adds nothing to the badge.
 MAX_STREAK_WEEKS = 104
-#: Окно тренда темпа по людям: восемь столбиков читаются с одного взгляда,
-#: и за два месяца привычка человека уже видна.
+#: The window of the per-person pace trend: eight bars read at a glance, and two
+#: months is enough for a person's habit to show.
 TREND_WEEKS = 8
-#: «В блоке» в шапке: одна-две задачи — внимание, три и больше — риск. Не
-#: конфиг метрики, а константы: у этого числа нет владельца и цели, оно
-#: просто говорит, сколько работы стоит.
+#: "Blocked" in the header: one or two tasks is attention, three or more is risk.
+#: Not a metric config but constants: this number has no owner and no target, it
+#: simply says how much work is stuck.
 BLOCKED_WARN_FROM = 1
 BLOCKED_RISK_FROM = 3
-#: Метрики, по которым события и правило «красная 2 недели» не заводятся:
-#: задача «Разобрать: темп команды» без адресата ничего не разобрала бы, а
-#: сигнал по людям и так стоит на экране.
+#: The metrics for which no events and no "red two weeks" rule are created: a
+#: "Investigate: team pace" task with no recipient would investigate nothing, and
+#: the per-person signal is on the screen anyway.
 _NO_ALERT_METRICS = frozenset({"team_pace"})
 
 _TWO_PLACES = Decimal("0.01")
@@ -120,9 +123,10 @@ METRICS: tuple[MetricDef, ...] = (
 METRIC_KEYS: tuple[str, ...] = tuple(m.key for m in METRICS)
 _DEFS = {m.key: m for m in METRICS}
 
-#: Заголовки для задачи, создаваемой правилом. Словарь здесь, а не в клиенте:
-#: имя задачи ложится в базу, и переводит его тот, кто пишет, — на языке
-#: организации. Тот же принцип, что у писем (app/mail).
+#: The headings for the task the rule creates. The dictionary lives here rather
+#: than on the client: a task's name lands in the database, and whoever writes it
+#: translates it — into the organization's language. The same principle as with
+#: mail (app/mail).
 _METRIC_LABELS = {
     "overdue_tasks": {"ru": "Просроченные задачи", "en": "Overdue tasks", "az": "Gecikmiş tapşırıqlar"},
     "finish_drift": {"ru": "Сдвиг финиша", "en": "Finish drift", "az": "Finiş sürüşməsi"},
@@ -137,20 +141,21 @@ _RULE_TASK_TITLE = {"ru": "Разобрать: {label}", "en": "Investigate: {la
 
 
 class ScorecardError(Exception):
-    """Отказ скоркарда — с машинным кодом, по правилам отказов мутаций."""
+    """A scorecard refusal — with a machine code, by the mutation refusal rules."""
 
     def __init__(self, code: str, message: str):
         super().__init__(message)
         self.code = code
 
 
-# --- неделя и время -----------------------------------------------------------
+# --- the week and time --------------------------------------------------------
 
 
 def project_tz(project: Project, org: Organization) -> ZoneInfo:
-    """Таймзона проекта (с наследованием от организации). Непригодное имя —
-    UTC, а не авария: имя проверяется на записи, но база могла быть правлена
-    руками, и скоркард — не то место, где проект должен перестать читаться."""
+    """The project's timezone (inherited from the organization). An unusable name
+    yields UTC rather than a crash: the name is validated on write, but the
+    database could have been edited by hand, and the scorecard is not the place
+    where a project should stop being readable."""
     name = resolve_timezone(project, org)
     try:
         return ZoneInfo(name)
@@ -160,13 +165,13 @@ def project_tz(project: Project, org: Organization) -> ZoneInfo:
 
 
 def week_start_of(d: date) -> date:
-    """Понедельник ISO-недели, в которую попадает дата."""
+    """The Monday of the ISO week the date falls into."""
     return d - timedelta(days=d.weekday())
 
 
 def _week_bounds_utc(week_start: date, tz: ZoneInfo) -> tuple[datetime, datetime]:
-    """Границы недели [понедельник 00:00; следующий понедельник 00:00) в
-    таймзоне проекта — как absolute-время для сравнения с метками журнала."""
+    """The bounds of a week [Monday 00:00; next Monday 00:00) in the project's
+    timezone — as absolute time, for comparison with journal timestamps."""
     start = datetime.combine(week_start, time.min, tzinfo=tz)
     return start, start + timedelta(days=7)
 
@@ -179,15 +184,15 @@ def _in_week(stamp: datetime | None, week_start: date, tz: ZoneInfo) -> bool:
     return week_start <= stamp.astimezone(tz).date() <= week_start + timedelta(days=6)
 
 
-# --- конфиг метрик ------------------------------------------------------------
+# --- metric configs -----------------------------------------------------------
 
 
 def ensure_metrics(db: DbSession, project: Project) -> list[ScorecardMetric]:
-    """Конфиги метрик проекта; недостающие — сеются дефолтами.
+    """The project's metric configs; missing ones are seeded with defaults.
 
-    Первое открытие скоркарда заводит их все; появившаяся в новой версии
-    кода метрика досеется тем же путём. Владельцы у сида пустые: дефолт — это
-    цель и направление, а не назначение людей.
+    The first opening of the scorecard creates them all; a metric that appears in
+    a new version of the code is seeded the same way. Owners are empty in the
+    seed: a default is a target and a direction, not an assignment of people.
     """
     existing = {
         m.metric_key: m
@@ -220,11 +225,11 @@ def ensure_metrics(db: DbSession, project: Project) -> list[ScorecardMetric]:
     return [c for c in configs if c.metric_key in _DEFS]
 
 
-# --- статус -------------------------------------------------------------------
+# --- status -------------------------------------------------------------------
 
 
 def metric_status(value: Decimal | None, target: Decimal, direction: str) -> str:
-    """ok — факт удовлетворяет цели; risk — хуже порога; warn — между."""
+    """ok — the fact satisfies the target; risk — worse than the threshold; warn — in between."""
     if value is None:
         return ScorecardStatus.NO_DATA.value
     if direction == ScorecardDirection.LTE:
@@ -243,24 +248,24 @@ def metric_status(value: Decimal | None, target: Decimal, direction: str) -> str
     )
 
 
-# --- контекст расчёта ---------------------------------------------------------
+# --- the computation context --------------------------------------------------
 
 
 @dataclass(frozen=True)
 class _PlanView:
-    """Живой план, прочитанный один раз на расчёт: задачи, даты окончания,
-    исполнители и календарь. Дат окончания в базе нет — они считаются здесь,
-    тем же end_date, что и на Ганте."""
+    """The live plan, read once per computation: tasks, finish dates, assignees
+    and the calendar. There are no finish dates in the database — they are
+    computed here, by the same end_date as on the Gantt chart."""
 
     tasks: list[Task]
-    #: Дата окончания по календарю проекта; пусто у относительного плана и у
-    #: задач с вырожденным календарём.
+    #: The finish date per the project's calendar; empty for a relative plan and
+    #: for tasks with a degenerate calendar.
     ends: dict[uuid.UUID, date]
     assignees: dict[uuid.UUID, list[uuid.UUID]]
     names: dict[uuid.UUID, str]
     calendar: Calendar
-    #: Календарный ли режим. Относительная ось не сравнивается с «сегодня»,
-    #: и метрики, привязанные к настоящим датам, отвечают no_data.
+    #: Whether the mode is calendar-based. A relative axis is not compared with
+    #: "today", and metrics tied to real dates answer no_data.
     dated: bool
 
 
@@ -278,8 +283,9 @@ def _plan_view(db: DbSession, project: Project, org: Organization) -> _PlanView:
             try:
                 ends[task.id] = end_date(task.start_date, task.duration_days, calendar)
             except CalendarError:
-                # Вырожденный календарь уже отказал на Ганте; скоркард просто
-                # не судит такую задачу, а не валит весь расчёт.
+                # A degenerate calendar has already refused on the Gantt chart;
+                # the scorecard simply does not judge such a task rather than
+                # bringing the whole computation down.
                 continue
     rows = db.execute(
         select(TaskAssignee.task_id, TaskAssignee.user_id)
@@ -315,8 +321,8 @@ def _entry(plan: _PlanView, task: Task, **extra) -> dict:
             plan.names.get(user_id, "")
             for user_id in plan.assignees.get(task.id, [])
         ],
-        # Идентификаторы рядом с именами: разрез по людям группирует по ним,
-        # а имя может смениться, пока снимок лежит в летописи.
+        # The identifiers next to the names: the per-person breakdown groups by
+        # them, and a name may change while the snapshot lies in the chronicle.
         "assignee_ids": [str(user_id) for user_id in plan.assignees.get(task.id, [])],
     }
     entry.update(extra)
@@ -324,14 +330,14 @@ def _entry(plan: _PlanView, task: Task, **extra) -> dict:
 
 
 def _overdue_workdays(plan: _PlanView, end: date, ref: date) -> int:
-    """Просрочка в рабочих днях: рабочие дни после даты окончания по дату
-    расчёта включительно."""
+    """Overdue in working days: the working days after the finish date up to and
+    including the computation date."""
     if end >= ref:
         return 0
     return count_working_days(end + timedelta(days=1), ref, plan.calendar)
 
 
-# --- метрики ------------------------------------------------------------------
+# --- the metrics --------------------------------------------------------------
 
 
 def _overdue_list(plan: _PlanView, ref: date) -> list[tuple[Task, int]]:
@@ -346,10 +352,11 @@ def _overdue_list(plan: _PlanView, ref: date) -> list[tuple[Task, int]]:
 
 
 def _compute_overdue(plan: _PlanView, ref: date) -> tuple[Decimal | None, dict]:
-    """Число просроченных задач; средняя глубина просрочки — в details.
+    """The number of overdue tasks; the average depth of overdue goes into details.
 
-    Средняя вкатана сюда, а не отдельной метрикой: это второй ракурс одного
-    факта, и держать под ним отдельную строку — дублировать сигнал.
+    The average is rolled in here rather than being a separate metric: it is a
+    second view of one fact, and keeping a separate row under it would duplicate
+    the signal.
     """
     if not plan.dated:
         return None, {}
@@ -368,10 +375,11 @@ def _compute_overdue(plan: _PlanView, ref: date) -> tuple[Decimal | None, dict]:
 
 
 def _signed_working_days(frm: date, to: date, calendar: Calendar) -> int:
-    """Рабочих дней между двумя датами, со знаком: плюс — `to` позже `frm`.
+    """Working days between two dates, signed: plus means `to` is later than `frm`.
 
-    Величина считается как просрочка — рабочие дни строго после ранней даты
-    по позднюю включительно; знак навешивается направлением.
+    The quantity is computed like overdue — working days strictly after the
+    earlier date up to and including the later one; the sign is attached by the
+    direction.
     """
     if frm == to:
         return 0
@@ -381,8 +389,8 @@ def _signed_working_days(frm: date, to: date, calendar: Calendar) -> int:
 
 
 def _projected_finish(plan: _PlanView) -> date | None:
-    """Прогнозный финиш плана — самая поздняя дата окончания среди незакрытых
-    задач. Пусто, если считать не по чему (относительный план, нет дат)."""
+    """The plan's projected finish — the latest finish date among unclosed tasks.
+    Empty if there is nothing to compute from (a relative plan, no dates)."""
     ends = [
         plan.ends[task.id]
         for task in plan.tasks
@@ -394,13 +402,14 @@ def _projected_finish(plan: _PlanView) -> date | None:
 def _compute_finish_drift(
     db: DbSession, project: Project, plan: _PlanView, week_start: date
 ) -> tuple[Decimal | None, dict]:
-    """Сдвиг прогнозного финиша за неделю, в рабочих днях со знаком.
+    """The shift of the projected finish over a week, in signed working days.
 
-    Значение — насколько финиш уехал против записанного в снимке прошлой
-    недели: плюс — срок поехал вправо (плохо), минус — подтянули. Без прошлой
-    точки (первая неделя, разрыв серии) — no_data: дрейф без базы неизмерим.
-    Прогноз всё равно фиксируется в details, чтобы следующей неделе было от
-    чего считать. Относительный план настоящих дат не имеет — no_data.
+    The value is how far the finish has moved against the one recorded in the
+    previous week's snapshot: plus means the deadline slid right (bad), minus
+    means it was pulled in. With no previous point (the first week, a break in the
+    streak) it is no_data: drift with no base is unmeasurable. The projection is
+    recorded in details regardless, so that the next week has something to compute
+    from. A relative plan has no real dates — no_data.
     """
     if not plan.dated:
         return None, {}
@@ -428,7 +437,7 @@ def _compute_finish_drift(
     try:
         shift = _signed_working_days(previous, projected, plan.calendar)
     except CalendarError:
-        # Вырожденный календарь уже отказал на Ганте; дрейф просто не судится.
+        # A degenerate calendar has already refused on the Gantt chart; drift is simply not judged.
         return None, details
     details["shift_days"] = shift
     return Decimal(shift), details
@@ -437,14 +446,15 @@ def _compute_finish_drift(
 def _compute_scope(
     db: DbSession, project: Project, plan: _PlanView, week_start: date, tz: ZoneInfo
 ) -> tuple[Decimal, dict]:
-    """Чистый прирост объёма за неделю: создано минус закрыто.
+    """The net growth of scope over a week: created minus closed.
 
-    Создание берётся из журнала (`create_task`, кроме восстановлений отменой),
-    закрытие — те же done, что у close_rate. Восстановление удалённого новым
-    объёмом не считается: намеренная асимметрия с date_shifts, где отмена —
-    такой же сдвиг, как прямая правка. Задачи внутри `create_category` тут не
-    в счёт: свежая категория создаётся пустой, а с задачами она приходит
-    только при отмене каскадного удаления — а её мы и отсекаем по undoes_seq.
+    Creation is taken from the journal (`create_task`, excluding restorations by
+    undo), closing is the same done as in close_rate. Restoring something deleted
+    is not counted as new scope: a deliberate asymmetry with date_shifts, where an
+    undo is as much a shift as a direct edit. Tasks inside `create_category` do
+    not count here: a fresh category is created empty, and it arrives carrying
+    tasks only on an undo of a cascading deletion — which is exactly what we cut
+    off by undoes_seq.
     """
     begin, end = _week_bounds_utc(week_start, tz)
     revisions = db.scalars(
@@ -471,8 +481,8 @@ def _compute_scope(
         if task is not None:
             added.append(_entry(plan, task, added_in_week=True))
         else:
-            # Задачу успели удалить позже — имя берём из журнала, чтобы в
-            # drill-down она осталась видимой.
+            # The task was deleted later on — we take the name from the journal so
+            # that it stays visible in the drill-down.
             added.append(
                 {
                     "id": str(task_id),
@@ -499,7 +509,7 @@ def _compute_scope(
 
 
 def _shift_delta(op: dict) -> int:
-    """На сколько дней операция изменила start_date/duration_days."""
+    """By how many days an operation changed start_date/duration_days."""
     kind = op.get("type")
     try:
         if kind == "move_task":
@@ -522,8 +532,8 @@ def _shift_delta(op: dict) -> int:
         if kind == "move_category":
             return abs(int(op["days"]))
     except (KeyError, TypeError, ValueError):
-        # Журнал старых версий мог писать поля иначе; непонятная запись — не
-        # сдвиг, а не авария чтения скоркарда.
+        # The journal of old versions may have written the fields differently; an
+        # unintelligible entry is not a shift rather than a crash of the scorecard read.
         logger.warning("непригодная запись журнала при счёте сдвигов: %r", kind)
     return 0
 
@@ -532,10 +542,10 @@ def _compute_date_shifts(
     db: DbSession, project: Project, org: Organization, plan: _PlanView,
     week_start: date, tz: ZoneInfo,
 ) -> tuple[Decimal, dict]:
-    """Операции журнала за неделю, сдвинувшие даты на ≥ порога проекта.
+    """The week's journal operations that moved dates by at least the project's threshold.
 
-    Считаются операции, а не задачи: три переноса одной задачи — три сдвига.
-    Отмена — тоже перенос: даты она меняет так же, как прямая операция.
+    Operations are counted, not tasks: three moves of one task are three shifts.
+    An undo is a move too: it changes dates just as a direct operation does.
     """
     threshold = max(resolve_shift_threshold(project, org), 1)
     begin, end = _week_bounds_utc(week_start, tz)
@@ -567,7 +577,7 @@ def _compute_date_shifts(
             continue
         task = tasks_by_id.get(uuid.UUID(revision.op["task_id"]))
         if task is None:
-            # Задачу успели удалить; операция считается, в списке её нет.
+            # The task has been deleted since; the operation counts, but it is not in the list.
             continue
         entries.append(_entry(plan, task, delta_days=delta))
     return Decimal(count), {"tasks": entries, "threshold": threshold}
@@ -576,12 +586,12 @@ def _compute_date_shifts(
 def _compute_close_rate(
     plan: _PlanView, week_start: date, tz: ZoneInfo
 ) -> tuple[Decimal | None, dict]:
-    """done за неделю ÷ задач с датой окончания в этой неделе.
+    """done over the week divided by the tasks with a finish date in that week.
 
-    Ничего не было в срок и ничего не закрыто — no_data, а не 1.0: мёртвая
-    неделя без единого движения не «в норме», о ней просто нечего сказать.
-    Есть закрытия при пустом знаменателе — 1.0: неделя без обещаний, но с
-    работой не проваливается.
+    Nothing was due and nothing was closed — no_data rather than 1.0: a dead week
+    without a single movement is not "within norm", there is simply nothing to say
+    about it. Closures with an empty denominator give 1.0: a week with no promises
+    but with work in it does not fail.
     """
     if not plan.dated:
         return None, {}
@@ -615,10 +625,10 @@ def _compute_close_rate(
 
 
 def _compute_stale(plan: _PlanView, ref: date, tz: ZoneInfo) -> tuple[Decimal, dict]:
-    """Задачи в in_progress дольше STALE_WORKDAYS рабочих дней.
+    """Tasks in in_progress for longer than STALE_WORKDAYS working days.
 
-    Считается по in_progress_since — настоящему времени взятия в работу, а не
-    по датам плана, поэтому работает и у относительного проекта.
+    Computed from in_progress_since — the real moment the work was taken up rather
+    than from the plan's dates, so it works for a relative project too.
     """
     entries: list[dict] = []
     for task in plan.tasks:
@@ -630,7 +640,7 @@ def _compute_stale(plan: _PlanView, ref: date, tz: ZoneInfo) -> tuple[Decimal, d
         since = stamp.astimezone(tz).date()
         if since > ref:
             continue
-        # Полные рабочие дни с момента взятия: день взятия не в счёт.
+        # Whole working days since it was taken up: the day it was taken up does not count.
         in_progress_days = count_working_days(since, ref, plan.calendar) - 1
         if in_progress_days > STALE_WORKDAYS:
             entries.append(_entry(plan, task, in_progress_days=in_progress_days))
@@ -641,9 +651,9 @@ def _compute_stale(plan: _PlanView, ref: date, tz: ZoneInfo) -> tuple[Decimal, d
 def _date_edited_ids(
     db: DbSession, project: Project
 ) -> tuple[set[uuid.UUID], set[uuid.UUID]]:
-    """Задачи и категории, чьи даты хоть раз правили руками (за всю жизнь
-    проекта). Для «нереального срока»: план, который никто не трогал, — не
-    план, а заглушка."""
+    """Tasks and categories whose dates were edited by hand at least once (over
+    the project's whole life). For "an unrealistic deadline": a plan nobody has
+    touched is not a plan but a stub."""
     ops = db.scalars(
         select(Revision.op).where(
             Revision.project_id == project.id,
@@ -668,12 +678,12 @@ def _date_edited_ids(
 def _compute_data_quality(
     db: DbSession, project: Project, plan: _PlanView, ref: date
 ) -> tuple[Decimal, dict]:
-    """(1 − непригодных/всех) × 100%.
+    """(1 - unusable/total) x 100%.
 
-    Непригодна задача, у которой нет исполнителя (вехи не в счёт — веху не
-    исполняют), или у которой «нереальный срок»: просрочена больше
-    UNREAL_OVERDUE_WORKDAYS рабочих дней и даты ни разу не правились, либо
-    создана AI и даты так и не тронуты.
+    A task is unusable if it has no assignee (milestones do not count — a
+    milestone is not performed), or if it has "an unrealistic deadline": overdue
+    by more than UNREAL_OVERDUE_WORKDAYS working days with its dates never edited,
+    or created by AI with its dates never touched.
     """
     edited_tasks, edited_categories = _date_edited_ids(db, project)
 
@@ -705,7 +715,7 @@ def _compute_data_quality(
     unassigned_ids = {e["id"] for e in unassigned}
     unreal_ids = {e["id"] for e in unreal}
     both = len(unassigned_ids & unreal_ids)
-    # bad — размер объединения: задача с обеими бедами плоха один раз.
+    # bad is the size of the union: a task with both troubles is bad once.
     bad = len(unassigned_ids | unreal_ids)
     value = (
         Decimal("100.00")
@@ -714,8 +724,8 @@ def _compute_data_quality(
             _TWO_PLACES, rounding=ROUND_HALF_UP
         )
     )
-    # affected и both отданы наружу, чтобы чек-лист причин сходился с
-    # процентом: len(unassigned) + len(unreal) − both == affected.
+    # affected and both are returned outward so that the checklist of reasons adds
+    # up with the percentage: len(unassigned) + len(unreal) - both == affected.
     details = {
         "total": total,
         "affected": bad,
@@ -727,7 +737,7 @@ def _compute_data_quality(
 
 
 
-# --- темп команды -------------------------------------------------------------
+# --- the team's pace ----------------------------------------------------------
 
 
 def _tz_date(stamp: datetime | None, tz: ZoneInfo) -> date | None:
@@ -739,13 +749,13 @@ def _tz_date(stamp: datetime | None, tz: ZoneInfo) -> date | None:
 
 
 def _end_of_day(day: date, tz: ZoneInfo) -> datetime:
-    """Конец дня в таймзоне проекта — граница «до срока» для предупреждений."""
+    """The end of the day in the project's timezone — the "before the deadline" boundary for warnings."""
     return datetime.combine(day + timedelta(days=1), time.min, tzinfo=tz)
 
 
 def _status_to(op: dict) -> str | None:
-    """Куда операция перевела статус: set_status несёт `to`, set_progress —
-    `status_to`, и только когда связка сработала."""
+    """Which status an operation moved things to: set_status carries `to`,
+    set_progress carries `status_to`, and only when the coupling fired."""
     kind = op.get("type")
     if kind == "set_status":
         return op.get("to")
@@ -771,8 +781,8 @@ def _op_task_id(op: dict) -> uuid.UUID | None:
 
 
 def _is_warning(op: dict) -> str | None:
-    """Чем операция предупредила о риске: флагом или блокировкой. Пусто, если
-    ничем: зелёный флаг и прочие переходы — не предупреждение."""
+    """What an operation used to warn of a risk: a flag or a block. Empty if
+    nothing did: a green flag and other transitions are not a warning."""
     if op.get("type") == "set_risk":
         to = op.get("to") or {}
         if isinstance(to, dict) and to.get("risk") in (RiskFlag.YELLOW, RiskFlag.RED):
@@ -784,9 +794,9 @@ def _is_warning(op: dict) -> str | None:
 
 
 def _without_undone(revisions: list[Revision]) -> list[Revision]:
-    """Записи без отмен и без отменённого: пара «сделал — отменил» в сумме
-    ничего не сообщает, и считать любую её половину значило бы приписать
-    человеку то, от чего он сам отказался."""
+    """Entries with no undos and nothing undone: a "did it — undid it" pair
+    reports nothing in total, and counting either half of it would mean crediting
+    a person with something they themselves took back."""
     undone = {r.undoes_seq for r in revisions if r.undoes_seq is not None}
     return [r for r in revisions if r.undoes_seq is None and r.seq not in undone]
 
@@ -794,11 +804,11 @@ def _without_undone(revisions: list[Revision]) -> list[Revision]:
 def _warnings_before_deadline(
     db: DbSession, project: Project, ends: dict[uuid.UUID, date], tz: ZoneInfo
 ) -> dict[uuid.UUID, tuple[datetime, str]]:
-    """Первое предупреждение по задаче до конца дня её срока: (когда, чем).
+    """The first warning about a task before the end of its deadline day: (when, by what).
 
-    Отозванное предупреждение — не предупреждение: ни сама отмена, ни
-    отменённая ею запись не считаются (см. _without_undone). Один запрос на
-    все задачи: журнал индексирован по op, и по-задачно это был бы N+1.
+    A retracted warning is not a warning: neither the undo itself nor the entry it
+    undid counts (see _without_undone). One query for all the tasks: the journal is
+    indexed by op, and per task this would be an N+1.
     """
     if not ends:
         return {}
@@ -831,8 +841,8 @@ def _warnings_before_deadline(
 def _blocked_since(
     db: DbSession, project: Project, blocked_ids: set[uuid.UUID]
 ) -> dict[uuid.UUID, datetime]:
-    """Когда задача в последний раз вошла в `blocked` — по журналу. Отмена
-    здесь считается: она меняет статус так же, как прямая операция."""
+    """When a task last entered `blocked` — per the journal. An undo counts here:
+    it changes the status just as a direct operation does."""
     if not blocked_ids:
         return {}
     revisions = db.scalars(
@@ -857,10 +867,11 @@ def _blocked_since(
 def _reopened_in_week(
     db: DbSession, project: Project, week_start: date, tz: ZoneInfo
 ) -> dict[uuid.UUID, datetime]:
-    """Задачи, вернувшиеся из «сделано» за неделю: когда это случилось в
-    последний раз. Отмена ошибочного «сделано» — исправление записи, а не
-    возврат работы; отменённый возврат — тоже не возврат (см. _without_undone).
-    Отмены читаются шире недели: отменить можно и запись прошлой недели."""
+    """Tasks that came back out of "done" during the week: when that last
+    happened. Undoing a mistaken "done" is a correction of the record rather than
+    work coming back; an undone comeback is not a comeback either (see
+    _without_undone). Undos are read beyond the week: an entry from the previous
+    week can be undone too."""
     begin, end = _week_bounds_utc(week_start, tz)
     revisions = db.scalars(
         select(Revision)
@@ -886,18 +897,18 @@ def _reopened_in_week(
 
 
 def _person_signal(person: dict) -> tuple[str, dict]:
-    """Одна точка на человека и её причина — кодом, текст собирает клиент.
+    """One dot per person and its reason — as a code; the client composes the text.
 
-    Красный — сорвал срок и не предупредил: это единственное, что модель PM
-    называет неприемлемым. Жёлтый — всё, о чём известно заранее: блок, флаг,
-    предупреждённая просрочка, возврат из «сделано». Порядок причин — от той,
-    с которой разговор начнётся первой.
+    Red means a deadline missed with no warning: that is the one thing the PM
+    model calls unacceptable. Yellow covers everything known in advance: a block,
+    a flag, a warned-about overdue, a comeback from "done". The reasons are ordered
+    from the one the conversation will start with.
     """
     if person["overdue_silent"]:
         return "red", {"kind": "overdue_silent", "count": person["overdue_silent"]}
     if person["overdue"]:
-        # Сорванный, но предупреждённый срок — первее блока и флага: о нём
-        # разговор уже назрел, о тех — только предстоит.
+        # A missed but warned-about deadline comes before a block and a flag: the
+        # conversation about it is already due, while about those it is only ahead.
         return "yellow", {"kind": "overdue_warned", "count": person["overdue"]}
     blocked = person["_blocked"]
     if blocked:
@@ -922,18 +933,19 @@ def _compute_team_pace(
     db: DbSession, project: Project, plan: _PlanView, week_start: date, ref: date,
     tz: ZoneInfo,
 ) -> tuple[Decimal | None, dict]:
-    """Темп недели по людям: сделано из запланированного, сверх плана,
-    вовремя, и сигнал с причиной.
+    """The week's pace by person: done out of planned, beyond the plan, on time,
+    and the signal with its reason.
 
-    «По плану» — задачи со сроком в этой неделе: это и есть обещание недели,
-    снятое с живых дат (явное подтверждение исполнителем — следующий шаг).
-    «Сверх» — закрыто на неделе, хотя срок стоял вне её. Сорванным считается
-    срок, прошедший к дате расчёта; предупреждённым — сорванный, о котором
-    журнал знает флаг или блок до конца дня срока.
+    "Planned" means tasks with a deadline in this week: that is the week's
+    promise, taken from the live dates (an explicit confirmation by the assignee is
+    the next step). "Beyond" means closed during the week even though the deadline
+    stood outside it. A deadline counts as missed once it has passed by the
+    computation date; as warned about if the journal knows of a flag or a block
+    before the end of the deadline day.
 
-    Задача с несколькими исполнителями считается у каждого — иначе один из
-    них отчитался бы за работу, за которую отвечали двое. Без исполнителя —
-    отдельная корзина: её видно счётчиком, а не строкой.
+    A task with several assignees counts for each of them — otherwise one of them
+    would report work two people were responsible for. With no assignee it goes
+    into a separate bucket: it is visible as a counter rather than as a row.
     """
     if not plan.dated:
         return None, {}
@@ -944,8 +956,8 @@ def _compute_team_pace(
         task.id for task in plan.tasks
         if (end := plan.ends.get(task.id)) is not None and week_start <= end <= week_end
     }
-    # Сорвано: срок прошёл к дате расчёта, а задача не сделана. Сделанная с
-    # опозданием — не сорвана, а сделана; опоздание у неё в late_days.
+    # Missed: the deadline has passed by the computation date and the task is not
+    # done. Done late is not missed but done; its lateness is in late_days.
     overdue_ids = {
         task_id for task_id in planned
         if plan.ends[task_id] <= ref and tasks_by_id[task_id].status != TaskStatus.DONE
@@ -961,7 +973,7 @@ def _compute_team_pace(
         since = _tz_date(blocked_since.get(task_id), tz)
         if since is None or since > ref:
             return 0
-        # Полные рабочие дни: день входа в блок не в счёт, как у stale.
+        # Whole working days: the day the block started does not count, as with stale.
         return max(count_working_days(since, ref, plan.calendar) - 1, 0)
 
     def describe(task: Task) -> dict:
@@ -1008,8 +1020,8 @@ def _compute_team_pace(
         for user_id in user_ids:
             people.setdefault(user_id, fresh_person(user_id))
 
-    # Задачи недели: по плану, сверх плана, в блоке, с флагом, возвращённые.
-    # Прочие живут вне недели и человеку в строку не попадают.
+    # The week's tasks: planned, beyond the plan, blocked, flagged, returned. The
+    # rest live outside the week and do not reach a person's row.
     relevant: set[uuid.UUID] = set(planned)
     for task in plan.tasks:
         done_day = _tz_date(task.done_at, tz)
@@ -1070,7 +1082,7 @@ def _compute_team_pace(
     by_person: list[dict] = []
     unassigned: dict | None = None
     for user_id, person in people.items():
-        # Предупреждённая просрочка — не «молча»: в сигнале они различаются.
+        # A warned-about overdue is not "silent": the signal tells them apart.
         person["overdue"] -= person["overdue_silent"]
         person["signal"], person["reason"] = _person_signal(person)
         person["tasks"].sort(key=lambda e: (e.get("due") or "", e["name"]))
@@ -1109,8 +1121,8 @@ def _compute_metric(
     db: DbSession, project: Project, org: Organization, plan: _PlanView,
     key: str, week_start: date, ref: date, tz: ZoneInfo,
 ) -> tuple[Decimal | None, dict]:
-    """Значение и drill-down метрики за неделю. `ref` — дата расчёта: сегодня
-    для текущей недели, воскресенье недели — для дозаписи пропущенной."""
+    """A metric's value and drill-down for a week. `ref` is the computation date:
+    today for the current week, the week's Sunday when appending a missed one."""
     if key == "overdue_tasks":
         return _compute_overdue(plan, ref)
     if key == "finish_drift":
@@ -1127,11 +1139,11 @@ def _compute_metric(
         return _compute_data_quality(db, project, plan, ref)
     if key == "team_pace":
         return _compute_team_pace(db, project, plan, week_start, ref, tz)
-    # Неизвестная метрика: источника нет.
+    # An unknown metric: there is no source.
     return None, {}
 
 
-# --- снимки и фиксация --------------------------------------------------------
+# --- snapshots and committing -------------------------------------------------
 
 
 def _week_rows(
@@ -1147,9 +1159,9 @@ def _week_rows(
 
 
 def _lock_project(db: DbSession, project: Project) -> None:
-    """Сериализует запись снимков: два конкурентных GET на границе недели
-    иначе разошлись бы на уникальном ограничении пятисоткой. Тот же приём и
-    тот же замок, что у слоя мутаций."""
+    """Serializes the writing of snapshots: two concurrent GETs at a week boundary
+    would otherwise collide on the unique constraint with a 500. The same technique
+    and the same lock as in the mutation layer."""
     db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
 
 
@@ -1157,9 +1169,9 @@ def _compute_week_values(
     db: DbSession, project: Project, org: Organization, plan: _PlanView,
     configs: list[ScorecardMetric], week_start: date, ref: date, tz: ZoneInfo,
 ) -> dict[str, tuple[Decimal | None, str, dict]]:
-    """(значение, статус, details) по каждой метрике недели. Выключенная
-    метрика не считается вовсе: её ответ — no_data, и тратить на неё журнал
-    незачем."""
+    """(value, status, details) for each of the week's metrics. A disabled metric
+    is not computed at all: its answer is no_data, and there is no reason to spend
+    the journal on it."""
     computed: dict[str, tuple[Decimal | None, str, dict]] = {}
     for config in configs:
         if not config.enabled:
@@ -1178,16 +1190,16 @@ def _backfill_missing_weeks(
     configs: list[ScorecardMetric], plan: _PlanView,
     current_week: date, tz: ZoneInfo,
 ) -> None:
-    """Дозаписывает недостающие недельные снимки между последним записанным и
-    текущей неделей.
+    """Appends the missing weekly snapshots between the last one recorded and the
+    current week.
 
-    Журнальные метрики (date_shifts, close_rate, scope_growth) считаются точно
-    по журналу той недели; срезы состояния восстановить нельзя — они считаются
-    по текущему состоянию на воскресенье той недели и помечаются
-    `backfilled: true`. finish_drift — разность соседних снимков, у пропущенной
-    недели точки отсчёта нет, поэтому она пишется no_data+backfilled, а не
-    восстанавливается. Записанные ранее недели не трогаются: снимки прошлых
-    недель неизменяемы.
+    Journal metrics (date_shifts, close_rate, scope_growth) are computed exactly
+    from that week's journal; state cross-sections cannot be reconstructed — they
+    are computed from the current state as of that week's Sunday and marked
+    `backfilled: true`. finish_drift is the difference between neighbouring
+    snapshots, and a missed week has no point of reference, so it is written as
+    no_data+backfilled rather than reconstructed. Weeks recorded earlier are left
+    alone: snapshots of past weeks are immutable.
     """
     last = db.scalar(
         select(ScorecardSnapshot.week_start)
@@ -1207,9 +1219,9 @@ def _backfill_missing_weeks(
                 continue
             value, status, details = computed[config.metric_key]
             if config.metric_key == "finish_drift":
-                # У пропущенной недели нет базы для дрейфа — no_data, и без
-                # projected_finish, чтобы следующая неделя не зацепилась за
-                # прогноз, снятый с сегодняшнего плана.
+                # A missed week has no base for drift — no_data, and with no
+                # projected_finish, so that the next week does not latch onto a
+                # projection taken from today's plan.
                 value, status, details = (
                     None, ScorecardStatus.NO_DATA.value, {"backfilled": True},
                 )
@@ -1229,8 +1241,8 @@ def _backfill_missing_weeks(
                     details=details,
                 )
             )
-        # Флаш на каждой неделе, а не в конце: снимок недели N должен быть
-        # виден, когда считается неделя N+1 (finish_drift читает предыдущую).
+        # A flush on every week rather than at the end: week N's snapshot must be
+        # visible when week N+1 is computed (finish_drift reads the previous one).
         db.flush()
         week += timedelta(days=7)
 
@@ -1264,7 +1276,7 @@ def _upsert_current_week(
     return rows
 
 
-# --- события и правило --------------------------------------------------------
+# --- events and the rule ------------------------------------------------------
 
 
 def _org_locale(org: Organization) -> str:
@@ -1272,8 +1284,8 @@ def _org_locale(org: Organization) -> str:
 
 
 def _last_working_day(week_start: date, calendar: Calendar) -> date:
-    """Последний рабочий день недели — срок задачи «Разобрать». Неделя без
-    рабочих дней отдаёт воскресенье: срок хуже точного, но задача важнее."""
+    """The last working day of the week — the deadline for the "Investigate" task.
+    A week with no working days yields Sunday: a worse deadline, but the task matters more."""
     day = week_start + timedelta(days=6)
     while day > week_start and not calendar.is_working(day):
         day -= timedelta(days=1)
@@ -1283,8 +1295,8 @@ def _last_working_day(week_start: date, calendar: Calendar) -> date:
 def _rule_task_start(plan: _PlanView, current_week: date) -> date:
     if plan.dated:
         return _last_working_day(current_week, plan.calendar)
-    # У относительного плана настоящих дат нет — задача встаёт в конец
-    # относительной оси, где её увидят первой.
+    # A relative plan has no real dates — the task is placed at the end of the
+    # relative axis, where it will be seen first.
     from app.schedule import RELATIVE_EPOCH
 
     return max((task.start_date for task in plan.tasks), default=RELATIVE_EPOCH)
@@ -1294,12 +1306,13 @@ def _create_rule_task(
     db: DbSession, project: Project, org: Organization, plan: _PlanView,
     config: ScorecardMetric, current_week: date,
 ) -> Task | None:
-    """Задача «Разобрать: {метрика}» через слой мутаций — с журналом и отменой.
+    """An "Investigate: {metric}" task through the mutation layer — with a journal entry and an undo.
 
-    Исполнитель — владелец метрики, срок — конец недели, категория — первая в
-    проекте. Проекту без категорий задачу положить некуда — правило молча
-    пропускается до появления первой категории (события тоже нет: пустое
-    событие со ссылкой в никуда не сказало бы ничего).
+    The assignee is the metric's owner, the deadline is the end of the week, the
+    category is the project's first. A project with no categories has nowhere to
+    put the task — the rule is silently skipped until the first category appears
+    (there is no event either: an empty event with a link to nowhere would say
+    nothing).
     """
     category_id = db.scalar(
         select(Category.id)
@@ -1329,8 +1342,8 @@ def _create_rule_task(
             batch_id=batch_id,
         )
     except MutationError as error:
-        # Потолок задач, вырожденный календарь — правило не вправе валить
-        # чтение скоркарда; след остаётся в журнале приложения.
+        # A ceiling on tasks, a degenerate calendar — the rule is not entitled to
+        # bring down a scorecard read; the trace stays in the application log.
         logger.warning("правило скоркарда: задача не создана (%s)", error.code)
         return None
     task_id = uuid.UUID(revision.op["task_id"])
@@ -1344,8 +1357,8 @@ def _create_rule_task(
                 batch_id=batch_id,
             )
         except InvalidOperation:
-            # Владелец успел покинуть организацию — задача остаётся без
-            # исполнителя, как и метрика без владельца.
+            # The owner has left the organization in the meantime — the task stays
+            # unassigned, just as the metric stays without an owner.
             logger.warning("правило скоркарда: владелец метрики вне организации")
     return db.get(Task, task_id)
 
@@ -1353,7 +1366,7 @@ def _create_rule_task(
 def _risk_series_start(
     statuses: dict[date, str], current_week: date
 ) -> date:
-    """Понедельник первой недели непрерывной красной серии, включая текущую."""
+    """The Monday of the first week of an unbroken red streak, the current one included."""
     week = current_week
     while statuses.get(week - timedelta(days=7)) == ScorecardStatus.RISK.value:
         week -= timedelta(days=7)
@@ -1363,9 +1376,9 @@ def _risk_series_start(
 
 
 def _alert_task_source(metric_key: str, details: dict) -> list[dict]:
-    """Список задач под алертом, зависящий от метрики: качество бьёт по двум
-    множествам (объединяем без дублей), объём — по добавленным, остальные — по
-    общему списку drill-down."""
+    """The list of tasks under an alert, depending on the metric: quality hits two
+    sets (we merge them without duplicates), scope hits the added ones, and the
+    rest use the common drill-down list."""
     if metric_key == "data_quality":
         merged: dict[str, dict] = {}
         for entry in details.get("unassigned", []) + details.get("unreal_deadline", []):
@@ -1382,9 +1395,9 @@ def _alert_payload(
     details: dict,
     previous_value: Decimal | None,
 ) -> dict:
-    """Полезная нагрузка события: значение, дельта к прошлой неделе, кто тянет
-    вниз и топ-3 задачи. Дельта и адресат превращают «X в риске» из констатации
-    в подсказку, что именно и у кого разбирать."""
+    """The event's payload: the value, the delta against the previous week, who is
+    dragging it down and the top 3 tasks. The delta and the addressee turn "X is at
+    risk" from a statement into a hint about what exactly to investigate and with whom."""
     payload: dict = {"value": float(value) if value is not None else None}
     if value is not None and previous_value is not None:
         payload["delta"] = float(value - previous_value)
@@ -1403,7 +1416,7 @@ def _alert_payload(
         for entry in tasks[:3]
     ]
 
-    # Самый частый первый исполнитель по всему списку — «у кого больше всего».
+    # The most frequent first assignee across the whole list — "who has the most of it".
     counts: dict[str, int] = {}
     for entry in tasks:
         name = (entry.get("assignees") or [None])[0]
@@ -1423,11 +1436,11 @@ def _update_alerts(
     computed: dict[str, tuple[Decimal | None, str, dict]],
     current_week: date,
 ) -> None:
-    """Жизненный цикл событий при записи снимка текущей недели.
+    """The lifecycle of events when the current week's snapshot is written.
 
-    metric_risk живёт, пока метрика красная; правило «красная 2 недели
-    подряд» создаёт задачу один раз на серию — повтор подавляется уже
-    записанным rule_triggered этой серии, разорванная серия закрывает его.
+    metric_risk lives while the metric is red; the "red two weeks running" rule
+    creates a task once per streak — repetition is suppressed by the
+    rule_triggered already recorded for that streak, and a broken streak closes it.
     """
     alerts = db.scalars(
         select(ScorecardAlert).where(ScorecardAlert.project_id == project.id)
@@ -1473,8 +1486,8 @@ def _update_alerts(
 
         payload = _alert_payload(config, value, details, previous_value)
         if active_risk:
-            # Событие уже открыто — освежается только полезная нагрузка:
-            # неделя начала риска и время создания остаются исходными.
+            # The event is already open — only the payload is refreshed: the week
+            # the risk began and the creation time stay as they were.
             active_risk[0].payload = payload
         else:
             db.add(
@@ -1517,13 +1530,13 @@ def _update_alerts(
     db.flush()
 
 
-# --- чтение состояния ---------------------------------------------------------
+# --- reading the state --------------------------------------------------------
 
 
 def _streak(statuses: dict[date, str], current_week: date, status: str) -> int:
-    """Недель подряд (включая текущую) в текущем статусе. Считается по
-    снимкам при чтении, а не хранится: хранимая серия разошлась бы с
-    летописью при первом же пересчёте текущей недели."""
+    """Weeks in a row (the current one included) in the current status. Computed
+    from the snapshots on a read rather than stored: a stored streak would diverge
+    from the chronicle on the very first recomputation of the current week."""
     if status == ScorecardStatus.NO_DATA.value:
         return 0
     streak = 1
@@ -1548,12 +1561,12 @@ def _build_outlook(
     db: DbSession, project: Project,
     current_rows: dict[str, ScorecardSnapshot], today: date,
 ) -> dict:
-    """Прогноз финиша и ближайшая веха для шапки скоркарда.
+    """The finish projection and the nearest milestone for the scorecard's header.
 
-    Дёшево на кэш-хите: финиш берётся из снимка finish_drift, веха — одним
-    запросом. Ближайшая — первая незакрытая веха от сегодня вперёд; если
-    впереди пусто, показываем последнюю просроченную. Относительный план
-    настоящих дат не имеет — outlook пуст.
+    Cheap on a cache hit: the finish is taken from the finish_drift snapshot, the
+    milestone with one query. The nearest one is the first unclosed milestone from
+    today forward; if there is nothing ahead, we show the last overdue one. A
+    relative plan has no real dates — the outlook is empty.
     """
     if project.schedule_mode != ScheduleMode.CALENDAR:
         return {"projected_finish": None, "milestone": None}
@@ -1614,8 +1627,8 @@ def _blocked_status(count: int) -> str:
 
 
 def _build_summary(current_rows: dict[str, ScorecardSnapshot]) -> dict:
-    """Три числа шапки и счётчик недели — из уже записанных снимков текущей
-    недели, без второго расчёта."""
+    """The three numbers of the header and the week's counter — from the already
+    recorded snapshots of the current week, with no second computation."""
     pace = current_rows.get("team_pace")
     pace_details = (pace.details or {}) if pace is not None else {}
     overdue = current_rows.get("overdue_tasks")
@@ -1647,9 +1660,9 @@ def _build_summary(current_rows: dict[str, ScorecardSnapshot]) -> dict:
 def _build_team(
     rows: dict[date, ScorecardSnapshot], current_week: date, *, assessment: bool
 ) -> dict:
-    """Строки по людям с трендом из летописи. Сигнал и причина остаются в
-    ответе только при праве на оценку — вырезаются здесь, на сервере, а не
-    прячутся клиентом."""
+    """The per-person rows with a trend from the chronicle. The signal and its
+    reason stay in the answer only under the assessment permission — they are cut
+    out here, on the server, rather than hidden by the client."""
     current = rows.get(current_week)
     details = (current.details or {}) if current is not None else {}
     weeks = [current_week - timedelta(days=7 * i) for i in range(TREND_WEEKS - 1, -1, -1)]
@@ -1692,8 +1705,8 @@ def _build_team(
     }
 
 
-#: Поля details, которые выносятся прямо в строку метрики (а не в drill-down):
-#: второй ракурс, без которого значение читается наполовину.
+#: The details fields that are hoisted straight into the metric's row (rather
+#: than into the drill-down): a second view without which the value reads by halves.
 _ROW_DETAIL_FIELDS = {
     "overdue_tasks": ("avg_days",),
     "scope_growth": ("added_count", "closed_count"),
@@ -1707,7 +1720,7 @@ def _build_state(
 ) -> dict:
     weeks = max(1, weeks)
     horizon = current_week - timedelta(days=7 * (weeks - 1))
-    # Читается глубже окна: серия считается за пределами спарклайна.
+    # Read deeper than the window: a streak is counted beyond the sparkline.
     floor = current_week - timedelta(days=7 * MAX_STREAK_WEEKS)
     rows = db.scalars(
         select(ScorecardSnapshot)
@@ -1758,9 +1771,9 @@ def _build_state(
             "streak": _streak(statuses, current_week, status),
             "history": history,
         }
-        # Второй ракурс метрики — сразу в строку: средняя просрочка, разбивка
-        # объёма. `.get`, а не индекс: снимок в старом TTL-окне после деплоя
-        # может ещё не нести новых полей.
+        # The metric's second view goes straight into the row: the average overdue,
+        # the breakdown of scope. `.get` rather than an index: a snapshot from an
+        # old TTL window after a deploy may not carry the new fields yet.
         current_details = current.details or {} if current is not None else {}
         for field in _ROW_DETAIL_FIELDS.get(config.metric_key, ()):
             entry[field] = current_details.get(field)
@@ -1771,8 +1784,8 @@ def _build_state(
         .where(
             ScorecardAlert.project_id == project.id,
             ScorecardAlert.resolved_at.is_(None),
-            # Событие снятой метрики иначе висело бы вечно: _update_alerts
-            # ходит только по текущим конфигам и не закрыло бы его.
+            # Otherwise the event of a removed metric would hang forever:
+            # _update_alerts walks only the current configs and would not close it.
             ScorecardAlert.metric_key.in_(METRIC_KEYS),
         )
         .order_by(ScorecardAlert.created_at.desc())
@@ -1795,8 +1808,9 @@ def _build_state(
         details = quality_row.details or {}
         unassigned = len(details.get("unassigned", []))
         unreal = len(details.get("unreal_deadline", []))
-        # affected/both — из details; если снимок из старого TTL-окна их не
-        # несёт, восстанавливаем из двух списков (both там нет — оценим 0).
+        # affected/both come from details; if a snapshot from an old TTL window does
+        # not carry them, we reconstruct them from the two lists (both is not there
+        # — we estimate it as 0).
         data_quality = {
             "value": float(quality_row.value),
             "total": details.get("total", 0),
@@ -1841,16 +1855,17 @@ def scorecard_state(
     include_team: bool = False,
     include_assessment: bool = False,
 ) -> dict:
-    """Состояние скоркарда — с побочным эффектом ленивой фиксации.
+    """The scorecard's state — with the side effect of lazy committing.
 
-    `include_team` / `include_assessment` — права читателя (см. access.py):
-    разрез по людям и сигнал по ним отдаются только тем, кому положено, и
-    решение об этом принимает маршрут, а не клиент.
+    `include_team` / `include_assessment` are the reader's permissions (see
+    access.py): the per-person breakdown and the signal about them are returned
+    only to those entitled to them, and the route makes that decision, not the
+    client.
 
-    Текущая неделя считается вживую с кэшем в пять минут: кэш — это её же
-    снимок, то есть он переживает перезапуск и общий для всех реплик, в
-    отличие от памяти процесса. `force` (кнопка «Пересчитать») пропускает кэш;
-    прошлые недели не пересчитываются никогда.
+    The current week is computed live with a five-minute cache: the cache is that
+    same week's snapshot, so it survives a restart and is shared by all replicas,
+    unlike process memory. `force` (the "Recalculate" button) skips the cache; past
+    weeks are never recomputed.
     """
     tz = project_tz(project, org)
     today = datetime.now(tz).date()
@@ -1880,8 +1895,8 @@ def scorecard_state(
     gap = last_before is not None and last_before < current_week - timedelta(days=7)
 
     if force or gap or not fresh:
-        # Замок на строке проекта: конкурентные GET на границе недели иначе
-        # разъехались бы на уникальном ограничении снимков.
+        # A lock on the project's row: concurrent GETs at a week boundary would
+        # otherwise collide on the snapshots' unique constraint.
         _lock_project(db, project)
         plan = _plan_view(db, project, org)
         _backfill_missing_weeks(db, project, org, configs, plan, current_week, tz)
@@ -1902,11 +1917,12 @@ def scorecard_state(
 def patch_metric(
     db: DbSession, project: Project, org: Organization, key: str, changes: dict
 ) -> None:
-    """Правка конфига метрики: владелец, цель, включённость.
+    """Editing a metric's config: owner, target, enabled state.
 
-    Направление не правится — оно жёстко следует из ключа метрики. Владелец
-    проверяется на членство в организации: чужой идентификатор не должен ни
-    лечь в конфиг, ни подтвердить своим отказом существование аккаунта.
+    The direction is not editable — it follows rigidly from the metric's key. The
+    owner is checked for membership in the organization: someone else's identifier
+    must neither land in the config nor confirm an account's existence by its
+    refusal.
     """
     if key not in _DEFS:
         raise ScorecardError("metric_not_found", f"неизвестная метрика: {key}")
@@ -1944,8 +1960,8 @@ def patch_metric(
 def metric_tasks(
     db: DbSession, project: Project, org: Organization, key: str, week: date | None
 ) -> dict:
-    """Drill-down метрики за неделю: прошлые недели — из details снимка
-    (летопись), текущая — живой расчёт без записи."""
+    """A metric's drill-down for a week: past weeks come from the snapshot's
+    details (the chronicle), the current one is a live computation without a write."""
     if key not in _DEFS:
         raise ScorecardError("metric_not_found", f"неизвестная метрика: {key}")
     tz = project_tz(project, org)

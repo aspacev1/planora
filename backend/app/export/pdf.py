@@ -1,13 +1,14 @@
-"""PDF-выгрузка: обложка с показателями, векторная лента, таблицы.
+"""The PDF export: a cover page with indicators, a vector chart, tables.
 
-Лента рисуется на канве, а не таблицей: полоска, её накладки, ромб вехи и
-коленчатая стрелка связи — это графика, и приблизить её таблицей значило бы
-отдать документ, непохожий на экран.
+The chart is drawn on a canvas rather than as a table: a bar, its overlays, a
+milestone diamond and an elbowed dependency arrow are graphics, and approximating
+them with a table would mean handing over a document that does not resemble the
+screen.
 
-Широкий проект разбивается по времени, и колонка названий повторяется на
-каждой странице (`app.export.budget`). Именно это отличает документ от
-обрезанного скриншота — и именно поэтому число страниц, а не читаемость,
-служит мерой в правиле масштаба.
+A wide project is split up by time, and the name column repeats on every page
+(`app.export.budget`). That is exactly what distinguishes the document from a
+cropped screenshot — and exactly why the number of pages, not readability,
+serves as the measure in the scale rule.
 """
 
 import threading
@@ -37,17 +38,17 @@ _fonts_lock = threading.Lock()
 _fonts_ready = False
 
 MARGIN = 14 * mm
-LABEL_W = 168.0      # колонка названий на странице ленты; та же в budget.py
+LABEL_W = 168.0      # the name column on a chart page; the same in budget.py
 ROW_H = 17.5
-HEAD_H = 34.0        # две строки шапки шкалы
+HEAD_H = 34.0        # the two header rows of the scale
 BAR_H = 11.0
 
 
 def register_fonts() -> None:
-    """Встроенные шрифты ReportLab — Latin-1, и ни один из трёх языков
-    продукта, кроме английского, ими не набирается. Регистрация ленивая и под
-    замком: uvicorn обслуживает запросы в нескольких потоках, а реестр шрифтов
-    у ReportLab один на процесс."""
+    """ReportLab's built-in fonts are Latin-1, and none of the product's three
+    languages except English can be typeset with them. Registration is lazy and
+    behind a lock: uvicorn serves requests in several threads, while ReportLab's
+    font registry is one per process."""
     global _fonts_ready
     if _fonts_ready:
         return
@@ -63,7 +64,7 @@ def page_size(orientation: Orientation) -> tuple[float, float]:
     return landscape(A4) if orientation is Orientation.LANDSCAPE else A4
 
 
-# --- примитивы ----------------------------------------------------------------
+# --- primitives ---------------------------------------------------------------
 
 
 def _ellipsize(text: str, font: str, size: float, width: float) -> str:
@@ -85,8 +86,9 @@ def _text(
     width: float | None = None,
     align: str = "l",
 ) -> float:
-    """Подпись. Возвращает свою ширину — из неё складываются ряды, где каждый
-    следующий элемент встаёт за предыдущим (легенда, шапка документа)."""
+    """A label. Returns its own width — rows are built from those widths, with
+    every next element standing after the previous one (the legend, the document
+    header)."""
     s = "" if s is None else str(s)
     c.setFont(font, size)
     c.setFillColor(theme.rl(color))
@@ -125,12 +127,12 @@ def _rule(c: Canvas, x1: float, y: float, x2: float, color: str = theme.BORDER, 
     c.line(x1, y, x2, y)
 
 
-# --- каркас страницы ----------------------------------------------------------
+# --- the page frame -----------------------------------------------------------
 
 
 class _Sheet:
-    """Страница: размеры, колонтитул и счётчик. Держит `Canvas`, чтобы
-    рисовальщики разделов не пересчитывали поля заново."""
+    """A page: its dimensions, footer and counter. It holds the `Canvas` so that
+    the section renderers do not recompute the margins anew."""
 
     def __init__(self, doc: ExportDocument):
         self.doc = doc
@@ -163,11 +165,11 @@ class _Sheet:
               theme.FONT, 7, theme.TEXT_FAINT, align="r")
 
 
-# --- обложка ------------------------------------------------------------------
+# --- the cover page -----------------------------------------------------------
 
 
 def _head(sheet: _Sheet) -> float:
-    """Шапка документа: имя, бейдж плана, период — и полоса из шести плиток."""
+    """The document's header: the name, the plan badge, the period — and a strip of six tiles."""
     c, doc, t = sheet.canvas, sheet.doc, sheet.doc.labels
     top = sheet.top()
 
@@ -207,8 +209,8 @@ def _head(sheet: _Sheet) -> float:
         _text(c, x + 12, y + 30, value, theme.FONT_BOLD, 19, fg)
         _text(c, x + 12, y + 13, name, theme.FONT, 7.5, theme.TEXT_MUTED, width=tile_w - 20)
 
-    # Полоска выполнения — только у последней плитки: у остальных число уже
-    # само себе шкала, и вторая шкала под ним ничего не добавит.
+    # A progress bar only on the last tile: on the others the number is a scale
+    # unto itself, and a second scale beneath it adds nothing.
     x = MARGIN + (len(tiles) - 1) * (tile_w + gap)
     c.setFillColor(theme.rl(theme.BORDER))
     c.rect(x + 12, y + 8, tile_w - 24, 2.5, stroke=0, fill=1)
@@ -235,14 +237,14 @@ def _section(sheet: _Sheet, y: float, title: str, subtitle: str = "") -> float:
     return y - 20
 
 
-# --- таблица ------------------------------------------------------------------
+# --- the table ----------------------------------------------------------------
 
 
 def _table(sheet: _Sheet, y: float, columns: list, rows: list, row_h: float = 15.5) -> float:
-    """Таблица с шапкой, чередованием строк и строками-группами.
+    """A table with a header, alternating rows and group rows.
 
-    columns — (заголовок, ширина, выравнивание, ключ). Ключ — либо строка
-    значения, либо функция, рисующая ячейку сама и возвращающая None.
+    columns — (heading, width, alignment, key). The key is either the value's
+    string or a function that draws the cell itself and returns None.
     """
     c = sheet.canvas
     total_w = sum(col[1] for col in columns)
@@ -318,7 +320,7 @@ def _tasks_page(sheet: _Sheet) -> None:
         _text(sh.canvas, x + 6, y + 4.5, label, theme.FONT_MEDIUM, 7, theme.TEXT,
               width=w - (20 if task.beyond_plan else 12))
         if task.beyond_plan:
-            # Знак «сверх первоначального плана» — тот же «+», что на ленте.
+            # The "beyond the original plan" mark — the same "+" as on the chart.
             _text(sh.canvas, x + w - 8, y + 4.5, "+", theme.FONT_BOLD, 7, theme.ACCENT,
                   align="r")
         return None
@@ -341,8 +343,8 @@ def _tasks_page(sheet: _Sheet) -> None:
         return None
 
     def short(value: date) -> str:
-        # Даты без года: период целиком назван в шапке документа, а с годом не
-        # остаётся ширины на колонку заметки.
+        # Dates without a year: the period as a whole is named in the document's
+        # header, and with a year there is no width left for the note column.
         return f"{value.day} {doc.labels.month(value.month, short=True)}"
 
     show_people = any(task.assignees for task in doc.tasks)
@@ -374,10 +376,10 @@ def _tasks_page(sheet: _Sheet) -> None:
             (t("col", "note"), sheet.content_width - used, "l", lambda s, r, *a: r.note or "")
         )
 
-    # Остаток ширины уходит колонке названия, а не последней: сумма
-    # фиксированных ширин не обязана совпасть с полосой набора, и слабину надо
-    # отдать той колонке, которой длины всегда не хватает. У клиентского
-    # экземпляра колонок вчетверо меньше, и слабина там — половина листа.
+    # The remaining width goes to the name column rather than the last one: the
+    # sum of the fixed widths need not match the text strip, and the slack must
+    # go to the column that is always short of length. The client copy has four
+    # times fewer columns, and there the slack is half a sheet.
     used = sum(col[1] for col in columns)
     title, width, align, key = columns[1]
     columns[1] = (title, width + sheet.content_width - used, align, key)
@@ -392,7 +394,7 @@ def _tasks_page(sheet: _Sheet) -> None:
     _table(sheet, y, columns, rows)
 
 
-# --- лента --------------------------------------------------------------------
+# --- the chart ----------------------------------------------------------------
 
 
 def _gantt_page(sheet: _Sheet, window: Window, index: int, total: int) -> None:
@@ -415,13 +417,14 @@ def _gantt(sheet: _Sheet, window: Window, top: float) -> float:
     days = window.days
     chart_x = MARGIN + LABEL_W
 
-    # Ширина дня постоянна на всех страницах ленты, а не «растянуть окно по
-    # ширине»: последний срез почти всегда короче полного, и подгонка под
-    # ширину дала бы на нём полоски втрое толще, чем на предыдущей странице.
-    # Берётся из того же правила, что считало число страниц.
+    # The day's width is constant across all chart pages rather than "stretch the
+    # window to the width": the last slice is almost always shorter than a full
+    # one, and fitting it to the width would give it bars three times thicker
+    # than on the previous page. It is taken from the same rule that computed the
+    # number of pages.
     #
-    # Единственный срез — исключение: сравнивать его не с чем, а лента, не
-    # добравшая трети ширины, читается как обрезанная.
+    # A single slice is the exception: there is nothing to compare it with, and a
+    # chart that falls a third short of the width reads as cropped.
     available = sheet.content_width - LABEL_W
     if len(doc.layout.slices) == 1:
         day_w = available / max(days, 1)
@@ -440,7 +443,7 @@ def _gantt(sheet: _Sheet, window: Window, top: float) -> float:
         rows.append(("category", category))
         rows += [("task", task) for task in tasks]
 
-    # --- шапка шкалы ---------------------------------------------------------
+    # --- the scale header ----------------------------------------------------
     c.setFillColor(theme.rl(theme.BG_SUBTLE))
     c.rect(MARGIN, top - HEAD_H, LABEL_W + chart_w, HEAD_H, stroke=0, fill=1)
     _text(c, MARGIN + 8, top - 22, t("col", "task"), theme.FONT_MEDIUM, 8, theme.TEXT_MUTED)
@@ -468,10 +471,10 @@ def _gantt(sheet: _Sheet, window: Window, top: float) -> float:
     body_top = top - HEAD_H
     body_h = len(rows) * ROW_H
 
-    # --- нерабочие дни на всю высоту ----------------------------------------
-    # Ниже четырёх пунктов на день заливка выходных перестаёт читаться как
-    # ритм недели и превращается в шум поперёк ленты — на крупном масштабе её
-    # просто нет.
+    # --- non-working days over the full height ------------------------------
+    # Below four points per day the weekend fill stops reading as the rhythm of a
+    # week and turns into noise across the chart — at a coarse scale it is simply
+    # absent.
     if day_w >= 4:
         day = window.start
         while day <= window.end:
@@ -480,7 +483,7 @@ def _gantt(sheet: _Sheet, window: Window, top: float) -> float:
                 c.rect(x_of(day), body_top - body_h, day_w, body_h, stroke=0, fill=1)
             day += timedelta(days=1)
 
-    # --- строки --------------------------------------------------------------
+    # --- the rows ------------------------------------------------------------
     centers: dict[int, float] = {}
     for i, (kind, item) in enumerate(rows):
         y = body_top - (i + 1) * ROW_H
@@ -531,8 +534,9 @@ def _gantt(sheet: _Sheet, window: Window, top: float) -> float:
         c.setDash(3, 2)
         c.line(x, body_top - body_h, x, top)
         c.setDash()
-        # Метка — над рамкой, а не внутри шапки: внутри она села бы поверх
-        # чисел месяца и закрыла бы ровно те дни, на которые указывает.
+        # The marker goes above the frame rather than inside the header: inside,
+        # it would sit on top of the month's numbers and cover exactly the days
+        # it points at.
         _chip(c, x - 16, top + 3, t("legend", "today"), theme.DANGER_SOFT,
               theme.DANGER_STRONG, size=6)
 
@@ -545,11 +549,12 @@ def _month_end(day: date) -> date:
 
 
 def _bar(c: Canvas, x: float, y: float, w: float, task: DocTask) -> None:
-    """Полоска задачи: заливка по статусу, накладки поверх.
+    """A task's bar: the fill by status, the overlays on top.
 
-    Заливка означает только статус. Просрочка — контур цветом внимания,
-    критичность — левая грань цветом тревоги; обе ложатся поверх любой заливки
-    и обе сразу выписаны явно, а не оставлены каскаду.
+    The fill means status and nothing else. Being overdue is an outline in the
+    attention colour, criticality is a left edge in the alarm colour; both go on
+    top of any fill and both are spelled out explicitly rather than left to the
+    cascade.
     """
     fill, stroke, label_color = theme.STATUS_BAR[task.status]
     w = max(w, 3)
@@ -577,8 +582,8 @@ def _bar(c: Canvas, x: float, y: float, w: float, task: DocTask) -> None:
         c.roundRect(x, y, w, BAR_H, 2.5, stroke=0, fill=1)
 
     if task.status == "blocked":
-        # Штриховка: состояние назначил человек, и полоска называет его и
-        # рисунком, и словом.
+        # Hatching: the state was assigned by a person, and the bar names it both
+        # by pattern and by word.
         c.saveState()
         path = c.beginPath()
         path.roundRect(x, y, w, BAR_H, 2.5)
@@ -592,7 +597,7 @@ def _bar(c: Canvas, x: float, y: float, w: float, task: DocTask) -> None:
         c.restoreState()
 
     if task.status == "in_progress" and task.progress_pct:
-        # Заливка прогресса — часть полоски «в работе», а не вторая полоска.
+        # The progress fill is part of the "in progress" bar, not a second bar.
         c.saveState()
         path = c.beginPath()
         path.roundRect(x, y, w, BAR_H, 2.5)
@@ -614,11 +619,10 @@ def _bar(c: Canvas, x: float, y: float, w: float, task: DocTask) -> None:
 
 
 def _arrows(sheet: _Sheet, window: Window, x_of, day_w: float, centers: dict) -> None:
-    """Связи — коленчатой прокладкой, как на ленте (`gantt/Arrows.tsx`).
+    """Dependencies — as an elbowed route, as on the chart (`gantt/Arrows.tsx`).
 
-    Рисуются только те, у которых оба конца попали в это окно: стрелка,
-    уходящая за край страницы, обещает связь, которой на этой странице не
-    видно.
+    Only those with both ends inside this window are drawn: an arrow leaving the
+    edge of the page promises a dependency that is not visible on this page.
     """
     doc = sheet.doc
     if not doc.has(ExportSection.LINKS):
@@ -659,11 +663,11 @@ def _arrows(sheet: _Sheet, window: Window, x_of, day_w: float, centers: dict) ->
 
 
 def _legend(sheet: _Sheet, y: float) -> None:
-    """Легенда цветов: документ обязан объясняться сам.
+    """A colour legend: a document must explain itself.
 
-    Каждый пункт — «образец, отступ, подпись, зазор»; ширину подписи возвращает
-    `_text`. Складывается вручную, зато ни один пункт не наезжает на соседний
-    при смене языка.
+    Every item is "swatch, gap, label, spacing"; `_text` returns the label's
+    width. It is assembled by hand, but in return no item rides over its
+    neighbour when the language changes.
     """
     c, t = sheet.canvas, sheet.doc.labels
     SW, GAP, PAD = 20.0, 20.0, 5.0
@@ -738,7 +742,7 @@ def _legend(sheet: _Sheet, y: float) -> None:
         item(baseline, t("legend", "baseline"))
 
 
-# --- смета, скоркард, разговор -------------------------------------------------
+# --- the budget, the scorecard, the conversation -------------------------------
 
 
 def _money_page(sheet: _Sheet) -> None:
@@ -764,8 +768,9 @@ def _proposal_block(sheet: _Sheet, y: float, half: float) -> float:
     y = _section(sheet, y, t("section", "proposal"), proposal.currency)
 
     def money(value: Decimal) -> str:
-        # До целых — колонка узкая, — но половина вверх, как в документе
-        # предложения и на экране: «12 000,50» → «12 001», а не «12 000».
+        # To whole units — the column is narrow — but with a half rounding up, as
+        # in the proposal document and on screen: "12 000.50" -> "12 001", not
+        # "12 000".
         whole = value.quantize(Decimal(1), rounding=ROUND_HALF_UP)
         return f"{whole:,}".replace(",", " ")
 
@@ -911,12 +916,12 @@ def _plain(value) -> str:
     return text or "0"
 
 
-# --- сборка -------------------------------------------------------------------
+# --- assembly -----------------------------------------------------------------
 
 
 def render(doc: ExportDocument) -> bytes:
-    """Страницы объявляются списком, а рисуются потом — поэтому «стр. N из M»
-    честна с первой же страницы, а не задним числом."""
+    """The pages are declared as a list and drawn afterwards — which is why
+    "p. N of M" is honest from the very first page rather than in hindsight."""
     register_fonts()
     sheet = _Sheet(doc)
 

@@ -1,6 +1,6 @@
-/* Окно выгрузки.
-   Токены берутся из темы: у окна нет ни одного своего цвета, иначе оно
-   разъедется с продуктом на первой же перекраске. */
+/* The export dialog.
+   The tokens come from the theme: the dialog has not one colour of its own, otherwise
+   it would drift away from the product on the first repaint. */
 
 .export__hint {
   margin: 0 0 var(--space-16);
@@ -32,7 +32,7 @@
   color: var(--text-faint);
 }
 
-/* --- формат --- */
+/* --- the format --- */
 
 .export__formats {
   display: grid;
@@ -58,8 +58,8 @@
   background: var(--accent-soft);
 }
 
-/* Переключатель скрыт с глаз, но не от клавиатуры: карточка целиком —
-   подпись к нему, а фокус обязан быть виден. */
+/* The radio is hidden from the eye but not from the keyboard: the whole card is its
+   label, and focus must be visible. */
 .export__format input {
   position: absolute;
   opacity: 0;
@@ -100,7 +100,7 @@
   line-height: 1.35;
 }
 
-/* --- разделы --- */
+/* --- the sections --- */
 
 .export__sections {
   display: grid;
@@ -151,7 +151,7 @@
   font-style: italic;
 }
 
-/* --- период, масштаб, ориентация --- */
+/* --- the period, the scale, the orientation --- */
 
 .export__options {
   display: grid;
@@ -193,8 +193,8 @@
   cursor: not-allowed;
 }
 
-/* Цена подробности — числом страниц прямо на кнопке: последствие видно до
-   нажатия, а не после скачивания. */
+/* The price of detail is shown as a number of pages right on the button: the
+   consequence is visible before the press rather than after the download. */
 .export__price {
   font-size: 11px;
   font-weight: 500;
@@ -203,7 +203,7 @@
 
 .export__segments button.is-on .export__price { color: var(--text-muted); }
 
-/* --- превью --- */
+/* --- the preview --- */
 
 .export__preview {
   padding: var(--space-16);
@@ -239,12 +239,12 @@
 .export__pv-muted { font-size: 4.6px; fill: var(--text-muted); }
 .export__pv-foot { font-size: 3.6px; fill: var(--text-faint); }
 
-/* --- подвал --- */
+/* --- the footer --- */
 
-/* Подвал липнет ко дну окна: содержимое высокое, окно прокручивается, и
-   кнопка «Скачать», уехавшая под обрез, означала бы прокрутку ради главного
-   действия. Отрицательный отступ снизу компенсирует поле окна, чтобы за
-   липким подвалом не проглядывала полоса содержимого. */
+/* The footer sticks to the dialog's bottom: the content is tall, the dialog scrolls,
+   and a "Download" button that has ridden below the clip would mean scrolling for the
+   sake of the primary action. The negative bottom margin compensates for the dialog's
+   padding, so that no strip of content shows through behind the sticky footer. */
 .export__foot {
   position: sticky;
   bottom: -24px;
@@ -278,8 +278,8 @@
   flex: 0 0 auto;
 }
 
-/* Узкий экран: превью уезжает под настройки, а не сжимает их до нечитаемости.
-   Приём тот же, что у ленты (§4.3 плана редизайна). */
+/* A narrow screen: the preview moves below the settings rather than squeezing them to
+   illegibility. The same technique as with the chart (§4.3 of the redesign plan). */
 @media (max-width: 860px) {
   .export {
     grid-template-columns: 1fr;

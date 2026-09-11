@@ -8,19 +8,18 @@ import { suggestColor } from "../project/categoryColors";
 import { useProjectMutation } from "../project/useProjectMutation";
 
 /**
- * Категория, заведённая одним именем — строкой с самого низа ленты.
+ * A category created from a name alone — as a row at the very bottom of the strip.
  *
- * Тот же приём, что и у `useQuickTask`: план пишут списком, и окно с выбором
- * цвета между каждой строкой было бы лишним шагом там, где хотят просто
- * продолжить список. Цвет подбирается тем же счётом, что и в форме создания
- * (см. `project/categoryColors.ts`) — по числу уже существующих категорий, — а
- * поправить его можно позже, тем же путём, что и всегда. Полноценная форма
- * никуда не делась: это второй, короткий путь к тому же действию, а не замена
- * первому.
+ * The same device as `useQuickTask`'s: a plan is written as a list, and a dialog with a colour choice
+ * between every row would be an extra step exactly where people just want to continue the list. The
+ * colour is picked by the same reckoning as in the creation form (see `project/categoryColors.ts`) —
+ * by the number of already existing categories — and it can be corrected later, the same way as
+ * always. The full form has gone nowhere: this is a second, short path to the same action rather than
+ * a replacement for the first.
  *
- * Отправленные категории держатся списком ожидания, пока сервер не ответит —
- * по той же причине, что и у задачи (см. `PendingRow`): оптимистичной строки
- * быть не может, идентификатор и позицию назначает сервер.
+ * Sent categories are held in a pending list until the server answers — for the same reason as a
+ * task's (see `PendingRow`): an optimistic row is impossible, the server assigns the id and the
+ * position.
  */
 
 export type PendingCategory = { id: number; name: string };
@@ -36,10 +35,9 @@ export function useQuickCategory({
   const { t } = useLocale();
   const showToast = useToast();
   const [pending, setPending] = useState<PendingCategory[]>([]);
-  // Считает и отправки, и уже заведённые категории разом: цвет следующей
-  // строки, отправленной раньше ответа сервера на предыдущую, обязан
-  // отличаться от неё, а `state.categories.length` в этот момент ещё не
-  // видит ни одной из них.
+  // It counts both the submissions and the already created categories at once: the colour of the next
+  // row, sent before the server's answer to the previous one, must differ from it, while
+  // `state.categories.length` at that moment does not yet see either of them.
   const sent = useRef(0);
 
   const create = (name: string) => {
@@ -50,8 +48,8 @@ export function useQuickCategory({
 
     void apply({ type: "create_category", name, color }, (current) => current)
       .catch((error: unknown) => {
-        // Строка ожидания исчезнет, а категории так и не появится: без этих
-        // слов исчезновение читалось бы как «сохранилось где-то там».
+        // The pending row will disappear while the category never appears: without these words the
+        // disappearance would read as "it was saved somewhere".
         showToast({ message: t(errorKey(error)), tone: "error" });
       })
       .finally(() => {

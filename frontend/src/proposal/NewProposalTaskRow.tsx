@@ -5,22 +5,21 @@ import type { EffortUnit, NewProposalTask, RoleSuggestion } from "../api/proposa
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Заведение строки сметы — строкой в таблице, тем же движением, что задача в
- * ленте (gantt/NewTaskRow): смету пишут списком, по строке на работу, и окно
- * между строками означало бы открыть, заполнить, закрыть — двадцать раз
- * подряд.
+ * Creating a quote line — as a row in the table, by the same motion as a task in the strip
+ * (gantt/NewTaskRow): a quote is written as a list, a row per work item, and a dialog between
+ * rows would mean opening, filling in, closing — twenty times in a row.
  *
- * Спрашиваются сразу четыре поля — работа, роль, оценка, ставка, — а не одно
- * имя: смета без денег не смета, и дописывать их потом в карточке значило бы
- * открыть, поправить, закрыть на каждой строке. Роль подсказывается из того,
- * что организация уже писала, и тянет за собой свою ставку: ставка дизайнера
- * одна на студию, второй раз её не набирают.
+ * Four fields are asked for at once — the work, the role, the estimate, the rate — rather than
+ * one name: a quote without money is not a quote, and adding it later in the card would mean
+ * opening, correcting, closing on every row. The role is suggested from what the organization
+ * has already written and pulls its rate along with it: a designer's rate is one per studio, it
+ * is not typed a second time.
  *
- * Правила клавиш — те же, что в ленте. Enter отправляет написанное и
- * оставляет строку пустой и в фокусе: следующую пишут сразу, не касаясь
- * мыши. Пустой Enter значит «больше не нужно» и строку закрывает. Esc
- * отменяет набранное. Уход фокуса из строки сохраняет: имя, пропавшее от
- * щелчка мимо, человек считал бы потерянной работой, а не отменённым вводом.
+ * The key rules are the strip's. Enter sends what was written and leaves the row empty and
+ * focused: the next one is written straight away without touching the mouse. An empty Enter
+ * means "no more needed" and closes the row. Esc cancels what was typed. Leaving the row saves:
+ * a name that vanished from a stray click would be counted by a person as lost work rather than
+ * as a cancelled input.
  */
 export function NewProposalTaskRow({
   columns,
@@ -32,16 +31,16 @@ export function NewProposalTaskRow({
   onCreate,
   onClose,
 }: {
-  /** Сколько колонок накрыть: поля тянутся на всю ширину таблицы. */
+  /** How many columns to cover: the fields stretch across the table's whole width. */
   columns: number;
-  /** Имя поля работы при чтении с экрана: «Новая работа в „Discovery“». */
+  /** The work field's name on a screen reader: "New work in “Discovery”". */
   label: string;
   placeholder: string;
   unit: EffortUnit;
   currency: string;
-  /** Роли организации с последними ставками — для подсказки. */
+  /** The organization's roles with their latest rates — for the suggestion. */
   suggestions: RoleSuggestion[];
-  /** Отправить написанное. Строка при этом остаётся открытой. */
+  /** Send what was written. The row stays open at that. */
   onCreate: (input: NewProposalTask) => void;
   onClose: () => void;
 }) {
@@ -50,7 +49,7 @@ export function NewProposalTaskRow({
   const [role, setRole] = useState("");
   const [effort, setEffort] = useState("");
   const [rate, setRate] = useState("");
-  // Список ролей открыт, и какой пункт в нём выбран стрелками.
+  // Whether the list of roles is open, and which item in it is selected with the arrows.
   const [listOpen, setListOpen] = useState(false);
   const [active, setActive] = useState(0);
   const root = useRef<HTMLTableRowElement>(null);
@@ -58,7 +57,7 @@ export function NewProposalTaskRow({
   const effortInput = useRef<HTMLInputElement>(null);
   const listId = useId();
 
-  // Фокус — сразу: «плюс» нажимают ради того, чтобы писать.
+  // The focus goes in at once: the "plus" is pressed in order to write.
   useEffect(() => {
     nameInput.current?.focus();
   }, []);
@@ -69,13 +68,13 @@ export function NewProposalTaskRow({
     .filter((suggestion) => suggestion.role.toLocaleLowerCase().includes(needle))
     .slice(0, 8);
 
-  /** Число из поля — или ничего: пустое поле и мусор в нём не отправляются. */
+  /** The number from a field — or nothing: an empty field and junk in it are not sent. */
   const number = (text: string): number | undefined => {
     const value = Number(text);
     return text.trim() === "" || !Number.isFinite(value) || value < 0 ? undefined : value;
   };
 
-  /** Отправлено или нет: пустое имя — не работа, а середина набора. */
+  /** Sent or not: an empty name is not work but the middle of typing. */
   const submit = (): boolean => {
     const trimmed = name.trim();
     if (trimmed === "") return false;
@@ -96,8 +95,8 @@ export function NewProposalTaskRow({
 
   const pick = (suggestion: RoleSuggestion) => {
     setRole(suggestion.role);
-    // Ставку подставляем, только если её ещё не написали: набранное рукой
-    // весит больше подсказки.
+    // We substitute the rate only if it has not been written yet: what was typed by hand weighs
+    // more than a suggestion.
     if (rate.trim() === "" && suggestion.rate > 0) setRate(String(suggestion.rate));
     setListOpen(false);
     effortInput.current?.focus();
@@ -127,8 +126,8 @@ export function NewProposalTaskRow({
       return;
     }
     if (event.key === "Enter" && listOpen && matches[active] !== undefined) {
-      // Enter в открытом списке выбирает роль, а не отправляет строку:
-      // строка уйдёт следующим Enter, уже с ролью и ставкой.
+      // An Enter in an open list picks a role rather than sending the row: the row will leave on
+      // the next Enter, already with a role and a rate.
       event.preventDefault();
       event.stopPropagation();
       pick(matches[active]);
@@ -142,7 +141,7 @@ export function NewProposalTaskRow({
   };
 
   const onRowBlur = (event: FocusEvent<HTMLTableRowElement>) => {
-    // Фокус остался в строке — переход между её полями, а не уход.
+    // The focus stayed in the row — a move between its fields rather than a departure.
     if (root.current?.contains(event.relatedTarget as Node | null)) return;
     submit();
     onClose();
@@ -200,9 +199,8 @@ export function NewProposalTaskRow({
                     role="option"
                     aria-selected={index === active}
                     className={`proposal-suggest__item${index === active ? " is-active" : ""}`}
-                    // mousedown, а не click: щелчок по пункту не должен
-                    // увести фокус из строки — иначе она закроется раньше,
-                    // чем пункт успеет выбраться.
+                    // mousedown rather than click: a click on an item must not take the focus out
+                    // of the row — otherwise it closes before the item manages to be chosen.
                     onMouseDown={(event) => {
                       event.preventDefault();
                       pick(suggestion);

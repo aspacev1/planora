@@ -16,42 +16,43 @@ import { useToday } from "../time/useToday";
 import { useProjectStates } from "./projectStates";
 
 /**
- * Проекты: единственный список проектов, единственная сводка «как идут дела»
- * и место, откуда их заводят и где с ними расстаются.
+ * Projects: the only list of projects, the only "how are things going" summary
+ * and the place they are created from and parted with.
  *
- * Раньше это были два экрана про один и тот же набор проектов — карточки
- * заводили проект и звали посмотреть на цветной вердикт, соседняя таблица
- * «Отчётов» сверяла готовность и сроки по строкам. Выбирать, на каком из двух
- * смотреть, было незачем: те же шесть чисел сравниваются по столбцу лучше,
- * чем по карточкам, — и раздел, который заводит и удаляет проекты, стал тем
- * же разделом, что показывает их сводку.
+ * These used to be two screens about one and the same set of projects — the
+ * cards created a project and invited you to look at a coloured verdict, the
+ * neighbouring "Reports" table checked readiness and dates row by row. There was
+ * no point choosing which of the two to look at: the same six numbers compare
+ * better down a column than across cards — and the section that creates and
+ * deletes projects became the same section that shows their summary.
  *
- * Пока список и все состояния не пришли разом, экран показывает одну надпись
- * «Загрузка», а не строки с прочерками на месте чисел, которых ещё нет.
- * Дальше строки друг от друга не зависят: не пришедшая сводка одного проекта —
- * это баннер отказа сверху, а не пропавшая строка соседа, у которого всё
- * посчиталось.
+ * Until the list and all the states have arrived together, the screen shows a
+ * single "Loading" caption rather than rows with dashes in place of numbers that
+ * are not there yet. Beyond that the rows do not depend on one another: one
+ * project's summary failing to arrive is a refusal banner at the top, not a
+ * missing row for a neighbour whose numbers all came out.
  */
 export function Projects() {
   const { t } = useLocale();
-  // Проектов в списке может быть много, и у каждого мог быть свой пояс:
-  // просрочка считается по суткам того, кто на список смотрит, а не по
-  // суткам одного из них.
+  // There can be many projects in the list, and each could have its own zone:
+  // being overdue is counted by the day of whoever is looking at the list, not by
+  // the day of one of them.
   const today = useToday();
   const { pending, error, states } = useProjectStates();
-  // Удаление — право владельца, как и в настройках проекта: редактор правит
-  // план, но не расстаётся с проектом целиком. Решает всё равно сервер, здесь
-  // лишь не предлагается действие, которое кончится отказом.
+  // Deletion is the owner's right, as in the project's settings: an editor edits
+  // the plan but does not part with the project whole. The server decides either
+  // way — here we merely refrain from offering an action that will end in a refusal.
   const role = useOrgRole();
   const canDelete = role === "owner";
-  // Создание — по тому же правилу, что и удаление, и по той же причине: сервер
-  // решает про оба одинаково (PROJECT_WRITE), и предлагать наблюдателю кнопку,
-  // которая ответит отказом, — значит встречать нового участника отказом на
-  // первом же нажатии.
+  // Creation follows the same rule as deletion, and for the same reason: the
+  // server decides about both identically (PROJECT_WRITE), and offering an
+  // observer a button that will answer with a refusal means greeting a new
+  // participant with a refusal on their very first press.
   const canCreate = roleCanWrite(role);
-  // Проект, о котором задан вопрос, а не «окно открыто»: окно называет имя, и
-  // держать его отдельным состоянием значило бы завести второй источник того
-  // же самого. Окно одно на список: вопрос задают об одном проекте за раз.
+  // The project the question is about, rather than "the dialog is open": the
+  // dialog names the name, and keeping it as a separate state would mean having a
+  // second source of the same thing. There is one dialog for the list: the
+  // question is asked about one project at a time.
   const [deleting, setDeleting] = useState<ProjectState | null>(null);
 
   return (
@@ -70,11 +71,11 @@ export function Projects() {
       )}
 
       {!pending && error === null && states.length === 0 && (
-        // Пустой список значит разное для разных ролей, и одно объяснение на
-        // оба случая обманывает половину читателей. У того, кто может писать,
-        // проектов действительно нет. У наблюдателя и клиента они, скорее
-        // всего, есть — просто ему не выдали доступ, и звать его «создать
-        // первый» некуда: сервер откажет.
+        // An empty list means different things for different roles, and one
+        // explanation for both cases deceives half the readers. Someone who can
+        // write really has no projects. An observer and a client most likely do
+        // have them — they simply were not given access, and there is nowhere to
+        // invite them to "create the first one": the server will refuse.
         <div className="empty">
           <p className="empty__title">
             {t(canCreate ? "projects.empty.title" : "projects.empty.no_access_title")}
@@ -96,8 +97,8 @@ export function Projects() {
                 <th scope="col">{t("task.status.blocked")}</th>
                 <th scope="col">{t("reports.col.overdue")}</th>
                 <th scope="col">{t("reports.col.deadline")}</th>
-                {/* Столбец есть только там, где есть чем его заполнить: без
-                    права удалять в нём не нашлось бы ни одной ячейки. */}
+                {/* The column exists only where there is something to fill it
+                    with: without the right to delete there would not be a single cell in it. */}
                 {canDelete && (
                   <th scope="col" className="report__actions">
                     {t("reports.col.actions")}
@@ -119,22 +120,23 @@ export function Projects() {
         </div>
       )}
 
-      {/* Окно живёт на экране, а не в строке таблицы: строка удалённого
-          проекта исчезает в тот же миг, что и он сам, и окно внутри неё
-          унесло бы с собой отказ сервера, если тот откажет. */}
+      {/* The dialog lives on the screen rather than in the table's row: a deleted
+          project's row disappears at the same instant as the project itself, and
+          a dialog inside it would carry away the server's refusal with it, should
+          the server refuse. */}
       {deleting && <DeleteProjectDialog project={deleting} onClose={() => setDeleting(null)} />}
     </main>
   );
 }
 
 /**
- * Вопрос перед удалением — окном, а не выноской на строке.
+ * The question before deletion — as a dialog, not a popover on the row.
  *
- * Окно здесь не «на всякий случай»: удаление проекта единственное действие
- * продукта, которое не отменяется ничем — вместе с проектом уходит журнал
- * ревизий, — а нажимают его в таблице из одинаковых строк, где промах на
- * одну выше или ниже ничем не выдаёт себя. Окно называет имя проекта: это
- * единственное место, где человек может заметить, что целился в соседний.
+ * A dialog here is not "just in case": deleting a project is the one action in
+ * the product that nothing undoes — the revision journal goes with the project —
+ * and it is pressed in a table of identical rows, where missing by one row up or
+ * down gives itself away by nothing. The dialog names the project's name: this is
+ * the only place where a person can notice they were aiming at the neighbour.
  */
 function DeleteProjectDialog({
   project,
@@ -148,9 +150,9 @@ function DeleteProjectDialog({
 
   return (
     <Modal title={t("projects.delete_title", { name: project.name })} onClose={onClose}>
-      {/* Не «вы уверены?», а последствие — теми же словами, что и в настройках
-          проекта: действие одно и то же, и второй набор строк однажды сказал
-          бы о нём другое. */}
+      {/* Not "are you sure?" but the consequence — in the same words as in the
+          project's settings: the action is one and the same, and a second set of
+          strings would one day say something different about it. */}
       <p>{t("settings.project.delete_warning")}</p>
 
       {remove.error !== null && (
@@ -159,11 +161,10 @@ function DeleteProjectDialog({
         </p>
       )}
 
-      {/* Отказ стоит первым, вопреки обычному для окна порядку «главное
-          действие слева»: окно ставит фокус на первый орган управления, и у
-          необратимого действия первым под рукой обязан быть отказ. Enter,
-          нажатый быстрее, чем прочитано предупреждение, здесь ничего не
-          удаляет. */}
+      {/* Refusal comes first, against a dialog's usual "the main action on the
+          left" order: the dialog puts the focus on the first control, and for an
+          irreversible action the first thing at hand must be the refusal. An
+          Enter pressed faster than the warning is read deletes nothing here. */}
       <div className="modal__actions">
         <button type="button" className="button--quiet" onClick={onClose}>
           {t("common.cancel")}
@@ -188,21 +189,21 @@ function ProjectRow({
 }: {
   state: ProjectState;
   today: string;
-  /** Нет — удалять этот проект человеку не позволено, и шестерни в строке нет. */
+  /** No — the person is not allowed to delete this project, and there is no cog in the row. */
   onDelete?: () => void;
 }) {
   const { t } = useLocale();
   const progress = progressOf(state.tasks);
   const counts = statusCounts(state.tasks);
-  // Считает общий модуль, а не эта строка: «просрочено» здесь и «после
-  // дедлайна проекта» в шапке проекта — две разные величины с одним именем, и
-  // третий их счёт разошёлся бы с обоими.
+  // Computed by the shared module rather than by this row: "overdue" here and
+  // "past the project's deadline" in the project's header are two different
+  // quantities with one name, and a third reckoning of them would diverge from both.
   const overdue = overdueTasks(state, today).length;
 
   return (
     <tr>
       <th scope="row">
-        {/* Название проекта — содержимое пользователя: не переводится. */}
+        {/* The project's name is user content: it is not translated. */}
         <Link to={`/projects/${state.id}`}>{state.name}</Link>
       </th>
       <td>{progress === null ? "—" : `${progress}%`}</td>
@@ -231,18 +232,18 @@ function ProjectRow({
 }
 
 /**
- * Шестерёнка: знак действий над проектом.
+ * The cog: the sign of actions on a project.
  *
- * Нарисована здесь, а не взята библиотекой, — как и значки колонки навигации:
- * десять строк разметки не стоят зависимости с сотней неиспользованных
- * значков.
+ * Drawn here rather than taken from a library — like the navigation column's
+ * icons: ten lines of markup are not worth a dependency with a hundred unused
+ * icons.
  *
- * Обод с отверстием, а не втулка с лучами: восемь лучей вокруг точки — это
- * солнце, и в шестнадцати пикселях оно так и читается. Зубья узнаются только
- * тем, что они торчат из колеса.
+ * A rim with a hole rather than a hub with rays: eight rays around a dot is a
+ * sun, and at sixteen pixels that is exactly how it reads. Teeth are recognized
+ * only by sticking out of a wheel.
  *
- * `aria-hidden`: имя кнопке даёт `buttonLabel` меню, и прочитанный вслух
- * значок повторил бы его.
+ * `aria-hidden`: the button is named by the menu's `buttonLabel`, and the icon
+ * read aloud would repeat it.
  */
 function GearIcon() {
   return (
@@ -265,11 +266,12 @@ function GearIcon() {
 }
 
 /**
- * Вердикт по сроку — словами, а не датой: дату пришлось бы сравнивать в уме,
- * а «+4 дня» — уже ответ. Без дедлайна вердикта нет: писать «успеваем» там,
- * где успевать не к чему, — выдумывать смысл. У относительного плана его нет
- * по той же причине: сравнивать дедлайн не с чем, пока не назначен старт, и
- * «укладываемся» про такой проект было бы обещанием, взятым из воздуха.
+ * The verdict on the deadline — in words rather than as a date: a date would have
+ * to be compared in your head, while "+4 days" is already an answer. Without a
+ * deadline there is no verdict: writing "on time" where there is nothing to be on
+ * time for is inventing a meaning. A relative plan has none for the same reason:
+ * there is nothing to compare a deadline with until a start is assigned, and
+ * "we fit" about such a project would be a promise taken out of thin air.
  */
 function Deadline({ state }: { state: ProjectState }) {
   const { t } = useLocale();

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Task } from "../api/projects";
 import { deviationDays } from "./baseline";
 
-/** Задача, чей старт уже уехал на пять дней от базового плана. */
+/** A task whose start has already travelled five days from the baseline plan. */
 const SHIFTED: Task = {
   id: "t1",
   category_id: "c1",
@@ -34,8 +34,8 @@ describe("отклонение от базового плана", () => {
   });
 
   it("правка длительности меряется длительностью, а не уже объяснённым сдвигом старта", () => {
-    // То же правило, что у `deviation_days` на сервере: иначе каждая правка
-    // длительности на день требовала бы причину за чужое измерение.
+    // The same rule as `deviation_days` on the server: otherwise every one-day edit of a duration would
+    // demand a reason for a different dimension.
     expect(deviationDays(SHIFTED, { duration_days: 6 })).toBe(1);
   });
 

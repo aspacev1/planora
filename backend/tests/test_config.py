@@ -1,10 +1,11 @@
-"""Настройки, выводимые из окружения хостинга.
+"""Settings derived from the hosting environment.
 
-Обе проверки ниже — про деплой на платформу, где переменные окружения
-приходят не из `.env`, а из панели и от самой платформы. Ошибка в любой из
-них не роняет приложение, а тихо его ослабляет: не тот драйвер — падение
-только на первом запросе в базу, не тот PUBLIC_BASE_URL — кука сессии без
-Secure. Поэтому они проверяются отдельно, а не «увидим на бою».
+Both checks below are about deploying to a platform where the environment variables
+come not from `.env` but from a dashboard and from the platform itself. An error in
+either does not bring the application down but quietly weakens it: the wrong driver
+means a failure only on the first request to the database, the wrong
+PUBLIC_BASE_URL means a session cookie without Secure. So they are checked
+separately rather than "we will see in production".
 """
 
 import pytest
@@ -13,8 +14,8 @@ from app.config import Settings
 
 
 def _settings(**env: str) -> Settings:
-    # _env_file=None: иначе рядом лежащий .env разработчика перебьёт то, что
-    # тест задаёт явно, и проверка станет зависеть от чужой машины.
+    # _env_file=None: otherwise a developer's .env lying next to it would override
+    # what the test sets explicitly, and the check would depend on someone's machine.
     return Settings(
         _env_file=None,
         app_secret="test-secret-not-for-production",
@@ -30,17 +31,17 @@ def _settings(**env: str) -> Settings:
             "postgresql://u:p@host/db",
             "postgresql+psycopg://u:p@host/db",
         ),
-        # Наследие Heroku: SQLAlchemy такую схему не разбирает вовсе.
+        # A Heroku legacy: SQLAlchemy does not parse that scheme at all.
         (
             "postgres://u:p@host/db",
             "postgresql+psycopg://u:p@host/db",
         ),
-        # Уже с драйвером — трогать нечего.
+        # Already carrying a driver — nothing to touch.
         (
             "postgresql+psycopg://u:p@host/db",
             "postgresql+psycopg://u:p@host/db",
         ),
-        # Чужой драйвер выбран осознанно, подменять его нельзя.
+        # Another driver was chosen deliberately and must not be substituted.
         (
             "postgresql+asyncpg://u:p@host/db",
             "postgresql+asyncpg://u:p@host/db",
@@ -52,8 +53,9 @@ def test_database_url_gets_the_driver_it_needs(given: str, expected: str) -> Non
 
 
 def test_the_query_string_of_a_managed_database_survives_the_rewrite() -> None:
-    # У Neon и Supabase в адресе есть sslmode и имя канала пулера. Склейка,
-    # потерявшая хвост, дала бы соединение без TLS вместо явной ошибки.
+    # Neon and Supabase have an sslmode and a pooler channel name in the URL. A
+    # concatenation that lost the tail would give a connection without TLS instead of
+    # an explicit error.
     settings = _settings(database_url="postgresql://u:p@ep-x-pooler.aws.neon.tech/db?sslmode=require")
     assert settings.database_url.endswith("/db?sslmode=require")
     assert settings.database_url.startswith("postgresql+psycopg://")
@@ -83,9 +85,9 @@ def test_a_deployment_without_a_project_domain_falls_back_to_its_own(
 def test_an_explicit_public_base_url_wins_over_the_platform(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Свой домен, привязанный к проекту, платформа в своих переменных не
-    # показывает — угадывание поверх заданного значения увело бы адрес
-    # обратно на vercel.app.
+    # A custom domain attached to the project is not shown by the platform in its own
+    # variables — guessing over a value that is set would take the address back to
+    # vercel.app.
     monkeypatch.setenv("VERCEL_PROJECT_PRODUCTION_URL", "planora.vercel.app")
 
     settings = _settings(
@@ -120,9 +122,10 @@ def test_every_signup_mode_from_the_specification_is_accepted(mode: str) -> None
 def test_a_misspelled_switch_stops_the_start_instead_of_the_installation(
     field: str, value: str
 ) -> None:
-    """Опечатка в SIGNUP_MODE тихо превращает установку в закрытую (сравнение
-    с `open` не сходится), опечатка в MAIL_TRANSPORT — в такую, где кнопка
-    отправки есть, а письма не уходят. Оба отказа неотличимы от задуманного
-    поведения и ищутся часами; отказ стартовать находится за секунду."""
+    """A typo in SIGNUP_MODE silently turns the installation into a closed one (the
+    comparison with `open` does not match), a typo in MAIL_TRANSPORT into one where
+    the send button exists but messages do not go out. Both refusals are
+    indistinguishable from the intended behaviour and are hunted for hours; a refusal
+    to start is found in a second."""
     with pytest.raises(ValueError):
         _settings(database_url="postgresql+psycopg://u:p@host/db", **{field: value})

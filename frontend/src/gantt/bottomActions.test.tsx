@@ -5,18 +5,17 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { STATE, captureMutations, projectFixtures, renderProject } from "../test/project";
 
 /**
- * Низ ленты — «+ Добавить задачу» и «+ Новая категория» после самой последней
- * категории (см. BottomActions.tsx). Строка ГОСТЬ рисуется гостю в трёх
- * случаях: категорий уже нет ни одной (макет «пустой ленты» — см.
- * CategoryForm.test.tsx), и то, что происходит после этой строки.
+ * The strip's bottom — "+ Add task" and "+ New category" after the very last category (see
+ * BottomActions.tsx). The GUEST row is drawn for a guest in three cases: there are no categories left
+ * at all (the "empty strip" mockup — see CategoryForm.test.tsx), and what happens after that row.
  */
 
 beforeEach(projectFixtures);
 
-// STATE (см. test/project.ts) кончается категорией «Разработка» — она и есть
-// «последняя», и «+ Добавить задачу» целится в неё, а не в «Дизайн».
+// STATE (see test/project.ts) ends with the "Development" category — that is the "last" one, and
+// "+ Add task" aims at it rather than at "Design".
 
-/** «+ Добавить задачу» — своя строка, не «плюс» на строке категории. */
+/** "+ Add task" — its own row, not the "plus" on a category's row. */
 function addTaskCta(): HTMLButtonElement {
   return document.querySelector(".gantt__row--add-task button") as HTMLButtonElement;
 }
@@ -39,9 +38,8 @@ describe("низ ленты", () => {
     renderProject(STATE);
     await screen.findByRole("button", { name: /Логотип/ });
 
-    // Видимый текст и произносимое имя — одна и та же строка: прежде подпись
-    // называлась просто «Добавить задачу», а имя категории знала только
-    // читалка (см. AddTaskRow).
+    // The visible text and the spoken name are one and the same string: the caption used to say
+    // simply "Add task" while only the screen reader knew the category's name (see AddTaskRow).
     const cta = addTaskCta();
     expect(cta).toHaveAccessibleName("Добавить задачу в «Разработка»");
     expect(cta).toHaveTextContent("Добавить задачу в «Разработка»");
@@ -51,9 +49,8 @@ describe("низ ленты", () => {
     renderProject(STATE);
     await screen.findByRole("button", { name: /Логотип/ });
 
-    // Подсветка под курсором накрывает строку целиком, включая полосу шкалы
-    // (см. `.gantt__row:hover` в gantt.css) — значит, и нажатие обязано
-    // работать всюду, где строка подсвечена.
+    // The hover highlight covers the whole row, including the scale's band (see `.gantt__row:hover`
+    // in gantt.css) — which means the press must work everywhere the row is highlighted.
     const lane = document.querySelector(".gantt__row--add-task .gantt__lane") as HTMLElement;
     expect(lane).not.toBeNull();
     await userEvent.click(lane);
@@ -76,8 +73,8 @@ describe("низ ленты", () => {
     await screen.findByRole("button", { name: /Логотип/ });
 
     await userEvent.click(addCategoryCta());
-    // Без окна: короткий путь снизу ленты не спрашивает цвет — он подобран
-    // автоматически, как и в полной форме (см. project/categoryColors.ts).
+    // Without a dialog: the short path at the bottom of the strip does not ask for a colour — it is
+    // picked automatically, as in the full form (see project/categoryColors.ts).
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     const field = screen.getByRole("textbox", { name: "Новая категория" });
@@ -91,8 +88,8 @@ describe("низ ленты", () => {
       color: expect.stringMatching(/^#[0-9a-f]{6}$/i),
     });
 
-    // Категория пришла настоящим блоком, а поле осталось открытым и пустым —
-    // следующую заводят сразу, не касаясь мыши (тот же приём, что у задачи).
+    // The category arrived as a real block while the field stayed open and empty — the next one is
+    // created straight away without touching the mouse (the same device as a task's).
     expect(await screen.findByText("Тестирование")).toBeInTheDocument();
     expect(field).toHaveValue("");
     expect(field).toHaveFocus();
@@ -113,7 +110,7 @@ describe("низ ленты", () => {
       expect(screen.queryByRole("textbox", { name: "Новая категория" })).not.toBeInTheDocument(),
     );
     expect(sent).toHaveLength(0);
-    // Кнопка остаётся на месте — ею заводят категорию заново.
+    // The button stays in place — it is used to create a category anew.
     expect(addCategoryCta()).toBeInTheDocument();
   });
 

@@ -1,42 +1,42 @@
 /**
- * Сегодняшний день по часам читателя.
+ * Today by the reader's clock.
  *
- * «Сегодня» в этом продукте — не момент времени, а день календаря: по нему
- * стоит линия сегодняшнего дня на ленте, считается ожидаемая готовность
- * задачи и решается, просрочена ли она. Взятое обрезкой `toISOString()`, оно
- * считалось по UTC — и у читателя в UTC+3 с полуночи до трёх утра «сегодня»
- * было вчерашним числом: линия стояла не там, а отметка дня уходила в
- * прошедшие сутки.
+ * "Today" in this product is not a moment in time but a calendar day: the today line on
+ * the strip stands by it, a task's expected readiness is computed by it, and whether it
+ * is overdue is decided by it. Taken by truncating `toISOString()`, it was computed in
+ * UTC — and for a reader in UTC+3 "today" was yesterday's date from midnight until three
+ * in the morning: the line stood in the wrong place, and a day's mark went into the day
+ * before.
  *
- * Поэтому день здесь собирается из полей календаря в нужном поясе, а не
- * обрезкой ISO-строки. Пояс приходит снаружи — из профиля, проекта или
- * браузера (см. useToday.ts): этот модуль сознательно ничего не знает ни про
- * React, ни про то, чей это пояс.
+ * So the day here is assembled from calendar fields in the required zone rather than by
+ * truncating an ISO string. The zone arrives from outside — from the profile, the project
+ * or the browser (see useToday.ts): this module deliberately knows nothing about React or
+ * about whose zone it is.
  *
- * Арифметика дат живёт в gantt/timescale.ts и остаётся UTC-полуночной: там
- * даты — строки с сервера, у которых нет ни часа, ни пояса. Единственное
- * место, где пояс вообще нужен, — переход «момент времени → день», и он тут.
+ * Date arithmetic lives in gantt/timescale.ts and stays UTC-midnight: there the dates are
+ * strings from the server, which have neither an hour nor a zone. The only place the zone
+ * is needed at all is the "moment in time → day" transition, and it is here.
  */
 
-/** Часовой пояс машины, на которой открыта страница. */
+/** The time zone of the machine the page is open on. */
 export function browserTimeZone(): string | undefined {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
   } catch {
-    // Пояс — единственное, чего может не оказаться у `Intl`; остальное
-    // приложение на нём и так держится. Пустота здесь честнее выдуманного
-    // «UTC»: она означает «спросить у самой машины» (см. machineDay).
+    // The zone is the only thing `Intl` may turn out not to have; the rest of the
+    // application rests on it anyway. Emptiness here is more honest than an invented
+    // "UTC": it means "ask the machine itself" (see machineDay).
     return undefined;
   }
 }
 
 /**
- * Форматтеры кэшируются: `dateAt` при перетаскивании и перерисовка ленты
- * спрашивают день десятки раз в секунду, а построение `Intl.DateTimeFormat`
- * — самая дорогая часть этого перевода.
+ * The formatters are cached: `dateAt` during a drag and the strip's repaint ask for the
+ * day dozens of times a second, while building an `Intl.DateTimeFormat` is the most
+ * expensive part of this conversion.
  *
- * `null` в кэше — память о том, что имя пояса непригодно: второй раз
- * поднимать на нём исключение незачем.
+ * A `null` in the cache is a memory that the zone name is unusable: there is no point
+ * raising an exception on it a second time.
  */
 const formatters = new Map<string, Intl.DateTimeFormat | null>();
 
@@ -46,10 +46,9 @@ function formatterFor(timeZone: string): Intl.DateTimeFormat | null {
 
   let formatter: Intl.DateTimeFormat | null = null;
   try {
-    // Календарь и цифры заданы в самой локали: без них читатель с
-    // персидским или арабским календарём в настройках системы получил бы
-    // «۱۴۰۵-۰۵-۲۴» — строку, которую сервер не понимает и которая не
-    // сравнивается с датами задач.
+    // The calendar and the digits are set in the locale itself: without them a reader with
+    // a Persian or Arabic calendar in their system settings would get "۱۴۰۵-۰۵-۲۴" — a
+    // string the server does not understand and which does not compare with the tasks' dates.
     formatter = new Intl.DateTimeFormat("en-CA-u-ca-gregory-nu-latn", {
       timeZone,
       year: "numeric",
@@ -57,27 +56,27 @@ function formatterFor(timeZone: string): Intl.DateTimeFormat | null {
       day: "2-digit",
     });
   } catch {
-    // Имя пояса приходит из профиля и настроек проекта, где его проверил
-    // сервер по базе IANA. Но браузер бывает старее этой базы, и падать на
-    // незнакомом ему поясе всей страницей нельзя: день просто считается по
-    // часам машины.
+    // The zone name arrives from the profile and the project settings, where the server
+    // checked it against the IANA database. But a browser can be older than that database,
+    // and crashing the whole page on a zone it does not know will not do: the day is simply
+    // computed by the machine's clock.
     formatter = null;
   }
   formatters.set(timeZone, formatter);
   return formatter;
 }
 
-/** Сутки по часам самой машины — то же, что показывают её часы. */
+/** The day by the machine's own clock — the same as what its clock shows. */
 function machineDay(at: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
 }
 
 /**
- * Какой день календаря идёт в этом поясе в указанный момент.
+ * Which calendar day it is in this zone at the given moment.
  *
- * Без пояса — по часам машины: это ровно то, что человек видит на своей
- * стене, и лучшее приближение, пока пояс неизвестен.
+ * Without a zone — by the machine's clock: that is exactly what a person sees on their
+ * own wall, and the best approximation while the zone is unknown.
  */
 export function dayIn(
   timeZone: string | null | undefined,
@@ -87,9 +86,9 @@ export function dayIn(
   const formatter = timeZone ? formatterFor(timeZone) : null;
   if (formatter === null) return machineDay(moment);
 
-  // formatToParts, а не format: `en-CA` пишет дату как «2026-03-04», но
-  // разбирать чужой формат строкой значит однажды получить «2026-03-04 н.э.»
-  // и не заметить этого.
+  // formatToParts rather than format: `en-CA` writes the date as "2026-03-04", but parsing
+  // somebody else's format as a string means one day getting "2026-03-04 A.D." and not
+  // noticing it.
   const parts = formatter.formatToParts(moment);
   const field = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? "";
@@ -101,13 +100,13 @@ export function dayIn(
 }
 
 /**
- * Имена поясов для выбора в настройках.
+ * Zone names for the settings' choice.
  *
- * Список даёт сам браузер: держать свою копию базы IANA значило бы
- * состариться вместе с ней, а сервер всё равно проверяет выбранное имя по
- * своей. `include` — значения, которые обязаны быть в списке, даже если
- * браузер их не знает: уже сохранённый выбор человека и пояс его машины.
- * Иначе поле выбора молча показало бы не то, что записано в профиле.
+ * The list is supplied by the browser itself: keeping our own copy of the IANA database
+ * would mean ageing along with it, and the server checks the chosen name against its own
+ * anyway. `include` holds the values that must be in the list even if the browser does not
+ * know them: the person's already saved choice and their machine's zone. Otherwise the
+ * select would silently show something other than what is recorded in the profile.
  */
 export function timeZoneNames(...include: (string | null | undefined)[]): string[] {
   let known: readonly string[] = [];

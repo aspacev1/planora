@@ -20,9 +20,8 @@ const STATE: ProjectState = {
   plan_approved_at: null,
   plan_version: 0,
   undoable: null,
-  // Календарный режим: заглушки существующих тестов живут настоящими датами.
-  // Относительные проекты собирают своё состояние поверх этого (см. тесты
-  // относительной шкалы).
+  // Calendar mode: the existing tests' fixtures live on real dates. Relative projects build their
+  // own state on top of this (see the relative-scale tests).
   schedule_mode: "calendar" as const,
   start_date: null,
 
@@ -46,9 +45,8 @@ let queryClient: QueryClient;
 let fetches: number;
 
 /**
- * Живой подписчик состояния: без наблюдателя `invalidateQueries` только
- * помечает запись устаревшей и на этом останавливается — то есть тест
- * проверял бы не перезапрос, а вызов функции.
+ * A live subscriber to the state: without an observer `invalidateQueries` only marks the entry stale
+ * and stops there — that is, the test would be checking a function call rather than a refetch.
  */
 function Probe() {
   useQuery({ queryKey: projectQueryKey("p1"), queryFn: () => getProject("p1") });
@@ -79,7 +77,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** Первая загрузка состояния, после которой счётчик походов обнуляется. */
+/** The first load of the state, after which the trip counter is reset. */
 async function settled() {
   await waitFor(() => expect(fetches).toBe(1));
   fetches = 0;
@@ -122,8 +120,8 @@ describe("живая связь проекта", () => {
   });
 
   it("не ходит за состоянием на постороннем сообщении", async () => {
-    // Без этого теста «перезапрашивает на ревизию» проходил бы и у кода,
-    // который ходит за состоянием на любой шорох в сокете.
+    // Without this test, "refetches on a revision" would pass for code that goes for the state at
+    // every rustle in the socket too.
     renderHook(() => useProjectLive("p1"), { wrapper });
     await settled();
     await act(async () => lastSocket().accept());
@@ -148,8 +146,7 @@ describe("живая связь проекта", () => {
   });
 
   it("переподключается и перезапрашивает состояние целиком", async () => {
-    // §12: при восстановлении состояние перезапрашивается целиком, а не
-    // доигрывается по пропущенным ревизиям.
+    // §12: on recovery the state is refetched whole rather than replayed from the missed revisions.
     vi.useFakeTimers();
     const { result } = renderHook(() => useProjectLive("p1"), { wrapper });
     await vi.waitFor(() => expect(fetches).toBe(1));
@@ -170,8 +167,8 @@ describe("живая связь проекта", () => {
   });
 
   it("не перезапрашивает состояние при первом подключении", async () => {
-    // Экран только что получил состояние по HTTP: второй поход за тем же —
-    // лишний запрос на каждое открытие проекта.
+    // The screen has just received the state over HTTP: a second trip for the same thing is an extra
+    // request on every opening of a project.
     renderHook(() => useProjectLive("p1"), { wrapper });
     await settled();
 
@@ -181,9 +178,9 @@ describe("живая связь проекта", () => {
   });
 
   it("считает обрывом затянувшееся молчание, а не только закрытие", async () => {
-    // Уснувший ноутбук и сменившаяся сеть не закрывают соединение — они
-    // замолкают. Без сторожевого срока экран продолжал бы показывать
-    // устаревший план с полной уверенностью в его свежести.
+    // A laptop that fell asleep and a changed network do not close the connection — they go quiet.
+    // Without a watchdog timeout the screen would go on showing a stale plan with full confidence in
+    // its freshness.
     vi.useFakeTimers();
     const { result } = renderHook(() => useProjectLive("p1"), { wrapper });
     act(() => lastSocket().accept());
@@ -214,15 +211,15 @@ describe("живая связь проекта", () => {
   });
 
   it("сокет, не открывшийся ни разу, не запирает редактирование", async () => {
-    // Так выглядит раскладка без WebSocket. Живых обновлений не будет, но
-    // это «связи здесь не бывает», а не «связь оборвалась».
+    // That is how a deployment without WebSocket looks. There will be no live updates, but this is
+    // "there is no connection here" rather than "the connection dropped".
     vi.useFakeTimers();
     const { result } = renderHook(() => useProjectLive("p1"), { wrapper });
 
     act(() => lastSocket().drop());
     expect(result.current.status).toBe("unavailable");
 
-    // Попытки не бесконечны: раскладка без сокетов не станет с ними со временем.
+    // The attempts are not endless: a deployment without sockets will not gain them with time.
     await act(async () => {
       for (let round = 0; round < 8; round += 1) {
         await vi.advanceTimersByTimeAsync(30_000);
@@ -239,7 +236,7 @@ describe("живая связь проекта", () => {
   });
 
   it("не переподключается после отказа в доступе", async () => {
-    // 4401 и 4404 — ответ, а не помеха: повторять его нечего.
+    // 4401 and 4404 are an answer rather than an obstacle: there is nothing to repeat.
     vi.useFakeTimers();
     renderHook(() => useProjectLive("p1"), { wrapper });
     act(() => lastSocket().accept());

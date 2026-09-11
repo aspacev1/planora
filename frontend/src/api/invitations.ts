@@ -2,7 +2,7 @@ import { request } from "./client";
 
 export const INVITATIONS_QUERY_KEY = ["org", "invitations"] as const;
 
-/** Ключ приглашения по токену: у каждой ссылки свой, экранов приёма может быть несколько. */
+/** The invitation's key by token: every link has its own, and there can be several acceptance screens. */
 export function inviteQueryKey(token: string) {
   return ["invitation", token] as const;
 }
@@ -11,7 +11,7 @@ export type InviteStatus = "pending" | "accepted" | "revoked" | "expired";
 
 export type Invitation = {
   id: string;
-  /** null — приглашение только по ссылке: оно достаётся предъявителю. */
+  /** null — an invitation by link only: it goes to whoever holds it. */
   email: string | null;
   role: string;
   status: InviteStatus;
@@ -25,9 +25,9 @@ export type Invitation = {
 
 export type InvitationList = {
   /**
-   * Настроена ли в установке почта. Без неё кнопка отправки не показывается
-   * вовсе — установка без почтового сервера остаётся полноценной, а не
-   * показывает кнопку, которая всегда отвечает отказом.
+   * Whether mail is configured in the install. Without it the send button is not shown at all — an
+   * install without a mail server stays fully usable rather than showing a button that always answers
+   * with a refusal.
    */
   mail_enabled: boolean;
   invitations: Invitation[];
@@ -39,13 +39,13 @@ export type Issued = {
   role: string;
   expires_at: string;
   /**
-   * Открытая ссылка. Приходит только в ответ на выпуск и больше нигде: в базе
-   * лежит хеш токена, и второй раз её взять негде. Отсюда и поведение экрана —
-   * ссылка показывается сразу и не прячется до следующего действия.
+   * The open link. It arrives only in response to an issue and nowhere else: the database holds the
+   * token's hash, and there is nowhere to take it a second time. Hence the screen's behaviour too — the
+   * link is shown at once and is not hidden until the next action.
    */
   url: string;
   sent: boolean;
-  /** Почему письмо не ушло. Приглашение при этом создано. */
+  /** Why the email did not go out. The invitation is created at that. */
   mail_error: string | null;
 };
 
@@ -82,7 +82,7 @@ export function createInvitations(input: InviteInput): Promise<Issued[]> {
   });
 }
 
-/** Новая ссылка взамен прежней — она же «отправить ещё раз». */
+/** A new link in place of the previous one — also known as "send again". */
 export function reissueInvitation(id: string, deliver: boolean): Promise<Issued> {
   return request<Issued>(`/api/org/invitations/${id}/reissue`, {
     method: "POST",
@@ -94,7 +94,7 @@ export function revokeInvitation(id: string): Promise<void> {
   return request<void>(`/api/org/invitations/${id}`, { method: "DELETE" });
 }
 
-/** Что за приглашение на руках — отвечает и тому, кто ещё не вошёл. */
+/** What invitation is in hand — it answers someone who has not signed in yet too. */
 export function previewInvitation(token: string): Promise<InvitePreview> {
   return request<InvitePreview>(`/api/invitations/${encodeURIComponent(token)}`);
 }

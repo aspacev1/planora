@@ -1,8 +1,8 @@
-"""Сценарий интейка: интервью → конспект → черновик → применение.
+"""The intake scenario: interview -> summary -> draft -> application.
 
-Порядок шагов и ворота между ними не настраиваются: возможность отключить
-ворота уничтожает главный принцип продукта — AI ничего не пишет в проект без
-явного подтверждения человека.
+The order of the steps and the gates between them are not configurable: an
+option to turn the gates off destroys the product's main principle — AI writes
+nothing into a project without a person's explicit confirmation.
 """
 
 import uuid
@@ -37,12 +37,12 @@ _TOPICS_FILE = Path(__file__).resolve().parents[3] / "config" / "intake_topics.y
 
 @lru_cache
 def topics() -> list[dict]:
-    """Обязательные темы интервью — из файла рядом с приложением.
+    """The mandatory interview topics — from a file next to the application.
 
-    Отсутствие файла не роняет приложение: интервью без списка тем всё равно
-    работает, просто модель выбирает вопросы сама. Падать здесь значило бы
-    поставить установку в зависимость от файла, который к продукту отношения
-    не имеет.
+    A missing file does not bring the application down: an interview without a
+    list of topics still works, the model simply picks the questions itself.
+    Failing here would mean making the installation depend on a file that has
+    nothing to do with the product.
     """
     try:
         loaded = yaml.safe_load(_TOPICS_FILE.read_text(encoding="utf-8")) or {}
@@ -58,10 +58,11 @@ class IntakeError(Exception):
 
 
 def _system(session: AiSession) -> dict:
-    """Общая часть промпта.
+    """The shared part of the prompt.
 
-    Язык передаётся явным параметром, а не угадывается моделью по тексту
-    ответов: человек может отвечать на одном языке, а вести проект на другом.
+    The language is passed as an explicit parameter rather than guessed by the
+    model from the text of the answers: a person may answer in one language while
+    running the project in another.
     """
     return {
         "role": "system",
@@ -92,10 +93,10 @@ def _remaining(session: AiSession) -> list[dict]:
 
 
 def _generate(session: AiSession, provider: LlmProvider, messages: list[dict], schema: dict):
-    """Один вызов модели с записью расхода токенов.
+    """One call to the model, with the token spend recorded.
 
-    Расход пишется по сессиям — это единственное место, где он вообще
-    считается, и обходить его нельзя.
+    Spend is recorded per session — this is the only place where it is counted at
+    all, and bypassing it is not allowed.
     """
     payload, tokens = provider.generate(messages, schema)
     session.tokens_used += tokens
@@ -115,11 +116,11 @@ def start(
 
 
 def ask(db: DbSession, session: AiSession, provider: LlmProvider) -> str:
-    """Следующий вопрос.
+    """The next question.
 
-    Жёсткий потолок вопросов живёт здесь: без него модель уточняет бесконечно.
-    Дойдя до потолка, сессия сама переходит к конспекту — это не отказ, а
-    переход к следующему шагу.
+    The hard ceiling on questions lives here: without it the model clarifies
+    endlessly. Having reached the ceiling, the session moves on to the summary by
+    itself — that is not a refusal but a move to the next step.
     """
     if session.status != "interview":
         raise IntakeError("wrong_step", "интервью уже закончено")
@@ -141,12 +142,12 @@ def ask(db: DbSession, session: AiSession, provider: LlmProvider) -> str:
     messages = [*_history(session), {"role": "user", "content": instruction}]
 
     answer = parse(NextQuestion, _generate(session, provider, messages, QUESTION_SCHEMA))
-    # Закрытые темы приходят вместе с вопросом и запоминаются: без этого
-    # остаток тем никогда не убывает, и интервью упирается в потолок вместо
-    # того, чтобы закончиться, когда выяснять больше нечего.
+    # Covered topics arrive together with the question and are remembered:
+    # without this the remaining topics never shrink, and the interview hits the
+    # ceiling instead of ending when there is nothing left to find out.
     #
-    # Список переприсваивается целиком: JSONB не отслеживает правку списка на
-    # месте, и append молча не доехал бы до базы.
+    # The list is reassigned in full: JSONB does not track an in-place edit of a
+    # list, and an append would silently fail to reach the database.
     session.transcript = [
         *session.transcript,
         {"question": answer.question, "answer": None, "covered": answer.covered_topics},
@@ -156,7 +157,7 @@ def ask(db: DbSession, session: AiSession, provider: LlmProvider) -> str:
 
 
 def answer(db: DbSession, session: AiSession, text: str, provider: LlmProvider) -> str | None:
-    """Ответ человека и следующий вопрос — или `None`, если пора к конспекту."""
+    """A person's answer and the next question — or `None` if it is time for the summary."""
     if session.status != "interview":
         raise IntakeError("wrong_step", "интервью уже закончено")
     if not session.transcript:
@@ -173,10 +174,10 @@ def answer(db: DbSession, session: AiSession, text: str, provider: LlmProvider) 
 
 
 def make_summary(db: DbSession, session: AiSession, provider: LlmProvider) -> list[str]:
-    """Шаг 2: конспект — первые ворота.
+    """Step 2: the summary — the first gate.
 
-    Здесь дешевле всего поймать неверно понятое: до того, как оно превратится
-    в сто неправильных задач.
+    This is the cheapest place to catch a misunderstanding: before it turns into
+    a hundred wrong tasks.
     """
     messages = _history(session)
     messages.append(
@@ -193,7 +194,7 @@ def make_summary(db: DbSession, session: AiSession, provider: LlmProvider) -> li
 
 
 def edit_summary(db: DbSession, session: AiSession, theses: list[str]) -> list[str]:
-    """Правка тезисов человеком. Ворота на то и ворота, что через них правят."""
+    """A person's edit of the summary. A gate is a gate precisely because things are edited through it."""
     if session.status not in {"summary", "draft"}:
         raise IntakeError("wrong_step", "конспекта ещё нет")
     session.summary = [thesis.strip() for thesis in theses if thesis.strip()]
@@ -202,11 +203,12 @@ def edit_summary(db: DbSession, session: AiSession, theses: list[str]) -> list[s
 
 
 def make_draft(db: DbSession, session: AiSession, provider: LlmProvider) -> dict:
-    """Шаг 3: черновик — главные ворота.
+    """Step 3: the draft — the main gate.
 
-    Не прошло по схеме — повторный запрос, максимум `AI_SCHEMA_RETRIES` раз,
-    затем честное сообщение об ошибке с сохранением сессии. Сессия при этом
-    остаётся на прежнем шаге: переписка и всё выясненное никуда не деваются.
+    If it did not pass the schema — repeat the request, at most
+    `AI_SCHEMA_RETRIES` times, then an honest error message with the session
+    preserved. The session stays on the previous step: the conversation and
+    everything established are still there.
     """
     if session.status not in {"summary", "draft"}:
         raise IntakeError("wrong_step", "сначала конспект")
@@ -231,8 +233,8 @@ def make_draft(db: DbSession, session: AiSession, provider: LlmProvider) -> dict
             draft = parse(Draft, _generate(session, provider, messages, DRAFT_SCHEMA))
         except LlmError as error:
             last = error
-            # Повтор только на битой схеме: недоступная сеть от повтора не
-            # починится, а расход токенов утроится.
+            # A retry only on a broken schema: an unreachable network will not be
+            # fixed by a retry, while the token spend would triple.
             if error.code not in {"llm_schema_mismatch", "llm_bad_json"}:
                 raise
             continue
@@ -245,7 +247,7 @@ def make_draft(db: DbSession, session: AiSession, provider: LlmProvider) -> dict
 
 
 def edit_draft(db: DbSession, session: AiSession, draft: dict) -> dict:
-    """Правка черновика человеком: в проект не записано ничего."""
+    """A person's edit of the draft: nothing has been written into the project."""
     if session.status != "draft":
         raise IntakeError("wrong_step", "черновика ещё нет")
     parsed = parse(Draft, draft)
@@ -257,14 +259,16 @@ def edit_draft(db: DbSession, session: AiSession, draft: dict) -> dict:
 def apply_draft(
     db: DbSession, session: AiSession, *, name: str, actor: User
 ) -> tuple[Project, uuid.UUID]:
-    """Шаг 4: применение — пачкой обычных мутаций с общим `batch_id`.
+    """Step 4: application — as a batch of ordinary mutations with a shared `batch_id`.
 
-    Обычных — потому что иначе история задач, созданных AI, отличалась бы от
-    истории остальных, и отмена для них была бы своя. Вся пачка откатывается
-    одной кнопкой ровно потому, что это те же самые ревизии.
+    Ordinary — because otherwise the history of tasks created by AI would differ
+    from the history of the rest, and undo for them would be its own thing. The
+    whole batch rolls back with one button precisely because these are the very
+    same revisions.
     """
-    # «Уже применён» проверяется раньше «не тот шаг»: после применения статус
-    # тоже не draft, и общий отказ сказал бы человеку не то, что случилось.
+    # "Already applied" is checked before "wrong step": after application the
+    # status is not draft either, and a generic refusal would tell the person
+    # something other than what happened.
     if session.applied_batch_id is not None:
         raise IntakeError("already_applied", "черновик уже применён")
     if session.status != "draft":
@@ -272,9 +276,9 @@ def apply_draft(
 
     draft = parse(Draft, session.draft)
     project = create_project(db, org_id=session.org_id, name=name)
-    # Черновик AI — план с настоящими датами: модель раскладывает задачи от
-    # сегодняшнего дня. Такой проект рождается календарным, а не относительным:
-    # относительная ось — для планов, у которых даты ещё не назначены.
+    # An AI draft is a plan with real dates: the model lays the tasks out from
+    # today. Such a project is born calendar-based rather than relative: the
+    # relative axis is for plans whose dates have not been assigned yet.
     project.schedule_mode = ScheduleMode.CALENDAR
     batch_id = uuid.uuid4()
 
@@ -312,8 +316,8 @@ def apply_draft(
     return project, batch_id
 
 
-# Палитра — оформление, а не данные: цвета для категорий AI берутся из того же
-# короткого набора, что предлагает форма создания категории вручную.
+# The palette is presentation, not data: colours for AI categories are taken
+# from the same short set the manual category-creation form offers.
 _COLORS = ("#3b82f6", "#a855f7", "#f97316", "#10b981", "#ef4444", "#eab308")
 
 
@@ -324,10 +328,10 @@ def _color(index: int) -> str:
 def propose_split(
     db: DbSession, task: Task, provider: LlmProvider, *, locale: str
 ) -> list[dict]:
-    """Точечное действие «разбить на несколько».
+    """The targeted "split into several" action.
 
-    Возвращает предложение и ничего не пишет: применяется оно только по
-    кнопке — тем же правилом, что и черновик.
+    It returns a suggestion and writes nothing: it is applied only by a button —
+    by the same rule as the draft.
     """
     messages = [
         {
@@ -354,18 +358,18 @@ def propose_split(
 def apply_split(
     db: DbSession, project: Project, task: Task, parts: list[dict], *, actor: User
 ) -> uuid.UUID:
-    """Применение разбиения: пачка мутаций, откатывается целиком.
+    """Applying a split: a batch of mutations, rolled back as a whole.
 
-    Исходная задача не удаляется автоматически — её судьбу решает человек:
-    молчаливое удаление уносит её историю и назначения, а вернуть их отменой
-    можно только вместе со всей пачкой.
+    The original task is not deleted automatically — a person decides its fate:
+    a silent deletion carries away its history and assignments, and bringing them
+    back with an undo is only possible together with the whole batch.
     """
     split = parse(Split, {"parts": parts})
     batch_id = uuid.uuid4()
-    # Части раскладываются по календарю проекта, а не по календарным дням:
-    # длительность задана в рабочих днях, и часть на «5 дней», начатая в
-    # среду, кончается во вторник, а не в понедельник. Прежний счёт по
-    # ordinal смещал каждую следующую часть на выходные всех предыдущих.
+    # The parts are laid out along the project's calendar rather than along
+    # calendar days: the duration is given in working days, and a "5 days" part
+    # started on Wednesday finishes on Tuesday, not on Monday. The previous count
+    # by ordinal shifted every following part by the weekends of all the previous ones.
     org = db.get(Organization, project.org_id)
     cal = project_calendar(project, org)
     start = task.start_date
@@ -384,8 +388,8 @@ def apply_split(
             actor_id=actor.id,
             batch_id=batch_id,
         )
-        # Части идут подряд, а не одна поверх другой: следующая начинается с
-        # первого рабочего дня после конца предыдущей.
+        # The parts run consecutively rather than on top of one another: the next
+        # one starts on the first working day after the previous one's end.
         finished = end_date(start, part.duration_days, cal)
         start = first_working_on_or_after(finished + timedelta(days=1), cal)
     return batch_id

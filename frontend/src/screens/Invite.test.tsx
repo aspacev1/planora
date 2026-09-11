@@ -17,7 +17,7 @@ const PREVIEW = {
   expires_at: "2026-08-18T09:00:00+00:00",
 };
 
-/** Никто не вошёл: приглашение открыли из письма, в чужом браузере. */
+/** Nobody is signed in: the invitation was opened from an email, in a different browser. */
 function anonymous() {
   return http.get("/api/auth/me", () => HttpResponse.json({ detail: "not_authenticated" }, { status: 401 }));
 }
@@ -64,10 +64,10 @@ describe("экран приглашения", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /принять приглашение/i }));
 
-    // Не findByTestId: элемент с адресом существует с первого кадра, так что
-    // findBy находит его мгновенно — ещё до того, как мутация завершится и
-    // случится переход, — и разовый assert мигал под нагрузкой полного
-    // прогона. Ждать нужно смены содержимого, это делает waitFor.
+    // Not findByTestId: the element with the address exists from the first frame, so findBy locates it
+    // instantly — before the mutation finishes and the navigation happens — and a one-off assert
+    // flickered under the load of a full run. What has to be waited for is a change of content, and
+    // waitFor does that.
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/projects"));
   });
 
@@ -77,7 +77,7 @@ describe("экран приглашения", () => {
     renderApp({ route: ROUTE, locale: "ru" });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("someone@else.com");
-    // Предлагается выйти, а не просто отказ: иначе непонятно, что делать.
+    // A sign-out is offered rather than a bare refusal: otherwise it is unclear what to do.
     expect(screen.getByRole("button", { name: /выйти/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /принять приглашение/i })).not.toBeInTheDocument();
   });
@@ -125,10 +125,9 @@ describe("регистрация по приглашению", () => {
     let sent: Record<string, unknown> | null = null;
     server.use(
       preview(PREVIEW),
-      // Профиль отвечает как после успешной регистрации: кука к этому моменту
-      // уже поставлена, и защищённый маршрут за ней пускает. Иначе проверка
-      // упёрлась бы в перенаправление на вход — в поведение входа, а не
-      // регистрации по приглашению.
+      // The profile answers as after a successful registration: the cookie is already set by this
+      // moment, and a protected route lets you through with it. Otherwise the check would run into a
+      // redirect to the sign-in — into the sign-in's behaviour rather than registration by invitation's.
       ...sessionHandlers(),
       http.post("/api/auth/register", async ({ request }) => {
         sent = (await request.json()) as Record<string, unknown>;
@@ -140,16 +139,16 @@ describe("регистрация по приглашению", () => {
 
     renderApp({ route: `/register?invite=${TOKEN}`, locale: "ru" });
 
-    // Сначала дожидаемся приглашения: до его прихода форма не отправляется —
-    // адрес в ней ещё пуст, и заполнить его человек не может.
+    // First we wait for the invitation: before it arrives the form is not submitted — the address in it
+    // is still empty, and the person cannot fill it in.
     await screen.findByDisplayValue("a@b.c");
-    // Организация уже есть — заводить вторую нечем, и поле для неё не показано.
+    // The organization already exists — there is nothing to create a second one with, and its field is not shown.
     expect(screen.queryByLabelText(/компани/i)).not.toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(/имя/i), "Гость");
     await userEvent.type(screen.getByLabelText(/пароль/i), "s3cret-pass");
     await userEvent.click(screen.getByRole("button", { name: /зарегистрироваться/i }));
 
-    // См. комментарий к такому же ожиданию выше: waitFor, а не findByTestId.
+    // See the comment on the same wait above: waitFor rather than findByTestId.
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/projects"));
     expect(sent).toMatchObject({ email: "a@b.c", invite_token: TOKEN });
     expect(sent).not.toHaveProperty("company_name");

@@ -8,19 +8,18 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { useUndo } from "./useUndo";
 
 /**
- * Ctrl/⌘+Z на весь экран проекта.
+ * Ctrl/⌘+Z across the whole project screen.
  *
- * Отмена в приложении была, но добраться до неё можно было только мышью — из
- * тоста сразу после переноса или из ленты истории, то есть с другой вкладки.
- * Человек, подвинувший полоску не туда, жмёт Ctrl+Z не задумываясь; сочетание,
- * которого нет, читается как «отменить нельзя».
+ * Undo existed in the application, but it could only be reached with the mouse — from the toast
+ * right after a move or from the history feed, that is, from a different tab. A person who moved a
+ * bar to the wrong place presses Ctrl+Z without thinking; a combination that does not exist reads
+ * as "this cannot be undone".
  *
- * Слушатель на документе, а не на ленте: отменяют не то, что под фокусом, а
- * последнее сделанное в проекте, и работать это обязано на обеих вкладках и
- * при фокусе где угодно. Компонент ничего не рисует — он живёт ради этого
- * слушателя и ради `useUndo`, которому нужно состояние проекта; узел без
- * разметки честнее, чем хук, вызванный посреди экрана, у которого до
- * состояния три ранних возврата.
+ * The listener is on the document rather than on the strip: what is undone is not what is under the
+ * focus but the last thing done in the project, and that must work on both tabs and with the focus
+ * anywhere. The component draws nothing — it exists for the sake of this listener and of `useUndo`,
+ * which needs the project's state; a node with no markup is more honest than a hook called in the
+ * middle of a screen that has three early returns before the state.
  */
 export function UndoHotkey({
   projectId,
@@ -29,7 +28,7 @@ export function UndoHotkey({
 }: {
   projectId: string;
   state: ProjectState;
-  /** Право и возможность отменять — тот же признак, что у кнопки в ленте. */
+  /** The right and the ability to undo — the same flag as the feed's button. */
   enabled: boolean;
 }) {
   const { t } = useLocale();
@@ -42,31 +41,31 @@ export function UndoHotkey({
 
     function onKeyDown(event: KeyboardEvent) {
       if (!isUndoChord(event) || isTextEntry(event.target)) return;
-      // Пока открыто окно, Ctrl+Z принадлежит окну: человек правит форму
-      // задачи, а не ленту за ней, и отменять у него за спиной чужой перенос
-      // — не то, о чём он просил. Сюда же попадает окно с причиной сдвига:
-      // второе нажатие во время вопроса завело бы вторую отмену.
+      // While a dialog is open, Ctrl+Z belongs to the dialog: the person is editing a task's form
+      // rather than the strip behind it, and undoing somebody else's move behind their back is not
+      // what they asked for. The shift reason dialog falls here too: a second press during the
+      // question would start a second undo.
       if (document.querySelector('[role="dialog"]') !== null) return;
       event.preventDefault();
 
       if (!undoable) {
-        // Молчание читалось бы как сломанная клавиша: приложение обязано
-        // ответить и на «отменять нечего».
+        // Silence would read as a broken key: the application must answer "there is nothing to undo"
+        // too.
         showToast({ message: t("undo.nothing") });
         return;
       }
       if (isPending) return;
 
       mutate(undefined, {
-        // Тост — единственное подтверждение для того, кто нажал клавишу: на
-        // ленте полоска уезжает на глазах, но на вкладке истории отмена иначе
-        // выглядит как ничего не произошло.
+        // The toast is the only confirmation for someone who pressed a key: on the strip the bar
+        // travels before their eyes, but on the history tab an undo otherwise looks as if nothing
+        // happened.
         onSuccess: (undone) => {
           if (undone) showToast({ message: t("undo.done") });
         },
-        // Отказ — тоном отказа: галочка рядом с «отменить этот перенос уже
-        // нельзя» сообщает ровно обратное тому, что случилось, а `role="status"`
-        // прячет отказ от читалки в сводку, тогда как отменить не удалось.
+        // A refusal in the refusal tone: a tick next to "this move can no longer be undone" reports
+        // exactly the opposite of what happened, while `role="status"` hides the refusal from a
+        // screen reader in a summary, when the undo did not succeed.
         onError: (error) => showToast({ message: t(errorKey(error)), tone: "error" }),
       });
     }

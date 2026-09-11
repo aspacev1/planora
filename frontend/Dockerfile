@@ -1,19 +1,19 @@
-# Сборка идёт в образе с Node, а наружу выходит только статика: итоговый
-# образ не содержит ни Node, ни исходников, ни node_modules — то есть ни
-# одного из тех гигабайт, которые нужны ровно один раз.
+# The build runs in a Node image and only static files come out: the final
+# image contains neither Node, nor sources, nor node_modules — that is, none
+# of the gigabytes needed exactly once.
 
-# Манифесты копируются отдельно от кода: слой с зависимостями пересобирается
-# только при их изменении, а не на каждую правку компонента. Отдельная стадия
-# нужна ещё и потому, что на неё опирается dev: там npm ci уже сделан, а
-# `npm run build` — нет, и dev-серверу нечего ждать.
+# Manifests are copied separately from the code: the dependency layer is
+# rebuilt only when they change, not on every edit to a component. A separate
+# stage is also needed because dev builds on top of it: there npm ci is already
+# done while `npm run build` is not, and the dev server has nothing to wait for.
 FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS deps
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
-# Стадия разработки: тот же Vite, что и при `npm run dev` на хосте, только
-# внутри контейнера — чтобы для правки интерфейса не требовалось ставить Node
-# локально. Собирается только по `target: dev` из docker-compose.dev.yml.
+# The development stage: the same Vite as `npm run dev` on the host, only
+# inside a container — so that editing the interface does not require Node
+# installed locally. Built only via `target: dev` from docker-compose.dev.yml.
 FROM deps AS dev
 COPY frontend/ ./
 EXPOSE 8080
@@ -23,23 +23,24 @@ FROM deps AS build
 COPY frontend/ ./
 RUN npm run build
 
-# Последняя стадия — та, что собирается по умолчанию, без указания target.
+# The last stage is the one built by default, with no target given.
 FROM caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648 AS runtime
 COPY --from=build /app/dist /srv
 COPY Caddyfile /etc/caddy/Caddyfile
-# Файловая возможность cap_net_bind_service снимается с двоичного файла.
-# Официальный образ ставит её (setcap ...=+ep), чтобы Caddy мог слушать 80 и
-# 443 не от root, — а вместе с `cap_drop: [ALL]` в compose она же и не даёт
-# ему запуститься: ядро отказывает в exec файла, чей permitted-набор не
-# помещается в пустой bounding-набор процесса, и контейнер падал с
-# «exec caddy failed: Operation not permitted», уходя в бесконечный рестарт.
-# Привилегированные порты здесь не нужны — слушаем 8080, — поэтому
-# возможность убирается с файла, а не возвращается в compose через cap_add:
-# так набор прав остаётся пустым, как и задумано.
+# The cap_net_bind_service file capability is stripped from the binary. The
+# official image sets it (setcap ...=+ep) so that Caddy can listen on 80 and
+# 443 without being root — and together with `cap_drop: [ALL]` in compose that
+# same capability is what stops it from starting: the kernel refuses to exec a
+# file whose permitted set does not fit into the process's empty bounding set,
+# and the container died with "exec caddy failed: Operation not permitted",
+# looping forever in restarts. Privileged ports are not needed here — we listen
+# on 8080 — so the capability is removed from the file rather than handed back
+# in compose via cap_add: that way the set of privileges stays empty, as
+# intended.
 #
-# Не root: Caddy слушает 8080 (непривилегированный) и пишет только в свои
-# каталоги данных — им и отдаётся владелец. adduser -S — системный
-# пользователь без пароля и домашнего каталога.
+# Not root: Caddy listens on 8080 (unprivileged) and writes only to its own
+# data directories — those are the ones it owns. adduser -S creates a system
+# user with no password and no home directory.
 RUN setcap -r /usr/bin/caddy \
 	&& adduser -S -u 10001 web \
 	&& chown -R web /data /config

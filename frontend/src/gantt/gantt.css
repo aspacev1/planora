@@ -1,51 +1,51 @@
-/* Диаграмма Ганта — лента макета Northstar.
+/* The Gantt chart — the Northstar mockup's chart.
 
-   Здесь лежит всё оформление ленты и только оно. Не потому, что этот файл
-   эмитится последним — порядок сборки не закон, а следствие текущего графа
-   импортов, и ленивая загрузка маршрута сменила бы его молча. Причина проще:
-   один селектор не должен жить в двух файлах. Токены приходят из темы
-   (`northstar-theme.css`) и разрешаются на вычислении значения, поэтому
-   `var(--border)` здесь работает независимо от того, кто эмитится раньше.
+   All of the chart's styling lives here and nothing else does. Not because this file is
+   emitted last — the build order is not a law but a consequence of the current import
+   graph, and lazy loading of a route would change it silently. The reason is simpler:
+   one selector must not live in two files. The tokens come from the theme
+   (`northstar-theme.css`) and are resolved when a value is computed, so `var(--border)`
+   works here regardless of which file is emitted first.
 
-   Приём макета: лента — не таблица в рамке, а поле, по которому разложены
-   полоски. Линии тонкие и одинаковые, заливок ровно столько, сколько
-   состояний, и цвет полоски означает ровно одно — статус задачи. */
+   The mockup's approach: the chart is not a table in a frame but a field with bars laid
+   out on it. The lines are thin and identical, there are exactly as many fills as there
+   are states, and a bar's colour means exactly one thing — the task's status. */
 
 .gantt {
   --gantt-label: 260px;
-  /* --gantt-row приходит из разметки: по этой же величине считаются стрелки
-     связей, и второе число здесь разошлось бы с ними при первой правке. */
+  /* --gantt-row comes from the markup: link arrows are computed from that same value,
+     and a second number here would diverge from them on the first edit. */
   --gantt-row: 48px;
-  /* Шапка = полоса месяцев + полоса дней. Обе меры выведены из этих двух
-     переменных, а не записаны литералами в трёх местах: прежде высота полосы
-     месяцев стояла числом и в её собственном правиле, и в вычитании для
-     полосы дней, и правка одного молча ломала другое. */
+  /* The header = the months strip + the days strip. Both measurements are derived from
+     these two variables rather than written as literals in three places: the months
+     strip's height used to stand as a number both in its own rule and in the subtraction
+     for the days strip, and editing one silently broke the other. */
   --gantt-head: 68px;
   --gantt-month-row: 27px;
-  /* Поле первой колонки таблицы. Отдельной величиной, потому что по нему
-     встают трое: сама ячейка названия, ручка перестановки строк, что стоит в
-     этом поле, и отступ вложенности ниже. Литерал в трёх местах разъехался бы
-     на первой же правке — ручка уехала бы из-под имени. */
+  /* The padding of the table's first column. A separate value because three things line
+     up against it: the name cell itself, the row reorder handle that stands in that
+     padding, and the nesting indent below. A literal in three places would drift apart on
+     the very first edit — the handle would slide out from under the name. */
   --gantt-pad: var(--space-12);
-  /* Отступ задачи внутри категории — от левого края колонки: то место, где
-     начинается имя категории (поле колонки, шеврон и просвет до текста), плюс
-     ступень вложенности (см. --row-indent в components/rows.css). Выведен из
-     тех же мер, а не записан числом: разойдись они — имя задачи съедет
-     относительно заголовка своей же категории. */
+  /* A task's indent within a category, measured from the column's left edge: the place
+     where a category's name begins (the column's padding, the chevron and the gap to the
+     text) plus a nesting step (see --row-indent in components/rows.css). It is derived
+     from those same measurements rather than written as a number: should they diverge, a
+     task's name would slide relative to the heading of its own category. */
   --gantt-indent: calc(var(--gantt-pad) + var(--row-chevron) + var(--space-6) + var(--row-indent));
-  /* Полоске при строке в 40 пикселей (см. ROW_HEIGHT) остаётся просвет по
-     7 сверху и снизу: прежние 28 оставляли 6 — полоски соседних строк почти
-     смыкались, и лента читалась сплошной заливкой. */
+  /* With a row of 40 pixels (see ROW_HEIGHT) a bar is left with 7 pixels of clearance
+     above and below: the previous 28 left 6 — the bars of neighbouring rows almost met,
+     and the chart read as a solid fill. */
   --gantt-bar: 26px;
-  /* Разделитель строк светлее рамок ленты: на полусотне строк линия в полную
-     силу рисует решётку, в которой не видно самих строк. */
+  /* The row separator is lighter than the chart's frames: across fifty rows a line at
+     full strength draws a grid in which the rows themselves are invisible. */
   --gantt-row-line: #edf0f4;
 
-  /* Заливки полосок. Живут здесь, а не в теме: это четыре значения одного
-     свойства ленты, и в общей палитре продукта им соответствия нет — синий
-     полоски темнее акцента ровно настолько, чтобы белая подпись на нём
-     читалась. Накладки, наоборот, берут токены темы: «внимание» и «тревога»
-     означают на ленте ровно то же, что и на всех остальных экранах. */
+  /* The bars' fills. They live here rather than in the theme: these are four values of
+     one property of the chart, and there is no counterpart to them in the product's
+     shared palette — a bar's blue is darker than the accent by exactly enough for a white
+     label on it to read. The overlays, on the contrary, take the theme's tokens:
+     "attention" and "alarm" mean exactly the same on the chart as on every other screen. */
   --gantt-fill-progress: #6274e7;
   --gantt-fill-progress-done: #4358d6;
   --gantt-fill-planned: #e9eef5;
@@ -59,26 +59,26 @@
   );
 }
 
-/* Поле колонки названий у того, кто переставляет строки, шире на ступеньку —
-   под ручку этапа, которой больше некуда встать: столбец шеврона у категории
-   занят самим шевроном (см. .gantt__handle--category ниже).
+/* The name column's padding is one step wider for whoever reorders rows — to make room
+   for the stage handle, which has nowhere else to stand: a category's chevron column is
+   taken by the chevron itself (see .gantt__handle--category below).
 
-   Правится одно поле, а не два отступа: вложенность задачи выведена из него
-   же (--gantt-indent), и имена задач съезжают вместе с именами этапов, а не
-   относительно них. У читателя поле остаётся прежним — ручек у него нет
-   вовсе, и отодвигать имена от края ради невидимой кнопки не за чем. */
+   One padding is edited rather than two indents: a task's nesting is derived from that
+   same padding (--gantt-indent), and task names slide together with stage names rather
+   than relative to them. For a reader the padding stays as it was — they have no handles
+   at all, and there is no reason to push names away from the edge for an invisible button. */
 .gantt.can-reorder {
   --gantt-pad: var(--space-24);
 }
 
-/* Само правило «меньше движения» живёт в styles.css: оно общее для всего
-   интерфейса, а не для одной диаграммы. Здесь только признак на корне ленты —
-   его же ставит разметка, узнав настройку системы. */
+/* The "less motion" rule itself lives in styles.css: it is shared by the whole interface
+   rather than by one chart. Here there is only the flag on the chart's root — the same one
+   the markup sets after asking the system setting. */
 
-/* Итог по срокам — выноска над лентой: одна строка, тонкая заливка, никакой
-   рамки. Поля по бокам те же, что у шапки проекта (`--gutter`): лента идёт
-   во всю ширину экрана, и выноска обязана встать по одной вертикали с
-   названием проекта. */
+/* The deadline summary is a callout above the chart: one line, a thin fill, no border at
+   all. The side padding is the same as the project header's (`--gutter`): the chart runs
+   the screen's full width, and the callout must stand on the same vertical as the
+   project's name. */
 .gantt__summary {
   display: flex;
   align-items: center;
@@ -105,11 +105,11 @@
   margin: 0;
 }
 
-/* Пустая лента у того, кто может писать: плюс здесь нажимается, поэтому
-   нарисованный плюс общего пустого блока выключен — два плюса подряд читались
-   бы как два разных предложения, и первым же взглядом человек попал бы в
-   картинку. Селектор из двух классов, чтобы перебить `.empty::before` темы
-   независимо от того, в каком порядке сложились файлы стилей. */
+/* An empty chart for someone who can write: the plus here is pressable, so the drawn plus
+   of the shared empty block is switched off — two pluses in a row would read as two
+   different offers, and at first glance a person would land on the picture. The selector
+   uses two classes so as to override the theme's `.empty::before` regardless of the order
+   in which the stylesheets ended up. */
 .empty.gantt__empty--action::before {
   content: none;
 }
@@ -126,21 +126,21 @@
   gap: var(--space-8);
 }
 
-/* Плюс на кнопке — знак, а не слово: его рисуют тем же начертанием, что и
-   плитку, которую он заменил, чтобы кнопка осталась узнаваемой на своём месте. */
+/* The plus on the button is a sign rather than a word: it is drawn in the same face as
+   the tile it replaced, so that the button stays recognizable in its place. */
 .gantt__empty-plus {
   font-size: 16px;
   font-weight: 400;
   line-height: 1;
 }
 
-/* Легенда над лентой. Плашки — те же цвета и та же форма, что у полосок:
-   легенда, нарисованная другими фигурами, расшифровывала бы саму себя.
+/* The legend above the chart. The swatches use the same colours and the same shapes as
+   the bars: a legend drawn with different figures would have to decipher itself.
 
-   Расшифровывает она два разных набора, а не один: четыре заливки — это
-   статус, две накладки — флаги поверх него. Поэтому плашки накладок показаны
-   рамкой и гранью на нейтральной заливке, а не сплошным цветом: сплошной
-   обещал бы пятый и шестой статус, которых не существует. */
+   What it deciphers is two different sets rather than one: the four fills are the status,
+   the two overlays are flags on top of it. That is why the overlay swatches are shown as
+   an outline and an edge on a neutral fill rather than as a solid colour: a solid one
+   would promise a fifth and a sixth status, which do not exist. */
 .gantt__legend {
   display: flex;
   align-items: center;
@@ -178,8 +178,8 @@
   background: var(--gantt-fill-blocked);
 }
 
-/* Накладки — на нейтральной заливке: показывается ровно то, что накладка и
-   рисует поверх любого статуса, — контур и левая грань. */
+/* The overlays go on a neutral fill: what is shown is exactly what an overlay draws over
+   any status — an outline and a left edge. */
 .gantt__swatch[data-overlay] {
   background: var(--gantt-fill-planned);
 }
@@ -192,15 +192,15 @@
   box-shadow: inset 3px 0 0 var(--danger-strong);
 }
 
-/* Критический путь — обводкой снаружи, ровно как на полоске: легенда,
-   нарисованная другим приёмом, расшифровывала бы саму себя. */
+/* The critical path is an outline on the outside, exactly as on a bar: a legend drawn with
+   a different technique would have to decipher itself. */
 .gantt__swatch--critical {
   background: var(--gantt-fill-planned);
   outline: 2px solid var(--danger-strong);
   outline-offset: 1px;
 }
 
-/* Вертикали дедлайна и «сегодня» — образец линии, а не плашка. */
+/* The deadline and "today" verticals are a sample of a line rather than a swatch. */
 .gantt__swatch--line {
   width: 2px;
   height: 14px;
@@ -216,7 +216,7 @@
   background: var(--accent);
 }
 
-/* Сноска под лентой: расшифровка засечки и стрелки. */
+/* The footnote under the chart: the meaning of the tick and the arrow. */
 .gantt__caption {
   margin: var(--space-12) var(--gutter);
   max-width: 720px;
@@ -225,15 +225,14 @@
   color: var(--text-muted);
 }
 
-/* Прокручивается лента, а не страница: левая колонка обязана остаться на
-   месте, и sticky работает только внутри своего прокручиваемого предка. То же
-   и по вертикали — там закрепляется шапка шкалы (.gantt__head-row), — но
-   высоту стили здесь не задают: её ставит числом `useViewportFit`, потому что
-   вычесть высоту того, что стоит над лентой, стили не могут. Без неё
-   контейнер вырастал во всю высоту содержимого, вертикально не прокручивался
-   вовсе, и закреплённая шапка уезжала вместе со страницей.
-   Рамки у ленты нет — она идёт во всю ширину экрана и отделяется от того,
-   что под ней, одной линией. */
+/* What scrolls is the chart rather than the page: the left column must stay put, and
+   sticky works only inside its own scrollable ancestor. The same vertically — the scale's
+   header is pinned there (.gantt__head-row) — but the styles do not set its height: that
+   is set as a number by `useViewportFit`, because styles cannot subtract the height of
+   whatever stands above the chart. Without it the container grew to the full height of its
+   content, did not scroll vertically at all, and the pinned header rode away with the page.
+   The chart has no frame — it runs the screen's full width and is separated from what is
+   beneath it by a single line. */
 .gantt__scroll {
   overflow-x: auto;
   border-bottom: 1px solid var(--border);
@@ -241,7 +240,7 @@
 }
 
 .gantt__canvas {
-  /* по ширине содержимого: иначе лента обрезается по ширине окна */
+  /* by the content's width: otherwise the chart is clipped at the window's width */
   display: inline-block;
   min-width: 100%;
 }
@@ -252,34 +251,36 @@
   top: 0;
   z-index: 3;
   background: var(--surface);
-  /* Усиленная линия, а не обычная: шапка отделяется от строк заметнее, чем
-     строки друг от друга, иначе первая строка читается как часть шапки. */
+  /* A stronger line rather than the ordinary one: the header is separated from the rows
+     more noticeably than the rows are from each other, otherwise the first row reads as
+     part of the header. */
   border-bottom: 1px solid var(--border-strong);
 }
 
 .gantt__head {
   position: relative;
-  /* Своей ширины, не растяжимая: справа от неё стоит полоса «вне плана», и
-     без запрета шкала растянулась бы на её место сама. */
+  /* Its own width, not stretchable: the "beyond the plan" strip stands to its right, and
+     without the ban the scale would stretch into its place by itself. */
   flex: 0 0 auto;
   height: var(--gantt-head);
   background: #fafbfc;
 }
 
-/* Поле за правым краем плана.
+/* The field past the plan's right edge.
 
-   Окно ленты кончается там, где кончается план, а лента идёт во всю ширину
-   экрана: между ними остаётся полоса, которая раньше была просто белой — и
-   правый край сетки читался обрывом вёрстки, а не концом плана. Штриховка
-   говорит то же, что говорила бы подпись: сюда план не доходит.
+   The chart's window ends where the plan ends, while the chart runs the screen's full
+   width: a strip is left between them that used to be simply white — and the grid's right
+   edge read as layout breaking off rather than as the plan's end. The hatching says what a
+   label would say: the plan does not reach here.
 
-   Тонкая и почти беззвучная нарочно: это фон, а не содержимое, и спорить с
-   полосками задач ему не за чем. Началом служит ширина шкалы, переданная
-   разметкой (см. --gantt-lane в Gantt.tsx): второе такое же число, посчитанное
-   в стилях, разошлось бы с сеткой на первой же смене масштаба.
+   Thin and almost soundless on purpose: this is background rather than content, and it has
+   no reason to compete with the task bars. Its start is the scale's width, passed in by the
+   markup (see --gantt-lane in Gantt.tsx): a second such number computed in the styles would
+   diverge from the grid on the very first change of scale.
 
-   Не путать с меткой «сверх плана» у полоски задачи (.gantt__beyond-plan):
-   это поле — про край шкалы, метка — про задачу без базового плана. */
+   Not to be confused with the "beyond the plan" marker by a task's bar
+   (.gantt__beyond-plan): this field is about the scale's edge, the marker about a task with
+   no baseline plan. */
 .gantt__beyond {
   background-image: repeating-linear-gradient(
     135deg,
@@ -291,17 +292,17 @@
   border-left: 1px solid var(--border);
 }
 
-/* В шапке — обычным соседом шкалы: строка шапки и так выложена в ряд, и
-   растянуть остаток проще, чем считать его координаты. */
+/* In the header it is an ordinary neighbour of the scale: the header row is laid out as a
+   row anyway, and stretching the remainder is easier than computing its coordinates. */
 .gantt__beyond--head {
   flex: 1 1 auto;
   min-width: 0;
   background-color: #fafbfc;
 }
 
-/* В теле — слоем под строками, как и сетка: строки прозрачны всюду, кроме
-   закреплённой колонки, и полоса видна сквозь них. Правый край не назван —
-   поле идёт до конца холста, каким бы широким тот ни был. */
+/* In the body it is a layer beneath the rows, like the grid: the rows are transparent
+   everywhere except the pinned column, and the strip is visible through them. The right edge
+   is not named — the field runs to the end of the canvas, however wide that is. */
 .gantt__body > .gantt__beyond {
   position: absolute;
   top: 0;
@@ -322,9 +323,9 @@
   height: calc(var(--gantt-head) - var(--gantt-month-row));
 }
 
-/* Относительная шкала: между месяцами и днями — строка недель. Высота шапки
-   та же, что у календарной: полоса дней отдаёт неделям строку дня недели,
-   которой в относительной шкале нет. */
+/* The relative scale: between the months and the days there is a row of weeks. The
+   header's height is the same as the calendar one's: the days strip gives the weeks the
+   weekday row, which the relative scale does not have. */
 .gantt__weeks {
   position: relative;
   height: var(--gantt-week-row, 16px);
@@ -356,8 +357,8 @@
   color: var(--text-muted);
 }
 
-/* Номер дня в относительной шкале стоит один, без строки дня недели, — по
-   центру оставшейся полосы, а не прижатым к верху. */
+/* A day number on the relative scale stands alone, with no weekday row — centred in the
+   remaining strip rather than pressed to the top. */
 .gantt__head--relative .gantt__day {
   justify-content: center;
   padding-top: 0;
@@ -376,8 +377,8 @@
   overflow: hidden;
 }
 
-/* Месяц — заголовок колонок: мелко, вразрядку, капителью и по левому краю
-   своей полосы, как заголовок столбца, а не подпись под ним. */
+/* A month is a column heading: small, letter-spaced, in small caps and flush left within
+   its strip, like a column's heading rather than a caption beneath it. */
 .gantt__month {
   justify-content: flex-start;
   padding: 0 var(--space-12);
@@ -392,21 +393,22 @@
   color: #475467;
 }
 
-/* Полоса дней ровно вмещает три меры: верхнее поле, строку дня недели и круг
-   вокруг числа (3 + 15 + 22 = 40 при высоте полосы 41). Просвета между
-   строкой и кругом нет намеренно — он есть внутри самого круга. */
+/* The days strip fits exactly three measurements: the top padding, the weekday row and the
+   circle around the number (3 + 15 + 22 = 40 with a strip height of 41). There is
+   deliberately no gap between the row and the circle — it exists inside the circle itself. */
 .gantt__day {
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
   gap: 0;
-  padding-top: 3px; /* вне шкалы: остаток от высоты полосы, см. сумму выше */
+  padding-top: 3px; /* off-scale: the remainder of the strip's height, see the sum above */
   line-height: 15px;
 }
 
 .gantt__day-number {
-  /* Не сжимается: это фигура заданного размера, а не строка текста. Без
-     запрета колонка дней ужимала бы круг в овал на пару пикселей. */
+  /* It does not shrink: this is a figure of a given size rather than a line of text.
+     Without the ban the days column would squeeze the circle into an oval by a couple of
+     pixels. */
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -418,9 +420,9 @@
   font-weight: 500;
 }
 
-/* Сегодняшняя колонка выделена в шапке: подложка на всю колонку, а число —
-   белым в круге цвета акцента, как в макете. Круг — та же фигура, что и
-   точка над линией «сегодня» в теле ленты, и они читаются как одно. */
+/* Today's column is highlighted in the header: a backing across the whole column, and the
+   number in white inside a circle in the accent colour, as in the mockup. The circle is the
+   same figure as the dot above the "today" line in the chart's body, and they read as one. */
 .gantt__day.is-today {
   background: #f2f3ff;
   color: var(--accent);
@@ -433,9 +435,9 @@
   font-weight: 700;
 }
 
-/* Слово «Сегодня» остаётся в разметке, но не показывается: его роль взял на
-   себя круг вокруг числа. Выбрасывать доступное имя ради этого не стоит —
-   круг читалке ничего не говорит. */
+/* The word "Today" stays in the markup but is not shown: its role has been taken over by
+   the circle around the number. Throwing away an accessible name for that is not worth it —
+   a circle tells a screen reader nothing. */
 .gantt__day-today {
   position: absolute;
   width: 1px;
@@ -456,7 +458,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  /* Сетка начинается там, где кончается закреплённая колонка. */
+  /* The grid begins where the pinned column ends. */
   left: var(--gantt-label);
 }
 
@@ -467,9 +469,9 @@
   border-left: 1px solid var(--border);
 }
 
-/* Один и тот же признак нерабочего дня и в шапке, и в теле: заливка,
-   обрывающаяся под шапкой, читается как дефект отрисовки. Затемнение, а не
-   свой цвет: под ним и белое тело ленты, и серая шапка. */
+/* One and the same sign of a non-working day in both the header and the body: a fill that
+   breaks off beneath the header reads as a rendering defect. A darkening rather than a
+   colour of its own: beneath it lie both the chart's white body and its grey header. */
 .is-nonworking {
   background: var(--nonworking);
 }
@@ -482,9 +484,9 @@
   border-left: 2px dashed var(--danger);
 }
 
-/* Линия «сегодня» стоит серединой колонки, поэтому она сдвинута на половину
-   своей толщины влево: иначе центр дня и центр линии разошлись бы на пиксель
-   и линия не совпала бы с кругом в шапке. */
+/* The "today" line stands at the column's middle, so it is shifted left by half its own
+   thickness: otherwise the day's centre and the line's centre would diverge by a pixel and
+   the line would not line up with the circle in the header. */
 .gantt__today {
   --today-line: 2px;
   position: absolute;
@@ -495,8 +497,8 @@
   background: rgb(83 103 232 / 68%);
 }
 
-/* Точка на верхушке линии: без неё линия теряется среди вертикалей сетки,
-   а с ней читается как метка, поставленная на шкалу. */
+/* The dot at the line's top: without it the line is lost among the grid's verticals, and
+   with it it reads as a marker set on the scale. */
 .gantt__today::before {
   content: "";
   position: absolute;
@@ -508,9 +510,8 @@
   background: var(--accent);
 }
 
-/* Слой стрелок. Поверх сетки, но под строками: полоска, на которую стрелка
-   указывает, не должна оказаться под линией. Событий не принимает — сквозь
-   него тащат полоски. */
+/* The arrow layer. Over the grid but beneath the rows: the bar an arrow points at must not
+   end up beneath the line. It accepts no events — bars are dragged through it. */
 .arrows {
   position: absolute;
   top: 0;
@@ -519,9 +520,9 @@
   overflow: visible;
 }
 
-/* Линия — path, а не polyline: повороты скруглены дугами (см. roundedPath в
-   Arrows.tsx), поэтому селектор по классу — голый `path` здесь означал бы и
-   наконечник. */
+/* The line is a path rather than a polyline: the turns are rounded with arcs (see
+   roundedPath in Arrows.tsx), hence a class selector — a bare `path` here would mean the
+   arrowhead as well. */
 .arrows .arrows__line {
   fill: none;
   stroke: #7d879c;
@@ -530,16 +531,16 @@
   stroke-linecap: round;
 }
 
-/* Нарушенная связь — задача начата до готовности той, которой она ждёт:
-   цвет тревоги и пунктир, чтобы нахлёст было видно с расстояния и чтобы
-   связь отличалась от обычной не только цветом. */
+/* A violated dependency — a task started before the one it waits on was ready: the alarm
+   colour and a dash, so that the overlap is visible from a distance and so that the
+   dependency differs from an ordinary one by more than colour. */
 .arrows .arrows__line.is-violated {
   stroke: var(--danger);
   stroke-width: 2;
   stroke-dasharray: 4 3;
 }
 
-/* Наконечник — заливка в цвет линии. */
+/* The arrowhead is a fill in the line's colour. */
 .arrows .arrows__head {
   fill: #7d879c;
   stroke: none;
@@ -549,8 +550,8 @@
   fill: var(--danger);
 }
 
-/* Знак на нарушенной связи. Кружок с белой обводкой: линия проходит под ним,
-   и без обводки знак сливался бы с собственной стрелкой. */
+/* The sign on a violated dependency. A circle with a white ring: the line passes beneath
+   it, and without the ring the sign would merge with its own arrow. */
 .arrows__warn {
   fill: var(--danger);
   stroke: var(--surface);
@@ -574,26 +575,26 @@
   height: var(--gantt-row);
   border-bottom: 1px solid var(--gantt-row-line);
   transition: background var(--motion-base) var(--motion-ease);
-  /* Точка привязки для обвода строки и «плюса» на её границе: оба стоят по
-     краям строки, не занимая места в потоке. */
+  /* An anchor point for the row outline and for the "plus" on its boundary: both stand
+     at the row's edges without taking up space in the flow. */
   position: relative;
 }
 
-/* Обвод строки под курсором: тонкие линии по её верхнему и нижнему краю во всю
-   ширину — и таблицы, и шкалы. Не украшение: полоска задачи уезжает от своего
-   названия на месяц вправо, и заливки одной таблицы мало, чтобы глаз провёл
-   между ними прямую. Линия проводит её сама.
+/* The row outline under the cursor: thin lines along its top and bottom edges across
+   the full width — of both the table and the scale. Not decoration: a task's bar rides a
+   month to the right of its name, and the fill of the table alone is not enough for the
+   eye to draw a straight line between them. The line draws it itself.
 
-   Отдельным слоем поверх строки, а не рамкой и не тенью на её частях. Рамка
-   добавила бы строке высоту, и соседи дёргались бы на пиксель при каждом
-   движении курсора; тень на `.gantt__label` и `.gantt__lane` уже занята
-   линиями вставки при перетаскивании и меткой выбранной строки — четвёртая
-   стёрла бы одну из них. Слой лежит выше закреплённой колонки (у неё z-index
-   2), иначе линия обрывалась бы на её границе.
+   As a separate layer over the row rather than a border or a shadow on its parts. A
+   border would add height to the row, and its neighbours would twitch by a pixel on
+   every movement of the cursor; a shadow on `.gantt__label` and `.gantt__lane` is
+   already taken by the insertion lines during dragging and by the selected row's mark —
+   a fourth would erase one of them. The layer lies above the pinned column (which has
+   z-index 2), otherwise the line would break off at its boundary.
 
-   Поля слоя вынесены на пиксель за края строки: разделители соседних строк
-   рисуются ровно там, и без выноса обвод встал бы вплотную к ним — то есть
-   двойной линией вместо одной. */
+   The layer's edges are carried a pixel past the row's: the separators of neighbouring
+   rows are drawn exactly there, and without that the outline would stand flush against
+   them — that is, a double line instead of one. */
 .gantt__row::after {
   content: "";
   position: absolute;
@@ -609,13 +610,13 @@
   border-color: var(--accent);
 }
 
-/* Строка подсвечивается целиком при наведении: так видно, какой задаче
-   принадлежит полоска, отъехавшая на месяц вправо от своего названия.
-   Заливки одинаковы на глаз, но заданы по-разному, и это не небрежность.
-   Закреплённой колонке нужен непрозрачный цвет — сквозь полупрозрачную
-   просвечивали бы уезжающие под неё полоски. Стороне шкалы, наоборот, нужна
-   прозрачность: под ней лежит слой стрелок, и сплошная заливка съедала бы
-   связь ровно на той строке, через которую та проходит. */
+/* The whole row is highlighted on hover: that is how it is visible which task a bar
+   that has ridden a month to the right of its name belongs to. The fills are identical
+   to the eye but specified differently, and that is not carelessness. The pinned column
+   needs an opaque colour — through a semi-transparent one the bars sliding under it
+   would show through. The scale side, on the contrary, needs transparency: the arrow
+   layer lies beneath it, and a solid fill would eat a link on exactly the row it passes
+   through. */
 .gantt__row:hover .gantt__label {
   background: var(--hover);
 }
@@ -624,10 +625,10 @@
   background: rgb(83 103 232 / 4.5%);
 }
 
-/* Открытая карточка — это состояние строки, а не наведение: она держится,
-   пока карточка открыта, и должна отличаться от подсветки под курсором.
-   Полоса у левого края — метка выбранной строки: заливкой одной силы две
-   эти вещи не развести. */
+/* An open card is a state of the row rather than a hover: it holds while the card is
+   open and must differ from the highlight under the cursor. The strip at the left edge
+   is the selected row's mark: these two things cannot be told apart by a fill of one
+   strength. */
 .gantt__row.is-selected .gantt__label {
   background: var(--active);
   box-shadow: inset 3px 0 0 var(--accent);
@@ -647,17 +648,17 @@
   flex: 0 0 var(--gantt-label);
   width: var(--gantt-label);
   height: 100%;
-  /* Полей у самой колонки нет: её ширина — это в точности сумма ширин колонок
-     таблицы (см. layoutWidth), и поле по краям съедало бы у последней из них
-     ровно себя. Отступ от левого края отдан первой ячейке. */
+  /* The column itself has no padding: its width is exactly the sum of the table
+     columns' widths (see layoutWidth), and padding at the edges would eat exactly itself
+     from the last of them. The indent from the left edge is given to the first cell. */
   padding: 0;
   background: var(--surface);
   border-right: 1px solid var(--border-strong);
   transition: background var(--motion-base) var(--motion-ease);
 }
 
-/* Шапка колонки задач — того же тона, что и шапка шкалы, но чуть светлее:
-   это заголовок столбца, а не первая его строка. */
+/* The task column's header is in the same tone as the scale's header but slightly
+   lighter: this is a column heading rather than its first row. */
 .gantt__corner {
   height: var(--gantt-head);
   align-items: flex-end;
@@ -665,11 +666,11 @@
   background: #f9fafc;
 }
 
-/* «Плюс» новой категории у заголовка списка. Мелкий квадрат в тон акцента, а
-   не кнопка в полный рост: он стоит в строке заголовка колонки, набранного
-   десятым кеглем, и кнопка обычной меры перевесила бы сам заголовок. Цветом
-   тем же, каким лента красит остальные свои «плюсы»: это одно действие в
-   разных местах, и выглядеть оно обязано одинаково. */
+/* The "plus" for a new category by the list's heading. A small square in the accent
+   tone rather than a full-height button: it stands in the row of the column's heading,
+   set at size 10, and a button of the usual measure would outweigh the heading itself.
+   In the same colour the chart paints its other "pluses": this is one action in
+   different places, and it must look the same. */
 .gantt__corner-add {
   display: grid;
   place-items: center;
@@ -696,16 +697,16 @@
   box-shadow: none;
 }
 
-/* Кнопка, двигающая границу таблицы и шкалы: свёрнутая таблица отдаёт всё своё
-   место полоскам. Стоит в углу шапки, вплотную к этой границе, — там же, где
-   произойдёт обещанное.
+/* The button that moves the boundary between the table and the scale: a collapsed table
+   gives all its room to the bars. It stands in the header's corner, flush against that
+   boundary — right where what it promises will happen.
 
-   Выведена из потока: элементом потока она отнимала бы ширину у заголовка
-   последней колонки — то есть у той самой таблицы, которую сворачивает, — и
-   заголовок «Исполнитель» терял бы половину букв ради кнопки, которой обычно
-   не пользуются. По той же причине она не молчит до наведения, как знаки
-   строки: строк на ленте сотня, а эта кнопка одна, и искать её наведением
-   вдоль шапки было бы дольше, чем прокрутить ленту руками. */
+   It is taken out of the flow: as an element of the flow it would take width from the
+   last column's heading — that is, from the very table it collapses — and the heading
+   "Assignee" would lose half its letters for a button that is usually not used. For the
+   same reason it does not stay silent until hover, as the row signs do: there are a
+   hundred rows on the chart while there is one of this button, and hunting for it by
+   hovering along the header would take longer than scrolling the chart by hand. */
 .gantt__fold {
   position: absolute;
   top: 9px;
@@ -733,20 +734,20 @@
   box-shadow: none;
 }
 
-/* Ширина свёрнутой полосы (COLLAPSED_WIDTH) выведена из размеров этой кнопки:
-   26 пикселей самой кнопки и по 5 с каждой стороны — в свёрнутом виде она
-   оказывается ровно посередине полосы, не отодвигая и не пряча её край. */
+/* The collapsed strip's width (COLLAPSED_WIDTH) is derived from this button's
+   dimensions: 26 pixels of the button itself and 5 on each side — when collapsed it ends
+   up exactly in the middle of the strip, neither pushing its edge aside nor hiding it. */
 
-/* Колонка, на место которой встанет перенесённая. Класс ставится прямо в DOM,
-   мимо состояния React: цель меняется на каждом пересечении границы, а
-   перерисовка шапки тянет за собой всю ленту. */
+/* The column whose place a moved one will take. The class is set directly in the DOM,
+   bypassing React state: the target changes on every crossing of a boundary, and
+   re-rendering the header drags the whole chart along with it. */
 .gantt__cell.is-column-target {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-/* Заголовок, за который колонку переносят. Курсор — единственный постоянный
-   знак: подчёркивание или рамка на каждом заголовке рисовали бы в шапке
-   решётку, которой в макете нет. */
+/* The heading a column is moved by. The cursor is the only permanent sign: an underline
+   or a border on every heading would draw a grid in the header that the mockup does not
+   have. */
 .gantt__corner-label--movable {
   cursor: grab;
   touch-action: none;
@@ -756,7 +757,7 @@
   color: var(--text);
 }
 
-/* Заголовок левой колонки — мелкий капс вразрядку, как заголовок свойства. */
+/* The left column's heading is small caps with letter-spacing, like a property heading. */
 .gantt__corner-label {
   font-size: 10px;
   font-weight: 800;
@@ -765,67 +766,66 @@
   color: var(--text-muted);
 }
 
-/* Ячейка закреплённой таблицы. Ширину задаёт раскладка колонок (разметкой, а
-   не стилем: её тянут за границу в шапке), а здесь — только то, как ячейка
-   ведёт себя, когда содержимое в неё не влезло: обрезается многоточием, а не
-   раздвигает соседей. */
+/* A cell of the pinned table. Its width is set by the column layout (by the markup
+   rather than by a style: it is dragged by a boundary in the header), and here there is
+   only how the cell behaves when the content does not fit into it: it is truncated with
+   an ellipsis rather than pushing its neighbours apart. */
 .gantt__cell {
   display: flex;
   align-items: center;
   gap: var(--space-6);
   min-width: 0;
-  /* Точка привязки: границе колонки в шапке и ручке перетаскивания строки
-     нужно встать по краям ячейки, не занимая места в потоке. */
+  /* An anchor point: the column boundary in the header and the row's drag handle need
+     to stand at the cell's edges without taking up space in the flow. */
   position: relative;
   padding-right: var(--space-8);
 }
 
-/* Колонка названия тянется, когда таблица шире суммы колонок, — остальные
-   держат свою ширину: пустое место осмысленно отдать длинным именам, а не
-   размазать по числовым столбцам. Поле слева — её же: у колонки поля нет, и
-   без этого имя упиралось бы в край экрана. */
+/* The name column stretches when the table is wider than the sum of its columns — the
+   rest keep their width: it makes sense to give empty space to long names rather than to
+   smear it across numeric columns. The left padding is its own: the column has no
+   padding, and without this a name would run into the screen's edge. */
 .gantt__cell--task {
   flex-grow: 1;
   padding-left: var(--gantt-pad);
 }
 
-/* Числовые колонки — вправо, как в таблице: так соседние значения
-   сравниваются разрядами, а не первыми буквами. */
+/* Numeric columns go to the right, as in a table: that way neighbouring values are
+   compared by their digits rather than by their first letters. */
 .gantt__cell--duration,
 .gantt__cell--progress {
   justify-content: flex-end;
 }
 
-/* Значение ячейки и поле на её месте — общие для ленты и сметы: обе показывают
-   список строк, чьи ячейки правятся щелчком (см. components/rows.css). */
+/* A cell's value and the field in its place are shared by the chart and the budget: both
+   show a list of rows whose cells are edited by a click (see components/rows.css). */
 
-/* Строка новой задачи и строка ожидания ответа. Обе — строки ленты и по
-   высоте, и по разделителю: подниматься и опускаться на пиксель, когда задача
-   становится настоящей, лента не должна.
+/* The new-task row and the awaiting-answer row. Both are chart rows in height and in
+   separator alike: the chart must not rise and fall by a pixel when a task becomes real.
 
-   Заливка у строки ввода та же, что у строки под курсором: место, где сейчас
-   пишут, выделено ровно настолько, чтобы его было видно среди задач, и не
-   настолько, чтобы читаться как ещё одна задача.
+   The input row's fill is the same as a row's under the cursor: the place currently
+   being typed in is marked out just enough to be visible among the tasks, and not enough
+   to read as one more task.
 
-   Полоса шкалы у обеих пустая: полоски пока нет — у первой не написано имя,
-   у второй сервер ещё не назвал даты. */
+   The scale lane of both is empty: there is no bar yet — the first has no name written,
+   and for the second the server has not named the dates. */
 .gantt__row--new .gantt__label,
 .gantt__row--pending .gantt__label {
   background: var(--hover);
 }
 
-/* Поле новой задачи сдвинуто влево на своё внутреннее поле с рамкой: текст в
-   нём встаёт ровно под именами задач, а не на четыре пикселя правее, — и
-   после Enter имя не «прыгает» влево, становясь строкой. */
+/* The new-task field is shifted left by its own inner padding and border: the text in it
+   stands exactly under the task names rather than four pixels to the right — and after
+   Enter the name does not "jump" left as it becomes a row. */
 .gantt__row--new .cell-input {
   width: calc(100% + var(--space-4));
   margin-left: calc(-1 * var(--space-4));
 }
 
-/* Поле новой категории и строка ожидания её ответа занимают ту же ячейку, что
-   и поле новой задачи, — но не колонку задачи: у категории своего поля с чужой
-   шириной нет, и текст встаёт на отступе заголовка, а не строки под ним (см.
-   `.gantt__add-field` ниже). */
+/* The new-category field and its awaiting-answer row occupy the same cell as the
+   new-task field — but not the task column: a category has no field of its own with
+   someone else's width, and the text stands at the heading's indent rather than that of
+   the row beneath it (see `.gantt__add-field` below). */
 .gantt__add-field {
   display: flex;
   align-items: center;
@@ -834,16 +834,15 @@
   padding: 0 var(--space-8) 0 var(--gantt-pad);
 }
 
-/* --- Низ ленты: «+ Добавить задачу» и «+ Новая категория» --- */
+/* --- The chart's bottom: "+ Add task" and "+ New category" --- */
 
-/* Обе строки читаются как продолжение списка, а не как ещё одна задача или
-   кнопка: тот же ряд `.gantt__row`, что и у остальных строк, — с тем же
-   разделителем и тем же наведением (см. `.gantt__row:hover` выше), — но без
-   заливки в состоянии покоя и без рамки-кнопки вовсе. Подсветка при наведении
-   у них та же, что у любой строки ленты: этим языком уже говорит вся лента, и
-   заводить второй, более тяжёлый (заливка, тень, рамка), значило бы обещать
-   действие весомее, чем оно есть, — «плюс» рядом с именем уже сказал, что
-   здесь можно нажать. */
+/* Both rows read as a continuation of the list rather than as one more task or a button:
+   the same `.gantt__row` as every other row — with the same separator and the same hover
+   (see `.gantt__row:hover` above) — but with no fill at rest and no button border at all.
+   Their hover highlight is the same as any chart row's: the whole chart already speaks
+   that language, and introducing a second, heavier one (a fill, a shadow, a border) would
+   promise an action weightier than it is — the "plus" next to the name has already said
+   that something here can be pressed. */
 .gantt__row--add-task {
   height: 42px;
 }
@@ -859,10 +858,10 @@
   width: 100%;
   height: 100%;
   min-width: 0;
-  /* Знак «+» встаёт в столбец шеврона своего уровня, а подпись — в колонку
-     имён: у «+ Добавить задачу» она начинается там же, где имена задач, у
-     «+ Новая категория» — там же, где имена категорий. Иначе подпись стояла
-     бы на ширину знака правее имён и читалась как ещё один, третий уровень. */
+  /* The "+" sign stands in the chevron column of its own level, and the label in the
+     name column: for "+ Add task" it begins where task names begin, for "+ New category"
+     where category names do. Otherwise the label would stand a sign's width to the right
+     of the names and would read as one more, third level. */
   padding: 0 var(--space-8) 0 calc(var(--gantt-indent) - var(--row-chevron) - var(--space-6));
   border: 0;
   border-radius: 0;
@@ -876,12 +875,12 @@
   transition: color var(--motion-fast) var(--motion-ease);
 }
 
-/* Половина строки со стороны шкалы — та же кнопка, что и подпись слева.
+/* The half of the row on the scale side is the same button as the label on the left.
 
-   Кнопкой, а не полосой с обработчиком: она приносит курсор, нажатие с
-   клавиатуры и роль даром, и её же остаётся только раздеть до вида полосы.
-   Из порядка обхода и из чтения с экрана она убрана разметкой (см. Lane в
-   BottomActions.tsx) — действие у строки одно. */
+   A button rather than a strip with a handler: it brings the cursor, keyboard activation
+   and a role for free, and all that is left is to strip it down to the look of a strip.
+   It is removed from the tab order and from screen reading by the markup (see Lane in
+   BottomActions.tsx) — the row has one action. */
 .gantt__lane--add {
   padding: 0;
   border: 0;
@@ -890,10 +889,10 @@
   cursor: pointer;
 }
 
-/* Подпись — своим переносом, а не общим на всю кнопку: у кнопки два
-   потомка (знак и текст), и обрезка многоточием на ней самой просто срезала
-   бы хвост подписи без «…». На узкой (свёрнутой) таблице подпись уступает
-   место так же, как имя задачи в соседней колонке. */
+/* The label has a wrap of its own rather than one shared with the whole button: the
+   button has two children (the sign and the text), and ellipsis truncation on the button
+   itself would simply cut the label's tail off with no "…". On a narrow (collapsed) table
+   the label gives way just as a task's name does in the neighbouring column. */
 .gantt__add-label {
   flex: 1;
   min-width: 0;
@@ -902,30 +901,31 @@
   white-space: nowrap;
 }
 
-/* Отступ заголовка категории, а не задачи под ним: строка стоит на основном
-   уровне иерархии, и текстом ниже неё заводят этап, а не пункт внутри него. */
+/* The indent of a category heading rather than of a task beneath it: the row stands at
+   the main level of the hierarchy, and text below it creates a stage rather than an item
+   inside one. */
 .gantt__row--add-category .gantt__add {
   padding-left: var(--gantt-pad);
   font-weight: 600;
 }
 
-/* Имя категории — правимая ячейка (`.cell-value`) со своим полем в 4px под
-   рамку наведения; подпись получает то же поле, чтобы буквы встали в одну
-   вертикаль с буквами имён, а не с краем их рамки. У задач такого поля нет —
-   их имена не `.cell-value`, — и подписи «+ Добавить задачу» оно не нужно. */
+/* A category's name is an editable cell (`.cell-value`) with 4px of padding of its own
+   for the hover border; the label gets the same padding so that its letters line up
+   vertically with the letters of the names rather than with the edge of their border.
+   Tasks have no such padding — their names are not `.cell-value` — and the "+ Add task"
+   label does not need it. */
 .gantt__row--add-category .gantt__add-label {
   padding-left: var(--space-4);
 }
 
-/* Знак «+» — тусклее подписи рядом с ним в покое и ярче под курсором: то же
-   соотношение, что и у ручки перестановки строк, — и то же место в глазах,
-   потому что тем же путём ведут в остальной ленте молчащие до наведения
-   знаки.
+/* The "+" sign is dimmer than the label beside it at rest and brighter under the cursor:
+   the same ratio as with the row reorder handle — and the same place in the eye, because
+   that is how the signs that stay silent until hover lead in the rest of the chart.
 
-   Тусклее — но не бледнее `--text-muted`: бледный (`--text-faint`) на белом
-   даёт 2,6:1, а знак здесь несёт смысл, а не украшает, и обязан набирать три к
-   одному. Соотношение с подписью держится тем, что подпись под курсором
-   уходит в `--text`, а знак — в `--accent`. */
+   Dimmer — but not fainter than `--text-muted`: the faint one (`--text-faint`) on white
+   gives 2.6:1, and this sign carries meaning rather than decorating, so it must reach
+   three to one. The ratio with the label holds because under the cursor the label goes to
+   `--text` and the sign to `--accent`. */
 .gantt__add-plus {
   flex: 0 0 auto;
   width: var(--row-chevron);
@@ -937,10 +937,10 @@
   transition: color var(--motion-fast) var(--motion-ease);
 }
 
-/* Наведение — светлее, чем у обычной строки: подпись и «+» становятся
-   контрастнее, но кнопкой с рамкой и тенью строка не становится. Общее
-   правило `.gantt__row:hover .gantt__label` уже красит фон ячейки — здесь
-   только то, чего оно не знает: цвет своего собственного текста. */
+/* Hover is lighter than on an ordinary row: the label and the "+" become more contrasty,
+   but the row does not become a button with a border and a shadow. The shared rule
+   `.gantt__row:hover .gantt__label` already paints the cell's background — here there is
+   only what it cannot know: the colour of its own text. */
 .gantt__row--add:hover .gantt__add,
 .gantt__add:focus-visible {
   color: var(--text);
@@ -951,17 +951,17 @@
   color: var(--accent);
 }
 
-/* Воздух после последней строки. Диапазон макета — 60–80px; без него
-   последняя интерактивная строка ленты садится вплотную к нижней границе
-   экрана, и конец списка читается как обрыв таблицы, а не как место, где
-   проект можно продолжить. */
+/* Air after the last row. The mockup's range is 60-80px; without it the chart's last
+   interactive row sits flush against the screen's bottom edge, and the end of the list
+   reads as the table breaking off rather than as the place where the project can be
+   continued. */
 .gantt__bottom-space {
   height: 64px;
 }
 
-/* Граница колонки — узкая полоса на стыке ячеек. Своей ширины не занимает:
-   она лежит поверх стыка, иначе колонка на четыре пикселя не совпадала бы с
-   тем числом, которое человек только что выставил. */
+/* A column boundary is a narrow strip at the junction of cells. It takes up no width of
+   its own: it lies over the junction, otherwise the column would be four pixels off from
+   the number a person has just set. */
 .gantt__col-grip {
   position: absolute;
   top: 0;
@@ -978,11 +978,11 @@
   outline: none;
 }
 
-/* Имя растягивается на всё, что не занято знаком вложенности, флажками
-   состояния и зоной «⋯»: длинное название обязано получить максимум
-   доступного места, а не столько, сколько само по себе просит. `min-width: 0`
-   обязателен — без него флекс-элемент не сжимается уже своего содержимого, и
-   длинное имя раздвигало бы строку вместо того, чтобы обрезаться многоточием. */
+/* The name stretches across everything not taken by the nesting sign, the state flags
+   and the "⋯" zone: a long title must get the maximum room available rather than as much
+   as it asks for on its own. `min-width: 0` is mandatory — without it a flex item does
+   not shrink below its content, and a long name would push the row apart instead of being
+   truncated with an ellipsis. */
 .gantt__label-name {
   flex: 1;
   min-width: 0;
@@ -991,9 +991,9 @@
   white-space: nowrap;
 }
 
-/* Курсор и подчёркивание при наведении — единственная разница с обычным
-   текстом: имя не становится органом управления (см. комментарий в Row.tsx),
-   но по нему всё равно можно кликнуть, и это стоит показать. */
+/* The cursor and an underline on hover are the only difference from ordinary text: a
+   name does not become a control (see the comment in Row.tsx), but it can be clicked all
+   the same, and that is worth showing. */
 .gantt__label-name--clickable {
   cursor: pointer;
 }
@@ -1002,18 +1002,18 @@
   text-decoration: underline;
 }
 
-/* Категория — заголовок группы, как в сгруппированной базе: полужирно, на
-   собственной подложке, задачи под ней — обычным начертанием. Именно 600, а
-   не 700: иерархии в один шаг от обычной задачи хватает, а жирное при том же
-   кегле делало из списка категорий стену чёрных заголовков. Высота у неё
-   та же, что у задачи: по одной константе строки считаются стрелки связей,
-   и второй высоты здесь заводить нельзя. */
+/* A category is a group heading, as in a grouped database: semibold, on a backing of its
+   own, with the tasks beneath it in the ordinary weight. 600 specifically rather than
+   700: one step of hierarchy from an ordinary task is enough, while bold at the same size
+   turned a list of categories into a wall of black headings. Its height is the same as a
+   task's: arrow links are computed from one row constant, and a second height must not be
+   introduced here. */
 .gantt__row--category .gantt__label {
   background: #f8f9fc;
 }
 
-/* Тот же тон, но прозрачностью, а не своим цветом — по причине, названной
-   выше: сквозь строку категории проходят стрелки связей. */
+/* The same tone, but through transparency rather than a colour of its own — for the
+   reason named above: link arrows pass through a category row. */
 .gantt__row--category .gantt__lane {
   background: rgb(36 48 68 / 3%);
 }
@@ -1026,24 +1026,24 @@
   color: #344054;
 }
 
-/* Имя отправленной задачи — приглушённо: строка уже показывает написанное, но
-   ещё не обещает, что задача есть. Ниже правила выше не по важности, а по
-   весу селектора: тон обычной задачи задан через `:not`, и одинаковый вес
-   решается порядком. */
+/* The name of a submitted task is muted: the row already shows what was written but does
+   not yet promise that the task exists. It comes below the rules above not by importance
+   but by selector weight: an ordinary task's tone is set through `:not`, and equal weight
+   is settled by order. */
 .gantt__row--pending .gantt__label-name {
   color: var(--text-muted);
 }
 
-/* Отступ вложенности — внутри ячейки задачи, а не у всей колонки: иначе
-   подсветка строки при наведении и выделении обрезалась бы слева. Считается
-   от края колонки: собственного поля у колонки больше нет, и вычитать из
-   отступа нечего. */
+/* The nesting indent is inside the task's cell rather than on the whole column:
+   otherwise the row's highlight on hover and on selection would be clipped on the left.
+   It is counted from the column's edge: the column no longer has padding of its own, and
+   there is nothing to subtract from the indent. */
 .gantt__row:not(.gantt__row--category) .gantt__cell--task {
   padding-left: var(--gantt-indent);
 }
 
-/* Числа строки категории — того же начертания, что и её имя: это сводка по
-   группе, а не значение отдельной задачи. */
+/* The figures on a category row are in the same weight as its name: this is a summary
+   over the group rather than the value of an individual task. */
 .gantt__row--category .cell-value {
   font-weight: 600;
 }
@@ -1053,25 +1053,24 @@
   font-weight: 700;
 }
 
-/* Шеврон сворачивания категории — молчаливая кнопка, как ручка и плюс; общий
-   со сметой (см. components/rows.css). */
+/* The category collapse chevron is a silent button, like the handle and the plus; shared
+   with the budget (see components/rows.css). */
 
-/* Ручка перетаскивания: появляется при наведении на строку. Постоянно видимая
-   она превратила бы левую колонку в частокол из точек, а при чтении с экрана
-   она есть всегда — видимость не влияет на доступное дерево.
+/* The drag handle: it appears on hover over a row. Permanently visible, it would turn the
+   left column into a picket fence of dots, while for a screen reader it is always there —
+   visibility does not affect the accessibility tree.
 
-   Ручка выведена из потока (`position: absolute`), а не лежит рядом с именем
-   как обычный флекс-элемент: элементом потока она бы резервировала своё место
-   и в режиме чтения — молча, без наведения, — то есть каждая задача с правом
-   записи получала бы лишний отступ, которого нет у заголовка её категории.
-   Имя задачи от этого съезжало бы вправо относительно имени категории даже
-   при свёрнутой (невидимой) ручке. Абсолютное позиционирование кладёт её
-   поверх уже зарезервированного под отступ поля (--gantt-indent), не трогая
-   отступ самого текста. */
+   The handle is taken out of the flow (`position: absolute`) rather than lying next to
+   the name as an ordinary flex item: as an element of the flow it would reserve its place
+   in read-only mode too — silently, without hover — that is, every task with write access
+   would get an extra indent that its category's heading does not have. A task's name
+   would thereby slide right relative to a category's name even with the handle collapsed
+   (invisible). Absolute positioning lays it over the padding already reserved for the
+   indent (--gantt-indent) without touching the text's own indent. */
 .gantt__handle {
   position: absolute;
-  /* В поле колонки, слева от имени: ручка не занимает места в потоке и потому
-     не сдвигает его, но и не наезжает на край ленты. */
+  /* In the column's padding, to the left of the name: the handle takes up no space in
+     the flow and therefore does not shift it, but neither does it run over the chart's edge. */
   left: var(--gantt-pad);
   top: 50%;
   transform: translateY(-50%);
@@ -1085,15 +1084,15 @@
   line-height: 1;
   cursor: grab;
   opacity: 0;
-  /* Проявляется вместе с плюсом и крестиком и с той же скоростью: три кнопки
-     одной строки, и разная длительность превратила бы одно появление в три. */
+  /* It appears together with the plus and the cross and at the same speed: three buttons
+     of one row, and different durations would turn one appearance into three. */
   transition:
     opacity var(--motion-fast) ease,
     background-color var(--motion-fast) ease,
     border-color var(--motion-fast) ease,
     box-shadow var(--motion-fast) ease,
     color var(--motion-fast) ease;
-  /* Строку тащат пальцем: без этого браузер принимает жест за прокрутку. */
+  /* A row is dragged with a finger: without this the browser takes the gesture for scrolling. */
   touch-action: none;
 }
 
@@ -1107,11 +1106,11 @@
   opacity: 1;
 }
 
-/* Там, где наведения не бывает, — планшет, телефон — ручка видна всегда.
-   Иначе она невидима ровно там, где по ней и нужно попасть пальцем: показать
-   её нечем, а прозрачная она всё равно ловит нажатия — то есть работает, но
-   только вслепую. Частокол из точек, ради которого её прячут на настольном
-   экране, там же и остаётся. */
+/* Where there is no hover — a tablet, a phone — the handle is always visible. Otherwise
+   it is invisible in exactly the place where it needs to be hit with a finger: there is
+   nothing to reveal it with, while transparent it still catches taps — that is, it works,
+   but only blind. The picket fence of dots it is hidden for on a desktop screen stays
+   there just the same. */
 @media (hover: none) {
   .gantt__handle {
     opacity: 1;
@@ -1122,29 +1121,28 @@
   cursor: grabbing;
 }
 
-/* Ручка этапа — на ступеньку левее ручки задачи, в поле, которое колонка
-   держит под неё (см. --gantt-pad выше). Столбец шеврона у категории занят
-   самим шевроном, и ручка, поставленная туда же, наезжала бы на кнопку
-   сворачивания. Заодно ступенька читается как вложенность: этап берут за
-   край, задачу — изнутри него. */
+/* A stage's handle sits one step to the left of a task's handle, in the padding the
+   column holds for it (see --gantt-pad above). A category's chevron column is taken by the
+   chevron itself, and a handle placed there would run over the collapse button. At the
+   same time the step reads as nesting: a stage is taken by its edge, a task from inside it. */
 .gantt__handle--category {
   left: 4px;
 }
 
-/* Строка, которую держат в руке. Гаснет, но не исчезает: исчезнувшая
-   оставляла бы после себя дыру, и соседи прыгали бы вверх ещё до того, как
-   человек выбрал место. Полупрозрачность здесь означает то же, что и у
-   призрака под курсором, — «это ещё не случилось».
+/* The row being held in hand. It dims but does not disappear: a vanished one would leave
+   a hole behind it, and its neighbours would jump up before the person had chosen a place.
+   Semi-transparency here means the same as with the ghost under the cursor — "this has not
+   happened yet".
 
-   Этап гаснет со своими задачами: переезжает он целиком, и погашенный один
-   заголовок обещал бы, что задачи останутся здесь. */
+   A stage dims together with its tasks: it moves as a whole, and one dimmed heading would
+   promise that the tasks will stay here. */
 .gantt__row.is-dragged,
 .gantt__group.is-dragged .gantt__row {
   opacity: 0.4;
 }
 
-/* Линия вставки при перетаскивании: она появляется и переезжает по строкам
-   вслед за курсором, и без перехода это мигание, а не движение. */
+/* The insertion line during dragging: it appears and travels across rows after the
+   cursor, and without a transition that is flicker rather than movement. */
 .gantt__row.drop-before .gantt__label,
 .gantt__row.drop-before .gantt__lane,
 .gantt__row.drop-after .gantt__label,
@@ -1152,8 +1150,8 @@
   transition: box-shadow var(--motion-base) var(--motion-ease);
 }
 
-/* Линия вставки. Тень внутрь, а не рамка: рамка добавила бы строке высоту, и
-   соседи дёргались бы на пиксель при каждом движении курсора. */
+/* The insertion line. An inset shadow rather than a border: a border would add height to
+   the row, and its neighbours would twitch by a pixel on every movement of the cursor. */
 .gantt__row.drop-before .gantt__label,
 .gantt__row.drop-before .gantt__lane {
   box-shadow: inset 0 2px 0 0 var(--accent);
@@ -1169,17 +1167,16 @@
   background: var(--accent-soft);
 }
 
-/* Призрак переносимой строки: имя того, что сейчас в руке, — под курсором.
+/* The ghost of the row being moved: the name of what is in hand, under the cursor.
 
-   Событий не ловит вовсе. Цель броска ищется попаданием в точку
-   (см. `targetAt` в useReorder), и призрак, стоящий ровно под курсором,
-   закрывал бы собой ту самую строку, в которую целятся, — жест перестал бы
-   находить что бы то ни было.
+   It catches no events at all. The drop target is found by hit-testing a point (see
+   `targetAt` in useReorder), and a ghost standing exactly under the cursor would cover the
+   very row being aimed at — the gesture would stop finding anything at all.
 
-   Место — координатами окна, а не ленты: лента прокручивается под курсором
-   краем (см. edgeScroll), и призрак, привязанный к её содержимому, уезжал бы
-   вместе с ним из-под руки. Пишется оно свойствами --drag-x/--drag-y прямо в
-   узел, мимо состояния React: точка меняется на каждом движении руки. */
+   Its place is in window coordinates rather than the chart's: the chart scrolls under the
+   cursor at its edge (see edgeScroll), and a ghost tied to its content would ride away
+   with it from under the hand. It is written as the --drag-x/--drag-y properties straight
+   into the node, bypassing React state: the point changes on every movement of the hand. */
 .gantt__drag-ghost {
   position: fixed;
   left: 0;
@@ -1198,28 +1195,28 @@
   font-size: 13px;
   line-height: 1.2;
   white-space: nowrap;
-  /* Правее и по центру курсора: под ним самим призрак закрывал бы линию
-     вставки, ради которой человек туда и целится. */
+  /* To the right of and centred on the cursor: directly under it the ghost would cover
+     the insertion line that the person is aiming at. */
   transform: translate3d(calc(var(--drag-x, 0px) + 14px), calc(var(--drag-y, 0px) - 50%), 0);
   pointer-events: none;
-  /* Полупрозрачность — то же обещание, что и у погашенной строки-источника:
-     перенос ещё не случился, и увиденное — намерение, а не результат. */
+  /* Semi-transparency is the same promise as on the dimmed source row: the move has not
+     happened yet, and what is seen is an intention rather than a result. */
   opacity: 0.85;
-  /* Обещание браузеру на время жеста: у этого узла `transform` будет меняться
-     каждый кадр — пусть держит его на своём слое (то же, что у полоски
-     задачи). Постоянного слоя не заводит: узла нет, пока не тащат. */
+  /* A promise to the browser for the duration of the gesture: this node's `transform`
+     will change every frame — let it keep it on its own layer (the same as with a task
+     bar). It creates no permanent layer: the node does not exist until something is dragged. */
   will-change: transform;
 }
 
-/* Те же точки, что и на ручке, за которую взяли: под курсором видно не просто
-   имя, а строку, вынутую из списка. */
+/* The same dots as on the handle it was taken by: under the cursor what is visible is not
+   just a name but a row lifted out of the list. */
 .gantt__drag-ghost-grip {
   color: var(--text-faint);
   line-height: 1;
 }
 
-/* Цвет этапа — то же, чем на ленте покрашена его полоса. У задачи это цвет
-   этапа, из которого её несут: он и отвечает на «откуда она». */
+/* A stage's colour is what its bar is painted with on the chart. For a task it is the
+   colour of the stage it is being carried from: that is what answers "where is it from". */
 .gantt__drag-ghost-dot {
   flex: 0 0 auto;
   width: 8px;
@@ -1232,39 +1229,39 @@
   text-overflow: ellipsis;
 }
 
-/* --- то, что показывает наведение на строку --- */
+/* --- what hovering over a row reveals --- */
 
-/* Плюс на строке категории — быстрое добавление задачи, знак общий со сметой
-   (см. components/rows.css). Здесь сказано только то, чего общий набор знать
-   не может: строка, на которую навели. Крестик удаления и «Назначить» со
-   строки переехали в меню «⋯» (см. RowMenu) и это правило больше не трогают;
-   счётчик обсуждения тоже не зависит от наведения — он либо показывает
-   значение, либо не рисуется вовсе (см. TaskRow). */
+/* The plus on a category row is a quick way to add a task; the sign is shared with
+   the budget (see components/rows.css). Only what the shared set cannot know is said
+   here: which row was hovered. The delete cross and "Assign" have moved off the row
+   into the "⋯" menu (see RowMenu) and no longer touch this rule; the discussion
+   counter does not depend on hover either — it either shows a value or is not drawn
+   at all (see TaskRow). */
 .gantt__row:hover .row-icon {
   opacity: 1;
 }
 
-/* У пустой категории «плюс» виден всегда.
+/* On an empty category the plus is always visible.
 
-   Прятать до наведения знак, которым эту категорию только и заполняют, значит
-   не показать входа вовсе: у проекта, где категории уже заведены, а задач ещё
-   нет, единственным видимым действием строки оставалось меню «⋯». Наполненной
-   категории это не нужно — там «плюс» ведёт себя как все прочие знаки строки
-   и молчит, пока на неё не навели. */
+   Hiding the very sign this category is filled with until hover means not showing the
+   entrance at all: in a project where categories have been created but there are no
+   tasks yet, the row's only visible action was the "⋯" menu. A filled category does
+   not need this — there the plus behaves like every other row sign and stays silent
+   until hovered. */
 .gantt__row--category.is-empty .row-icon {
   opacity: 1;
 }
 
-/* Приглашение в пустой полосе категории — призрак будущей полоски: та же
-   высота и то же место, что у настоящей (см. --gantt-bar), но без заливки.
-   Ровно одно на ленту, у самой верхней пустой категории (см. hintedCategoryId
-   в Gantt.tsx).
+/* The invitation in an empty category lane is the ghost of a future bar: the same
+   height and the same place as a real one (see --gantt-bar), but with no fill.
+   Exactly one per chart, on the topmost empty category (see hintedCategoryId in
+   Gantt.tsx).
 
-   Грань точками, а не штрихами: штрихами по светлой заливке нарисована
-   запланированная задача (см. .gantt__swatch[data-status="planned"]), и
-   приглашение, повторившее её язык, читалось бы задачей, которой на самом
-   деле нет. Отличают их и подпись со знаком внутри — но узнаваться оно должно
-   раньше, чем прочитано. */
+   A dotted edge rather than a dashed one: a planned task is drawn with dashes on a
+   light fill (see .gantt__swatch[data-status="planned"]), and an invitation repeating
+   its language would read as a task that does not actually exist. They are also told
+   apart by the label with its sign inside — but it must be recognized before it is
+   read. */
 .gantt__lane-hint {
   position: absolute;
   top: 50%;
@@ -1279,8 +1276,8 @@
   border: 1px dotted var(--border-strong);
   border-radius: var(--radius-sm);
   background: transparent;
-  /* Приглушённый, а не бледный: бледный (--text-faint) на белом не набирает и
-     трёх к одному, а это подпись кнопки, а не декорация. */
+  /* Muted rather than faint: faint (--text-faint) on white does not even reach three
+     to one, and this is a button's label rather than decoration. */
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 400;
@@ -1298,8 +1295,9 @@
   color: var(--text);
 }
 
-/* Знак «+» — цветом действия, а не подписи рядом: он здесь и есть обещание
-   (тот же приём, что у «плюса» в низу ленты, см. .gantt__add-plus). */
+/* The "+" sign takes the action colour rather than that of the label beside it: here
+   it is the promise itself (the same technique as the plus at the chart's bottom, see
+   .gantt__add-plus). */
 .gantt__lane-hint-plus {
   flex: 0 0 auto;
   color: var(--accent);
@@ -1307,14 +1305,14 @@
   line-height: 1;
 }
 
-/* Зона действий строки: кнопка «⋯» и панель под ней.
+/* The row's action zone: the "⋯" button and the panel beneath it.
 
-   Ширина постоянна и ничем не занята, кроме самой кнопки, — это то самое
-   «фиксированная зона под ⋯», ради которой имя задачи больше не делит место с
-   комментарием, исполнителями и «плюсом». Разделителя и своего фона у зоны
-   нет нарочно: она обязана читаться частью строки, а не отдельной колонкой
-   таблицы, — это разница между тем, что здесь стоит одна кнопка, а не колонка
-   значений. */
+   Its width is constant and occupied by nothing but the button itself — that is the
+   very "fixed zone under ⋯" for whose sake a task's name no longer shares space with
+   the comment, the assignees and the plus. The zone deliberately has no separator and
+   no background of its own: it must read as part of the row rather than as a separate
+   table column — that is the difference between one button standing here and a column
+   of values. */
 .gantt__row-actions {
   display: inline-flex;
   align-items: center;
@@ -1324,11 +1322,11 @@
   align-self: stretch;
 }
 
-/* Кнопка «⋯». Не молчит совсем, в отличие от плюса и крестика рядом: та же
-   логика («невидимо, пока не навели») здесь стёрла бы саму подсказку о том,
-   что у строки есть меню, — искать его пришлось бы наугад. Вместо этого она
-   всегда на месте и всегда узнаваема, но тусклая, пока строка не в фокусе
-   внимания — под курсором или с открытой панелью. */
+/* The "⋯" button. It is not completely silent, unlike the plus and the cross beside
+   it: the same logic ("invisible until hovered") would erase the very hint that the
+   row has a menu — it would have to be looked for by guesswork. Instead it is always
+   in place and always recognizable, but dim until the row is the focus of attention —
+   under the cursor or with its panel open. */
 .gantt__more {
   display: grid;
   place-items: center;
@@ -1363,10 +1361,10 @@
   color: var(--text);
 }
 
-/* Открытая панель — состояние строки, а не наведения: кнопка остаётся
-   отмеченной, даже когда курсор уже ушёл со строки к самой панели или дальше
-   от экрана вовсе. Тот же цвет, что и у наведения, — «эта кнопка сейчас имеет
-   значение» читается одинаково что под курсором, что с открытым меню. */
+/* An open panel is a state of the row rather than of hover: the button stays marked
+   even when the cursor has already left the row for the panel itself or further off
+   the screen. The same colour as hover — "this button matters right now" reads the
+   same way under the cursor as with an open menu. */
 .gantt__more.is-active {
   opacity: 1;
   background: var(--active);
@@ -1379,10 +1377,10 @@
   }
 }
 
-/* Панель меню — по координатам окна, а не строки: та же причина, что и у
-   панели исполнителей (см. AssignMenu) — прокручивается лента, а не окно, и
-   панель, оставленная внутри строки, уходила бы под соседние. Высокий
-   z-index держит её поверх и шкалы, и карточки наведения на полоску. */
+/* The menu panel uses the window's coordinates rather than the row's: the same reason
+   as with the assignee panel (see AssignMenu) — what scrolls is the chart, not the
+   window, and a panel left inside a row would slide under its neighbours. A high
+   z-index keeps it above both the scale and the bar's hover card. */
 .gantt__more-pop {
   position: fixed;
   z-index: 60;
@@ -1418,9 +1416,9 @@
   box-shadow: none;
 }
 
-/* Назначенный исполнитель в росписи — та же заливка, что и в панели у
-   колонки: список читают взглядом по кругу, и различие обязано быть видно с
-   расстояния, а не только по галочке. */
+/* An assigned person in the roster gets the same fill as in the column's panel: a
+   list is read by eye in a sweep, and the difference must be visible from a distance
+   rather than only by a checkmark. */
 .gantt__more-item.is-pressed,
 .gantt__more-item.is-pressed:hover {
   background: var(--accent-soft);
@@ -1444,8 +1442,8 @@
   white-space: nowrap;
 }
 
-/* Удаление — необратимое действие, и рука обязана узнать его раньше, чем
-   прочтёт подпись (тот же довод, что у `.row-icon--danger`). */
+/* Deletion is an irreversible action, and the hand must recognize it before it reads
+   the label (the same argument as with `.row-icon--danger`). */
 .gantt__more-item--danger {
   color: var(--danger);
 }
@@ -1465,9 +1463,9 @@
   background: var(--border);
 }
 
-/* Возврат из вложенного вида — роспись по исполнителям, список категорий у
-   «Переместить». Приглушённее обычного пункта: это не действие над строкой, а
-   способ выйти из того, что открыл предыдущий щелчок. */
+/* The way back from a nested view — the roster by assignee, the list of categories
+   under "Move". More muted than an ordinary item: this is not an action on the row but
+   a way out of what the previous click opened. */
 .gantt__more-back {
   display: flex;
   align-items: center;
@@ -1493,8 +1491,8 @@
   box-shadow: none;
 }
 
-/* Подтверждение удаления — тем же приёмом, что и у карточки задачи: вопрос
-   разворачивается на месте пункта, а не окном поверх ленты. */
+/* The delete confirmation uses the same technique as the task card: the question
+   unfolds in place of the item rather than as a dialog over the chart. */
 .gantt__more-confirm {
   padding: var(--space-6) var(--space-8) var(--space-4);
 }
@@ -1512,10 +1510,10 @@
   gap: var(--space-8);
 }
 
-/* Индикатор состояния — исполнитель или число реплик, показанные рядом с
-   именем без интерактивности: назначают и открывают обсуждение через «⋯», а
-   здесь только видно, что уже есть. Не молчит до наведения — как и у
-   назначенного исполнителя в колонке, это уже значение, а не приглашение. */
+/* The state indicator — the assignee or the number of remarks, shown next to the name
+   with no interactivity: assigning and opening a discussion go through "⋯", while here
+   only what already exists is visible. It does not stay silent until hover — as with an
+   assigned person in the column, this is already a value rather than an invitation. */
 .gantt__row-indicator {
   display: inline-flex;
   align-items: center;
@@ -1526,9 +1524,9 @@
   font-weight: 700;
 }
 
-/* Исполнители со строки. Пустая кнопка ждёт наведения — «Назначить» на каждой
-   из сотни строк превратило бы колонку имени в столбец одинаковых призывов;
-   назначенные видны всегда: это уже значение, а не приглашение его задать. */
+/* The assignees from the row. An empty button waits for hover — "Assign" on each of a
+   hundred rows would turn the name column into a column of identical appeals; assigned
+   ones are always visible: that is already a value rather than an invitation to set one. */
 .gantt__assign {
   display: inline-flex;
   flex: 0 0 auto;
@@ -1571,8 +1569,8 @@
   color: var(--text);
 }
 
-/* Подпись пустой кнопки обрезается раньше имени задачи: имя — содержимое,
-   призыв — хрома, и в тесной колонке уступает первая. */
+/* An empty button's label is truncated before a task's name: the name is content, the
+   appeal is chrome, and in a tight column the latter gives way first. */
 .gantt__assign-empty {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1585,9 +1583,9 @@
   font-weight: 700;
 }
 
-/* Панель выбора. По координатам окна, а не внутри строки: у ленты своя
-   прокрутка, и панель, выпадающая из последней строки, оказалась бы за её
-   обрезом (тот же довод, что у карточки наведения). */
+/* The selection panel. In the window's coordinates rather than inside the row: the
+   chart has a scroll of its own, and a panel dropping out of the last row would end up
+   past its clip (the same argument as with the hover card). */
 .gantt__assign-pop {
   position: fixed;
   z-index: 30;
@@ -1623,9 +1621,9 @@
   box-shadow: none;
 }
 
-/* Назначенный отличается заливкой, а не только галочкой: список читают
-   взглядом по кругу, и различие обязано быть видно с расстояния. Так же, как
-   в карточке задачи. */
+/* An assigned person is distinguished by a fill rather than only by a checkmark: a
+   list is read by eye in a sweep, and the difference must be visible from a distance.
+   The same as on the task card. */
 .gantt__assign-item[aria-pressed="true"],
 .gantt__assign-item[aria-pressed="true"]:hover {
   background: var(--accent-soft);
@@ -1639,10 +1637,11 @@
   white-space: nowrap;
 }
 
-/* Там, где наведения не бывает, — планшет, телефон — кнопки строки видны
-   всегда. Иначе они невидимы ровно там, где по ним и нужно попасть пальцем:
-   показать их нечем, а прозрачные они всё равно ловят нажатия — то есть
-   работают, но только вслепую (тот же довод, что у ручки перестановки). */
+/* Where there is no hover — a tablet, a phone — the row's buttons are always visible.
+   Otherwise they are invisible in exactly the place where they need to be hit with a
+   finger: there is nothing to reveal them with, while transparent they still catch
+   taps — that is, they work, but only blind (the same argument as with the reorder
+   handle). */
 @media (hover: none) {
   .gantt__assign-button.is-empty {
     opacity: 1;
@@ -1655,25 +1654,25 @@
   transition: background var(--motion-base) var(--motion-ease);
 }
 
-/* Сводная полоса категории: тонкая линия с засечками-стрелками по краям, как
-   в макете. Цвет — свой у каждой категории и приходит разметкой; макет красит
-   все категории одним серым, но цвет категории в продукте уже существует и
-   выбирается в форме создания. Засечки берут его же через currentColor. */
+/* The category's summary bar: a thin line with arrow ticks at its ends, as in the
+   mockup. The colour is each category's own and comes from the markup; the mockup
+   paints every category one grey, but a category's colour already exists in the product
+   and is chosen in the creation form. The ticks take it through currentColor. */
 .gantt__span {
   position: absolute;
   top: 50%;
   height: 7px;
-  /* Сдвиг под пальцем — слагаемое того же `transform`, а не отдельное правило:
-     отдельное стёрло бы центрирование по вертикали, и полоса при переносе
-     прыгала бы к верхнему краю строки. */
+  /* The shift under the finger is a term of the same `transform` rather than a
+     separate rule: a separate one would erase the vertical centring, and the bar would
+     jump to the row's top edge while being moved. */
   --span-dx: 0px;
   transform: translate3d(var(--span-dx), -50%, 0);
   border-radius: 3px;
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 8%);
 }
 
-/* Полосу категории тащат, чтобы сдвинуть этап целиком. Курсор — тот же, что у
-   полоски задачи: жест и означает то же самое, только разом по многим строкам. */
+/* A category's bar is dragged to shift the whole stage. The cursor is the same as on a
+   task bar: the gesture means the same thing, only across many rows at once. */
 .gantt__span.is-draggable {
   touch-action: none;
   cursor: grab;
@@ -1682,8 +1681,9 @@
 .gantt__span.is-dragging {
   cursor: grabbing;
   z-index: 2;
-  /* Обещание браузеру на время жеста — по той же причине, что у полоски
-     задачи: пусть держит полосу на своём слое, а не решает это каждый кадр. */
+  /* A promise to the browser for the duration of the gesture — for the same reason as
+     with a task bar: let it keep the bar on its own layer rather than deciding that
+     every frame. */
   will-change: transform;
 }
 
@@ -1709,41 +1709,40 @@
   transform: translateX(2px);
 }
 
-/* Полоска — прямоугольник со скруглением 7 на шкале времени.
-   Заливка означает статус и только его; критичность и просрочка ложатся
-   поверх накладками (ниже). Раньше все три состояния писали в один и тот же
-   фон, и цвет полоски определялся не смыслом, а порядком правил в файле. */
+/* A bar is a rectangle with a radius of 7 on the time scale. The fill means the status
+   and nothing else; criticality and being overdue go on top as overlays (below). All
+   three states used to write into one and the same background, and a bar's colour was
+   determined not by meaning but by the order of rules in the file. */
 .gantt__bar {
   position: absolute;
-  /* По вертикали полоска встаёт отступом, а не сдвигом. Отступ считается один
-     раз на рендер и потом не меняется, а `transform` целиком отдан движению по
-     горизонтали: делить его на два дела значило бы пересобирать всю строку
-     `translate` там, где меняется одна её половина. */
+  /* Vertically a bar is placed by padding rather than by a shift. The padding is
+     computed once per render and does not change after that, while `transform` is given
+     over entirely to horizontal movement: splitting it between two jobs would mean
+     reassembling the whole `translate` string where only one half of it changes. */
   top: calc(50% - var(--gantt-bar) / 2);
   height: var(--gantt-bar);
-  /* Место полоски на ленте — `left` и `width`; оба выставляет разметка на
-     рендер, и дальше их не трогает никто. Двигается полоска только по
-     `--bar-dx`: и под пальцем, и переездом после ответа сервера (см.
-     useBarMotion). Анимировать `left`/`width` нельзя — это свойства разметки,
-     и каждый кадр такой анимации пересчитывает положение всего слоя строк. На
-     десятке задач это незаметно, на сотнях лента начинает дёргаться ровно
-     тогда, когда сервер сдвинул цепочку зависимостей и едут все полоски
-     разом. */
+  /* A bar's place on the chart is `left` and `width`; the markup sets both on render
+     and nobody touches them afterwards. A bar moves only by `--bar-dx`: both under the
+     finger and when travelling after the server's answer (see useBarMotion). `left` and
+     `width` must not be animated — they are layout properties, and every frame of such
+     an animation recomputes the position of the whole row layer. On a dozen tasks that
+     is unnoticeable; on hundreds the chart starts to stutter precisely when the server
+     has shifted a chain of dependencies and every bar is travelling at once. */
   --bar-dx: 0px;
   --bar-dw: 0px;
   --bar-lift: 0px;
   transform: translate3d(var(--bar-dx), var(--bar-lift), 0);
-  /* Ширина — по датам плюс то, на сколько её растянули пальцем. Растягивание
-     разметку всё-таки трогает: сделать полоску шире, не меняя ширины, нельзя.
-     Оговорка ограничена одной полоской под пальцем, а не всем слоем строк, —
-     ради этого `--bar-dw` и отделён от общей ширины. */
+  /* The width follows the dates plus however far it has been stretched by finger.
+     Stretching does touch layout after all: a bar cannot be made wider without changing
+     its width. The exception is limited to the one bar under the finger rather than the
+     whole row layer — that is what `--bar-dw` is separated from the overall width for. */
   width: calc(var(--bar-w) + var(--bar-dw));
   padding: 0 var(--space-12);
   display: flex;
   align-items: center;
-  /* Содержимое прижато к началу полоски. Правило не лишнее: полоска — это
-     `button`, а базовая кнопка центрирует своё содержимое, и галочка готовой
-     задачи вставала бы в середину полоски длиной в две недели. */
+  /* The content is pressed to the bar's start. The rule is not redundant: a bar is a
+     `button`, and a base button centres its content, so a completed task's checkmark
+     would stand in the middle of a bar two weeks long. */
   justify-content: flex-start;
   gap: var(--space-6);
   overflow: hidden;
@@ -1756,58 +1755,58 @@
   font-weight: 700;
   text-align: left;
   box-shadow: none;
-  /* Переход — только на подсветке: полоска всё-таки кнопка, и вспыхивать
-     там, где соседние кнопки проявляются плавно, ей не с чего. Ни `left` с
-     `width`, ни `transform` в список не входят — место полоски и её движение
-     ведёт useBarMotion, и переход по ним сглаживал бы жест, обязанный идти за
-     пальцем без задержки. */
+  /* The transition applies only to the highlight: a bar is a button after all, and
+     there is no reason for it to flash where the buttons beside it appear smoothly.
+     Neither `left` and `width` nor `transform` are on the list — a bar's place and its
+     movement are driven by useBarMotion, and a transition on them would smooth out a
+     gesture that must follow the finger with no delay. */
   transition: filter var(--motion-fast) var(--motion-ease);
 }
 
-/* Под курсором полоска светлеет и приподнимается — но не меняет ни цвет, ни
-   тень: тень здесь занята накладками, а цвет означает статус и врать не может.
-   Подъём — слагаемое того же `transform`, а не отдельное правило: отдельное
-   стёрло бы горизонтальный сдвиг, и полоска под пальцем прыгала бы на своё
-   место по датам, стоило курсору её задеть. */
+/* Under the cursor a bar lightens and rises — but changes neither its colour nor its
+   shadow: the shadow here is taken by the overlays, and the colour means the status and
+   cannot lie. The rise is a term of the same `transform` rather than a separate rule: a
+   separate one would erase the horizontal shift, and a bar under the finger would jump
+   to its place by dates the moment the cursor brushed it. */
 .gantt__bar:hover {
   filter: brightness(1.05);
   --bar-lift: -1px;
 }
 
-/* Полоска под пальцем идёт за курсором без задержки: любое сглаживание здесь
-   делает жест вязким, будто интерфейс не успевает. Гасить переходы для этого
-   больше не нужно — сдвиг пишется прямо в `--bar-dx`, и анимировать его
-   некому. */
+/* A bar under the finger follows the cursor with no delay: any smoothing here makes
+   the gesture viscous, as if the interface could not keep up. Suppressing transitions
+   for that is no longer needed — the shift is written straight into `--bar-dx`, and
+   there is nobody to animate it. */
 .gantt__bar.is-dragging {
   cursor: grabbing;
-  /* Над соседями, пока её тащат: иначе она уезжает под соседнюю полоску и
-     теряется ровно в тот момент, когда за ней следят. */
+  /* Above its neighbours while it is being dragged: otherwise it slides under a
+     neighbouring bar and is lost at exactly the moment it is being watched. */
   z-index: 2;
   filter: brightness(1.05);
-  /* Обещание браузеру: у этой полоски `transform` будет меняться и дальше —
-     пусть держит её на своём слое весь жест, а не решает это заново каждый
-     кадр. Обещание висит только на время жеста: постоянное держало бы слой
-     под каждой полоской ленты и стоило бы памяти ровно там, где её и не
-     хватает — на большом проекте. */
+  /* A promise to the browser: this bar's `transform` will keep changing — let it keep
+     it on its own layer for the whole gesture rather than deciding that anew every
+     frame. The promise hangs only for the duration of the gesture: a permanent one would
+     keep a layer under every bar on the chart and would cost memory exactly where it is
+     short — on a large project. */
   will-change: transform;
 }
 
-/* Полоску тащат пальцем, и браузер не должен принимать это за прокрутку ленты.
-   Правило действует только там, где перетаскивание разрешено: у гостя лента
-   обязана прокручиваться, даже если палец опустился на полоску. */
+/* A bar is dragged with a finger, and the browser must not take that for scrolling the
+   chart. The rule applies only where dragging is allowed: for a guest the chart must
+   scroll even if a finger has landed on a bar. */
 .gantt__bar.is-draggable {
   touch-action: none;
   cursor: grab;
 }
 
-/* --- заливка: четыре взаимоисключающих статуса --- */
+/* --- the fill: four mutually exclusive statuses --- */
 
 .gantt__bar[data-status="in_progress"] {
   background: var(--gantt-fill-progress);
 }
 
-/* Запланировано — единственная незалитая: пунктирный контур говорит «этого
-   ещё нет», а сплошная заливка сказала бы «идёт». */
+/* Planned is the only unfilled one: a dashed outline says "this is not there yet",
+   while a solid fill would say "it is under way". */
 .gantt__bar[data-status="planned"] {
   background: var(--gantt-fill-planned);
   border: 1px dashed var(--gantt-line-planned);
@@ -1818,18 +1817,18 @@
   background: var(--ok);
 }
 
-/* Заблокированная — диагональная штриховка: состояние назначил человек, и
-   полоска называет его и рисунком, и словом (см. Row). */
+/* A blocked one gets diagonal hatching: the state was assigned by a person, and the bar
+   names it both by pattern and by word (see Row). */
 .gantt__bar[data-status="blocked"] {
   background: var(--gantt-fill-blocked);
 }
 
-/* --- накладки: флаги поверх любой заливки --- */
+/* --- the overlays: flags over any fill --- */
 
-/* Накладки лежат на отдельном слое поверх содержимого полоски, а не тенью на
-   ней самой. Причина не в чистоте: `inset`-тень рисуется под содержимым, а
-   заливка прогресса — позиционированный потомок, и она закрашивала бы и
-   контур просрочки, и грань критичности на своей трети полоски. */
+/* The overlays lie on a separate layer over the bar's content rather than as a shadow
+   on the bar itself. The reason is not purity: an `inset` shadow is drawn beneath the
+   content, while the progress fill is a positioned child, and it would paint over both
+   the overdue outline and the criticality edge on its third of the bar. */
 .gantt__bar::after {
   content: "";
   position: absolute;
@@ -1838,22 +1837,23 @@
   pointer-events: none;
 }
 
-/* Просрочка — контур цветом внимания. Не заливка: «не в срок» и «в какой
-   стадии» — разные вопросы, и отвечать на них одним пятном нельзя. */
+/* Overdue is an outline in the attention colour. Not a fill: "not on time" and "at what
+   stage" are different questions, and they cannot be answered with one patch of colour. */
 .gantt__bar.is-late::after {
   box-shadow: inset 0 0 0 1.5px var(--warn);
 }
 
-/* Критичность — левая грань цветом тревоги. Остальные три уровня
-   (`low`, `normal`, `high`) полоску не красят. */
+/* Criticality is a left edge in the alarm colour. The other three levels (`low`,
+   `normal`, `high`) do not paint the bar. */
 .gantt__bar[data-criticality="critical"]::after {
   box-shadow: inset 3px 0 0 var(--danger-strong);
 }
 
-/* Флаг риска исполнителя — точка у левого края полоски: жёлтая или красная.
-   Своим псевдоэлементом, а не накладкой `::after`: та занята контуром и
-   гранью, и точка не должна спорить с ними за одно объявление. Белая обводка
-   отделяет её от любой заливки — и от синей «в работе», и от штриховки. */
+/* The assignee's risk flag is a dot at the bar's left edge: yellow or red. With a
+   pseudo-element of its own rather than the `::after` overlay: that one is taken by the
+   outline and the edge, and the dot must not compete with them for one declaration. A
+   white ring separates it from any fill — from the blue "in progress" and from the
+   hatching alike. */
 .gantt__bar[data-risk]::before {
   content: "";
   position: absolute;
@@ -1876,31 +1876,32 @@
   background: var(--danger);
 }
 
-/* Обе сразу — одним объявлением: сочетание пишется явно, а не оставляется
-   каскаду, иначе последняя накладка стирала бы первую. Порядок слоёв тоже
-   назван: контур идёт первым и потому лежит поверх грани. Разорванный на
-   одной стороне контур читался бы как дефект отрисовки, а грань, срезанная
-   до полутора пикселей, — по-прежнему как грань. Следствие принято
-   сознательно: готовая критическая задача получит зелёную заливку и красную
-   грань — то есть скажет и «сделано», и «это было узкое место». */
+/* Both at once in one declaration: the combination is spelled out explicitly rather
+   than left to the cascade, otherwise the last overlay would erase the first. The order
+   of the layers is named too: the outline comes first and therefore lies over the edge.
+   An outline broken on one side would read as a rendering defect, while an edge trimmed
+   to a pixel and a half still reads as an edge. The consequence is accepted
+   deliberately: a completed critical task gets a green fill and a red edge — that is, it
+   says both "done" and "this was the bottleneck". */
 .gantt__bar.is-late[data-criticality="critical"]::after {
   box-shadow:
     inset 0 0 0 1.5px var(--warn),
     inset 3px 0 0 var(--danger-strong);
 }
 
-/* Заливка прогресса — часть полоски «в работе», а не вторая полоска под ней.
-   У остальных статусов её нет: у готовой она была бы тавтологией, у
-   запланированной и заблокированной — обещанием движения, которого нет. */
+/* The progress fill is part of the "in progress" bar rather than a second bar beneath
+   it. The other statuses do not have it: on a completed one it would be a tautology, on
+   a planned or a blocked one a promise of movement that is not there. */
 .gantt__progress {
   display: none;
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  /* Граница выполненного: по проценту, а пока её тянут — плюс сдвиг пальца.
-     Ширина здесь не разметка соседей, а заливка внутри полоски: менять её
-     каждый кадр можно, ничего за пределами полоски от этого не пересчитается. */
+  /* The boundary of what is done: by percentage, and while it is being dragged, plus
+     the finger's shift. The width here is not the neighbours' layout but a fill inside
+     the bar: it can be changed every frame, and nothing outside the bar is recomputed
+     because of it. */
   width: calc(var(--progress) + var(--progress-dx, 0px));
   pointer-events: none;
 }
@@ -1910,9 +1911,9 @@
   background: var(--gantt-fill-progress-done);
 }
 
-/* Галочка готовой задачи: знак «сделано» виден с расстояния, на котором
-   подпись статуса уже не читается. Круг — из белого в четверть силы: зелёный
-   круг на зелёной полоске не виден вовсе. */
+/* A completed task's checkmark: the "done" sign is visible from a distance at which the
+   status label can no longer be read. The circle is white at a quarter strength: a green
+   circle on a green bar is not visible at all. */
 .gantt__check {
   display: inline-flex;
   align-items: center;
@@ -1936,11 +1937,11 @@
   white-space: nowrap;
 }
 
-/* Призрак базового плана: тонкая серая полоска под текущей.
-   Именно под, а не продлением текущей — иначе начало полоски означало бы
-   плановую дату, а конец фактическую, и полоска перестала бы означать
-   реальные даты задачи. Один раз обманув глаз, диаграмма теряет доверие
-   целиком. */
+/* The ghost of the baseline plan: a thin grey bar beneath the current one.
+   Beneath specifically rather than as an extension of the current one — otherwise a
+   bar's start would mean the planned date and its end the actual one, and the bar would
+   stop meaning the task's real dates. Having deceived the eye once, a chart loses trust
+   entirely. */
 .gantt__ghost {
   position: absolute;
   top: calc(50% + 16px);
@@ -1950,10 +1951,10 @@
   pointer-events: none;
 }
 
-/* Засечка первоначального дедлайна: вертикаль цвета тревоги с ромбом сверху в
-   том дне, где задача должна была кончиться по утверждённому плану. Выше
-   полоски и ниже её — чтобы читалась как метка на шкале, а не как обрез
-   полоски. */
+/* The tick of the original deadline: a vertical in the alarm colour with a diamond on
+   top, on the day the task was supposed to end under the agreed plan. Above the bar and
+   below it — so that it reads as a marker on the scale rather than as the bar's clipped
+   edge. */
 .gantt__mark {
   position: absolute;
   top: 4px;
@@ -1974,22 +1975,22 @@
   transform: rotate(45deg);
 }
 
-/* --- прямое управление полоской: грани, заливка, связи --- */
+/* --- direct manipulation of a bar: edges, fill, links --- */
 
-/* Грани полоски: невидимые полосы по её краям, за которые тянут сроки.
-   Шире, чем выглядят: попасть в двухпиксельную границу мышью трудно, а
-   пальцем невозможно, поэтому цель — восемь пикселей, а показывает её курсор
-   и светлая черта, проявляющаяся под ним. */
+/* A bar's edges: invisible strips at its ends by which dates are dragged. Wider than
+   they look: hitting a two-pixel border with a mouse is hard and with a finger
+   impossible, so the target is eight pixels, and what shows it is the cursor and a light
+   line that appears under it. */
 .gantt__grip {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 9px;
-  /* Полоску тащат пальцем, и браузер не должен принимать это за прокрутку. */
+  /* A bar is dragged with a finger, and the browser must not take that for scrolling. */
   touch-action: none;
   cursor: ew-resize;
-  /* Над заливкой прогресса: та лежит поверх фона полоски и иначе перехватывала
-     бы нажатие на левой грани у задачи, сделанной больше чем наполовину. */
+  /* Above the progress fill: that lies over the bar's background and would otherwise
+     intercept a press on the left edge of a task that is more than half done. */
   z-index: 1;
 }
 
@@ -2001,9 +2002,9 @@
   right: 0;
 }
 
-/* Черта под курсором — единственный видимый знак грани. Белая в половину
-   силы: полоска бывает и синей, и зелёной, и штрихованной, и своим цветом
-   черта на одной из них потерялась бы. */
+/* The line under the cursor is the edge's only visible sign. White at half strength: a
+   bar can be blue, green or hatched, and a line in a colour of its own would be lost on
+   one of them. */
 .gantt__grip--start::after,
 .gantt__grip--end::after {
   content: "";
@@ -2029,13 +2030,13 @@
   opacity: 1;
 }
 
-/* У запланированной задачи полоска светлая, и белая черта на ней не видна. */
+/* On a planned task the bar is light, and a white line on it is invisible. */
 .gantt__bar[data-status="planned"] .gantt__grip::after {
   background: var(--gantt-line-planned);
 }
 
-/* Ручка выполненного стоит на границе заливки и едет вместе с ней: под
-   пальцем — за `--progress-dx`, после ответа сервера — за самим процентом. */
+/* The completion handle stands at the fill's boundary and travels with it: under the
+   finger by `--progress-dx`, after the server's answer by the percentage itself. */
 .gantt__grip--progress {
   left: calc(var(--progress) + var(--progress-dx, 0px));
   width: 14px;
@@ -2059,16 +2060,16 @@
   transition: opacity var(--motion-fast) var(--motion-ease);
 }
 
-/* Ручки проявляются на своей строке, а не постоянно: три кружка на каждой из
-   сотни полосок — это рябь, в которой не видно самой диаграммы. */
+/* The handles appear on their own row rather than permanently: three circles on each of
+   a hundred bars is a ripple in which the chart itself is invisible. */
 .gantt__row:hover .gantt__grip--progress::after,
 .gantt__bar.is-dragging .gantt__grip--progress::after {
   opacity: 1;
 }
 
-/* Кружки связи — на краях полоски, снаружи её. Проявляются при наведении на
-   строку и остаются видимыми у всех полосок, пока связь тянут: цель броска
-   должна быть видна до того, как до неё довели курсор. */
+/* The link dots sit at a bar's ends, outside it. They appear on hover over the row
+   and stay visible on every bar while a link is being dragged: the drop target must
+   be visible before the cursor has been brought to it. */
 .gantt__link-dot {
   position: absolute;
   top: 50%;
@@ -2093,10 +2094,10 @@
   margin-left: var(--space-4);
 }
 
-/* Кружки проявляются на строке под курсором — и на строке, полоска которой
-   в фокусе. Второе не про мышь: на сенсорном экране наведения нет вовсе, а
-   касание полоски её фокусирует, и это единственный способ показать кружки
-   пальцу, не выводя их постоянно на каждой из сотни строк. */
+/* The dots appear on the row under the cursor — and on the row whose bar has focus.
+   The second is not about the mouse: on a touch screen there is no hover at all,
+   while touching a bar focuses it, and that is the only way to show the dots to a
+   finger without keeping them permanently on each of a hundred rows. */
 .gantt__row:hover .gantt__link-dot,
 .gantt__row:focus-within .gantt__link-dot,
 .gantt.is-linking .gantt__link-dot {
@@ -2107,22 +2108,22 @@
   background: var(--accent);
 }
 
-/* Пальцем в тринадцать пикселей не попасть. Сам кружок не растёт — на ленте
-   он метка, а не кнопка, — растёт его цель: прозрачное поле вокруг, вдвое
-   больше видимого круга. */
+/* A finger cannot hit thirteen pixels. The dot itself does not grow — on the chart
+   it is a marker rather than a button — what grows is its target: a transparent
+   field around it, twice the size of the visible circle. */
 @media (pointer: coarse) {
   .gantt__link-dot::after {
     content: "";
     position: absolute;
-    /* Половина разницы между целью в 44 пикселя (рекомендуемый минимум для
-       касания) и видимыми тринадцатью — по каждой стороне. */
+    /* Half the difference between a 44-pixel target (the recommended minimum for
+       touch) and the visible thirteen — on each side. */
     inset: -15px;
   }
 }
 
-/* Слой линии, которую тянут. Поверх полосок — в отличие от слоя стрелок,
-   лежащего под ними: тянущаяся линия обязана быть видна поверх всего, через
-   что её ведут. Событий не принимает: под ней ищут цель броска. */
+/* The layer of the line being dragged. Above the bars — unlike the arrow layer,
+   which lies beneath them: a line being dragged must be visible over everything it
+   is led through. It accepts no events: the drop target is looked for beneath it. */
 .gantt__link-layer {
   position: absolute;
   top: 0;
@@ -2144,18 +2145,18 @@
   display: block;
 }
 
-/* Строка, на которую бросят связь. Класс ставится прямо в DOM, мимо состояния
-   React: цель меняется на каждом пересечении строки, и перерисовывать ради
-   этого сотню строк значило бы платить рендером за подсветку. */
+/* The row a link will be dropped on. The class is set directly in the DOM,
+   bypassing React state: the target changes on every crossing of a row, and
+   re-rendering a hundred rows for that would mean paying a render for a highlight. */
 .gantt__row.is-link-target .gantt__lane {
   background: rgb(83 103 232 / 12%);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
-/* Веха — ромб в своём дне. Повёрнутый квадрат внутри полоски, а не сама
-   полоска: её `transform` занят движением под пальцем, и второй поворот на том
-   же узле стёр бы сдвиг. Сама полоска при этом становится прозрачной
-   подложкой шириной в день — по ней и попадают указателем. */
+/* A milestone is a diamond on its day. A rotated square inside the bar rather than
+   the bar itself: its `transform` is taken up by movement under the finger, and a
+   second rotation on the same node would erase the shift. The bar itself meanwhile
+   becomes a transparent backing one day wide — that is what the pointer hits. */
 .gantt__bar--milestone {
   padding: 0;
   background: none;
@@ -2164,9 +2165,9 @@
 }
 
 .gantt__bar--milestone::after {
-  /* Накладки просрочки и критичности рисуются контуром по прямоугольнику —
-     вокруг ромба это была бы рамка вокруг пустоты. Их место занимает сам
-     ромб: его цвет и грань всё и говорят. */
+  /* The overdue and criticality overlays are drawn as an outline on a rectangle —
+     around a diamond that would be a frame around emptiness. Their place is taken by
+     the diamond itself: its colour and its edge say everything. */
   content: none;
 }
 
@@ -2195,22 +2196,22 @@
   background: var(--danger-strong);
 }
 
-/* Критический путь: цепочка задач, у которых нет запаса. Показывается только
-   когда его попросили в меню «Вид» — он красит полоски третьим способом поверх
-   статуса и просрочки, и включённый всегда превращал бы ленту в карту цепочек
-   там, где спрашивают всего лишь «что когда».
+/* The critical path: the chain of tasks that have no slack. It is shown only when
+   asked for in the "View" menu — it paints bars in a third way on top of status and
+   overdue, and permanently on it would turn the chart into a map of chains where all
+   that is asked is "what is when".
 
-   Обводка снаружи полоски (`outline`), а не внутри (`box-shadow: inset`):
-   внутренние накладки уже заняты просрочкой и критичностью задачи, и четвёртая
-   легла бы поверх них. Снаружи она читается как обвод по цепочке — тем, чем и
-   является. */
+   The outline goes outside the bar (`outline`) rather than inside
+   (`box-shadow: inset`): the inner overlays are already taken by the task's overdue
+   and criticality, and a fourth would lie over them. Outside it reads as an outline
+   along a chain — which is what it is. */
 .gantt.show-critical .gantt__bar[data-critical] {
   outline: 2px solid var(--danger-strong);
   outline-offset: 1px;
 }
 
-/* Ромб вехи обводится по своей форме, а не по прямоугольнику вокруг него:
-   рамка вокруг пустоты читалась бы как дефект отрисовки. */
+/* A milestone diamond is outlined along its own shape rather than along the
+   rectangle around it: a frame around emptiness would read as a rendering defect. */
 .gantt.show-critical .gantt__bar--milestone[data-critical] {
   outline: none;
 }
@@ -2221,8 +2222,8 @@
     0 0 0 4px var(--danger-strong);
 }
 
-/* Стрелки внутри цепочки — тем же цветом: путь читается как путь, а не как
-   набор одинаково обведённых полосок. */
+/* The arrows inside a chain use the same colour: the path reads as a path rather
+   than as a set of identically outlined bars. */
 .gantt.show-critical .arrows .arrows__line.is-critical {
   stroke: var(--danger-strong);
 }
@@ -2231,15 +2232,15 @@
   fill: var(--danger-strong);
 }
 
-/* Метки у полоски — бейдж отклонения и «сверх плана». Одна форма и одно
-   место: справа от полоски, а не поверх неё — поверх они закрывали бы
-   название задачи ровно у тех задач, за которыми и следят.
+/* The markers by a bar are the deviation badge and "beyond the plan". One shape and
+   one place: to the right of the bar rather than over it — over it they would cover
+   the task's name for exactly the tasks that are being watched.
 
-   Отступ слева — под кружок связи: .gantt__link-dot--end занимает 4–17 px от
-   края полоски, и без отступа при наведении он ложился бы на первые буквы.
-   Отступ постоянный, а не по наведению: метка, отпрыгивающая под курсором, —
-   та самая смена компоновки строки на hover, от которой лента избавлялась
-   (см. RowMenu). */
+   The left margin makes room for the link dot: .gantt__link-dot--end occupies 4-17 px
+   from the bar's edge, and without the margin it would lie on the first letters on
+   hover. The margin is permanent rather than applied on hover: a marker that jumps
+   aside under the cursor is the very change of row layout on hover the chart has been
+   getting rid of (see RowMenu). */
 .gantt__deviation,
 .gantt__beyond-plan {
   position: absolute;
@@ -2253,8 +2254,9 @@
   white-space: nowrap;
 }
 
-/* Отклонение — сигнал: жирнее и цветом тона. Событий не принимает: под ним
-   ведут полоску за правую грань, и ловить курсор ему не за чем. */
+/* The deviation is a signal: bolder and in the tone's colour. It accepts no events:
+   beneath it the bar is dragged by its right edge, and there is no reason for it to
+   catch the cursor. */
 .gantt__deviation {
   font-weight: 800;
   pointer-events: none;
@@ -2272,14 +2274,15 @@
   color: #176842;
 }
 
-/* «Сверх плана» — примечание, а не сигнал: обе метки отвечают на вопрос
-   «как задача соотносится с согласованным планом», но эта — приглушённая, а
-   не тревожная: добавление работы — это нормально, тревожен скрытый перенос
-   сроков. Подсказку несёт сама (см. Row), поэтому курсор ловит.
+/* "Beyond the plan" is a note rather than a signal: both markers answer the question
+   "how does the task relate to the agreed plan", but this one is muted rather than
+   alarming — adding work is normal, what is alarming is a hidden shift of dates. It
+   carries a tooltip of its own (see Row), so it does catch the cursor.
 
-   Своё имя, а не .gantt__beyond: так называется поле за краем плана выше по
-   файлу, и метка, носившая то же имя, получала от него левую рамку и
-   штриховку — и стояла в колонке имени в рамке, как в ячейке. */
+   A name of its own rather than .gantt__beyond: that is the name of the field past
+   the plan's edge higher up the file, and a marker bearing the same name received
+   its left border and hatching — and stood in the name column in a frame, as if in a
+   cell. */
 .gantt__beyond-plan {
   border-color: var(--border-strong);
   background: var(--surface);
@@ -2288,24 +2291,23 @@
   cursor: default;
 }
 
-/* Карточка наведения на полоску: тёмная плашка под курсором, в которой
-   написано то, чего на самой полоске не помещается, — статус, даты,
-   исполнители и процент.
+/* The hover card on a bar: a dark chip under the cursor holding what does not fit on
+   the bar itself — the status, the dates, the assignees and the percentage.
 
-   Тёмная, а не в цвет ленты: она лежит поверх сетки дней и полосок, и светлая
-   карточка на светлом поле требовала бы рамки и тени, чтобы не сливаться, —
-   то есть трёх приёмов там, где хватает одного.
+   Dark rather than in the chart's colours: it lies over the grid of days and the
+   bars, and a light card on a light field would need a border and a shadow so as not
+   to merge with it — that is, three techniques where one is enough.
 
-   Координаты — окна, а не ленты: `fixed` не даёт полосе прокрутки обрезать
-   карточку у правого края, куда она чаще всего и попадает. За прокруткой она
-   при этом не едет и потому на ней гаснет — этим занят сам узел (см. BarTip).
-   Собственного правила «меньше движения» здесь нет: переходы и появление
-   гасит общее правило в styles.css, и второе такое же однажды разошлось бы с
-   ним.
+   The coordinates are the window's rather than the chart's: `fixed` keeps a scrollbar
+   from clipping the card at the right edge, which is where it most often lands. It
+   does not travel with the scroll and therefore goes out on it — the node itself
+   handles that (see BarTip). There is no "less motion" rule of its own here: the
+   transitions and the appearance are suppressed by the shared rule in styles.css, and
+   a second one like it would one day diverge from it.
 
-   Появляется проявлением, без движения, — по общей шкале всплывающих слоёв
-   (см. styles.css). Двигаться ей некуда: она и так стоит там, где курсор, и
-   идёт за ним дальше, так что подъезд к точке спорил бы с этим ходом. */
+   It appears by fading in, without movement, on the shared popup-layer scale (see
+   styles.css). It has nowhere to move: it already stands where the cursor is and
+   follows it onwards, so approaching a point would compete with that movement. */
 .gantt__tip {
   position: fixed;
   z-index: 200;
@@ -2317,13 +2319,13 @@
   font-size: 11px;
   line-height: 1.35;
   box-shadow: 0 12px 36px rgb(16 24 40 / 13%);
-  /* Появление — проявлением, а не подстановкой: карточку показывает выдержка
-     наведения, и возникшая после неё в готовом виде плашка читается как чужой
-     щелчок в ленте. Гаснет она без проявления — уходит вместе с курсором, и
-     провожать её человек уже не смотрит. */
+  /* It appears by fading rather than by substitution: the card is shown by a hover
+     delay, and a chip that comes into being after it fully formed reads as someone
+     else's click in the chart. It goes out without a fade — it leaves with the cursor,
+     and nobody is watching it go by then. */
   animation: layer-fade var(--motion-layer) var(--motion-layer-ease);
-  /* Карточка идёт за курсором и ничего не ловит: клик обязан достаться
-     полоске под ней, иначе наведение отнимало бы у ленты перетаскивание. */
+  /* The card follows the cursor and catches nothing: a click must go to the bar
+     beneath it, otherwise hovering would take dragging away from the chart. */
   pointer-events: none;
 }
 
@@ -2334,17 +2336,17 @@
   font-weight: 700;
 }
 
-/* Две колонки, а не список пар «подпись — значение»: подписи здесь не нужны —
-   статус, даты, имя и процент называют себя сами, и слово «Статус» рядом со
-   словом «В работе» лишь съело бы половину ширины.
+/* Two columns rather than a list of "label — value" pairs: no labels are needed here
+   — the status, the dates, the name and the percentage name themselves, and the word
+   "Status" next to the words "In progress" would merely eat half the width.
 
-   Левая колонка тянется, а не стоит на 72px, как в макете: макет английский, и
-   72px хватало ему на «Blocked», тогда как «⚠ Заблокировано» вылезало из
-   колонки прямо на даты. Верхняя граница обязательна — без неё длинное имя
-   исполнителя отняло бы у дат столько, что они переносились бы на вторую
-   строку; 45% — то место, где помещается и самый длинный статус, и дата.
-   Перенос внутри слова — последняя мера для имён, которым не хватает и этого:
-   лучше разорванное слово, чем текст поверх текста. */
+   The left column stretches rather than standing at 72px as in the mockup: the mockup
+   is English, and 72px was enough for it for "Blocked", whereas "⚠ Заблокировано"
+   spilled out of the column straight onto the dates. An upper bound is mandatory —
+   without it a long assignee name would take so much from the dates that they would
+   wrap to a second line; 45% is where both the longest status and a date fit. Breaking
+   inside a word is the last resort for names that even that is not enough for: better a
+   broken word than text over text. */
 .gantt__tip-grid {
   display: grid;
   grid-template-columns: minmax(72px, 45%) 1fr;
@@ -2358,15 +2360,15 @@
   font-weight: 600;
 }
 
-/* Процент без строки исполнителей остаётся в правой колонке. */
+/* The percentage with no assignee row stays in the right column. */
 .gantt__tip-alone {
   grid-column: 2;
 }
 
-/* Строка сочетаний клавиш — отделена чертой и приглушена: это не про эту
-   задачу, а про то, что с ней можно сделать, и читаться она должна после
-   дат, а не наравне с ними. */
-/* Строка риска в карточке наведения — цветом флага, причина следом. */
+/* The keyboard-shortcut line is separated by a rule and muted: it is not about this
+   task but about what can be done with it, and it should be read after the dates
+   rather than on a par with them. */
+/* The risk line in the hover card takes the flag's colour, with the reason after it. */
 .gantt__tip-risk {
   margin-top: var(--space-6);
   font-size: 12px;
@@ -2389,8 +2391,8 @@
   letter-spacing: 0.01em;
 }
 
-/* На мелких масштабах от подписи дня остаётся число: день недели в колонку
-   шириной 18 пикселей не помещается, а обрезанный читается как мусор. */
+/* At small scales only the number is left of a day's label: a weekday does not fit
+   into a column 18 pixels wide, and truncated it reads as noise. */
 .gantt--month .gantt__day-weekday {
   display: none;
 }
@@ -2401,27 +2403,27 @@
   font-size: 10px;
 }
 
-/* Круг сужается до ширины колонки: на «месяце» день — восемнадцать пикселей,
-   и двадцатидвухпиксельный круг вылез бы за свою колонку в соседнюю. */
+/* The circle narrows to the column's width: at the "month" scale a day is eighteen
+   pixels, and a twenty-two-pixel circle would spill out of its column into the next. */
 .gantt--month .gantt__day.is-today .gantt__day-number {
   width: 18px;
   height: 18px;
 }
 
-/* Адаптивности ленты здесь больше нет, и это не упущение. Ширина закреплённой
-   колонки — сумма ширин показанных колонок таблицы, и разметка ставит её
-   свойством прямо на корне (см. layoutWidth). Медиазапрос такое свойство не
-   перебивает — встроенный стиль сильнее любого правила файла, — и правило,
-   написанное здесь, молча не делало бы ничего.
+/* The chart's responsiveness is no longer here, and that is not an omission. The
+   pinned column's width is the sum of the widths of the table columns on show, and the
+   markup sets it as a property straight on the root (see layoutWidth). A media query
+   does not override such a property — an inline style is stronger than any rule in a
+   file — and a rule written here would silently do nothing.
 
-   Те же точки, 900 и 520 пикселей, живут теперь в раскладке колонок
-   (columns.ts): на узком экране лента открывается одной колонкой имени, и
-   ширина у этой колонки та же, что была здесь. Разница в том, что это
-   умолчание, а не потолок: включить остальные колонки можно и на телефоне. */
+   The same breakpoints, 900 and 520 pixels, now live in the column layout
+   (columns.ts): on a narrow screen the chart opens with one name column, and that
+   column's width is the same as it was here. The difference is that this is a default
+   rather than a ceiling: the other columns can be switched on on a phone too. */
 
-/* Выноска о сроках на телефоне — плотнее: над лентой и так стоят полоса
-   разделов и шапка проекта, и каждый лишний пиксель здесь отодвигает первую
-   строку задач за половину экрана. */
+/* The deadline callout on a phone is denser: a section strip and the project's header
+   already stand above the chart, and every extra pixel here pushes the first task row
+   half a screen further down. */
 @media (max-width: 520px) {
   .gantt__summary {
     margin-top: var(--space-8);

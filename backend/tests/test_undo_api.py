@@ -1,4 +1,4 @@
-"""Отмена по проводу: последнее действие и пачка целиком."""
+"""Undo over the wire: the last action and a whole batch."""
 
 import uuid
 
@@ -78,11 +78,11 @@ def test_undo_returns_the_task_to_where_it_was(authed, project_with_task):
 
 
 def test_pressing_undo_twice_steps_two_changes_back(authed, project_with_task):
-    """Вторая отмена отменяет предыдущее изменение, а не собственную отмену.
+    """A second undo undoes the previous change rather than its own undo.
 
-    Без учёта «эта ревизия — отмена вон той» журнал линеен, и вторая запись
-    сверху после отмены — она сама: человек, нажавший «Отменить» дважды,
-    оказался бы там же, откуда начал.
+    Without tracking "this revision is the undo of that one", the journal is linear and
+    the second entry from the top after an undo is the undo itself: a person pressing
+    "Undo" twice would end up where they started.
     """
     project_id, _, task_id = project_with_task
     for day in ("2026-03-09", "2026-03-10"):
@@ -122,8 +122,8 @@ def test_undo_brings_a_deleted_task_back_with_its_note(authed, project_with_task
 
     restored = db.get(Task, uuid.UUID(created))
     assert restored is not None
-    # Заметка возвращается вместе с задачей: снимок для отмены хранит её, и
-    # видимость решается на выдаче, а не порчей самого журнала.
+    # The note comes back together with the task: the undo snapshot stores it, and
+    # visibility is decided on output rather than by corrupting the journal itself.
     assert restored.internal_note == "тайный план"
 
 
@@ -140,16 +140,15 @@ def test_the_project_state_names_what_undo_will_undo(authed, project_with_task):
     assert _state(authed, project_id)["undoable"]["op"]["type"] == "move_task"
 
     authed.post(f"/api/projects/{project_id}/undo")
-    # Отмена не предлагает отменить саму себя: следующим на очереди стоит
-    # создание задачи.
+    # An undo does not offer to undo itself: next in line is the creation of the task.
     assert _state(authed, project_id)["undoable"]["op"]["type"] == "create_task"
 
 
 def test_undo_of_set_status_restores_status_and_progress_together(authed, project_with_task):
-    """Отмена снимает и статус, и прогресс, который утащила за собой связка.
+    """An undo clears both the status and the progress the coupling dragged along.
 
-    set_status в 'done' дотягивает прогресс до 100; отмена обязана вернуть
-    оба значения, а не оставить задачу «запланированной, но готовой на 100%».
+    set_status to 'done' carries the progress up to 100; an undo must bring both values
+    back rather than leave the task "planned but 100% ready".
     """
     project_id, _, task_id = project_with_task
     authed.post(
@@ -177,12 +176,11 @@ def test_an_empty_project_has_nothing_to_undo(authed):
 
 
 def test_undo_that_breaks_the_threshold_asks_for_a_reason(authed, project_with_task):
-    """Отмена — не привилегированное действие.
+    """An undo is not a privileged action.
 
-    Задача уехала с объяснением, потом вернулась на место (возврат к базовому
-    плану объяснений не требует). Отмена этого возврата снова уводит её на две
-    недели — и обязана спросить причину ровно так же, как это сделал бы
-    обычный сдвиг мышью.
+    The task moved with an explanation and then came back into place (a return to the
+    baseline plan requires no explanations). Undoing that return takes it two weeks away
+    again — and must ask for a reason exactly as an ordinary drag with the mouse would.
     """
     project_id, _, task_id = project_with_task
     authed.post(f"/api/projects/{project_id}/plan/approvals")
@@ -227,11 +225,11 @@ def test_undo_of_a_named_revision_goes_through_while_it_is_still_on_top(authed, 
 
 
 def test_undo_refuses_when_the_top_of_the_journal_moved_on(authed, project_with_task):
-    """Кнопка обещала вернуть свой перенос, а вернула бы чужую правку.
+    """The button promised to bring back your own move but would bring back someone else's edit.
 
-    Между показом «Отменить» и нажатием сосед по проекту успевает применить
-    своё изменение. Безномерная отмена сняла бы его — молча и не спросив ни
-    того, кто нажал, ни того, чью правку сняли.
+    Between showing "Undo" and pressing it, a colleague on the project applies a change
+    of their own. A numberless undo would remove it — silently, and without asking
+    either the person who pressed or the one whose edit was removed.
     """
     project_id, _, task_id = project_with_task
     mine = authed.post(
@@ -247,16 +245,16 @@ def test_undo_refuses_when_the_top_of_the_journal_moved_on(authed, project_with_
 
     assert refused.status_code == 409
     assert refused.json()["detail"] == "undo_conflict"
-    # Ни одной правки отказ не тронул: ни своей, ни чужой.
+    # The refusal touched no edit at all: neither one's own nor anyone else's.
     task = _state(authed, project_id)["tasks"][0]
     assert (task["start_date"], task["progress_pct"]) == ("2026-03-09", 40)
 
 
 def test_an_empty_project_refuses_a_named_undo_as_nothing_to_undo(authed):
-    """Пустой журнал — это «отменять нечего», а не «не то наверху».
+    """An empty journal means "there is nothing to undo" rather than "the wrong thing is on top".
 
-    Разные коды не педантичность: по первому кнопка исчезает, по второму
-    интерфейс перечитывает состояние и показывает, что теперь наверху.
+    The different codes are not pedantry: on the first the button disappears, on the
+    second the interface re-reads the state and shows what is on top now.
     """
     project_id = authed.post("/api/projects", json={"name": "Пустой"}).json()["id"]
 
@@ -289,12 +287,12 @@ def test_undo_of_a_foreign_project_is_not_found(authed, db):
     assert authed.post(f"/api/projects/{foreign.id}/undo").status_code == 404
 
 
-# --- пачка -------------------------------------------------------------------
+# --- the batch ----------------------------------------------------------------
 
 
 @pytest.fixture
 def batch(db, authed):
-    """Пачка мутаций с общим batch_id — так их применяет AI."""
+    """A batch of mutations with a shared batch_id — that is how AI applies them."""
     project_id = authed.post("/api/projects", json={"name": "AI"}).json()["id"]
     project = db.get(Project, uuid.UUID(project_id))
     batch_id = uuid.uuid4()
@@ -332,8 +330,8 @@ def test_a_whole_batch_rolls_back_with_one_call(authed, db, batch):
     assert response.json()["undone"] == 3
     state = _state(authed, project_id)
     assert state["tasks"] == []
-    # Категория тоже ушла: откат идёт с конца, иначе он упёрся бы в непустую
-    # категорию и оставил половину пачки в проекте.
+    # The category went away too: the rollback runs from the end, otherwise it would
+    # run into a non-empty category and leave half the batch in the project.
     assert state["categories"] == []
 
 
@@ -356,7 +354,7 @@ def test_an_unknown_batch_is_not_found(authed, batch):
 
 
 def test_the_undo_of_a_batch_is_recorded_as_one_action(db, authed, batch):
-    """Откат пачки читается в журнале одним действием, а не россыпью записей."""
+    """A batch rollback reads in the journal as one action rather than as a scattering of entries."""
     project_id, batch_id = batch
     project = db.get(Project, uuid.UUID(project_id))
 
@@ -365,15 +363,15 @@ def test_the_undo_of_a_batch_is_recorded_as_one_action(db, authed, batch):
     undo_batch_ids = {revision.batch_id for revision in applied}
     assert len(undo_batch_ids) == 1
     assert undo_batch_ids != {uuid.UUID(batch_id)}
-    # И ни одна категория не осталась в проекте: откатилась вся пачка.
+    # And not a single category was left in the project: the whole batch rolled back.
     assert db.scalar(select(Category).where(Category.project_id == project.id)) is None
 
 
 def test_undoing_a_batch_member_by_hand_is_skipped_by_the_batch_undo(db, authed, batch):
-    """Ревизия, отменённая поодиночке, во второй раз не отменяется.
+    """A revision undone on its own is not undone a second time.
 
-    Иначе откат пачки применил бы её обратную операцию ещё раз — и создание
-    задачи, уже отменённое, попыталось бы удалить несуществующую строку.
+    Otherwise a batch rollback would apply its inverse operation once more — and the
+    creation of a task, already undone, would try to delete a row that does not exist.
     """
     project_id, batch_id = batch
     project = db.get(Project, uuid.UUID(project_id))

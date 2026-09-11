@@ -21,17 +21,16 @@ import "./scorecard.css";
 type Translate = (key: string, params?: Record<string, string | number>) => string;
 
 /**
- * Вкладка «Scorecard»: кто из команды в темпе.
+ * The "Scorecard" tab: who on the team is keeping up.
  *
- * Один экран на один вопрос. Три числа проекта в шапке, под ними — строка на
- * человека: сделано из запланированного на неделю, сверх плана, вовремя,
- * сигнал с причиной и восемь недель темпа. Строка раскрывается в задачи
- * недели. Всё приходит с сервера посчитанным: формулы живут в одном месте
- * (backend/app/scorecard.py), клиент только рисует.
+ * One screen for one question. Three project figures in the header, and under them a row per person:
+ * done out of what was planned for the week, beyond the plan, on time, a signal with a reason and
+ * eight weeks of pace. A row unfolds into the week's tasks. Everything arrives from the server
+ * computed: the formulas live in one place (backend/app/scorecard.py), the client only draws.
  *
- * Сигнал по человеку — оценка, и приходит она только тому, кому положено её
- * видеть (см. Action.TEAM_ASSESSMENT_READ): у остальных поля просто нет в
- * ответе, и колонка не рисуется, а не прячется.
+ * A per-person signal is an assessment, and it arrives only to whoever is entitled to see it (see
+ * Action.TEAM_ASSESSMENT_READ): for the rest the field is simply not in the response, and the column
+ * is not drawn rather than hidden.
  */
 export function Scorecard({
   projectId,
@@ -119,7 +118,7 @@ export function Scorecard({
   );
 }
 
-/** Три плитки проекта: просрочено, в блоке, сдвиг финиша. */
+/** The project's three tiles: overdue, blocked, the finish shift. */
 function SummaryStrip({ summary }: { summary: ScorecardSummary }) {
   const { t, locale } = useLocale();
   const overdue = summary.overdue;
@@ -177,7 +176,7 @@ function SummaryStrip({ summary }: { summary: ScorecardSummary }) {
   );
 }
 
-/** Таблица по людям: строка раскрывается в задачи недели. */
+/** The per-person table: a row unfolds into the week's tasks. */
 function TeamTable({
   team,
   onOpenTask,
@@ -353,8 +352,8 @@ function MemberRow({
 }
 
 /**
- * Цвет полоски темпа — по доле сделанного: те же пороги, что у долевых
- * метрик сервера (цель 0,8; риск ниже трёх четвертей от неё).
+ * The pace bar's colour — by the share done: the same thresholds as the server's share metrics (a
+ * target of 0.8; a risk below three quarters of it).
  */
 function paceStatus(share: number): string {
   if (share >= 0.8) return "ok";
@@ -362,7 +361,7 @@ function paceStatus(share: number): string {
   return "risk";
 }
 
-/** Восемь столбиков закрытого за неделю, без библиотек. Текущая — акцентом. */
+/** Eight bars of what was closed in a week, without libraries. The current one in the accent colour. */
 function TrendBars({ member }: { member: TeamMember }) {
   const { t } = useLocale();
   const peak = Math.max(...member.trend.map((point) => point.closed ?? 0), 1);
@@ -428,7 +427,7 @@ function taskChip(t: Translate, task: TeamTask): string {
   }
 }
 
-/** Приписка к чипу: чем предупредил, насколько опоздал, вернулась ли. */
+/** A note on the chip: what they warned about, how late they were, whether it came back. */
 function taskNote(t: Translate, task: TeamTask): string | null {
   const notes: string[] = [];
   if (task.state === "late") {

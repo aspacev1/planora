@@ -11,7 +11,7 @@ import {
 import type { Zoom } from "./scale";
 import { rememberZoom, storedZoom } from "./scalePreference";
 
-/** Что из необязательных слоёв показывать. Состояние экрана, не проекта. */
+/** Which of the optional layers to show. The screen's state, not the project's. */
 export type ViewFlags = {
   baseline: boolean;
   legend: boolean;
@@ -21,13 +21,13 @@ export type ViewFlags = {
 };
 
 /**
- * Как смотреть на ленту: масштаб, колонки таблицы, слои.
+ * How to look at the strip: the scale, the table's columns, the layers.
  *
- * Одним предметом, а не тремя порознь: органы управления этим состоянием
- * стоят не в ленте, а в шапке экрана проекта (см. ProjectBar), и лента
- * получает его готовым — тем же путём, что и на публичной странице, где она
- * заводит его сама. Два владельца одного состояния разошлись бы на первом же
- * переключении масштаба: шапка показывала бы «Месяц», лента рисовала бы дни.
+ * As one thing rather than three apart: the controls for this state stand not in the strip
+ * but in the project screen's header (see ProjectBar), and the strip gets it ready-made —
+ * by the same path as on the public page, where it creates it itself. Two owners of one
+ * state would diverge on the very first scale switch: the header would show "Month" while
+ * the strip drew days.
  */
 export type GanttView = {
   zoom: Zoom;
@@ -38,7 +38,7 @@ export type GanttView = {
   toggleTable: () => void;
   resizeColumn: (column: ColumnKey, width: number) => void;
   moveColumn: (moved: ColumnKey, before: ColumnKey) => void;
-  /** Включён ли слой. Базовый план может решаться снаружи (см. options). */
+  /** Whether the layer is on. The baseline plan can be decided from outside (see options). */
   flag: (flag: keyof ViewFlags) => boolean;
   toggle: (flag: keyof ViewFlags) => void;
 };
@@ -50,27 +50,26 @@ export function useGanttView(
     onBaselineToggle,
   }: {
     /**
-     * Показывать ли призрак согласованного плана — снаружи.
+     * Whether to show the ghost of the approved plan — from outside.
      *
-     * Не передано — лента решает сама своим флажком «Вид». Передано — решает
-     * экран, и тот же переключатель стоит в окне изменений.
+     * Not passed — the strip decides itself with its "View" checkbox. Passed — the screen
+     * decides, and the same toggle stands in the changes panel.
      */
     baselineShown?: boolean;
     onBaselineToggle?: () => void;
   } = {},
 ): GanttView {
-  // Лента по умолчанию открывается в дневном масштабе — самом крупном: на
-  // нём у деления хватает места на день недели над числом, и первое, что
-  // человек видит, — ближайшие дни, а не сжатый до неразличимости квартал.
-  // Но если для этого проекта масштаб уже выбирали, лента открывается им:
-  // переключение вкладок и уход на другой экран не должны каждый раз
-  // спрашивать заново то, что уже решили (см. scalePreference.ts).
+  // By default the strip opens at the day scale — the largest: at it a division has room
+  // for the weekday above the date, and the first thing a person sees is the coming days
+  // rather than a quarter squeezed beyond recognition. But if a scale has already been
+  // chosen for this project, the strip opens at it: switching tabs and going to another
+  // screen must not ask again every time what has already been decided (see scalePreference.ts).
   const [zoom, setZoomState] = useState<Zoom>(() => storedZoom(projectId) ?? "day");
 
-  // Экран проекта не размонтирует ленту при смене адреса — те же компоненты
-  // просто получают другой `projectId`. Без этого эффекта лента при переходе
-  // между проектами тащила бы за собой масштаб предыдущего вместо того,
-  // чтобы вспомнить, каким его в последний раз выбрали здесь.
+  // The project screen does not unmount the strip on an address change — the same
+  // components simply get a different `projectId`. Without this effect the strip would drag
+  // the previous project's scale along when moving between projects instead of remembering
+  // the one last chosen here.
   useEffect(() => {
     setZoomState(storedZoom(projectId) ?? "day");
   }, [projectId]);
@@ -83,9 +82,10 @@ export function useGanttView(
     [projectId],
   );
 
-  // Колонки закреплённой таблицы — набор и ширины. Живут там же, где масштаб,
-  // и по той же причине: раскладка — состояние экрана, привязанное к проекту,
-  // а не свойство плана, и сосед по проекту чужой её получать не должен.
+  // The pinned table's columns — the set and the widths. They live in the same place as the
+  // scale and for the same reason: the layout is the screen's state, tied to the project,
+  // rather than a property of the plan, and a colleague on the project must not get
+  // somebody else's.
   const [layout, setLayoutState] = useState<ColumnLayout>(
     () => storedLayout(projectId) ?? defaultLayout(),
   );
@@ -93,9 +93,9 @@ export function useGanttView(
     setLayoutState(storedLayout(projectId) ?? defaultLayout());
   }, [projectId]);
 
-  // Устойчивая ссылка: лента разворачивает свёрнутую таблицу эффектом, когда
-  // в ней открывают строку ввода, и эффект зависит от этой функции — новая
-  // ссылка на каждой отрисовке гоняла бы его вхолостую.
+  // A stable reference: the strip unfolds a collapsed table with an effect when an input row
+  // is opened in it, and the effect depends on this function — a new reference on every
+  // render would keep firing it for nothing.
   const setLayout = useCallback(
     (next: ColumnLayout) => {
       setLayoutState(next);
@@ -105,38 +105,38 @@ export function useGanttView(
   );
   const switchColumn = (column: ColumnKey) =>
     setLayout({ ...layout, shown: toggleColumn(layout.shown, column) });
-  // Таблица целиком: свёрнутая отдаёт всё своё место шкале. Полугодовой план
-  // иначе виден только кусками — таблица занимает треть экрана, и разглядеть
-  // за ней форму проекта нельзя, не уехав прокруткой от имён задач.
+  // The whole table: a collapsed one gives all its room to the scale. Half a year of a plan
+  // is otherwise visible only in pieces — the table takes a third of the screen, and the
+  // project's shape cannot be made out behind it without scrolling away from the task names.
   const toggleTable = () => setLayout({ ...layout, collapsed: !layout.collapsed });
   const resizeColumn = (column: ColumnKey, width: number) =>
     setLayout({ ...layout, widths: { ...layout.widths, [column]: width } });
   const moveColumn = (moved: ColumnKey, before: ColumnKey) =>
     setLayout({ ...layout, shown: reorderColumns(layout.shown, moved, before) });
 
-  // Необязательные слои. Базовый план и сводка по дедлайну видны сразу:
-  // первый — язык отклонений, вторая — единственная цифра, которая
-  // по-настоящему интересует заказчика. Легенда и сноска ждут, пока их
-  // попросят через «Вид», — как в макете, где их нет вовсе.
+  // The optional layers. The baseline plan and the deadline summary are visible right away:
+  // the first is the language of deviations, the second is the only figure that genuinely
+  // interests the customer. The legend and the footnote wait until they are asked for
+  // through "View" — as in the mockup, where they are absent entirely.
   const [flags, setFlags] = useState<ViewFlags>({
     baseline: true,
     legend: false,
     summary: true,
     caption: false,
-    // Критический путь ждёт, пока его попросят: он красит полоски третьим
-    // способом поверх статуса и просрочки, и включённый всегда превращал бы
-    // ленту в карту цепочек там, где спрашивают всего лишь «что когда».
+    // The critical path waits until it is asked for: it colours the bars a third way on top
+    // of the status and being overdue, and switched on always it would turn the strip into a
+    // map of chains where all that is being asked is "what is when".
     critical: false,
   });
   const toggleFlag = (flag: keyof ViewFlags) =>
     setFlags((current) => ({ ...current, [flag]: !current[flag] }));
 
-  // Призрак базового плана — единственный слой, которым управляют и снаружи:
-  // окно изменений показывает те же расхождения списком и включает их же на
-  // ленте. Флажок «Вид» и тумблер в окне обязаны быть одним переключателем, а
-  // не двумя одинаковыми, — иначе один говорит «включено» там, где второй уже
-  // выключил. Своё состояние остаётся про запас: у публичной страницы окна
-  // изменений нет, и поднимать флаг ей некуда.
+  // The baseline plan's ghost is the only layer also driven from outside: the changes panel
+  // shows the same divergences as a list and switches the very same ones on in the strip.
+  // The "View" checkbox and the panel's switch must be one toggle rather than two identical
+  // ones — otherwise one says "on" where the other has already switched off. Its own state
+  // stays in reserve: the public page has no changes panel, and there is nowhere for it to
+  // lift the flag to.
   const baselineOn = baselineShown ?? flags.baseline;
   const flag = (name: keyof ViewFlags) => (name === "baseline" ? baselineOn : flags[name]);
   const toggle = (name: keyof ViewFlags) =>

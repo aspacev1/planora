@@ -1,10 +1,11 @@
-"""Почта: сборка текста, выбор транспорта и поведение каждого из трёх.
+"""Mail: assembling the text, choosing the transport and the behaviour of each of the three.
 
-Ни один тест здесь не открывает сокет и не ходит в сеть: smtplib и urlopen
-подменяются заглушками, которые записывают, что им передали. Проверяется не
-«письмо дошло» (это работа почтового сервера), а то, что решает наш код —
-язык письма, шифрование канала перед вводом пароля, форма запроса к API и
-то, что отказ доставки не поднимается наверх исключением.
+Not a single test here opens a socket or goes to the network: smtplib and urlopen are
+replaced with stubs that record what they were given. What is checked is not "the
+message arrived" (that is the mail server's job) but what our code decides — the
+message's language, encrypting the channel before entering a password, the shape of the
+request to the API, and the fact that a delivery failure does not rise upward as an
+exception.
 """
 
 import json
@@ -30,7 +31,7 @@ def _settings(**env: str) -> Settings:
     )
 
 
-# ---- Текст письма -----------------------------------------------------------
+# ---- The message's text ------------------------------------------------------
 
 
 def test_letter_comes_in_the_language_of_its_recipient():
@@ -56,8 +57,8 @@ def test_an_unknown_template_is_an_error_and_not_a_blank_page():
 
 
 def test_every_language_has_every_template():
-    """Полнота словарей проверяется здесь, а не глазами: рассинхрон копится
-    незаметно и обнаруживается уже отправленным письмом (§9)."""
+    """Dictionary completeness is checked here rather than by eye: a desync accumulates
+    unnoticed and is discovered in an already sent message (§9)."""
     locales = available_locales()
     assert set(locales) >= {"az", "en", "ru"}
 
@@ -81,14 +82,14 @@ def test_missing_substitution_data_does_not_reach_the_recipient():
 
 
 def test_user_content_cannot_smuggle_a_placeholder_into_the_letter():
-    # Подстановка идёт по шаблону: «{link}» в имени остаётся текстом.
+    # Substitution goes through the template: a "{link}" inside a name stays text.
     letter = render(
         "verify_email", "en", {"name": "{link}", "link": "https://x/y", "hours": 24}, to="a@b.c"
     )
     assert "Hello, {link}!" in letter.body
 
 
-# ---- Выбор транспорта -------------------------------------------------------
+# ---- Choosing the transport --------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -119,10 +120,10 @@ def test_transport_follows_the_setting(env: dict, expected: type):
 @pytest.mark.parametrize(
     "env",
     [
-        {"mail_transport": "stmp"},  # опечатка не должна означать «почта выключена»
-        {"mail_transport": "smtp"},  # без SMTP_URL и MAIL_FROM
-        {"mail_transport": "smtp", "smtp_url": "smtp://mail.example.com"},  # без MAIL_FROM
-        {"mail_transport": "api", "mail_api_url": "https://x/y", "mail_from": "a@b.c"},  # без ключа
+        {"mail_transport": "stmp"},  # a typo must not mean "mail is off"
+        {"mail_transport": "smtp"},  # with no SMTP_URL and no MAIL_FROM
+        {"mail_transport": "smtp", "smtp_url": "smtp://mail.example.com"},  # with no MAIL_FROM
+        {"mail_transport": "api", "mail_api_url": "https://x/y", "mail_from": "a@b.c"},  # with no key
     ],
 )
 def test_a_half_configured_mail_setup_refuses_to_start(env: dict):
@@ -139,12 +140,12 @@ def test_disabled_mail_is_a_legitimate_setup():
 
 
 def test_the_log_transport_still_counts_as_a_mail_installation():
-    """`none` и `log` пишут письмо в одно и то же место, но различаются тем,
-    показывает ли интерфейс кнопку отправки: при разработке она нужна."""
+    """`none` and `log` write a message to the same place but differ in whether the
+    interface shows the send button: in development it is needed."""
     assert _settings(mail_transport="log").mail_enabled is True
 
 
-# ---- Заглушка ---------------------------------------------------------------
+# ---- The stub ----------------------------------------------------------------
 
 
 def test_the_stub_writes_the_whole_letter_into_the_log(caplog):
@@ -153,8 +154,8 @@ def test_the_stub_writes_the_whole_letter_into_the_log(caplog):
             Letter(to="alex@example.com", subject="Тема", body="https://example.com/verify?token=x")
         )
 
-    # Без текста письма установка без почтового сервера теряет единственный
-    # способ достать ссылку.
+    # Without the message's text, an installation with no mail server loses its only
+    # way of getting the link.
     assert "https://example.com/verify?token=x" in caplog.text
     assert "alex@example.com" in caplog.text
 
@@ -163,7 +164,7 @@ def test_the_stub_writes_the_whole_letter_into_the_log(caplog):
 
 
 class FakeSMTP:
-    """Заглушка smtplib.SMTP: записывает, что с ней делали."""
+    """A stub for smtplib.SMTP: it records what was done with it."""
 
     instances: list["FakeSMTP"] = []
     advertise_starttls = True
@@ -216,7 +217,7 @@ def test_smtp_url_carries_host_credentials_and_port(fake_smtp):
 
     smtp = fake_smtp.instances[0]
     assert (smtp.host, smtp.port) == ("mail.example.com", 2525)
-    # Пароль со слэшем разбирается, а не рвёт адрес пополам.
+    # A password with a slash parses rather than tearing the URL in half.
     assert smtp.login_args == ("user@example.com", "pa/ss")
     assert smtp.starttls_called is True
 
@@ -239,9 +240,9 @@ def test_a_password_is_never_sent_over_a_plaintext_connection(fake_smtp, monkeyp
     assert fake_smtp.instances[-1].login_args is None
     assert fake_smtp.instances[-1].messages == []
 
-    # Тот же сервер без учётных данных остаётся рабочим: локальному релею
-    # (mailhog, postfix на той же машине) пароль не нужен, и запрещать
-    # такую отправку было бы запретом на разработку без TLS.
+    # The same server with no credentials stays usable: a local relay (mailhog, postfix
+    # on the same machine) needs no password, and forbidding such a send would be a ban
+    # on development without TLS.
     SmtpTransport("smtp://mail.example.com", sender="a@b.c").deliver(_letter())
     assert fake_smtp.instances[-1].messages
 
@@ -253,7 +254,7 @@ def test_a_letter_carries_date_and_a_message_id_from_the_sender_domain(fake_smtp
 
     message = fake_smtp.instances[0].messages[0]
     assert message["Date"]
-    # Не hostname контейнера: внутреннее имя машины не должно уезжать наружу.
+    # Not the container's hostname: the machine's internal name must not ride out.
     assert message["Message-ID"].endswith("@planora.app>")
     assert message["To"] == "alex@example.com"
     assert message["Subject"] == "Тема"
@@ -274,7 +275,7 @@ def test_a_refusing_smtp_server_becomes_a_mail_error(monkeypatch):
         SmtpTransport("smtp://mail.example.com", sender="a@b.c").deliver(_letter())
 
 
-# ---- API рассылочного сервиса ----------------------------------------------
+# ---- The delivery service's API ----------------------------------------------
 
 
 class FakeResponse:
@@ -332,7 +333,7 @@ def test_an_unreachable_api_becomes_a_mail_error(monkeypatch):
         ApiTransport(url="https://x/y", key="k", sender="a@b.c").deliver(_letter())
 
 
-# ---- Общий интерфейс --------------------------------------------------------
+# ---- The shared interface ----------------------------------------------------
 
 
 def test_send_reports_a_failure_instead_of_raising(monkeypatch, caplog):
@@ -350,8 +351,8 @@ def test_send_reports_a_failure_instead_of_raising(monkeypatch, caplog):
             params={"name": "Алекс", "link": "L", "hours": 24},
         )
 
-    # Действие, ради которого письмо отправлялось, уже состоялось —
-    # исключение отсюда откатило бы его целиком.
+    # The action the message was sent for has already happened — an exception from here
+    # would roll it back entirely.
     assert delivered is False
     assert "не ушло" in caplog.text
 
@@ -372,11 +373,11 @@ def test_send_hands_the_rendered_letter_to_the_transport(mailbox):
     assert "https://x/y" in letter.body
 
 
-# ---- Письмо-приглашение -----------------------------------------------------
+# ---- The invitation message --------------------------------------------------
 
-# Проверяется и то, что в письме есть, и то, чего в нём быть не должно: оно
-# уходит на адрес, который никто ещё не подтверждал, и всё, что попадёт в его
-# текст, попадёт неизвестно кому.
+# Both what the message contains and what must not be in it are checked: it goes to an
+# address nobody has confirmed yet, and everything that lands in its text lands with
+# who knows whom.
 
 _INVITE = {
     "org": "Acme",
@@ -414,12 +415,12 @@ def test_the_invitation_speaks_the_language_of_the_organization():
 
 
 def test_an_unknown_organization_language_falls_back_instead_of_failing():
-    """Язык организации — колонка в базе; попавшее в неё незнакомое значение
-    не должно превращать приглашение в исключение."""
+    """An organization's language is a column in the database; an unknown value that has
+    landed in it must not turn an invitation into an exception."""
     assert "https://planora.example.com/invite/abc" in _invitation("kl").body
 
 
 def test_an_unknown_role_reaches_the_letter_as_it_is():
-    """Роль переводится по словарю, но письмо из-за незнакомой не пропадает:
-    она уходит машинным именем, а не срывает отправку приглашения."""
+    """A role is translated through the dictionary, but an unknown one does not lose the
+    message: it goes out under its machine name rather than breaking the invitation's delivery."""
     assert mail.role_name("auditor", "ru") == "auditor"

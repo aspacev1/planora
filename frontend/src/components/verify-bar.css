@@ -1,13 +1,13 @@
 /*
- * Полоска «адрес не подтверждён».
+ * The "address not confirmed" bar.
  *
- * Тон предупреждения, а не отказа: подтверждение ничего не запирает, и
- * красная плашка через всю рабочую область говорила бы про поломку там, где
- * поломки нет. Отсюда мягкая заливка акцентом и обычный размер текста.
+ * A warning tone rather than a refusal one: confirmation locks nothing, and a red
+ * chip across the whole workspace would speak of a breakage where there is none.
+ * Hence the soft accent fill and the ordinary text size.
  *
- * Ширину полоска держит от края до края рабочей области, а не по колонке
- * содержимого: она относится не к экрану под ней, а к учётной записи, и
- * подверстанная под ширину диаграммы читалась бы как её заголовок.
+ * The bar holds its width from edge to edge of the workspace rather than by the
+ * content column: it relates not to the screen beneath it but to the account, and
+ * fitted to the chart's width it would read as its heading.
  */
 .verify-bar {
   display: flex;
@@ -21,8 +21,8 @@
   font-size: 13px;
 }
 
-/* Текст занимает всё свободное место: кнопка на правом краю попадается на
-   глаза там же, где её ищут на всех остальных полосках приложения. */
+/* The text takes all the free space: a button at the right edge catches the eye in the
+   same place it is looked for on every other bar in the application. */
 .verify-bar__text {
   flex: 1 1 auto;
   min-width: 0;
@@ -31,13 +31,13 @@
 
 .verify-bar__button {
   flex: 0 0 auto;
-  /* Кнопка со счётчиком меняет ширину каждую секунду, и без запаса соседний
-     текст переползал бы за ней на каждом тике. */
+  /* A button with a counter changes width every second, and without headroom the text
+     beside it would creep after it on every tick. */
   min-width: 180px;
 }
 
-/* Ответ на нажатие — отдельной строкой во всю ширину: «письмо не удалось
-   отправить» рядом с кнопкой отжимало бы её за край на узком экране. */
+/* The response to a press goes on a separate line across the full width: "the message
+   could not be sent" next to the button would push it off the edge on a narrow screen. */
 .verify-bar__note {
   flex: 1 0 100%;
   margin: 0;

@@ -1,16 +1,17 @@
-"""Публичная страница проекта: чтение по ссылке и гостевые комментарии.
+"""A project's public page: reading by link and guest comments.
 
-Единственная часть API, которая работает без сессии. Отсюда три правила,
-которые в этом файле не обсуждаются, а соблюдаются:
+The only part of the API that works without a session. Hence three rules that
+are not debated in this file but observed:
 
-1. Право спрашивается у `access.py` с ролью `None` — гость. Ссылка и есть тот
-   самый грант на проект, о котором знает матрица прав; собственных решений
-   «гостю можно вот это» здесь нет.
-2. Внутренние заметки и состав организации наружу не выходят вовсе
-   (см. `project_state`).
-3. Отказ всегда один и тот же — 404 `link_not_found`. Отличать «нет такого
-   проекта» от «ссылка отозвана» нельзя: разница превращает адрес в способ
-   перебирать чужие проекты по слагам.
+1. Permission is asked of `access.py` with the role `None` — a guest. The link
+   is the very grant on a project that the permission matrix knows about; there
+   are no decisions of the form "a guest may do this" here.
+2. Internal notes and the organization's membership do not go outward at all
+   (see `project_state`).
+3. A refusal is always one and the same — 404 `link_not_found`. Distinguishing
+   "there is no such project" from "the link was revoked" is not allowed: the
+   difference turns the address into a way of enumerating other people's
+   projects by slug.
 """
 
 import uuid
@@ -39,11 +40,11 @@ _guest_comments: SlidingWindow | None = None
 
 
 def guest_comment_limiter() -> SlidingWindow:
-    """Счётчик гостевых комментариев, собранный по первому требованию.
+    """The guest comment counter, assembled on first demand.
 
-    Не на уровне модуля: `GUEST_COMMENT_RATE_LIMIT` читается из настроек, а
-    настройки на момент импорта могут быть ещё не собраны — и тогда потолок
-    навсегда застыл бы на значении по умолчанию.
+    Not at module level: `GUEST_COMMENT_RATE_LIMIT` is read from the settings,
+    and at import time the settings may not be assembled yet — and then the
+    ceiling would be frozen at its default value forever.
     """
     global _guest_comments
     if _guest_comments is None:
@@ -53,20 +54,20 @@ def guest_comment_limiter() -> SlidingWindow:
     return _guest_comments
 
 
-# client_key переехал в app.rate_limit: тем же способом считаются и вход с
-# регистрацией (app.api.auth_routes), а не только гостевые комментарии.
+# client_key moved to app.rate_limit: sign-in and registration
+# (app.api.auth_routes) are counted the same way, not only guest comments.
 
 
 class GuestCommentIn(BaseModel):
-    # Имя гостя — обязательное поле: неподписанная реплика на публичной
-    # странице неотличима от чужой.
+    # A guest's name is a mandatory field: an unsigned remark on a public page
+    # is indistinguishable from someone else's.
     name: str = Field(min_length=1, max_length=80)
     body: str = Field(min_length=1)
     task_id: uuid.UUID | None = None
 
 
 class SharedProject:
-    """Проект, открытый по действующей ссылке."""
+    """A project opened through a valid link."""
 
     def __init__(self, org: Organization, project: Project, link: ShareLink) -> None:
         self.org = org
@@ -84,9 +85,9 @@ def shared_project(
     if found is None:
         raise HTTPException(status_code=404, detail="link_not_found")
     if not can(None, Action.PROJECT_READ, project_granted=True):
-        # Матрица прав — единственное место, где решается «можно ли»: если
-        # гостю однажды закроют чтение, этот маршрут закроется вместе с ней,
-        # а не останется дырой, о которой все забыли.
+        # The permission matrix is the only place where "is this allowed" is
+        # decided: if guests are one day denied reading, this route closes along
+        # with it rather than remaining a hole everybody forgot about.
         raise HTTPException(status_code=404, detail="link_not_found")
     return SharedProject(*found)
 
@@ -95,8 +96,8 @@ def shared_project(
 def public_project(
     shared: SharedProject = Depends(shared_project), db: DbSession = Depends(get_db)
 ):
-    """Та же раскладка, что и на рабочем экране, но без внутренних заметок и
-    без исполнителей."""
+    """The same layout as on the working screen, but without internal notes and
+    without assignees."""
     try:
         state = project_state(
             db,
@@ -110,8 +111,8 @@ def public_project(
 
     return {
         **state,
-        # Название организации подписывает страницу: гость должен видеть, чей
-        # это план, прежде чем что-то в нём комментировать.
+        # The organization's name signs the page: a guest must see whose plan
+        # this is before commenting on anything in it.
         "org": {"name": shared.org.name, "slug": shared.org.slug},
         "comments_enabled": shared.link.comments_enabled
         and can(None, Action.COMMENT, project_granted=True),
@@ -126,14 +127,14 @@ def public_comments(
     shared: SharedProject = Depends(shared_project),
     db: DbSession = Depends(get_db),
 ):
-    """Лента видна и при выключенных комментариях.
+    """The feed is visible even when comments are turned off.
 
-    Выключенные комментарии — это запрет писать, а не приказ спрятать уже
-    сказанное: разговор, который клиент видел вчера, не должен исчезнуть от
-    щелчка переключателем.
+    Turned-off comments are a ban on writing, not an order to hide what has
+    already been said: a conversation the client saw yesterday must not vanish at
+    the flick of a toggle.
 
-    Внутренние реплики гость не видит: это разговор команды «в сторону»,
-    а не часть публичной страницы.
+    A guest does not see internal remarks: that is the team's conversation
+    "aside", not part of the public page.
     """
     try:
         rows = list_comments(
@@ -153,11 +154,11 @@ def public_comments(
 def public_comment_counts(
     shared: SharedProject = Depends(shared_project), db: DbSession = Depends(get_db)
 ):
-    """Счётчик реплик на строках публичной ленты — без внутренних.
+    """The remark counter on the rows of the public chart — without internal ones.
 
-    Тот же фильтр, что и у ленты выше: гость внутренних реплик не видит, и
-    число рядом с задачей не должно проговариваться о том, чего в его ленте
-    нет вовсе.
+    The same filter as on the feed above: a guest does not see internal remarks,
+    and the number next to a task must not let slip what is not in their feed at
+    all.
     """
     counts = comment_counts(db, shared.project, include_internal=False)
     return {str(task_id): count for task_id, count in counts.items()}
@@ -190,12 +191,12 @@ def add_public_comment(
     return comments_out(db, [comment])[0]
 
 
-# --- выгрузка по публичной ссылке ---------------------------------------------
+# --- export through a public link ---------------------------------------------
 #
-# Гость получает клиентский экземпляр: без внутренних заметок, исполнителей,
-# базового плана и журнала правок. Ровно тот же урез, что и на странице выше, —
-# и он не повторён здесь руками, а выведен из матрицы прав теми же двумя
-# флагами, что передаются в project_state.
+# A guest receives the client copy: no internal notes, assignees, baseline plan
+# or edit journal. Exactly the same trimming as on the page above — and it is not
+# repeated here by hand but derived from the permission matrix by the same two
+# flags that are passed into project_state.
 
 
 def _export_shared(request: Request, shared: SharedProject, db: DbSession, fmt: str):
@@ -225,10 +226,10 @@ def _export_shared(request: Request, shared: SharedProject, db: DbSession, fmt: 
 
 
 def _enum_param(request: Request, name: str, enum):
-    """Значение перечислимого из строки запроса — или отказ 422.
+    """An enum value from a query string — or a 422 refusal.
 
-    Разбирается вручную, потому что оба публичных маршрута объявлены одной
-    функцией: подписи FastAPI, из которых он строит проверку, здесь нет.
+    Parsed by hand, because both public routes are declared by one function: the
+    FastAPI signatures it builds its validation from are absent here.
     """
     raw = request.query_params.get(name)
     if raw is None:
@@ -241,7 +242,7 @@ def _enum_param(request: Request, name: str, enum):
 
 @router.get(
     "/{org_slug}/{project_slug}/export.xlsx",
-    summary="Выгрузить проект по публичной ссылке книгой Excel",
+    summary="Export the project through a public link as an Excel workbook",
     responses=export_routes.FILE_RESPONSES["xlsx"],
     response_class=Response,
 )
@@ -255,7 +256,7 @@ def public_export_xlsx(
 
 @router.get(
     "/{org_slug}/{project_slug}/export.pdf",
-    summary="Выгрузить проект по публичной ссылке документом PDF",
+    summary="Export the project through a public link as a PDF document",
     responses=export_routes.FILE_RESPONSES["pdf"],
     response_class=Response,
 )

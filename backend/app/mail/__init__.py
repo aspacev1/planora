@@ -1,14 +1,16 @@
-"""Почта за одним интерфейсом: send(to, template, params).
+"""Mail behind a single interface: send(to, template, params).
 
-Тот же приём, что и с LLM: тонкий интерфейс и несколько реализаций.
-Вызывающий код не знает, ушло письмо по SMTP, через API рассылочного
-сервиса или в журнал — он называет шаблон и данные для подстановки.
+The same technique as with the LLM: a thin interface and several
+implementations. The calling code does not know whether the message went out
+over SMTP, through a delivery service's API or into the log — it names a
+template and the data to substitute.
 
-Письма уходят синхронно, в том же запросе: очереди в первой версии нет, а
-писем во всём приложении два-три. Неудачная отправка возвращает False и
-пишет причину в журнал, но не поднимает исключение наверх — приглашение
-или регистрация уже состоялись, и откатывать их из-за недоступного
-почтового сервера было бы хуже, чем честно сказать «письмо не ушло».
+Messages are sent synchronously, within the same request: there is no queue in
+the first version, and the whole application has two or three messages. A
+failed send returns False and writes the reason to the log, but does not raise
+upward — the invitation or the registration has already happened, and rolling
+it back because of an unreachable mail server would be worse than honestly
+saying "the message did not go out".
 """
 
 import logging
@@ -42,18 +44,18 @@ __all__ = [
 
 
 def mail_enabled() -> bool:
-    """Настроена ли в установке почта.
+    """Whether mail is configured in this installation.
 
-    От этого зависит не только отправка: при `none` интерфейс не показывает
-    кнопку отправки вовсе, оставляя только копирование ссылки. Установка без
-    почтового сервера должна оставаться полноценной, а не показывать кнопку,
-    которая всегда отвечает отказом.
+    More than sending depends on it: with `none` the interface does not show the
+    send button at all, leaving only copying the link. An installation without a
+    mail server must stay fully usable rather than showing a button that always
+    answers with a refusal.
     """
     return get_settings().mail_enabled
 
 
 def role_name(role: str, locale: str) -> str:
-    """Название роли на языке письма. Незнакомая роль остаётся как есть."""
+    """The role's name in the message's language. An unknown role is left as is."""
     try:
         return term("roles", role, locale)
     except MailError:
@@ -61,7 +63,7 @@ def role_name(role: str, locale: str) -> str:
 
 
 def build_transport(settings: Settings) -> Transport:
-    """Транспорт по MAIL_TRANSPORT. Значение уже проверено в Settings."""
+    """The transport per MAIL_TRANSPORT. The value has already been validated in Settings."""
     if settings.mail_transport == "smtp":
         return SmtpTransport(settings.smtp_url, sender=settings.mail_from)
     if settings.mail_transport == "api":
@@ -70,29 +72,32 @@ def build_transport(settings: Settings) -> Transport:
             key=settings.mail_api_key,
             sender=settings.mail_from,
         )
-    # log — режим разработки: журнал и есть почтовый ящик, токены видны.
-    # none — боевой «почты нет»: текст письма в журнале, но токены замаскированы.
+    # log — development mode: the log is the mailbox, tokens are visible.
+    # none — production "there is no mail": the message text goes to the log, but
+    # the tokens are masked.
     return LogTransport(
         sender=settings.mail_from, reveal_secrets=settings.mail_transport == "log"
     )
 
 
 def send(*, to: str, template: str, params: Mapping[str, object], locale: str) -> bool:
-    """Отправляет письмо и говорит, дошло ли оно до почтового сервера.
+    """Sends a message and says whether it reached the mail server.
 
-    Транспорт создаётся на каждое письмо, а не один раз при старте: SMTP-
-    соединение всё равно открывается под каждое письмо (их единицы), зато
-    смена настроек не требует перезапуска чего-то ещё, кроме процесса, и в
-    памяти не живёт сокет, который сервер давно закрыл со своей стороны.
+    The transport is created per message rather than once at start-up: an SMTP
+    connection is opened per message anyway (there are only a handful), while
+    changing the settings then requires restarting nothing beyond the process,
+    and no socket lingers in memory that the server closed from its side long
+    ago.
     """
     settings = get_settings()
     try:
         letter = render(template, locale, params, to=to)
         build_transport(settings).deliver(letter)
     except MailError:
-        # exception(), а не error(): причина отказа почти всегда в самом
-        # низу цепочки (сокет, TLS, ответ сервиса), и без стека остаётся
-        # гадать, какой именно из трёх транспортов и на чём споткнулся.
+        # exception(), not error(): the reason for a refusal is almost always at
+        # the very bottom of the chain (the socket, TLS, the service's answer),
+        # and without a stack one is left guessing which of the three transports
+        # stumbled and on what.
         logger.exception("письмо %r на %s не ушло", template, to)
         return False
     return True

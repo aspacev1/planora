@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 
-// Inter лежит в сборке, а не грузится с CDN: установка самостоятельная и
-// обязана выглядеть одинаково с интернетом и без него.
+// Inter is in the build rather than loaded from a CDN: the install is self-contained and must look the
+// same with the internet and without it.
 import "@fontsource-variable/inter";
 import "./styles.css";
-// Тема Northstar: обязана идти после styles.css — перебивает токены,
-// включая тёмный медиазапрос (Northstar — только светлая).
+// The Northstar theme: it must come after styles.css — it overrides the tokens, including the dark media
+// query (Northstar is light only).
 import "./northstar-theme.css";
 import { AppRoutes } from "./AppRoutes";
 import { AuthProvider } from "./auth/AuthProvider";
@@ -19,8 +19,8 @@ const queryClient = new QueryClient({
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Язык снаружи аутентификации: экран входа тоже говорит на языке
-          читателя, хотя профиля ещё нет. */}
+      {/* The language is outside authentication: the sign-in screen speaks the reader's language too,
+          although there is no profile yet. */}
       <LocaleProvider>
         <BrowserRouter>
           <AuthProvider>

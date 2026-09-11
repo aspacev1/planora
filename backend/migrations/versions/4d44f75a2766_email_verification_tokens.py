@@ -1,13 +1,12 @@
 """email verification tokens
 
-Таблица одноразовых ссылок подтверждения адреса: колонка
-users.email_verified_at существовала с самого начала, но заполнить её было
-нечем — логики подтверждения не было вовсе.
+The table of single-use address confirmation links: the users.email_verified_at
+column existed from the very beginning, but there was nothing to fill it with —
+there was no confirmation logic at all.
 
-Устроена как sessions: наружу уходит открытый токен, здесь лежит его хеш.
-ondelete=CASCADE — удаление пользователя уносит его неиспользованные ссылки;
-индекс по user_id нужен подтверждению и повторной отправке, обе ищут по
-владельцу.
+Arranged like sessions: the plain token goes outward while its hash lies here.
+ondelete=CASCADE — deleting a user carries away their unused links; the index on
+user_id is needed by confirmation and by resending, both of which look up by owner.
 
 Revision ID: 4d44f75a2766
 Revises: 822f5eb3ea88

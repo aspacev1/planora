@@ -44,9 +44,9 @@ def upgrade() -> None:
     op.create_index(op.f('ix_sessions_user_id'), 'sessions', ['user_id'], unique=False)
     op.create_index(op.f('ix_task_assignees_user_id'), 'task_assignees', ['user_id'], unique=False)
     op.create_index(op.f('ix_tasks_category_id'), 'tasks', ['category_id'], unique=False)
-    # Позиции перенумеровываются внутри каждой категории по прежнему
-    # порядку (position, id): прежняя нумерация была сквозной по проекту,
-    # и «номер строки в своей категории» из неё не следует.
+    # Positions are renumbered within each category following the previous order
+    # (position, id): the previous numbering ran across the whole project, and
+    # "the row's number within its own category" does not follow from it.
     op.execute(
         """
         UPDATE tasks SET position = numbered.rn - 1

@@ -1,27 +1,25 @@
 /**
- * Деньги сметы — точным счётом, как на сервере, и через Intl, как даты в
+ * The quote's money — with exact arithmetic as on the server, and through Intl as with dates in
  * i18n/dates.
  *
- * Суммы не считаются в double: `0.5 × 2.01` в нём — это 1.00499999…, и
- * округление к копейкам даёт «1,00» там, где сервер, считающий в Decimal
- * (см. export/proposal_pdf.py), пишет в документ «1,01». Один и тот же
- * документ на экране и в PDF обязан сходиться до копейки, поэтому оценка и
- * ставка — числа с двумя знаками, какими их хранит сервер, — перемножаются
- * целыми сотыми, а сумма держится в целых с фиксированным сдвигом до самого
- * форматирования. Округление к копейкам — половина вверх (ROUND_HALF_UP), как
- * в `_money` документа.
+ * Sums are not computed in double: `0.5 × 2.01` in it is 1.00499999…, and rounding to cents gives
+ * "1.00" where the server, computing in Decimal (see export/proposal_pdf.py), writes "1.01" into
+ * the document. One and the same document on screen and in the PDF must agree to the cent, so the
+ * estimate and the rate — numbers with two decimals, as the server stores them — are multiplied as
+ * whole hundredths, and the sum is held as an integer with a fixed shift right up to formatting.
+ * Rounding to cents is half up (ROUND_HALF_UP), as in the document's `_money`.
  *
- * Свой форматтер, а не toFixed: разряды и десятичный знак зависят от языка
- * читателя, и «1,500.00» на русском экране читается как полторы единицы.
+ * Our own formatter rather than toFixed: the grouping and the decimal mark depend on the reader's
+ * language, and "1,500.00" on a Russian screen reads as one and a half units.
  */
 
 /**
- * Сумма в стомиллионных долях (8 знаков после запятой), целым числом.
+ * A sum in hundred-millionths (8 decimal places), as an integer.
  *
- * Восемь знаков — ровно столько, сколько нужно, чтобы не потерять ни одной
- * цифры: оценка × ставка даёт четыре, налог от этого в процентах с двумя
- * знаками — ещё четыре. `bigint`, а не `number`: ставка до десяти миллиардов
- * на оценку до миллиона выходит за 2⁵³ уже в сотых.
+ * Eight places are exactly as many as are needed not to lose a single digit: estimate × rate gives
+ * four, a tax on that in percent with two decimals gives another four. A `bigint` rather than a
+ * `number`: a rate of up to ten billion against an estimate of up to a million goes past 2⁵³
+ * already in hundredths.
  */
 export type Money = bigint;
 
@@ -30,14 +28,14 @@ const CENT = SCALE / 100n;
 
 export const ZERO: Money = 0n;
 
-/** Число с двумя знаками → целые сотые. Так хранит и сервер: Numeric(…, 2). */
+/** A number with two decimals → whole hundredths. That is how the server stores it too: Numeric(…, 2). */
 function hundredths(value: number): bigint {
   return BigInt(Math.round(value * 100));
 }
 
-/** Стоимость строки: оценка × ставка, точно. */
+/** A line's cost: estimate × rate, exactly. */
 export function lineAmount(effort: number, rate: number): Money {
-  // сотые × сотые = десятитысячные; до восьми знаков — ещё четыре.
+  // hundredths × hundredths = ten-thousandths; up to eight places is another four.
   return hundredths(effort) * hundredths(rate) * 10_000n;
 }
 
@@ -51,22 +49,22 @@ export function sumMoney(values: Iterable<Money>): Money {
   return total;
 }
 
-/** Налог от суммы по ставке в процентах с двумя знаками — точно, как сервер. */
+/** A tax on the sum at a rate in percent with two decimals — exactly, as the server does. */
 export function taxOf(subtotal: Money, ratePct: number): Money {
-  // subtotal × (pct / 100) / 100: сотые процента и сами проценты — четыре
-  // порядка, и они снимаются одним делением; остаток нулевой, потому что
-  // subtotal — произведение сотых, а не произвольная дробь.
+  // subtotal × (pct / 100) / 100: hundredths of a percent and the percent itself are four orders,
+  // and they are removed by one division; the remainder is zero, because subtotal is a product of
+  // hundredths rather than an arbitrary fraction.
   return (subtotal * hundredths(ratePct)) / 10_000n;
 }
 
-/** До копеек, половина вверх — ROUND_HALF_UP, как в PDF. */
+/** To cents, half up — ROUND_HALF_UP, as in the PDF. */
 export function toCents(value: Money): bigint {
   const sign = value < 0n ? -1n : 1n;
   const magnitude = value < 0n ? -value : value;
   return sign * ((magnitude + CENT / 2n) / CENT);
 }
 
-/** Сумма как число с двумя знаками — для тех, кому нужно именно число. */
+/** The sum as a number with two decimals — for those who need a number specifically. */
 export function moneyToNumber(value: Money): number {
   return Number(toCents(value)) / 100;
 }
@@ -79,15 +77,15 @@ export function formatAmount(locale: string, value: number): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
 }
 
-/** Сумма без валюты — в ячейках таблицы, где валюта названа шапкой. */
+/** The sum without a currency — in the table's cells, where the currency is named by the heading. */
 export function formatMoneyAmount(locale: string, value: Money): string {
   return formatAmount(locale, moneyToNumber(value));
 }
 
 export function formatMoney(locale: string, currency: string, value: Money): string {
   const amount = moneyToNumber(value);
-  // Код валюты — ввод человека, и до конца набора он не код: Intl на «EU»
-  // поднимает RangeError, а смета не должна падать из-за недописанной буквы.
+  // The currency code is a person's input, and until typing is finished it is not a code: Intl
+  // raises a RangeError on "EU", and a quote must not crash over an unfinished letter.
   try {
     return new Intl.NumberFormat(locale, {
       style: "currency",

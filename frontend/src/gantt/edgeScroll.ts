@@ -1,89 +1,93 @@
 /**
- * Подкачка ленты, когда жест упёрся в её край.
+ * Scrolling the strip when a gesture runs into its edge.
  *
- * Без неё перетаскивание ограничено тем, что видно: задачу с марта на июнь
- * нельзя перенести одним движением — полоску тащат до края, отпускают,
- * прокручивают ленту, ищут полоску, тащат снова. Три действия вместо одного, и
- * все три ради того, что человек и так уже решил.
+ * Without it a drag is limited to what is visible: a task cannot be moved from
+ * March to June in one motion — the bar is dragged to the edge, released, the strip
+ * is scrolled, the bar is found, it is dragged again. Three actions instead of one,
+ * and all three for the sake of something the person has already decided.
  *
- * Качает не жест, а этот слой, и по одной причине: жестов на ленте четыре
- * (перенос, две грани, связь), край у них общий, и написанное в каждом заново
- * оно в каждом разошлось бы по мелочи — по ширине полосы у края, по скорости,
- * по тому, снимается ли качание при отпускании за окном.
+ * The scrolling is done not by the gesture but by this layer, for one reason: there
+ * are four gestures on the strip (a move, two edges, a link), the edge is common to
+ * them, and written anew in each it would diverge in each on the small things — on
+ * the width of the band at the edge, on the speed, on whether the scrolling stops
+ * when released outside the window.
  *
- * Скорость растёт к самому краю, а не постоянна: у внешней границы полосы лента
- * едва ползёт (можно точно встать на нужный день), у внутренней идёт быстро
- * (можно уехать на квартал). Постоянная скорость не годится ни для того, ни
- * для другого — она либо мучительно медленная, либо неуправляемая.
+ * The speed grows towards the very edge rather than being constant: at the band's
+ * outer boundary the strip barely crawls (you can land precisely on the day you
+ * need), at the inner one it goes fast (you can travel a quarter). A constant speed
+ * suits neither — it is either agonizingly slow or uncontrollable.
  *
- * Он же отвечает за всякий другой ход ленты во время жеста — см. `scrolled`.
+ * It is also responsible for any other travel of the strip during a gesture — see `scrolled`.
  */
 
-/** Ширина полосы у края, внутри которой лента начинает ехать. */
+/** The width of the band at the edge within which the strip starts to move. */
 const EDGE_PX = 48;
 
-/** Пикселей за кадр у самого края. При 60 кадрах это примерно экран в секунду. */
+/** Pixels per frame at the very edge. At 60 frames that is roughly a screen per second. */
 const MAX_SPEED_PX = 18;
 
 export type EdgeScroll = {
-  /** Указатель переехал. Точка запоминается: качание идёт и без новых событий. */
+  /** The pointer moved. The point is remembered: the scrolling runs without new events too. */
   track: (clientX: number) => void;
-  /** Насколько лента уехала с начала жеста. Жест обязан прибавлять это к своему сдвигу. */
+  /** How far the strip has travelled since the gesture began. A gesture must add this to its own offset. */
   scrolled: () => number;
   stop: () => void;
 };
 
 /**
- * Ничего не делающая качалка — для жеста, которому не нашлось прокручиваемого
- * предка (публичная страница в узком окне, тесты в jsdom). Возвращать `null`
- * значило бы завести у каждого жеста ветку «а если качать нечего».
+ * A do-nothing scroller — for a gesture that found no scrollable ancestor (a public
+ * page in a narrow window, tests in jsdom). Returning `null` would mean giving every
+ * gesture an "and what if there is nothing to scroll" branch.
  */
 const IDLE: EdgeScroll = { track: () => {}, scrolled: () => 0, stop: () => {} };
 
 /**
- * @param node Любой узел внутри ленты: прокручиваемого предка слой найдёт сам.
- *   Ссылку на него не просят пропсом сознательно — иначе её пришлось бы
- *   протащить через три компонента ради жеста, который и так стоит внутри.
- * @param onScroll Лента уехала сама. Жест обязан пересчитать себя: событий
- *   указателя в этот момент нет — палец стоит на месте, едет лента, — и без
- *   этого вызова полоска отставала бы от неё.
+ * @param node Any node inside the strip: the layer finds the scrollable ancestor
+ *   itself. A reference to it is deliberately not asked for as a prop — otherwise it
+ *   would have to be dragged through three components for the sake of a gesture that
+ *   is already inside.
+ * @param onScroll The strip travelled on its own. The gesture must recompute itself:
+ *   there are no pointer events at that moment — the finger is still, the strip is
+ *   moving — and without this call the bar would lag behind it.
  */
 export function edgeScroll(node: HTMLElement | null, onScroll: () => void): EdgeScroll {
   const box = node?.closest<HTMLElement>(".gantt__scroll") ?? null;
-  // `requestAnimationFrame` в jsdom есть, а вот прокручивать там нечего:
-  // высоты и ширины у элементов нулевые, и полоса у края покрыла бы ленту
-  // целиком.
+  // jsdom does have `requestAnimationFrame`, but there is nothing to scroll there:
+  // elements' heights and widths are zero, and the band at the edge would cover the
+  // whole strip.
   if (box === null || box.clientWidth === 0) return IDLE;
 
   let pointerX: number | null = null;
   let frame = 0;
-  // Закреплённая таблица слева от шкалы. Ищется один раз на жест: узел за
-  // время жеста не меняется, меняться может только его ширина — она и
-  // читается на каждом кадре.
+  // The pinned table to the left of the scale. Looked up once per gesture: the node
+  // does not change during a gesture, only its width can — and that is read on every
+  // frame.
   const label = box.querySelector<HTMLElement>(".gantt__label");
 
   /**
-   * Прокрутка на начало жеста: от неё и считается ответ `scrolled()`.
+   * The scroll position at the gesture's start: the `scrolled()` answer is measured
+   * from it.
    *
-   * Разница с нынешней, а не сумма того, что накачал этот слой. Лента едет не
-   * только от него: её двигают колесо, трекпад, полоса прокрутки и стрелки, и
-   * день под неподвижным пальцем меняется от них ровно так же. Не попадая в
-   * сдвиг, такой ход уводил бы полоску от пальца на всё прокрученное — и
-   * задача ложилась бы не на тот день, который человек видел под рукой.
+   * The difference from the current one, not the sum of what this layer pumped. The
+   * strip is moved not only by it: it is driven by the wheel, the trackpad, the
+   * scrollbar and the arrows, and the day under a motionless finger changes from them
+   * in exactly the same way. Not entering the offset, such travel would take the bar
+   * away from the finger by everything scrolled — and the task would land not on the
+   * day the person saw under their hand.
    *
-   * Разница заодно считает и упор в конец ленты: заказанные восемнадцать
-   * пикселей там, где уехали три, в неё не попадут.
+   * The difference also accounts for hitting the end of the strip: the eighteen
+   * pixels ordered where only three were travelled will not enter it.
    */
   const from = box.scrollLeft;
 
   /**
-   * Лента уехала — жест пересчитывает себя.
+   * The strip travelled — the gesture recomputes itself.
    *
-   * До первого движения указателя не пересчитывает ничего: нажатие, под
-   * которым лента ещё доезжает по инерции, — это щелчок по полоске, а не
-   * перенос, и докатившаяся лента не должна превращать его в перенос. Сдвиг
-   * такого жеста гасят сами жесты (см. `pointerMoved` в `useDragDates`);
-   * здесь снимается лишний пересчёт.
+   * Before the pointer's first movement it recomputes nothing: a press under which
+   * the strip is still coasting is a click on the bar rather than a move, and a
+   * coasted strip must not turn it into a move. Such a gesture's offset is suppressed
+   * by the gestures themselves (see `pointerMoved` in `useDragDates`); what is
+   * removed here is the redundant recomputation.
    */
   const onBoxScroll = () => {
     if (pointerX === null) return;
@@ -96,15 +100,16 @@ export function edgeScroll(node: HTMLElement | null, onScroll: () => void): Edge
     if (pointerX === null) return;
 
     const bounds = box.getBoundingClientRect();
-    // Левый край ленты — не левый край прокручиваемого узла: первую его часть
-    // занимает закреплённая таблица (`.gantt__label`, sticky), и под ней шкалы
-    // не видно. Полоса у левого края поэтому отсчитывается от правого края
-    // таблицы — иначе, чтобы поехать назад, полоску пришлось бы тащить через
-    // всю таблицу, к краю, которого на шкале нет.
+    // The strip's left edge is not the scrollable node's left edge: its first part is
+    // taken by the pinned table (`.gantt__label`, sticky), and the scale is not
+    // visible under it. So the band at the left edge is measured from the table's
+    // right edge — otherwise, to travel back, a bar would have to be dragged across
+    // the whole table, to an edge the scale does not have.
     const inset = label?.getBoundingClientRect().width ?? 0;
-    // Глубина захода в полосу у края: 0 на её внешней границе, 1 у самого
-    // края ленты. За краем окна — единица, а не больше: палец, уведённый на
-    // соседний монитор, не должен разгонять ленту до бессмысленного.
+    // The depth of entry into the band at the edge: 0 at its outer boundary, 1 at the
+    // very edge of the strip. Beyond the window's edge it is one rather than more: a
+    // finger taken away to a neighbouring monitor must not accelerate the strip to
+    // something meaningless.
     const before = (bounds.left + inset + EDGE_PX - pointerX) / EDGE_PX;
     const after = (pointerX - (bounds.right - EDGE_PX)) / EDGE_PX;
     const depth = before > 0 ? -Math.min(1, before) : after > 0 ? Math.min(1, after) : 0;
@@ -112,10 +117,10 @@ export function edgeScroll(node: HTMLElement | null, onScroll: () => void): Edge
     if (depth !== 0) {
       const was = box.scrollLeft;
       box.scrollLeft = was + depth * MAX_SPEED_PX;
-      // Пересчёт прямо здесь, а не только по событию `scroll`: оно придёт
-      // отдельной задачей, и полоска отстала бы от ленты на кадр — ровно там,
-      // где за ней и следят. Повторный вызов из слушателя ничего не портит:
-      // жест считает себя заново от тех же двух чисел.
+    // The recomputation happens right here rather than only on the `scroll` event: it
+    // will arrive as a separate task, and the bar would lag behind the strip by a
+    // frame — exactly where it is being watched. A repeat call from the listener
+    // spoils nothing: the gesture recomputes itself from the same two numbers.
       if (box.scrollLeft !== was) onScroll();
     }
 
@@ -132,8 +137,8 @@ export function edgeScroll(node: HTMLElement | null, onScroll: () => void): Edge
       pointerX = null;
       cancelAnimationFrame(frame);
       frame = 0;
-      // Слушатель снимается здесь, а не в размонтировании: жестов за жизнь
-      // строки много, и каждый оставил бы за собой по подписке на ленту.
+    // The listener is removed here rather than on unmount: there are many gestures in
+    // a row's lifetime, and each would leave a subscription to the strip behind it.
       box.removeEventListener("scroll", onBoxScroll);
     },
   };

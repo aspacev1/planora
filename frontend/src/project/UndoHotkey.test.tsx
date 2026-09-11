@@ -9,7 +9,7 @@ import { server } from "../test/server";
 
 beforeEach(projectFixtures);
 
-/** Проект, в котором сервер назвал последнее изменение отменяемым. */
+/** A project where the server named the last change undoable. */
 const UNDOABLE: ProjectState = {
   ...STATE,
   undoable: {
@@ -19,7 +19,7 @@ const UNDOABLE: ProjectState = {
   },
 };
 
-/** Считает обращения к отмене и отвечает так же, как сервер. */
+/** Counts the calls to undo and answers the same way the server does. */
 function countUndo(): () => number {
   let called = 0;
   server.use(
@@ -31,7 +31,7 @@ function countUndo(): () => number {
   return () => called;
 }
 
-/** Лента отрисована — с этого момента горячая клавиша уже слушает. */
+/** The strip is rendered — from this moment the hotkey is already listening. */
 async function drawn() {
   return screen.findByRole("button", { name: /Логотип/ });
 }
@@ -45,15 +45,15 @@ describe("отмена с клавиатуры", () => {
     await userEvent.keyboard("{Control>}z{/Control}");
 
     await waitFor(() => expect(undone()).toBe(1));
-    // Тост обязателен: на вкладке истории отменённое изменение иначе выглядит
-    // как ничего не произошло, и человек жмёт клавишу второй раз.
+    // The toast is mandatory: on the history tab an undone change otherwise looks as if nothing
+    // happened, and the person presses the key a second time.
     expect(await screen.findByRole("status")).toHaveTextContent("Изменение отменено");
   });
 
   it("работает и на вкладке истории — отменяется проект, а не то, что под фокусом", async () => {
     const undone = countUndo();
-    // Лента истории спрашивает и летопись согласований: тесту она не нужна,
-    // но неописанный запрос оснастка считает ошибкой теста.
+    // The history feed also asks for the approval chronicle: the test does not need it, but the
+    // harness counts an undeclared request as the test's error.
     server.use(http.get("/api/projects/p1/plan/approvals", () => HttpResponse.json([])));
     renderProject(UNDOABLE, { route: "/projects/p1/history" });
     await screen.findByRole("region", { name: "История" });
@@ -64,9 +64,9 @@ describe("отмена с клавиатуры", () => {
   });
 
   it("отказ объявляет тревогой, а не сводкой с галочкой", async () => {
-    // Клавиша — единственный источник ответа: строки ошибки рядом с лентой
-    // нет. Отказ, показанный тоном подтверждения, сообщает ровно обратное
-    // тому, что случилось: отмена не прошла, а тост носит галочку.
+    // The key is the only source of an answer: there is no error line next to the strip. A refusal
+    // shown in the confirmation tone reports exactly the opposite of what happened: the undo did not
+    // go through while the toast carries a tick.
     server.use(
       http.post("/api/projects/p1/undo", () =>
         HttpResponse.json({ detail: "undo_conflict" }, { status: 409 }),
@@ -89,7 +89,7 @@ describe("отмена с клавиатуры", () => {
 
     await userEvent.keyboard("{Control>}z{/Control}");
 
-    // Молчание читалось бы как сломанная клавиша.
+    // Silence would read as a broken key.
     expect(await screen.findByRole("status")).toHaveTextContent("Отменять нечего");
     expect(undone()).toBe(0);
   });
@@ -99,9 +99,8 @@ describe("отмена с клавиатуры", () => {
     renderProject(UNDOABLE);
     await drawn();
 
-    // Поле заводится руками, а не через форму: форма — это ещё и окно, а окно
-    // запирает отмену своим правилом, и тест перестал бы проверять то, что
-    // написано в его названии.
+    // The field is created by hand rather than through the form: a form is also a dialog, and a
+    // dialog locks the undo by its own rule, and the test would stop checking what its name says.
     const field = document.createElement("input");
     document.body.append(field);
     field.focus();
@@ -116,14 +115,14 @@ describe("отмена с клавиатуры", () => {
     renderProject(UNDOABLE);
     await drawn();
 
-    // «Плюс» в углу таблицы, а не «+ Новая категория» с низа ленты: у обеих
-    // кнопок одно и то же имя для читалки — они делают одно и то же, — и
-    // различает их только место (см. `gantt/BottomActions.tsx`).
+    // The "plus" in the table's corner rather than "+ New category" at the bottom of the strip: both
+    // buttons carry the same name for a screen reader — they do the same thing — and only the place
+    // tells them apart (see `gantt/BottomActions.tsx`).
     const corner = document.querySelector(".gantt__corner") as HTMLElement;
     await userEvent.click(within(corner).getByRole("button", { name: "Новая категория" }));
     const dialog = await screen.findByRole("dialog");
-    // Фокус — на кнопке окна, а не в его поле: правило про поля ввода здесь
-    // ни при чём, проверяется именно открытое окно.
+    // The focus is on the dialog's button rather than in its field: the rule about input fields has
+    // nothing to do with it here, what is checked is precisely an open dialog.
     within(dialog).getByRole("button", { name: "Отмена" }).focus();
     await userEvent.keyboard("{Control>}z{/Control}");
 
@@ -155,8 +154,8 @@ describe("отмена с клавиатуры", () => {
     renderProject(UNDOABLE);
     await drawn();
 
-    // На QWERTZ буква «y» живёт на клавише с кодом KeyZ. Сочетание при этом —
-    // общепринятое «вернуть», и отменять по нему было бы обратным действием.
+    // On QWERTZ the letter "y" lives on the key with the code KeyZ. The combination at that is the
+    // commonly accepted "redo", and undoing by it would be the opposite action.
     await drawn().then((node) =>
       node.dispatchEvent(
         new KeyboardEvent("keydown", { key: "y", code: "KeyZ", ctrlKey: true, bubbles: true }),

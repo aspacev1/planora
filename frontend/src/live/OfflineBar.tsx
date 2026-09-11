@@ -4,15 +4,15 @@ import { useLocale } from "../i18n/LocaleProvider";
 import "./live.css";
 
 /**
- * Полоска «нет связи, показаны данные на 14:32».
+ * The "no connection, showing data as of 14:32" strip.
  *
- * Время в тексте — не украшение, а единственное, что превращает предупреждение
- * в полезное: «нет связи» человек и так поймёт по неработающему перетаскиванию,
- * а вот насколько устарело то, что перед глазами, узнать больше неоткуда.
+ * The time in the text is not decoration but the only thing that turns a warning into something useful:
+ * "no connection" a person will work out anyway from dragging not working, while how stale what is in
+ * front of them is, there is nowhere else to learn.
  *
- * `role="status"`, а не `alert`: связь рвётся сама, без действия человека, и
- * перебивать этим его работу с клавиатурой не за что — читалка экрана скажет о
- * полоске, когда закончит текущую фразу.
+ * `role="status"` rather than `alert`: the connection drops on its own, without the person's action, and
+ * there is no reason to interrupt their keyboard work with it — a screen reader will mention the strip
+ * once it has finished the current phrase.
  */
 export function OfflineBar({ syncedAt }: { syncedAt: number | null }) {
   const { t, locale } = useLocale();

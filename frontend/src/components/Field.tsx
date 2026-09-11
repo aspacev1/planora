@@ -6,15 +6,15 @@ type FieldProps = {
   onChange: (value: string) => void;
   autoComplete?: string;
   required?: boolean;
-  /** Значение задано не человеком — например, адрес, к которому привязано приглашение. */
+  /** The value was not set by a person — the address an invitation is tied to, for example. */
   readOnly?: boolean;
-  /** Оформление поля, заданное местом применения. */
+  /** The field's styling, set by the place it is used in. */
   className?: string;
 };
 
 /**
- * Поле с настоящей подписью, а не с плейсхолдером вместо неё: плейсхолдер
- * исчезает при первом же символе, не читается с экрана и не связан с полем.
+ * A field with a real caption rather than a placeholder instead of one: a placeholder disappears on the
+ * very first character, is not read from the screen and is not tied to the field.
  */
 export function Field({
   id,

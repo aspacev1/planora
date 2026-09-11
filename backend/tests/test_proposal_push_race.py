@@ -1,17 +1,19 @@
-"""Гонка двух переносов сметы в план.
+"""A race between two carry-acrosses of a budget into a plan.
 
-Перенос обязан не удваивать план и при двух одновременных нажатиях из двух
-вкладок. Замок строки проекта, который держит apply_op, сам по себе этого не
-даёт: если строки сметы прочитаны до замка, обе стороны видят пустые ссылки
-на задачи, обе проходят проверку «уже в плане», и вторая, дождавшись замка,
-заводит каждую задачу второй раз. Поэтому push_to_plan берёт замок до чтения
-строк, а этот тест держит замок незакоммиченным первым переносом и проверяет,
-что второй ждёт, а дождавшись — не находит, что переносить.
+A carry-across must not double the plan even on two simultaneous presses from two
+tabs. The lock on the project's row that apply_op holds does not give that by
+itself: if the budget's rows are read before the lock, both sides see empty
+references to tasks, both pass the "already in the plan" check, and the second, once
+it has waited for the lock, creates every task a second time. So push_to_plan takes
+the lock before reading the rows, and this test holds the lock with an uncommitted
+first carry-across and checks that the second waits, and that once it has waited it
+finds nothing to carry.
 
-Работает на собственных сессиях с настоящими коммитами: замок строки виден
-только между разными транзакциями. Слаг уникален в базе, поэтому свой, а
-уборка — в finally, чтобы не оставить мусор соседям (тот же приём, что у
-теста двух одновременных отмен в test_wave1_integrity.py).
+It works on sessions of its own with real commits: a row lock is visible only
+between different transactions. The slug is unique in the database, so it uses its
+own, and the cleanup is in a finally so as not to leave litter for the neighbours
+(the same technique as the test of two simultaneous undos in
+test_wave1_integrity.py).
 """
 
 import threading
@@ -66,8 +68,8 @@ def test_two_simultaneous_pushes_do_not_double_the_plan(engine):
     first = make_session()
     second = make_session()
     try:
-        # Первый перенос: замок взят, транзакция открыта — как будто запрос
-        # ещё выполняется.
+        # The first carry-across: the lock is taken, the transaction is open — as if
+        # the request were still running.
         done = push_to_plan(first, first.get(Project, project_id), None, locale="ru")
         assert done["created_tasks"] == 2
 
@@ -85,7 +87,7 @@ def test_two_simultaneous_pushes_do_not_double_the_plan(engine):
 
         rival = threading.Thread(target=concurrent_push)
         rival.start()
-        # Соперник обязан стоять на замке, пока первая транзакция не закрыта.
+        # The rival must stand at the lock until the first transaction is closed.
         rival.join(timeout=0.5)
         assert rival.is_alive(), "второй перенос не ждал замок проекта"
 
@@ -93,8 +95,9 @@ def test_two_simultaneous_pushes_do_not_double_the_plan(engine):
         rival.join(timeout=10)
         assert not rival.is_alive()
 
-        # Дождавшись замка, второй перенос видит ссылки первого: переносить
-        # нечего, и он отказывает кодом, а не заводит задачи второй раз.
+        # Having waited for the lock, the second carry-across sees the first one's
+        # references: there is nothing to carry, and it refuses with a code rather
+        # than creating the tasks a second time.
         assert outcome == {"refused": "proposal_nothing_to_push"}
 
         check = make_session()

@@ -34,10 +34,10 @@ def project(db, org):
 
 @pytest.fixture(autouse=True)
 def default_settings():
-    """Настройки собираются заново на каждый тест.
+    """The settings are assembled anew for every test.
 
-    get_settings кэширован через lru_cache: тест, подменивший рубильник
-    публикации, иначе оставил бы своё значение всем следующим.
+    get_settings is cached through lru_cache: a test that substituted the publishing
+    switch would otherwise leave its value to every test that follows.
     """
     get_settings.cache_clear()
     yield
@@ -58,8 +58,8 @@ def test_reissuing_kills_the_previous_link(db, org, project):
 
     assert second.token != first.token
     assert first.revoked_at is not None
-    # Инвариант «действующая ссылка одна» держит частичный уникальный индекс;
-    # здесь проверяется, что выпуск его не нарушает.
+    # The invariant "there is one link in force" is held by a partial unique index;
+    # what is checked here is that issuing does not violate it.
     assert active_link(db, project) is second
 
 
@@ -69,8 +69,8 @@ def test_a_reissued_link_keeps_the_comment_setting(db, org, project):
 
     second = issue_link(db, project, org)
 
-    # Выключенные комментарии — сознательное решение владельца. Перевыпуск
-    # адреса не повод молча включить их обратно.
+    # Disabled comments are a deliberate decision by the owner. Reissuing the
+    # address is no reason to silently turn them back on.
     assert second.comments_enabled is False
 
 
@@ -96,8 +96,8 @@ def test_resolving_needs_the_slugs_and_the_token_to_agree(db, org, project):
     db.flush()
     issue_link(db, other, org)
 
-    # Действующий токен соседнего проекта не открывает этот: иначе одной
-    # ссылки хватало бы, чтобы читать любой проект установки.
+    # A valid token of a neighbouring project does not open this one: otherwise one
+    # link would be enough to read any project of the installation.
     assert resolve(db, org_slug="acme", project_slug="drugoy", token=link.token) is None
     assert resolve(db, org_slug="acme", project_slug="redesign-2026", token="") is None
     assert resolve(db, org_slug="acme", project_slug="redesign-2026", token=link.token) is not None
@@ -109,8 +109,8 @@ def test_the_organization_switch_closes_issued_links_too(db, org, project):
     org.public_sharing_enabled = False
     db.flush()
 
-    # Не только выпуск новых: организация, выключившая публикацию, ожидает,
-    # что розданные адреса перестали открываться.
+    # Not only the issuing of new ones: an organization that turned publishing off
+    # expects the addresses it distributed to have stopped opening.
     assert resolve(db, org_slug="acme", project_slug="redesign-2026", token=link.token) is None
     with pytest.raises(SharingDisabled):
         issue_link(db, project, org)
@@ -133,8 +133,8 @@ def test_the_public_address_is_built_from_the_configured_domain(db, org, project
     link = issue_link(db, project, org)
     url = public_url(org, project, link)
 
-    # Слаги обоих — то, что человек читает в адресе; токен идёт запросом,
-    # потому что без него отзыв ссылки не менял бы адрес вовсе.
+    # Both slugs are what a person reads in the address; the token goes in the query,
+    # because without it revoking a link would not change the address at all.
     assert url == f"https://planora.example.com/p/acme/redesign-2026?s={link.token}"
 
 
@@ -147,6 +147,6 @@ def test_a_revoked_link_keeps_its_record(db, org, project):
     link = issue_link(db, project, org)
     revoke_link(db, project)
 
-    # Запись не удаляется: старый адрес обязан отвечать «ссылка больше не
-    # действует», а не «такого проекта нет».
+    # The row is not deleted: the old address must answer "this link is no longer
+    # valid" rather than "there is no such project".
     assert link.revoked_at >= before

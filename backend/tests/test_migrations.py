@@ -1,14 +1,16 @@
-"""Миграции против реальности: upgrade head на чистой базе, сверка с моделями,
-обратимость downgrade.
+"""The migrations against reality: upgrade head on a clean database, a comparison
+with the models, the reversibility of downgrade.
 
-Без этого теста расхождение цепочки миграций с models.py живёт незамеченным:
-тесты приложения строят схему через create_all и потому проходят, а свежая
-установка, которая накатывает alembic upgrade head, получает другую базу.
+Without this test a divergence between the migration chain and models.py lives
+unnoticed: the application's tests build the schema through create_all and
+therefore pass, while a fresh installation, which runs alembic upgrade head, gets a
+different database.
 
-Тест работает не с базой из DATABASE_URL и не с базой conftest (`*_test`),
-а с собственной одноразовой `*_migrations_test`: ему нужна база, в которой
-не было create_all, — иначе upgrade падал бы на «таблица уже существует»,
-а сверка сравнивала бы create_all сам с собой.
+The test works neither against the database from DATABASE_URL nor against
+conftest's (`*_test`), but against a disposable `*_migrations_test` of its own: it
+needs a database in which there was no create_all — otherwise upgrade would fail
+with "the table already exists" and the comparison would compare create_all with
+itself.
 """
 
 import io
@@ -25,7 +27,7 @@ from sqlalchemy.engine import make_url
 
 from app.config import get_settings
 from app.db import Base
-from app import models  # noqa: F401  импорт ради регистрации таблиц
+from app import models  # noqa: F401  imported so that the tables register
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -33,20 +35,20 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 def _alembic_config(db_url: str) -> Config:
     config = Config(str(BACKEND_DIR / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
-    # Журнал команд alembic уходит в буфер, а не в stderr прогона тестов.
+    # The alembic command log goes into a buffer rather than the test run's stderr.
     config.stdout = io.StringIO()
-    # Адрес подхватывает migrations/env.py — см. комментарий там.
+    # The URL is picked up by migrations/env.py — see the comment there.
     config.attributes["db_url"] = db_url
     return config
 
 
 @pytest.fixture(scope="module")
 def migrations_db_url():
-    """Одноразовая чистая база; создаётся перед тестами модуля, сносится после.
+    """A disposable clean database; created before the module's tests, dropped after.
 
-    CREATE/DROP DATABASE выполняются через служебное подключение к базе из
-    DATABASE_URL — саму её тест не трогает. Разрушающие операции разрешены
-    только по имени с суффиксом `_migrations_test`.
+    CREATE/DROP DATABASE are executed through a service connection to the database
+    from DATABASE_URL — the test does not touch that one itself. Destructive
+    operations are allowed only on a name with the `_migrations_test` suffix.
     """
     admin_url = make_url(get_settings().database_url)
     db_name = f"{admin_url.database}_migrations_test"
@@ -66,7 +68,7 @@ def migrations_db_url():
 
 
 def test_upgrade_head_matches_models(migrations_db_url):
-    """`alembic upgrade head` на пустой базе даёт ровно ту схему, что в models.py."""
+    """`alembic upgrade head` on an empty database gives exactly the schema in models.py."""
     command.upgrade(_alembic_config(migrations_db_url), "head")
 
     engine = create_engine(migrations_db_url)
@@ -83,7 +85,7 @@ def test_upgrade_head_matches_models(migrations_db_url):
 
 
 def test_downgrade_walks_back_to_empty(migrations_db_url):
-    """Каждый downgrade выполним; после `downgrade base` таблиц не остаётся."""
+    """Every downgrade is executable; after `downgrade base` no tables remain."""
     config = _alembic_config(migrations_db_url)
     command.upgrade(config, "head")
     command.downgrade(config, "base")
@@ -99,21 +101,21 @@ def test_downgrade_walks_back_to_empty(migrations_db_url):
     )
 
 
-#: Миграция этапа предложения и ссылки строки на задачу — и ревизия перед ней.
-#: Тест ниже накатывает её на непустые таблицы, как это случится на живой базе.
+#: The proposal-stage migration and the row's reference to a task — and the revision
+#: before it. The test below applies it to non-empty tables, as will happen on a live database.
 PLAN_LINKS = "c4d8e2f1a9b7"
 BEFORE_PLAN_LINKS = "a1b2c3d4e5f6"
 
 
 def test_proposal_migration_survives_rows_that_predate_it(migrations_db_url):
-    """Накат на живой базе: строки, заведённые до миграции, получают умолчания,
-    а откат их не теряет.
+    """Applying it on a live database: rows created before the migration get the
+    defaults, and a downgrade does not lose them.
 
-    Два теста выше проходят и без server_default: у пустой таблицы нет строк,
-    которым нечего подставить в NOT NULL. Ошибка вылезает только на базе с
-    данными — здесь она и воспроизводится: предложение и строка сметы
-    заводятся на ревизии до миграции, затем накат до головы, откат на шаг и
-    накат снова.
+    The two tests above pass without a server_default too: an empty table has no rows
+    with nothing to substitute into a NOT NULL. The error only shows up on a database
+    with data — and that is what is reproduced here: a proposal and a budget row are
+    created at the revision before the migration, then upgrade to head, downgrade by
+    a step and upgrade again.
     """
     config = _alembic_config(migrations_db_url)
     command.downgrade(config, "base")
@@ -185,8 +187,8 @@ def test_proposal_migration_survives_rows_that_predate_it(migrations_db_url):
             rows = conn.scalar(text("SELECT count(*) FROM proposal_tasks"))
             assert rows == 1
 
-        # Второй накат на ту же непустую базу — та же дорога, что у отката
-        # релиза и повторного выката.
+        # A second upgrade on the same non-empty database — the same road as a
+        # release rollback and a repeated rollout.
         command.upgrade(config, "head")
         with engine.connect() as conn:
             assert conn.scalar(text("SELECT status FROM proposals WHERE id = :proposal"), ids) == "draft"

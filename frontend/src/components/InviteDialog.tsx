@@ -9,7 +9,7 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { Modal } from "./Modal";
 import { INVITABLE_ROLES, RoleHint } from "./roles";
 
-/** Адреса вводятся списком: запятыми, точками с запятой или переводами строк. */
+/** Addresses are entered as a list: by commas, semicolons or line breaks. */
 function parseEmails(raw: string): string[] {
   return raw
     .split(/[\s,;]+/)
@@ -18,11 +18,11 @@ function parseEmails(raw: string): string[] {
 }
 
 /**
- * Ссылка, показанная один раз.
+ * A link shown once.
  *
- * Поле только для чтения рядом с кнопкой — не украшение: `navigator.clipboard`
- * есть не везде (старый браузер, страница по http, отказ в разрешении), и без
- * видимого текста ссылка в такой установке была бы недостижима вовсе.
+ * A read-only field next to the button is not decoration: `navigator.clipboard` is not
+ * everywhere (an old browser, a page over http, a denied permission), and without visible text
+ * the link in such an install would be unreachable entirely.
  */
 export function IssuedLink({ url }: { url: string }) {
   const { t } = useLocale();
@@ -72,27 +72,28 @@ function IssuedList({ issued }: { issued: Issued[] }) {
 }
 
 /**
- * Приглашение в организацию — вместе с окном, в котором оно живёт.
+ * An invitation into the organization — together with the dialog it lives in.
  *
- * Окно рисует сама форма, а не экран вокруг неё: тронуты ли поля, знают только
- * они, а окну этот ответ нужен, чтобы не терять набранное от промаха мимо.
- * Снаружи такой признак пришлось бы гонять обратным вызовом — то есть держать
- * состояние формы в двух местах сразу.
+ * The dialog is drawn by the form itself rather than by the screen around it: whether the
+ * fields have been touched is known only to them, and the dialog needs that answer so as not
+ * to lose what was typed to a stray click. From outside such a flag would have to be shuttled
+ * through a callback — that is, the form's state would be kept in two places at once.
  *
- * Живёт в общих составляющих, а не на экране состава: зовут людей и оттуда, и
- * из шапки проекта, а вторая копия формы разошлась бы с первой на первой же
- * правке правил — например, на списке ролей, которые нельзя выдавать.
+ * It lives among the shared parts rather than on the roster screen: people are invited both
+ * from there and from a project's header, and a second copy of the form would diverge from the
+ * first on the very first edit of the rules — on the list of roles that cannot be handed out,
+ * for example.
  */
 export function InviteDialog({
   projectId,
   onClose,
 }: {
   /**
-   * Проект, из которого позвали. Он же отмечается в списке проектов заранее:
-   * когда зовут со страницы проекта, отмечать его руками — лишний шаг ровно
-   * там, где ошибиться дороже всего для роли `client` (она без отметок не
-   * увидит ни одного проекта вовсе); для остальных ролей отметка просто
-   * сужает приглашение до этого проекта, и её можно снять.
+   * The project the invitation was sent from. It is also ticked in the list of projects in
+   * advance: when inviting from a project's page, ticking it by hand is an extra step exactly
+   * where a mistake costs the most for the `client` role (without ticks they will see no
+   * project at all); for the other roles the tick simply narrows the invitation to this
+   * project, and it can be unticked.
    */
   projectId?: string;
   onClose: () => void;
@@ -106,9 +107,8 @@ export function InviteDialog({
   const [deliver, setDeliver] = useState(true);
 
   const invitations = useQuery({ queryKey: INVITATIONS_QUERY_KEY, queryFn: listInvitations });
-  // Список проектов нужен любой роли: отмеченные проекты сужают приглашение
-  // до них же, независимо от того, кого зовут — клиента, редактора или
-  // наблюдателя.
+  // The list of projects is needed by any role: the ticked projects narrow the invitation to
+  // them, regardless of who is being invited — a client, an editor or an observer.
   const projects = useQuery({ queryKey: PROJECTS_QUERY_KEY, queryFn: listProjects });
 
   const create = useMutation({
@@ -134,10 +134,10 @@ export function InviteDialog({
     );
   }
 
-  // Роль и проекты считаются наравне с адресами: список проектов отмечают
-  // галочками по одной, и промах мимо окна снимает их все разом. Отмеченный
-  // за человека проект, из которого позвали, при этом введённым не
-  // считается: его не выбирали, и терять там нечего.
+  // The role and the projects count on a par with the addresses: the list of projects is ticked
+  // one at a time, and a stray click outside the dialog removes them all at once. The project
+  // the invitation was sent from, ticked on the person's behalf, does not count as input at
+  // that: it was not chosen, and there is nothing to lose there.
   const projectsTouched =
     projectId === undefined
       ? projectIds.length > 0
@@ -153,7 +153,7 @@ export function InviteDialog({
             emails,
             role,
             project_ids: projectIds,
-            // Без настроенной почты отправлять нечем — и спрашивать не о чем.
+            // Without mail configured there is nothing to send with — and nothing to ask about.
             deliver: mailEnabled && deliver,
           });
         }}
@@ -167,8 +167,8 @@ export function InviteDialog({
             onChange={(event) => setRaw(event.target.value)}
           />
         </p>
-        {/* Приглашение без адреса — не забывчивость, а второй способ доставки, и
-            назван он словами: такая ссылка достаётся предъявителю. */}
+        {/* An invitation without an address is not forgetfulness but a second delivery method,
+            and it is named in words: such a link goes to whoever holds it. */}
         <p className="muted">
           {emails.length === 0 ? t("invite.link_only_hint") : t("invite.emails_hint")}
         </p>
@@ -183,16 +183,16 @@ export function InviteDialog({
             ))}
           </select>
         </p>
-        {/* Пояснение под самим выбором, а не в справке рядом: разница между
-            наблюдателем и клиентом — это разница между «видит все проекты
-            организации» и «видит только отмеченные», и узнавать её после
-            отправки приглашения поздно. */}
+        {/* The explanation is under the choice itself rather than in a help text beside it: the
+            difference between an observer and a client is the difference between "sees all the
+            organization's projects" and "sees only the ticked ones", and learning it after the
+            invitation is sent is too late. */}
         <RoleHint role={role} />
 
-        {/* Не только для client: отмеченный здесь список сужает любую роль до
-            перечисленных проектов — см. Membership.project_scoped на сервере.
-            Ничего не отмечено — роль ведёт себя как раньше: client не видит
-            ни одного проекта, редактор и наблюдатель видят всю организацию. */}
+        {/* Not only for a client: the list ticked here narrows any role to the listed projects
+            — see Membership.project_scoped on the server. Nothing ticked — the role behaves as
+            before: a client sees no project, an editor and an observer see the whole
+            organization. */}
         <fieldset className="fieldset">
           <legend>{t("invite.projects")}</legend>
           <p className="muted">{t("invite.projects_hint")}</p>

@@ -1,9 +1,10 @@
-"""Рассылка ревизий подключённым клиентам.
+"""Broadcasting revisions to connected clients.
 
-Комнаты живут в памяти процесса. Пока сервер один, этого достаточно; когда
-понадобится второй, здесь меняется один класс, а маршруты и мутации не узнают
-об этом ничего — ради этого модуль и не знает ни про HTTP, ни про сокеты, ни
-про то, что за словари он развозит.
+The rooms live in the process's memory. While there is a single server that is
+enough; when a second one is needed, one class changes here and the routes and
+mutations learn nothing about it — that is exactly why this module knows
+nothing about HTTP, about sockets, or about what the dictionaries it delivers
+contain.
 """
 
 import asyncio
@@ -11,20 +12,22 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-# Сколько сообщений держать для подписчика, который не успевает их забирать.
-# Потолок нужен не ради памяти, а ради честности: тот, кто отстал на сотню
-# ревизий, всё равно не сможет догнать ленту по кусочкам — ему проще
-# перечитать проект целиком (§12), и очередь, растущая без предела, лишь
-# оттягивает этот момент, накапливая заведомо ненужное.
+# How many messages to hold for a subscriber who cannot keep up with them. The
+# cap is needed not for the sake of memory but for the sake of honesty: someone
+# a hundred revisions behind will not catch the feed up piece by piece anyway —
+# it is easier for them to re-read the whole project (§12), and a queue growing
+# without limit merely delays that moment while accumulating what is knowingly
+# useless.
 BACKLOG_LIMIT = 128
 
 
 class Subscriber:
-    """Одно подключение: очередь того, что ему ещё не отдали.
+    """One connection: the queue of what has not been handed to it yet.
 
-    Отставание помечается флагом, а не исключением в момент публикации:
-    публикует хаб, а расплачиваться за отставание должен тот, кто отстал, —
-    иначе один залипший сокет ронял бы рассылку всем остальным.
+    Falling behind is marked with a flag rather than an exception at the moment
+    of publication: the hub publishes, and whoever fell behind should pay for
+    falling behind — otherwise one stuck socket would break the broadcast for
+    everyone else.
     """
 
     def __init__(self) -> None:
@@ -44,18 +47,18 @@ class Subscriber:
 
 
 class Hub:
-    """Комнаты по проектам."""
+    """Rooms by project."""
 
     def __init__(self) -> None:
         self._rooms: dict[uuid.UUID, set[Subscriber]] = {}
 
     @contextmanager
     def subscribe(self, project_id: uuid.UUID) -> Iterator[Subscriber]:
-        """Подписка на время блока.
+        """A subscription for the duration of the block.
 
-        Контекстный менеджер, а не пара subscribe/unsubscribe: сокет
-        закрывается и по ошибке, и по отмене задачи, и забытая отписка в одной
-        из этих веток — это комната, которая никогда не опустеет.
+        A context manager rather than a subscribe/unsubscribe pair: a socket is
+        closed both on an error and on task cancellation, and a forgotten
+        unsubscribe in one of those branches is a room that will never empty.
         """
         subscriber = Subscriber()
         self._rooms.setdefault(project_id, set()).add(subscriber)
@@ -65,28 +68,28 @@ class Hub:
             room = self._rooms.get(project_id)
             if room is not None:
                 room.discard(subscriber)
-                # Пустая комната удаляется: иначе словарь растёт по одному
-                # ключу на каждый проект, который кто-нибудь когда-нибудь
-                # открывал, и не уменьшается никогда.
+                # An empty room is deleted: otherwise the dictionary grows by one
+                # key for every project anyone ever opened, and never shrinks.
                 if not room:
                     del self._rooms[project_id]
 
     async def publish(self, project_id: uuid.UUID, message: dict) -> None:
-        """Разложить сообщение по очередям комнаты.
+        """Lay a message out across the room's queues.
 
-        Корутина, хотя внутри ничего не ждёт. Это не украшение: рассылку
-        запускает фоновая задача Starlette, а та выполняет обычную функцию в
-        пуле потоков — и `asyncio.Queue` из чужого потока трогать нельзя.
-        Объявленная корутиной, она гарантированно исполняется в цикле событий.
+        A coroutine, even though nothing inside it awaits. This is not
+        decoration: the broadcast is started by a Starlette background task,
+        which runs an ordinary function in a thread pool — and an
+        `asyncio.Queue` must not be touched from a foreign thread. Declared as a
+        coroutine, it is guaranteed to run in the event loop.
 
-        Копия множества, а не оно само: подписчик может отвалиться прямо во
-        время обхода, и тогда набор изменится под ногами.
+        A copy of the set rather than the set itself: a subscriber may drop off
+        during the walk, and then the set would change underfoot.
         """
         for subscriber in tuple(self._rooms.get(project_id, ())):
             subscriber.offer(message)
 
     def listeners(self, project_id: uuid.UUID) -> int:
-        """Сколько сокетов слушает проект. Нужно тестам и диагностике."""
+        """How many sockets are listening to the project. Needed by tests and diagnostics."""
         return len(self._rooms.get(project_id, ()))
 
 

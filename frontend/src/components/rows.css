@@ -1,16 +1,17 @@
 /*
- * Общий язык строк-таблиц: ленты Ганта и сметы.
+ * The shared language of table rows: the Gantt chart and the budget.
  *
- * Обе показывают одно и то же — список строк, чьи ячейки правятся на месте, и
- * знаки действий, молчащие до наведения. Пока правила жили в gantt.css, смета
- * повторяла их своими: два набора одинаковых чисел, которые однажды разошлись
- * бы, — и «как в ленте» перестало бы значить «так же».
+ * Both show the same thing — a list of rows whose cells are edited in place, and
+ * action signs that stay silent until hover. While the rules lived in gantt.css,
+ * the budget repeated them with rules of its own: two sets of identical numbers
+ * that would one day have diverged — and "as on the chart" would have stopped
+ * meaning "the same".
  */
 
-/* Значение ячейки. Правится оно или нет, выглядит одинаково: тон значения не
-   должен зависеть от прав смотрящего — иначе у гостя таблица читается как
-   выцветшая, будто числа в ней недостоверны. Возможность правки показывает
-   наведение, а не постоянная рамка. */
+/* A cell's value. Whether it is editable or not, it looks the same: the value's
+   tone must not depend on the viewer's permissions — otherwise a guest reads the
+   table as faded, as if its figures were unreliable. Editability is shown by
+   hover rather than by a permanent border. */
 .cell-value {
   display: block;
   max-width: 100%;
@@ -32,13 +33,14 @@
   background: var(--surface);
 }
 
-/* Поле на месте ячейки: занимает ровно её место, чтобы строка не дёргалась в
-   момент, когда ячейка становится редактируемой. */
+/* The field in a cell's place: it occupies exactly that place, so that the row
+   does not twitch at the moment the cell becomes editable. */
 .cell-input {
   width: 100%;
   min-width: 0;
-  /* вне шкалы: на пиксель уже значения (2px 4px) с каждой стороны — ровно на
-     толщину рамки, чтобы поле встало на место ячейки без сдвига текста. */
+  /* off-scale: a pixel narrower than the value's (2px 4px) on each side — exactly
+     the border's thickness, so that the field takes the cell's place without
+     shifting the text. */
   padding: 1px var(--space-4);
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm, 6px);
@@ -47,28 +49,29 @@
   color: inherit;
 }
 
-/* Меры дерева строк — одни на ленту и смету. Ширина шеврона задаёт столбец
-   знака перед именем группы, ступень — на сколько имя вложенной строки стоит
-   правее имени своей группы. Ступень в 16px, а не «в ширину шеврона»: раньше
-   имена задач стояли ровно под именами категорий, и уровень читался только по
-   весу шрифта и серой подложке — на длинном списке этого не хватало, чтобы с
-   одного взгляда увидеть, где кончается один этап и начинается другой. */
+/* The measurements of the row tree are shared by the chart and the budget. The
+   chevron's width sets the column of the sign before a group's name, and the step
+   is how far an inner row's name stands to the right of its group's name. A step
+   of 16px rather than "the chevron's width": task names used to stand exactly
+   under category names, and the level read only from the font weight and the grey
+   backing — on a long list that was not enough to see at a glance where one stage
+   ends and another begins. */
 :root {
   --row-chevron: 13px;
   --row-indent: var(--space-16);
 }
 
-/* На телефоне колонка имён вдвое уже (см. layoutWidth), и полная ступень
-   отбирала бы у имени задачи треть оставшейся ширины; половинная ступень
-   ещё читается как уровень, а имя ещё помещается. */
+/* On a phone the name column is half as wide (see layoutWidth), and a full step
+   would take a third of the remaining width from a task's name; a half step still
+   reads as a level while the name still fits. */
 @media (max-width: 520px) {
   :root {
     --row-indent: var(--space-8);
   }
 }
 
-/* Шеврон сворачивания — молчаливая кнопка: ни заливки, ни тени базовой
-   кнопки, только знак. */
+/* The collapse chevron is a silent button: no fill, no shadow of a base button,
+   only the sign. */
 .row-chevron {
   flex: 0 0 auto;
   width: var(--row-chevron);
@@ -88,8 +91,8 @@
   background: transparent;
 }
 
-/* Хвост строки: знаки действий, прижатые вправо, чтобы имена читались одним
-   столбцом, а не начинались каждое на своём отступе. */
+/* The row's tail: action signs pinned to the right, so that the names read as one
+   column rather than each beginning at its own indent. */
 .row-icons {
   display: flex;
   align-items: center;
@@ -98,14 +101,14 @@
   margin-left: auto;
 }
 
-/* Знак действия на строке. Молчит, пока на строку не навели: постоянные
-   кнопки возле каждой строки превращают список в частокол из органов
-   управления, а удаление рядом с каждым именем читается как угроза.
+/* An action sign on a row. It stays silent until the row is hovered: permanent
+   buttons beside every row turn a list into a picket fence of controls, and a
+   delete next to every name reads as a threat.
 
-   Появление — тем же временем, что и любой другой отклик на наведение
-   (см. `--motion-fast`). Список повторяет переход базовой кнопки, иначе
-   собственное объявление стирает его целиком и тень с рамкой на фокусе
-   появляются мгновенно. */
+   The appearance takes the same time as any other response to hover (see
+   `--motion-fast`). The list repeats the base button's transition, otherwise a
+   declaration of its own erases it entirely and the shadow and border on focus
+   appear instantly. */
 .row-icon {
   flex: 0 0 auto;
   width: 20px;
@@ -130,8 +133,8 @@
   color: var(--text);
 }
 
-/* Удаление — единственный знак, который называет себя цветом: оно
-   необратимо, и рука обязана узнать его раньше, чем прочтёт подпись. */
+/* Delete is the only sign that names itself by colour: it is irreversible, and the
+   hand must recognize it before it reads the label. */
 .row-icon--danger:hover {
   color: var(--danger);
 }
@@ -140,9 +143,9 @@
   opacity: 1;
 }
 
-/* Знаки — рисунком в цвет текста, а не эмодзи: эмодзи рисуется цветной
-   картинкой шрифта системы и в ряду тонких линий таблицы выглядит наклейкой,
-   да ещё и разной на разных системах. */
+/* The signs are glyphs in the text's colour rather than emoji: an emoji is drawn as
+   a colour picture from the system's font and, in a row of the table's thin lines,
+   looks like a sticker — and a different one on different systems at that. */
 .glyph {
   flex: 0 0 auto;
   width: 14px;
@@ -154,10 +157,10 @@
   stroke-linejoin: round;
 }
 
-/* Значок со счётчиком — обсуждение строки. Молчит, пока на строку не навели,
-   но только когда молчать есть о чём: у строки с репликами число видно
-   всегда, иначе о разговоре можно было бы узнать, только водя мышью по сотне
-   строк. */
+/* The icon with a counter is the row's discussion. It stays silent until the row is
+   hovered, but only when there is something to stay silent about: on a row with
+   remarks the number is always visible, otherwise a conversation could only be
+   discovered by running the mouse across a hundred rows. */
 .row-badge {
   display: inline-flex;
   align-items: center;
@@ -183,8 +186,8 @@
   opacity: 1;
 }
 
-/* Указатель — там, где по знаку и правда что-то открывается: у гостя без
-   карточки обещать нажатие не за чем. */
+/* The pointer appears where the sign really does open something: for a guest with no
+   card there is no reason to promise a click. */
 .row-badge.is-clickable {
   cursor: pointer;
 }
@@ -194,10 +197,10 @@
   color: var(--accent);
 }
 
-/* Там, где наведения не бывает, — планшет, телефон — знаки строки видны
-   всегда. Иначе они невидимы ровно там, где по ним и нужно попасть пальцем:
-   показать их нечем, а прозрачные они всё равно ловят нажатия — то есть
-   работают, но только вслепую. */
+/* Where there is no hover — a tablet, a phone — the row's signs are always visible.
+   Otherwise they are invisible in exactly the place where they need to be hit with a
+   finger: there is nothing to reveal them with, while transparent they still catch
+   taps — that is, they work, but only blind. */
 @media (hover: none) {
   .row-icon,
   .row-badge {

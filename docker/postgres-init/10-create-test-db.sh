@@ -1,12 +1,13 @@
 #!/bin/sh
-# Тестовая база создаётся здесь, при инициализации тома, а не отдельной
-# командой перед первым прогоном тестов. Имя выводится из POSTGRES_DB тем же
-# правилом, что и в backend/tests/conftest.py: «<имя>_test» — только с такой
-# базой тесты соглашаются работать, а по базе из DATABASE_URL они намеренно
-# отказываются делать drop_all.
+# The test database is created here, while the volume is initialized, rather
+# than by a separate command before the first test run. Its name is derived
+# from POSTGRES_DB by the same rule as in backend/tests/conftest.py:
+# "<name>_test" — the tests agree to work only with such a database, and
+# deliberately refuse to drop_all against the one from DATABASE_URL.
 #
-# Скрипт выполняется ровно один раз — на пустом каталоге данных. Если том
-# pgdata уже существовал до появления этого файла, базу нужно создать вручную:
+# The script runs exactly once — on an empty data directory. If the pgdata
+# volume already existed before this file appeared, create the database by
+# hand:
 #   docker compose exec db createdb -U planora planora_test
 set -e
 

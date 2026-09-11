@@ -1,4 +1,4 @@
-"""HTTP вокруг AI-интейка. Бизнес-логики здесь нет — она в app/ai/."""
+"""HTTP around the AI intake. No business logic here — it is in app/ai/."""
 
 import uuid
 
@@ -20,12 +20,12 @@ from app import throttle
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 
-# Членство берётся из current_membership — то есть из организации, выбранной
-# переключателем на сессии, — а не «первое по id», как было. Первое по id
-# делало AI слепым к переключателю: человек, работающий во второй
-# организации, читал и настраивал ключ LLM первой, тратил её токены и
-# складывал AI-сессии в неё же — то есть в чужую для текущего экрана
-# организацию.
+# The membership comes from current_membership — that is, from the organization
+# chosen by the switcher on the session — rather than "the first one by id", as
+# it used to. First-by-id made AI blind to the switcher: a person working in
+# their second organization read and configured the first one's LLM key, spent
+# its tokens and filed AI sessions into it — that is, into an organization
+# foreign to the current screen.
 
 
 def _admin(membership: Membership = Depends(current_membership)) -> Membership:
@@ -41,11 +41,11 @@ def _writer(membership: Membership = Depends(current_membership)) -> Membership:
 
 
 def _refuse(error: Exception) -> HTTPException:
-    """Сбой модели — не пятисотка.
+    """A model failure is not a 500.
 
-    Таймаут, мусор вместо схемы и исчерпанный лимит ключа — это состояния, о
-    которых человеку говорят словами, а переписка и черновик при этом
-    сохраняются: сессия продолжается с того же места.
+    A timeout, garbage instead of a schema and an exhausted key limit are states
+    a person is told about in words, while the conversation and the draft are
+    preserved: the session continues from the same place.
     """
     code = getattr(error, "code", "llm_failed")
     if code == "llm_not_configured":
@@ -53,7 +53,7 @@ def _refuse(error: Exception) -> HTTPException:
     return HTTPException(status_code=502, detail=code)
 
 
-# --- подключение LLM ---------------------------------------------------------
+# --- the LLM connection ------------------------------------------------------
 
 
 class CredentialIn(BaseModel):
@@ -62,8 +62,8 @@ class CredentialIn(BaseModel):
     provider: str = Field(default="openai", max_length=32)
     base_url: str = Field(min_length=1, max_length=300)
     model: str = Field(min_length=1, max_length=100)
-    #: Пустой — оставить прежний ключ. Наружу ключ не отдаётся никогда, и
-    #: требовать его при правке адреса значило бы требовать невозможного.
+    #: Empty means keep the previous key. The key is never handed outward, and
+    #: demanding it in order to edit the address would be demanding the impossible.
     api_key: str = ""
 
 
@@ -71,7 +71,7 @@ class CredentialOut(BaseModel):
     provider: str
     base_url: str
     model: str
-    #: Только признак. Самого ключа здесь нет и быть не может.
+    #: A flag only. The key itself is not here and cannot be.
     configured: bool
 
 
@@ -104,8 +104,8 @@ def write_credential(
             api_key=payload.api_key,
         )
     except LlmError as error:
-        # Небезопасный адрес (не https, приватная сеть) — отказ формы с
-        # кодом, а не пятисотка и не молчаливое сохранение дыры.
+        # An unsafe address (not https, a private network) is a form refusal
+        # with a code, not a 500 and not a silent save of a hole.
         raise HTTPException(status_code=422, detail=error.code)
     except ValueError:
         raise HTTPException(status_code=422, detail="api_key_required")
@@ -114,7 +114,7 @@ def write_credential(
     )
 
 
-# --- сессия ------------------------------------------------------------------
+# --- the session -------------------------------------------------------------
 
 
 def _session(db: DbSession, org: Organization, session_id: uuid.UUID) -> AiSession:
@@ -125,15 +125,16 @@ def _session(db: DbSession, org: Organization, session_id: uuid.UUID) -> AiSessi
 
 
 def _provider(db: DbSession, org: Organization) -> LlmProvider:
-    """Провайдер организации за двумя воротами: частота и суточный бюджет.
+    """The organization's provider behind two gates: rate and daily budget.
 
-    Ворота стоят здесь, потому что здесь сходятся все пути к модели —
-    интервью, тезисы, черновик, разбиение задачи. Отдельная проверка в
-    каждом маршруте — это маршрут, в котором её однажды забудут.
+    The gates stand here because this is where all paths to the model converge —
+    the interview, the summary, the draft, splitting a task. A separate check in
+    every route is a route where someone will forget it one day.
 
-    Частота считается в базе тем же механизмом, что вход и регистрация:
-    предел, обнуляемый перезапуском, — не предел. Расход записывает
-    MeteredProvider — после ответа модели, потому что до ответа неизвестен.
+    The rate is counted in the database by the same mechanism as sign-in and
+    registration: a limit that a restart resets is no limit. Consumption is
+    recorded by MeteredProvider — after the model's answer, because before the
+    answer it is unknown.
     """
     settings = get_settings()
     if not throttle.hit(
@@ -170,8 +171,9 @@ def _out(session: AiSession) -> dict:
 class StartIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    #: Язык интервью фиксируется на сессии: переключивший интерфейс посреди
-    #: разговора получил бы иначе черновик на двух языках сразу.
+    #: The interview's language is fixed on the session: otherwise someone who
+    #: switched the interface mid-conversation would get a draft in two
+    #: languages at once.
     locale: str | None = None
 
 
@@ -233,7 +235,7 @@ def build_summary(
     membership: Membership = Depends(_writer),
     db: DbSession = Depends(get_db),
 ):
-    """Ворота 1: «вот что я понял про проект»."""
+    """Gate 1: "here is what I understood about the project"."""
     org = db.get(Organization, membership.org_id)
     session = _session(db, org, session_id)
     try:
@@ -272,7 +274,7 @@ def build_draft(
     membership: Membership = Depends(_writer),
     db: DbSession = Depends(get_db),
 ):
-    """Ворота 2, главные: черновик. В проект не записано ничего."""
+    """Gate 2, the main one: the draft. Nothing has been written into the project."""
     org = db.get(Organization, membership.org_id)
     session = _session(db, org, session_id)
     try:
@@ -280,8 +282,9 @@ def build_draft(
     except intake.IntakeError as error:
         raise HTTPException(status_code=409, detail=error.code)
     except LlmError as error:
-        # Сессия остаётся на прежнем шаге: переписка и всё выясненное никуда не
-        # делись, и повторить можно тем же запросом.
+        # The session stays on the previous step: the conversation and
+        # everything established are still there, and the same request can be
+        # repeated.
         raise _refuse(error)
     return _out(session)
 
@@ -307,8 +310,8 @@ def edit_draft(
     except intake.IntakeError as error:
         raise HTTPException(status_code=409, detail=error.code)
     except LlmError as error:
-        # Правку человека схема проверяет так же, как ответ модели: иначе
-        # черновик, испорченный руками, доехал бы до применения.
+        # A person's edit is validated by the schema just like the model's
+        # answer: otherwise a draft spoiled by hand would make it to being applied.
         raise HTTPException(status_code=422, detail=error.code)
     return _out(session)
 
@@ -327,7 +330,7 @@ def apply_session(
     membership: Membership = Depends(_writer),
     db: DbSession = Depends(get_db),
 ):
-    """Шаг 4: применение пачкой мутаций с общим batch_id."""
+    """Step 4: applying as a batch of mutations with a shared batch_id."""
     org = db.get(Organization, membership.org_id)
     session = _session(db, org, session_id)
     try:
@@ -339,7 +342,7 @@ def apply_session(
     return {"project_id": str(project.id), "batch_id": str(batch_id), "session": _out(session)}
 
 
-# --- точечное действие -------------------------------------------------------
+# --- a single, targeted action -----------------------------------------------
 
 
 def _own_task(db: DbSession, org: Organization, task_id: uuid.UUID) -> tuple[Project, Task]:
@@ -358,7 +361,7 @@ def propose_split(
     membership: Membership = Depends(_writer),
     db: DbSession = Depends(get_db),
 ):
-    """Предложение разбить задачу. Ничего не пишет: применяется по кнопке."""
+    """A suggestion to split a task. Writes nothing: it is applied by a button."""
     org = db.get(Organization, membership.org_id)
     _, task = _own_task(db, org, task_id)
     try:

@@ -9,19 +9,19 @@ import { isShiftCancelled } from "./ShiftReason";
 import { useProjectMutation } from "./useProjectMutation";
 
 /**
- * Что система делает со связями, когда автоперенос выключен.
+ * What the system does with links when auto-shifting is off.
  *
- * Тогда даты по связям не пересчитываются: связь — это стрелка на картинке, а
- * не правило расчёта. Но молчать, когда задача уехала на предшественника, тоже
- * нельзя: стрелка нарисуется наискось, и человек узнает об этом, только если
- * посмотрит именно туда.
+ * Then the dates are not recomputed along links: a link is an arrow in a picture, not a
+ * calculation rule. But staying silent when a task has travelled onto its predecessor will
+ * not do either: the arrow will be drawn askew, and the person will only learn about it if
+ * they look in exactly that spot.
  *
- * Поэтому предложение, а не действие. Отказ ничего не ломает — стрелка просто
- * рисуется наискось, как и рисовалась бы.
+ * Hence a nudge rather than an action. A refusal breaks nothing — the arrow is simply drawn
+ * askew, as it would have been.
  *
- * При включённом автопереносе (`auto_schedule`) предложения нет вовсе: сервер
- * уже подвинул последователей, и предлагать сделать сделанное значило бы
- * показать кнопку, которая ничего не меняет.
+ * With auto-shifting on (`auto_schedule`) there is no nudge at all: the server has already
+ * moved the successors, and offering to do what is done would mean showing a button that
+ * changes nothing.
  */
 
 type Notice = (taskId: string) => void;
@@ -30,9 +30,9 @@ const MovedTaskContext = createContext<{ moved: string | null; note: Notice } | 
 
 export function DependencyNudgeProvider({ children }: { children: ReactNode }) {
   const [moved, setMoved] = useState<string | null>(null);
-  // Один и тот же вызов на каждый сдвиг: предложение показывается по поводу
-  // последней подвинутой задачи, а не копится списком. Копящийся список
-  // предложений — это уже уведомления, которые надо разбирать.
+  // One and the same call on every shift: the nudge is shown about the last moved task rather
+  // than accumulating as a list. An accumulating list of nudges is already notifications,
+  // which have to be worked through.
   const note = useCallback<Notice>((taskId) => setMoved(taskId), []);
   const dismiss = useCallback(() => setMoved(null), []);
 
@@ -46,28 +46,27 @@ export function DependencyNudgeProvider({ children }: { children: ReactNode }) {
 const DismissContext = createContext<() => void>(() => {});
 
 /**
- * Отметка «эту задачу только что подвинули».
+ * The "this task was just moved" marker.
  *
- * Вне провайдера возвращает `null`: диаграмма рисуется и там, где двигать
- * нечего — например, на публичной странице.
+ * Outside the provider it returns `null`: the chart is also drawn where there is nothing to
+ * move — on the public page, for example.
  */
 export function useNoteMovedTask(): Notice | null {
   return useContext(MovedTaskContext)?.note ?? null;
 }
 
 /**
- * Насколько подвинуть последователя, чтобы он начинался после предшественника.
- * Больше нуля — связь нарушена; ноль и меньше — запас.
+ * How far to move a successor so that it starts after its predecessor. Greater than zero —
+ * the link is violated; zero and less — slack.
  *
- * Правило одно на всех, кто смотрит на связи: предложение здесь, знак на
- * стрелке ленты (см. Arrows) и пометка в карточке задачи. Написанное в каждом
- * месте заново, оно разошлось бы на включительном конце отрезка — совпадение
- * дат тоже нахлёст, и «+1» здесь ровно об этом.
+ * One rule for everyone who looks at links: the nudge here, the sign on the strip's arrow
+ * (see Arrows) and the marker in the task's card. Written anew in each place, it would
+ * diverge on the stretch's inclusive end — coinciding dates are an overlap too, and the "+1"
+ * here is about exactly that.
  */
 export function overlapDays(predecessor: Task, successor: Task): number {
-  // Начинается раньше окончания предшественника — значит, работа встала бы
-  // раньше, чем закончилось то, от чего она зависит. Ровно на следующий день
-  // после окончания — уже нормально.
+  // It starts earlier than the predecessor's end — which means the work would begin before
+  // what it depends on has finished. Exactly the day after the end is already fine.
   return daysBetween(successor.start_date, predecessor.end_date) + 1;
 }
 
@@ -83,19 +82,19 @@ export function DependencyNudge({
   const moved = useContext(MovedTaskContext)?.moved ?? null;
   const dismiss = useContext(DismissContext);
 
-  // При включённом автопереносе предлагать нечего: последователи уже уехали,
-  // и предложение сделать сделанное читается как сбой — человек нажимает
-  // «Подвинуть», ничего не происходит, и виноватой выглядит кнопка.
+  // With auto-shifting on there is nothing to offer: the successors have already travelled,
+  // and offering to do what is done reads as a glitch — the person presses "Move", nothing
+  // happens, and the button is the one that looks guilty.
   if (state.auto_schedule === true) return null;
 
   const shifted = state.tasks.find((task) => task.id === moved);
   if (!shifted) return null;
 
-  // По обе стороны связей подвинутой задачи. Она предшественник — наехать
-  // могла на своих последователей, и подвинуть предлагается их. Она
-  // последователь — её саму поставили раньше конца предшественника, и
-  // предложение касается её же: прежде эта половина молчала, человек ставил
-  // задачу поперёк связи и узнавал об этом только по косой стрелке.
+  // On both sides of the moved task's links. It is a predecessor — it may have run into its
+  // successors, and it is they who are offered to be moved. It is a successor — it was itself
+  // put before its predecessor's end, and the nudge concerns the task itself: this half used
+  // to stay silent, and a person would put a task across a link and learn about it only from
+  // a slanted arrow.
   const followers = state.dependencies
     .filter((edge) => edge.from_task_id === shifted.id)
     .map((edge) => state.tasks.find((task) => task.id === edge.to_task_id))
@@ -103,8 +102,8 @@ export function DependencyNudge({
     .map((task) => ({ task, days: overlapDays(shifted, task) }))
     .filter((item) => item.days > 0);
 
-  // Наибольшее из перекрытий: предшественников может быть несколько, а кнопка
-  // одна — сдвиг, после которого задача выходит за всех разом.
+  // The largest of the overlaps: there can be several predecessors while there is one button
+  // — a shift after which the task clears all of them at once.
   const behind = state.dependencies
     .filter((edge) => edge.to_task_id === shifted.id)
     .map((edge) => state.tasks.find((task) => task.id === edge.from_task_id))
@@ -122,8 +121,8 @@ export function DependencyNudge({
     )
       .then(dismiss)
       .catch((refusal: unknown) => {
-        // Отказ объяснять сдвиг — не ошибка: предложение просто остаётся на
-        // месте, и человек волен его принять позже или не принимать вовсе.
+        // Refusing to explain a shift is not an error: the nudge simply stays where it is, and
+        // the person is free to accept it later or not at all.
         if (!isShiftCancelled(refusal)) dismiss();
       });
   };
@@ -132,7 +131,7 @@ export function DependencyNudge({
     <div className="nudge" role="status">
       {affected.map(({ task, days }) => (
         <button key={task.id} type="button" className="button--quiet" onClick={() => move(task, days)}>
-          {/* Название задачи — содержимое пользователя: не переводится. */}
+          {/* The task's name is user content: it is not translated. */}
           {t("gantt.nudge", { name: task.name, days: t("common.days", { count: days }) })}
         </button>
       ))}

@@ -9,19 +9,19 @@ import { server } from "../test/server";
 
 beforeEach(projectFixtures);
 
-/** Задача уехала на пять дней вперёд — сдвиг, который окно обязано назвать. */
+/** The task travelled five days forward — a shift the panel must name. */
 const MOVED: ProjectState = {
   ...APPROVED,
   tasks: [{ ...APPROVED.tasks[0], start_date: "2026-03-09", end_date: "2026-03-13" }],
 };
 
-/** Та же задача, растянутая с пяти дней до восьми, но с места не сдвинутая. */
+/** The same task stretched from five days to eight, but not moved from its place. */
 const STRETCHED: ProjectState = {
   ...APPROVED,
   tasks: [{ ...APPROVED.tasks[0], duration_days: 8, end_date: "2026-03-13" }],
 };
 
-/** Задача, которую подвинули и растянули одним движением левой грани. */
+/** A task that was moved and stretched in one motion of the left edge. */
 const RESIZED: ProjectState = {
   ...APPROVED,
   tasks: [
@@ -34,7 +34,7 @@ const RESIZED: ProjectState = {
   ],
 };
 
-/** Летопись версий: снимок знает задачу, которой в проекте уже нет. */
+/** The version chronicle: the snapshot knows a task that is no longer in the project. */
 function withApprovals(snapshot: Record<string, unknown>) {
   server.use(
     http.get("/api/projects/p1/plan/approvals", () =>
@@ -50,7 +50,7 @@ function withApprovals(snapshot: Record<string, unknown>) {
   );
 }
 
-/** Одна запись журнала с причиной — то, из чего окно берёт «почему». */
+/** One journal entry with a reason — what the panel takes its "why" from. */
 function withReason(op: Record<string, unknown>, reason: string, at = "2026-03-05T10:00:00+00:00") {
   server.use(
     http.get("/api/projects/p1/revisions", () =>
@@ -70,7 +70,7 @@ function withReason(op: Record<string, unknown>, reason: string, at = "2026-03-0
   );
 }
 
-/** Открыть список изменений так, как его открывает человек, — из шапки. */
+/** Open the list of changes the way a person opens it — from the header. */
 async function openChanges(state: ProjectState = MOVED) {
   renderProject(state);
   await userEvent.click(await screen.findByRole("button", { name: /изменени/i }));
@@ -81,8 +81,8 @@ describe("панель изменений плана", () => {
   it("называет сдвиг парой «было → стало» и величиной", async () => {
     const dialog = await openChanges();
 
-    // Пара дат отвечает на «что именно поехало», бейдж — на «насколько».
-    // Порознь ни то ни другое не отвечает ни на один из этих вопросов.
+    // The pair of dates answers "what exactly moved", the badge answers "by how much". Apart,
+    // neither answers either of these questions.
     expect(within(dialog).getByText("4 мар → 9 мар")).toBeInTheDocument();
     expect(within(dialog).getByText("+5 дн.")).toBeInTheDocument();
   });
@@ -93,8 +93,7 @@ describe("панель изменений плана", () => {
       tasks: [{ ...APPROVED.tasks[0], start_date: "2026-03-02", end_date: "2026-03-06" }],
     });
 
-    // Хорошая новость обязана выглядеть хорошей: у бейджа тот же зелёный, что
-    // и у бейджа приближения на полоске ленты.
+    // Good news must look good: the badge has the same green as the "ahead" badge on a strip's bar.
     expect(within(dialog).getByText("−2 дн.")).toHaveClass("is-early");
   });
 
@@ -109,9 +108,9 @@ describe("панель изменений плана", () => {
   it("подвинутая и растянутая задача стоит в одной группе, но называет оба расхождения", async () => {
     const dialog = await openChanges(RESIZED);
 
-    // Группы делят задачи между собой — иначе сумма подписей тегов разошлась бы
-    // с числом на чипе. Умолчать о втором расхождении при этом нельзя: движение
-    // одно, а поехало у задачи двое.
+    // The groups divide the tasks between themselves — otherwise the sum of the tags' captions
+    // would diverge from the number on the chip. Passing over the second divergence will not do at
+    // that: the motion is one, but two things moved for the task.
     expect(within(dialog).getByText("Сдвиги дат")).toBeInTheDocument();
     expect(within(dialog).queryByText("Длительность")).toBeNull();
     expect(within(dialog).getByText("4 мар → 9 мар")).toBeInTheDocument();
@@ -127,8 +126,8 @@ describe("панель изменений плана", () => {
       ],
     });
 
-    // Человек, складывающий подписи тегов, обязан получать то же число, что
-    // написано на «Все» и на чипе в шапке.
+    // A person adding up the tags' captions must get the same number that is written on "All" and
+    // on the chip in the header.
     expect(within(dialog).getByRole("button", { name: "Все · 2" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Сдвиги · 1" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Новые · 1" })).toBeInTheDocument();
@@ -159,13 +158,13 @@ describe("панель изменений плана", () => {
     );
     const dialog = await openChanges();
 
-    // Причины уже вводят при сдвиге за порог — здесь они наконец отвечают на
-    // «почему», а не только на «что».
+    // The reasons are already entered at a shift past the threshold — here they finally answer
+    // "why" rather than only "what".
     expect(await within(dialog).findByText("Ждали контент от клиента")).toBeInTheDocument();
   });
 
   it("причина, названная до согласования, к расхождению не приписывается", async () => {
-    // Раньше согласования: этот сдвиг сам вошёл в базовый план.
+    // Earlier than the approval: this shift itself went into the baseline plan.
     withReason(
       { type: "move_task", task_id: "t1", start_date: "2026-03-04" },
       "Старое объяснение",
@@ -196,8 +195,8 @@ describe("панель изменений плана", () => {
   it("не накрывает ленту подложкой: список читают вместе с диаграммой", async () => {
     const dialog = await openChanges();
 
-    // Ради этого список и не стал окном: подложка гасила бы диаграмму ровно
-    // тогда, когда рубильник в шапке панели включает на ней призраки плана.
+    // It is for this that the list did not become a dialog: a backdrop would dim the chart exactly
+    // when the switch in the panel's header turns the plan's ghosts on in it.
     expect(screen.queryByTestId("modal-backdrop")).toBeNull();
     expect(within(dialog).getByText("4 мар → 9 мар")).toBeInTheDocument();
     expect(screen.getByTestId("ghost-t1")).toBeInTheDocument();
@@ -206,8 +205,8 @@ describe("панель изменений плана", () => {
   it("тумблер призрака включает тот же слой, что и флажок «Вид»", async () => {
     const dialog = await openChanges();
 
-    // Список и диаграмма рассказывают одно и то же двумя языками, и
-    // переключатель у них обязан быть один: два одинаковых разошлись бы.
+    // The list and the chart tell the same thing in two languages, and they must have one toggle:
+    // two identical ones would diverge.
     expect(screen.getByTestId("ghost-t1")).toBeInTheDocument();
     await userEvent.click(
       within(dialog).getByRole("switch", { name: "Показывать утверждённый план на диаграмме" }),
@@ -221,19 +220,19 @@ describe("панель изменений плана", () => {
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Логотип" }));
 
-    // Увидев расхождение, идут чинить именно эту задачу — и путь туда не должен
-    // проходить через закрытие панели и поиск строки глазами. Карточка выезжает
-    // на то же место справа, поэтому список ей это место уступает.
+    // Having seen a divergence, people go to fix that very task — and the way there must not run
+    // through closing the panel and hunting for the row by eye. The card slides out into the same
+    // place on the right, so the list gives that place up to it.
     expect(await screen.findByRole("complementary", { name: "Задача «Логотип»" })).toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Изменения после v1" })).toBeNull();
   });
 
   it("задача, чья карточка уже открыта, из списка не закрывается, а показывается", async () => {
     renderProject(MOVED);
-    // Карточка открыта щелчком по полоске — и остаётся, когда открывают список.
+    // The card was opened by a click on the bar — and stays when the list is opened.
     await userEvent.click(await screen.findByRole("button", { name: /Логотип/ }));
     await screen.findByRole("complementary", { name: "Задача «Логотип»" });
-    // Кнопка шапки — не одноимённая ссылка внутри карточки задачи.
+    // The header's button — not the identically named link inside the task's card.
     const header = screen.getByRole("button", { name: /Логотип/ }).closest("main") as HTMLElement;
     const openers = within(header)
       .getAllByRole("button", { name: /изменени/i })
@@ -243,8 +242,8 @@ describe("панель изменений плана", () => {
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Логотип" }));
 
-    // «Повторный щелчок закрывает» — правило строки ленты; выбор из списка —
-    // просьба показать, и карточка обязана остаться на экране.
+    // "A repeat click closes" is a strip row's rule; a choice from the list is a request to show,
+    // and the card must stay on screen.
     expect(await screen.findByRole("complementary", { name: "Задача «Логотип»" })).toBeInTheDocument();
   });
 
@@ -261,8 +260,8 @@ describe("панель изменений плана", () => {
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Переутвердить…" }));
 
-    // Не переутверждает молча: подтверждение у действия одно, и второе,
-    // заведённое ради второй кнопки, разошлось бы с первым.
+    // It does not re-approve silently: an action has one confirmation, and a second one created for
+    // the sake of a second button would diverge from the first.
     await waitFor(() =>
       expect(screen.queryByRole("complementary", { name: "Изменения после v1" })).toBeNull(),
     );
@@ -280,8 +279,8 @@ describe("панель изменений плана", () => {
   });
 
   it("отказ журнала и летописи окно не ломает", async () => {
-    // Роль без права на журнал получает отказ, и список расхождений от этого
-    // не портится: причины и удалённые — добавка, а не основа.
+    // A role without the right to the journal gets a refusal, and the divergence list is none the
+    // worse for it: the reasons and the deleted are an addition rather than the basis.
     server.use(
       http.get("/api/projects/p1/revisions", () => new HttpResponse(null, { status: 403 })),
       http.get("/api/projects/p1/plan/approvals", () => new HttpResponse(null, { status: 403 })),
@@ -304,8 +303,8 @@ describe("подтверждение переутверждения", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Пересогласовать" }));
 
-    // Прежде вопрос предупреждал о последствии, но не называл ни размера, ни
-    // рода: пять перенесённых задач и пять дописанных — разные новости.
+    // The question used to warn about the consequence but name neither its size nor its kind: five
+    // moved tasks and five added ones are different news.
     expect(await screen.findByText("Переутвердить план как v2?")).toBeInTheDocument();
     expect(
       screen.getByText(/Будут зафиксированы 2 изменения: 1 сдвиг, 1 новая задача\./),

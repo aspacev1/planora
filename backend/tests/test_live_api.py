@@ -11,16 +11,16 @@ from app.main import app
 
 @pytest.fixture
 def client(db):
-    """TestClient в режиме контекстного менеджера — и это здесь обязательно.
+    """A TestClient in context-manager mode — and that is mandatory here.
 
-    Без `with` TestClient заводит свой цикл событий на каждый запрос, и сокет
-    оказывается в одном цикле, а фоновая задача маршрута мутаций — в другом.
-    Рассылка тогда кладёт сообщение в очередь чужого цикла из чужого потока и
-    не будит его: тест зависает на ровном месте.
+    Without `with`, TestClient creates an event loop of its own per request, and the
+    socket ends up in one loop while the mutation route's background task is in
+    another. The broadcast then puts a message into another loop's queue from another
+    thread and does not wake it: the test hangs for no reason.
 
-    `db_scope` подменяется на ту же сессию, что и `get_db`: сокет закрывает
-    свою сессию сам, а закрытая сессия фикстуры откатила бы транзакцию теста
-    вместе со всем, что тест успел создать.
+    `db_scope` is substituted with the same session as `get_db`: the socket closes its
+    own session, and a closed fixture session would roll back the test's transaction
+    together with everything the test had created.
     """
 
     def _override_get_db():
@@ -63,10 +63,10 @@ def make_category(client, project_id, name="Design"):
 
 
 def refusal_code(client, project_id) -> int:
-    """Код, которым сервер закрыл сокет.
+    """The code the server closed the socket with.
 
-    Отказ приходит уже после принятия — только так браузер узнаёт код, а не
-    видит одинаковое «рукопожатие не состоялось» на все случаи жизни.
+    The refusal comes after acceptance — only that way does the browser learn a code
+    rather than seeing the same "the handshake did not happen" in every case.
     """
     with client.websocket_connect(f"/api/projects/{project_id}/live") as socket:
         with pytest.raises(WebSocketDisconnect) as refusal:
@@ -87,7 +87,7 @@ def test_a_mutation_reaches_a_connected_client(authed, project_id):
 
 
 def test_every_listener_of_the_project_gets_the_revision(authed, project_id):
-    """Двух подключений мало для «рассылки», если проверять одно из них."""
+    """Two connections are not enough for "a broadcast" if only one of them is checked."""
     with (
         authed.websocket_connect(f"/api/projects/{project_id}/live") as first,
         authed.websocket_connect(f"/api/projects/{project_id}/live") as second,
@@ -103,8 +103,8 @@ def test_a_change_in_another_project_does_not_reach_this_socket(authed, project_
 
     with authed.websocket_connect(f"/api/projects/{other}/live") as socket:
         make_category(authed, project_id, "Чужая")
-        # Сообщение о своём проекте приходит следом: без него тест не отличал
-        # бы «не прислали чужое» от «не прислали ничего вообще».
+        # A message about one's own project arrives next: without it the test would not
+        # tell "did not send someone else's" from "did not send anything at all".
         make_category(authed, other, "Своя")
 
         event = socket.receive_json()
@@ -141,11 +141,11 @@ def test_the_event_carries_the_reason_as_written(authed, project_id):
 
 
 def test_the_socket_reminds_of_itself_while_the_project_is_quiet(authed, project_id, monkeypatch):
-    """Молчащий сокет и оборванный сокет обязаны различаться.
+    """A silent socket and a broken socket must be distinguishable.
 
-    Без этого напоминания клиент не может отличить «в проекте ничего не
-    происходит» от «связи давно нет»: у половины обрывов (уснувший ноутбук,
-    сменившаяся сеть) закрытия соединения не случается вовсе.
+    Without this reminder a client cannot tell "nothing is happening in the project"
+    from "there has been no connection for a while": in half of all drops (a laptop gone
+    to sleep, a changed network) no connection close happens at all.
     """
     import app.api.live_routes as live_routes
 
@@ -156,10 +156,10 @@ def test_the_socket_reminds_of_itself_while_the_project_is_quiet(authed, project
 
 
 def test_the_socket_does_not_take_orders(authed, project_id):
-    """Слушающий сокет — только слушающий.
+    """A listening socket is listening only.
 
-    Единственная дорога изменения — POST мутации, где проверяется право.
-    Присланное в сокет обязано быть выброшено, а не разобрано и применено.
+    The only road to a change is a mutation POST, where the permission is checked. What
+    is sent into the socket must be discarded rather than parsed and applied.
     """
     with authed.websocket_connect(f"/api/projects/{project_id}/live") as socket:
         socket.send_json({"type": "create_category", "name": "Взлом", "color": "#000000"})
@@ -179,14 +179,14 @@ def test_the_socket_does_not_take_orders(authed, project_id):
 
 
 def test_the_revision_is_committed_before_it_is_broadcast(authed, project_id, db, monkeypatch):
-    """Порядок «сначала в базу, потом в эфир» — не деталь реализации.
+    """The order "into the database first, on the air second" is not an implementation detail.
 
-    Клиент на сигнал перезапрашивает проект целиком. Придя раньше коммита, он
-    не увидел бы изменения, а второго сигнала не будет — экран остался бы
-    устаревшим до следующей чужой правки.
+    On a signal the client re-requests the whole project. Arriving before the commit it
+    would not see the change, and there will be no second signal — the screen would stay
+    stale until the next edit by someone else.
 
-    Проверяется именно порядок вызовов: сама рассылка в этот момент кладёт
-    словарь в память, и «увидел бы или нет» из теста не наблюдаемо.
+    It is the order of the calls that is checked: the broadcast at that moment puts a
+    dict into memory, and "would they have seen it" is not observable from a test.
     """
     from app.live import hub
 
@@ -222,7 +222,7 @@ def test_an_unauthenticated_socket_is_closed(client, db):
 
 
 def test_a_project_of_another_organization_is_closed_as_missing(authed, db):
-    """Чужой проект неотличим от несуществующего и здесь, а не только в HTTP."""
+    """Someone else's project is indistinguishable from a nonexistent one here too, not only over HTTP."""
     from app.models import Organization, Project
 
     org = Organization(name="Globex", slug="globex")
@@ -239,12 +239,12 @@ def test_a_project_of_another_organization_is_closed_as_missing(authed, db):
 
 
 def test_a_role_without_read_permission_is_closed_as_missing(authed, project_id, monkeypatch):
-    """Роль без права читать проект не должна узнать, что он есть.
+    """A role with no right to read a project must not learn that it exists.
 
-    Сегодня такую роль через сокет не воспроизвести: `client` и гость читают
-    проект только по выданному гранту, а грантов ещё нет (план 5). Поэтому
-    подменяется само решение — проверяется код маршрута, а не будущая
-    инфраструктура грантов. Тот же приём, что и в test_project_api.
+    Today such a role cannot be reproduced through the socket: `client` and a guest read
+    a project only under an issued grant, and there are no grants yet (plan 5). So the
+    decision itself is substituted — the route's code is what is checked rather than the
+    future grant infrastructure. The same technique as in test_project_api.
     """
     import app.api.live_routes as live_routes
 
@@ -254,9 +254,9 @@ def test_a_role_without_read_permission_is_closed_as_missing(authed, project_id,
 
 
 def test_the_internal_note_is_stripped_for_a_role_that_may_not_read_it(authed, project_id, monkeypatch):
-    """Заметка не должна уезжать в сокет тому, кому её не показывают в HTTP.
+    """A note must not ride out into the socket to someone who is not shown it over HTTP.
 
-    Право подменяется по той же причине, что и в тесте выше.
+    The permission is substituted for the same reason as in the test above.
     """
     import app.access as access
 
@@ -289,13 +289,13 @@ def test_the_internal_note_is_stripped_for_a_role_that_may_not_read_it(authed, p
         assert "internal_note" not in event["op"]
 
 
-# --- волна 2.10: Origin на рукопожатии ---------------------------------------
+# --- wave 2.10: Origin on the handshake ---------------------------------------
 
 
 def test_a_socket_from_a_foreign_origin_is_refused(authed, project_id):
-    """Кука уезжает с рукопожатием с любого сайта (SameSite=Lax считает его
-    навигацией), и без проверки Origin чужая страница читала бы живую ленту
-    от имени залогиненного посетителя."""
+    """The cookie rides out with a handshake from any site (SameSite=Lax counts it as
+    navigation), and without an Origin check a foreign page would read the live feed on
+    behalf of a signed-in visitor."""
     with authed.websocket_connect(
         f"/api/projects/{project_id}/live", headers={"origin": "https://evil.example"}
     ) as socket:
@@ -308,4 +308,4 @@ def test_a_socket_from_our_own_origin_connects(authed, project_id):
     with authed.websocket_connect(
         f"/api/projects/{project_id}/live", headers={"origin": "http://testserver"}
     ):
-        pass  # рукопожатие состоялось — этого достаточно
+        pass  # the handshake happened — that is enough

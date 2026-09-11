@@ -1,19 +1,18 @@
 import { request } from "./client";
 
-/** Ключ состояния публикации одного проекта. */
+/** The key of one project's publication state. */
 export function shareQueryKey(projectId: string) {
   return ["project", projectId, "share"] as const;
 }
 
 export type Share = {
   /**
-   * Разрешены ли публичные ссылки вообще: рубильник установки и настройка
-   * организации. Приходит и тогда, когда ссылки ещё нет, — иначе интерфейс не
-   * отличит «не опубликован» от «публиковать запрещено» и предложит кнопку,
-   * которая кончится отказом.
+   * Whether public links are allowed at all: the install's switch and the organization's setting. It
+   * arrives even when there is no link yet — otherwise the interface would not tell "not published"
+   * from "publishing is forbidden" and would offer a button that ends in a refusal.
    */
   allowed: boolean;
-  /** Полный адрес страницы. `null` — проект не опубликован. */
+  /** The page's full address. `null` — the project is not published. */
   url: string | null;
   comments_enabled: boolean;
   created_at: string | null;
@@ -23,14 +22,14 @@ export function getShare(projectId: string): Promise<Share> {
   return request<Share>(`/api/projects/${projectId}/share`);
 }
 
-/** Первый выпуск ссылки. Если она уже есть, сервер ответит 409 — повтор
- * запроса не убивает только что разосланный адрес. */
+/** The link's first issue. If it already exists the server answers with a 409 — a repeated request
+ * does not kill an address that has just been sent out. */
 export function issueShare(projectId: string): Promise<Share> {
   return request<Share>(`/api/projects/${projectId}/share`, { method: "POST" });
 }
 
-/** Перевыпуск: старый адрес умирает мгновенно. Отдельный вызов, чтобы
- * «создать» и «убить прежний» нельзя было перепутать ретраем. */
+/** A reissue: the old address dies instantly. A separate call, so that "create" and "kill the
+ * previous one" cannot be confused by a retry. */
 export function rotateShare(projectId: string): Promise<Share> {
   return request<Share>(`/api/projects/${projectId}/share/rotate`, { method: "POST" });
 }

@@ -7,9 +7,9 @@ import { server } from "../test/server";
 import { renderApp, sessionHandlers } from "../test/utils";
 
 /**
- * Импорт из Jira глазами человека — тем же принципом, что и у интервью с AI
- * (AiIntake.test.tsx): ненастроенное подключение объясняет, куда идти, а не
- * прячет форму, и до нажатия «Импортировать» ни один запрос импорта не уходит.
+ * Import from Jira through a person's eyes — by the same principle as the AI interview
+ * (AiIntake.test.tsx): an unconfigured connection explains where to go rather than hiding the form, and
+ * until "Import" is pressed not a single import request goes out.
  */
 
 function jiraFixtures(configured = true) {
@@ -39,7 +39,7 @@ function jiraFixtures(configured = true) {
         { status: 201 },
       );
     }),
-    // После импорта экран уходит на проект: его состояние тоже надо ответить.
+    // After the import the screen leaves for the project: its state has to be answered too.
     http.get("/api/projects/p1", () => HttpResponse.json({ detail: "project_not_found" }, { status: 404 })),
   );
   return calls;

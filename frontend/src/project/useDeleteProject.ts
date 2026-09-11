@@ -5,25 +5,24 @@ import type { Project } from "../api/projects";
 import { useToast } from "../components/toast";
 import { useLocale } from "../i18n/LocaleProvider";
 
-/** Что удаляем. Имя — не для запроса, а для тоста; см. ниже, почему оно здесь. */
+/** What is being deleted. The name is not for the request but for the toast; see below why it is here. */
 export type DeletedProject = { id: string; name: string };
 
 /**
- * Удаление проекта вместе со всем, что после него обязано случиться в кэше.
+ * Deleting a project together with everything that must happen in the cache afterwards.
  *
- * Отдельный хук, а не мутация внутри экрана: расстаться с проектом можно из
- * его настроек и с карточки в списке, а правил после успеха три — убрать
- * проект из списка, выбросить его состояние и назвать человеку то, что
- * удалено. Второй набор этих правил разошёлся бы с первым на первой же
- * правке, и разошёлся бы молча.
+ * A separate hook rather than a mutation inside a screen: a project can be parted with from its
+ * settings and from a card in the list, and there are three rules after a success — remove the
+ * project from the list, throw out its state and name to the person what was deleted. A second set
+ * of these rules would diverge from the first on the very first edit, and diverge silently.
  *
- * Имя приходит вместе с запросом, а не читается из кэша в обработчике: к
- * моменту успеха проекта нет ни на сервере, ни в кэше — а назвать в тосте
- * нужно именно то, что удалили.
+ * The name arrives with the request rather than being read from the cache in the handler: by the
+ * time of the success the project is neither on the server nor in the cache — while what has to be
+ * named in the toast is precisely what was deleted.
  *
- * `onDeleted` — то, что после удаления делает уже сам экран: настройки уходят
- * на список, список закрывает окно подтверждения. Кэш к этому отношения не
- * имеет, и хук за экран этого не решает.
+ * `onDeleted` is what the screen itself does after the deletion: the settings go to the list, the
+ * list closes the confirmation dialog. The cache has nothing to do with that, and the hook does not
+ * decide it for the screen.
  */
 export function useDeleteProject({ onDeleted }: { onDeleted?: () => void } = {}) {
   const { t } = useLocale();
@@ -33,21 +32,21 @@ export function useDeleteProject({ onDeleted }: { onDeleted?: () => void } = {})
   return useMutation({
     mutationFn: ({ id }: DeletedProject) => deleteProject(id),
     onSuccess: (_result, { id, name }: DeletedProject) => {
-      // Список правится на месте, а не только помечается устаревшим: до
-      // ответа на перезапрос он показывал бы карточку того, чего уже нет, —
-      // и человек, нажавший «Удалить», секунду смотрел бы на несделанное.
+      // The list is edited in place rather than merely marked stale: until the refetch answers it
+      // would show a card of something that no longer exists — and a person who pressed "Delete"
+      // would spend a second looking at something undone.
       queryClient.setQueryData(PROJECTS_QUERY_KEY, (projects: Project[] | undefined) =>
         projects?.filter((project) => project.id !== id),
       );
-      // Кэш проекта не инвалидируется, а выбрасывается: перезапрос по этому
-      // ключу теперь может ответить только 404-й.
+      // The project's cache is not invalidated but thrown out: a refetch by this key can now only
+      // answer with a 404.
       queryClient.removeQueries({ queryKey: projectQueryKey(id) });
-      // И всё же перезапрашивается: правка на месте — это догадка о том, что
-      // на сервере, а список обязан сойтись с ним, а не с ней.
+      // And it is refetched all the same: an in-place edit is a guess about what is on the server,
+      // and the list must agree with it rather than with the guess.
       void queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
-      // Отмены тост не предлагает намеренно — вместе с проектом ушёл журнал
-      // ревизий, и возвращать состояние неоткуда; об этом честно сказано и в
-      // подтверждении, которое человек только что прочитал.
+      // The toast deliberately offers no undo — the revision journal went with the project, and
+      // there is nowhere to bring the state back from; that is said honestly in the confirmation the
+      // person has just read too.
       showToast({ message: t("settings.project.deleted", { name }) });
       onDeleted?.();
     },

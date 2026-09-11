@@ -1,16 +1,17 @@
 """membership project scoped
 
-memberships.project_scoped — видит ли это членство только те проекты, куда его
-позвали поимённо, независимо от роли. Ролям `client` и гостю по ссылке это и
-так решает сама роль (см. `_NEEDS_GRANT` в app.access) — колонка нужна ради
-`editor` и `viewer`: приглашающий вправе позвать редактора или наблюдателя в
-конкретные проекты, а не сразу во все проекты организации.
+memberships.project_scoped — whether this membership sees only the projects it was
+individually invited to, regardless of the role. For the `client` role and for a
+link-holding guest the role itself already decides this (see `_NEEDS_GRANT` in
+app.access) — the column exists for the sake of `editor` and `viewer`: an inviter
+is entitled to invite an editor or a viewer into particular projects rather than
+into all of the organization's projects at once.
 
-server_default остаётся в схеме, а не снимается после заполнения — тем же
-рассуждением, что и у projects.auto_schedule: NOT NULL без значения по
-умолчанию ломал бы всякий INSERT мимо ORM. False — обязанный выбор: приглашение
-без отмеченных проектов не должно само по себе сужать роль, которая по
-умолчанию видит всю организацию.
+The server_default stays in the schema rather than being dropped after the
+backfill — by the same reasoning as with projects.auto_schedule: a NOT NULL with no
+default would break every INSERT around the ORM. False is the obligatory choice: an
+invitation with no projects selected must not by itself narrow a role that sees the
+whole organization by default.
 
 Revision ID: c1d4a8f6e293
 Revises: e3c9a5d17b42

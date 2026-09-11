@@ -43,12 +43,11 @@ def test_registration_creates_user_org_and_owner_membership(db):
 
 
 def test_the_organization_speaks_the_language_of_its_founder(db):
-    """Язык организации — язык того, кто её завёл.
+    """An organization's language is the language of whoever created it.
 
-    На нём уходят письма организации, и прежде всего приглашения. Раньше здесь
-    оставался жёсткий дефолт модели (`az`), и русскоязычный владелец рассылал
-    команде приглашения по-азербайджански, не имея способа заметить это из
-    интерфейса.
+    Its messages go out in that language, and invitations above all. This used to
+    keep the model's hard default (`az`), and a Russian-speaking owner sent the team
+    invitations in Azerbaijani with no way to notice it from the interface.
     """
     user = register(db, name="Алексей", email="alex@example.com", password="s3cret-pass", locale="ru")
     db.flush()
@@ -77,10 +76,10 @@ def test_org_slug_gets_a_suffix_when_taken(db):
 
 
 def test_org_slug_collision_at_insert_time_retries_instead_of_failing(db, monkeypatch):
-    """Симулирует гонку: SELECT-проверка слага устарела (как если бы её
-    прошёл конкурентный запрос за долю секунды до нас), и первая попытка
-    вставки словит IntegrityError на уникальном индексе. register() должен
-    тихо повторить попытку с новым суффиксом, а не поднять исключение."""
+    """Simulates a race: the SELECT check of the slug has gone stale (as if a
+    concurrent request had passed it a fraction of a second before us), and the first
+    insert attempt catches an IntegrityError on the unique index. register() must
+    quietly retry with a new suffix rather than raise."""
     import app.slugs as slugs
 
     register(db, name="Acme", email="first@example.com", password="s3cret-pass")
@@ -92,7 +91,7 @@ def test_org_slug_collision_at_insert_time_retries_instead_of_failing(db, monkey
     def flaky(name, *, forced, is_taken, fallback):
         calls["n"] += 1
         if calls["n"] == 1:
-            return "acme"  # уже занято first@example.com — вставка упадёт
+            return "acme"  # already taken by first@example.com — the insert will fail
         return original(name, forced=True, is_taken=is_taken, fallback=fallback)
 
     monkeypatch.setattr(slugs, "_candidate", flaky)
@@ -115,7 +114,7 @@ def test_authenticate_accepts_the_right_password_and_rejects_the_wrong_one(db):
     assert authenticate(db, email="ghost@example.com", password="s3cret-pass") is None
 
 
-# ---- Жизненный цикл сессии --------------------------------------------------
+# ---- The session's lifecycle -------------------------------------------------
 
 
 def test_expired_session_does_not_authenticate(db):
@@ -159,16 +158,16 @@ def test_logout_invalidates_the_server_side_session_not_just_the_cookie(db):
     assert exc_info.value.status_code == 401
 
 
-# ---- Маршруты через TestClient ----------------------------------------------
+# ---- The routes through TestClient -------------------------------------------
 
 
 @pytest.fixture
 def client(db):
-    """TestClient, у которого get_db переопределён на сессию фикстуры `db`.
+    """A TestClient whose get_db is overridden with the `db` fixture's session.
 
-    Переопределение отдаёт ровно ту же сессию и не делает commit — иначе
-    внешняя транзакция фикстуры `db` закрылась бы раньше времени и
-    изоляция между тестами исчезла бы (см. tests/conftest.py).
+    The override returns exactly the same session and does not commit — otherwise the
+    `db` fixture's outer transaction would close ahead of time and the isolation
+    between tests would disappear (see tests/conftest.py).
     """
 
     def _override_get_db():
@@ -201,8 +200,8 @@ def test_register_route_returns_201_and_sets_an_httponly_cookie(client):
 
 
 def test_register_route_names_the_new_organization_after_the_company_field(client, db):
-    """Организация называется компанией из формы, а не именем человека —
-    иначе поле company_name было бы витриной, ничего не решающей."""
+    """The organization is named after the company from the form rather than after
+    the person — otherwise the company_name field would be a shop window deciding nothing."""
     response = client.post(
         "/api/auth/register",
         json={
@@ -220,9 +219,9 @@ def test_register_route_names_the_new_organization_after_the_company_field(clien
 
 
 def test_register_route_requires_a_company_name_for_free_signup(client):
-    """Без приглашения регистрация заводит новую организацию — и обязана
-    знать, как её назвать. Пустая и отсутствующая строка — тот же отказ:
-    валидатор схемы сводит одно к другому."""
+    """Without an invitation, registration creates a new organization — and must know
+    what to call it. An empty and a missing string are the same refusal: the schema's
+    validator reduces one to the other."""
     for payload in (
         {"name": "Alex", "email": "alex@example.com", "password": "s3cret-pass"},
         {
@@ -298,9 +297,9 @@ def test_login_route_rejects_a_wrong_password_with_401(client):
 
 
 def test_register_route_maps_an_unprotected_integrity_error_to_409(client, monkeypatch):
-    """Защитная сетка маршрута: даже если register() когда-нибудь пропустит
-    IntegrityError (например, после будущей правки, не защищённой
-    SAVEPOINT-ом), маршрут не должен отвечать 500."""
+    """The route's safety net: even if register() one day lets an IntegrityError
+    through (after a future edit unprotected by a SAVEPOINT, for instance), the route
+    must not answer 500."""
     import app.api.auth_routes as routes_module
     from sqlalchemy.exc import IntegrityError
 
@@ -340,11 +339,11 @@ def test_logout_route_kills_the_session_so_the_same_cookie_stops_working(client)
     assert me_response.status_code == 401
 
 
-# ---- Атрибут Secure куки следует за схемой PUBLIC_BASE_URL -----------------
+# ---- The cookie's Secure attribute follows the PUBLIC_BASE_URL scheme --------
 
 
 class _FakeRequest:
-    """Ровно то, что читает _cookie_is_secure: схема и заголовки."""
+    """Exactly what _cookie_is_secure reads: the scheme and the headers."""
 
     def __init__(self, scheme: str = "http", headers: dict[str, str] | None = None):
         from types import SimpleNamespace
@@ -372,11 +371,11 @@ def test_cookie_is_not_secure_when_public_base_url_is_http(monkeypatch):
 
 
 def test_cookie_is_secure_behind_a_tls_terminating_proxy(monkeypatch):
-    """Волна 2.7: боевой признак — сам запрос, а не только PUBLIC_BASE_URL.
+    """Wave 2.7: the production signal is the request itself, not PUBLIC_BASE_URL alone.
 
-    За прокси с TLS запрос приходит с X-Forwarded-Proto: https, и кука
-    обязана быть Secure, даже если PUBLIC_BASE_URL никто не задал (частый
-    случай: домен появился раньше, чем переменная).
+    Behind a proxy with TLS the request arrives with X-Forwarded-Proto: https, and the
+    cookie must be Secure even if nobody set PUBLIC_BASE_URL (a common case: the
+    domain appeared before the variable).
     """
     monkeypatch.setenv("PUBLIC_BASE_URL", "http://localhost:8000")
     get_settings.cache_clear()
@@ -398,12 +397,12 @@ def test_cookie_secure_setting_overrides_the_guesswork(monkeypatch):
 
 
 def test_a_corrupted_hash_is_a_failed_login_not_a_crash():
-    """Испорченная строка в password_hash поднимает InvalidHashError, а не
-    VerifyMismatchError, и раньше долетала до клиента пятисоткой — хотя
-    правильный ответ тот же: войти не удалось."""
+    """A corrupted string in password_hash raises InvalidHashError rather than
+    VerifyMismatchError, and used to reach the client as a 500 — even though the right
+    answer is the same: sign-in failed."""
     assert verify_password("s3cret-pass", "не хеш вовсе") is False
     assert verify_password("s3cret-pass", "") is False
-    # обрезанный настоящий хеш
+    # a truncated real hash
     assert verify_password("s3cret-pass", hash_password("s3cret-pass")[:20]) is False
 
 

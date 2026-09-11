@@ -22,7 +22,7 @@ describe("защищённые маршруты", () => {
   });
 
   it("не мигает экраном входа, пока проверяет сессию", async () => {
-    // Ответ не приходит: состояние «проверяю» иначе не поймать.
+    // The answer never arrives: the "checking" state cannot be caught otherwise.
     server.use(http.get("/api/auth/me", () => delay("infinite")));
 
     renderApp({ route: "/projects" });
@@ -50,7 +50,7 @@ describe("защищённые маршруты", () => {
       http.get("/api/auth/me", () => HttpResponse.json(USER)),
       http.get("/api/org", () => HttpResponse.json(ORG)),
       http.get("/api/projects", () => HttpResponse.json([])),
-      // Сессия просрочена: выход отвечает тем же 401, что и всё остальное.
+      // The session has expired: signing out answers with the same 401 as everything else.
       http.post("/api/auth/logout", () =>
         HttpResponse.json({ detail: "session_expired" }, { status: 401 }),
       ),

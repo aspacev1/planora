@@ -1,9 +1,9 @@
-"""Приглашения: выпуск и управление ими внутри организации плюс приём по ссылке.
+"""Invitations: issuing and managing them inside an organization, plus accepting by link.
 
-Два роутера, потому что двери две. Управление живёт под `/api/org/...` и
-требует прав владельца; приём — под `/api/invitations/...` и открыт тому, у
-кого на руках ссылка: человек, который ещё не в организации, по определению не
-может пройти проверку прав в ней.
+Two routers, because there are two doors. Management lives under `/api/org/...`
+and requires owner rights; acceptance lives under `/api/invitations/...` and is
+open to whoever holds the link: a person who is not in the organization yet
+cannot, by definition, pass a permission check inside it.
 """
 
 import uuid
@@ -36,13 +36,13 @@ from app.orgs import current_membership, switch
 router = APIRouter(prefix="/api/org/invitations", tags=["invitations"])
 public_router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 
-#: Сколько адресов принимается за один раз. Потолок нужен не вместо часового
-#: лимита, а до него: список на десять тысяч адресов не должен доходить до
-#: базы, чтобы получить отказ.
+#: How many addresses are accepted at once. The ceiling is needed not instead of
+#: the hourly limit but before it: a list of ten thousand addresses must not
+#: reach the database just to be refused.
 MAX_EMAILS_PER_REQUEST = 50
 
-#: Коды отказов домена, у которых статус ответа не 422. Всё остальное —
-#: непринятая форма запроса, то есть 422.
+#: Domain refusal codes whose response status is not 422. Everything else is a
+#: request shape that was not accepted, that is, a 422.
 _STATUS_BY_CODE = {
     "invite_rate_limited": 429,
     "project_not_found": 404,
@@ -50,8 +50,9 @@ _STATUS_BY_CODE = {
     "invite_revoked": 409,
     "invite_accepted": 409,
     "invite_wrong_email": 403,
-    # Не 422: форма запроса безупречна, а вот состояние организации таково,
-    # что звать этого человека больше некуда — он уже внутри.
+    # Not a 422: the request's shape is impeccable, but the organization's state
+    # is such that there is nowhere left to invite this person — they are already
+    # inside.
     "already_member": 409,
 }
 
@@ -61,13 +62,14 @@ def as_http(error: InvitationError) -> HTTPException:
 
 
 class InviteIn(BaseModel):
-    # Пустой список — не забывчивость, а второй способ доставки: приглашение
-    # без адреса, ссылку от которого зовущий отправит как ему удобно.
+    # An empty list is not forgetfulness but a second means of delivery: an
+    # invitation with no address, whose link the inviter will send however they
+    # find convenient.
     emails: list[EmailStr] = Field(default_factory=list, max_length=MAX_EMAILS_PER_REQUEST)
     role: str
     project_ids: list[uuid.UUID] = Field(default_factory=list)
-    #: Отправлять ли письма. Копирование ссылки — равноправный путь, а не
-    #: запасной, поэтому отправка спрашивается, а не подразумевается.
+    #: Whether to send messages. Copying the link is an equal path rather than a
+    #: fallback, so sending is asked about rather than assumed.
     deliver: bool = True
 
 
@@ -80,12 +82,12 @@ class IssuedOut(BaseModel):
     email: str | None
     role: str
     expires_at: str
-    #: Открытая ссылка. Возвращается только в ответ на выпуск и больше нигде:
-    #: в базе лежит хеш токена, и восстановить её позже невозможно.
+    #: The plain link. Returned only in response to an issue and nowhere else:
+    #: the database holds a hash of the token, and restoring it later is impossible.
     url: str
     sent: bool
-    #: Почему письмо не ушло. Приглашение при этом создано — оно существует
-    #: независимо от того, доставили его письмом или нет.
+    #: Why the message did not go out. The invitation is created regardless — it
+    #: exists whether or not it was delivered by mail.
     mail_error: str | None = None
 
 
@@ -103,8 +105,9 @@ class InvitationOut(BaseModel):
 
 
 class InvitationsOut(BaseModel):
-    #: Настроена ли в установке почта. Без неё кнопка отправки не показывается
-    #: вовсе — угадывать это по молчанию сервера интерфейс не должен.
+    #: Whether mail is configured in this installation. Without it the send
+    #: button is not shown at all — the interface must not have to guess this
+    #: from the server's silence.
     mail_enabled: bool
     invitations: list[InvitationOut]
 
@@ -112,8 +115,9 @@ class InvitationsOut(BaseModel):
 class PreviewOut(BaseModel):
     org_name: str
     role: str
-    #: Адрес, которому приглашение адресовано. Показывается, чтобы вошедший под
-    #: другим аккаунтом понял, чьё это приглашение, и не гадал.
+    #: The address the invitation is addressed to. Shown so that someone signed
+    #: in under a different account understands whose invitation this is instead
+    #: of guessing.
     email: str | None
     inviter_name: str | None
     expires_at: str
@@ -127,14 +131,15 @@ class JoinedOut(BaseModel):
 
 
 def _require_org_admin(membership: Membership) -> None:
-    """Звать в организацию вправе владелец: ORG_ADMIN есть только у него.
+    """The owner may invite into an organization: only they have ORG_ADMIN.
 
-    Спецификация добавляет к этому второе условие — «до подтверждения адреса
-    нельзя приглашать других», и его здесь нет сознательно. Подтверждение
-    адреса есть (`app.email_verification`), но оно не запирает приглашения:
-    в установке без почты `users.email_verified_at` пуст у всех, и проверка
-    закрыла бы приглашения вообще для всех, включая того, кто эту установку
-    развернул, — то есть сломала бы ровно ту функцию, ради которой её пишут.
+    The specification adds a second condition to this — "you may not invite
+    others before confirming your address" — and it is deliberately absent here.
+    Address confirmation does exist (`app.email_verification`), but it does not
+    lock invitations: in an installation without mail, `users.email_verified_at`
+    is empty for everyone, and the check would close invitations for absolutely
+    everyone, including whoever deployed the installation — that is, it would
+    break the very feature it is written for.
     """
     if not can(parse_role(membership.role), Action.ORG_ADMIN):
         raise HTTPException(status_code=403, detail="forbidden")
@@ -157,16 +162,18 @@ def _deliver(
     inviter_name: str,
     now: datetime,
 ) -> tuple[bool, str | None]:
-    """Отправляет письмо, если есть кому и чем. Неудача не откатывает выпуск.
+    """Sends a message if there is someone and something to send. A failure does not roll the issue back.
 
-    Возвращается признак отправки и код причины, а не исключение: приглашение
-    уже создано, ссылка уже в ответе, и интерфейсу остаётся сказать «письмо не
-    ушло, скопируйте ссылку» — это не отказ в действии.
+    A sent flag and a reason code are returned rather than an exception: the
+    invitation is already created, the link is already in the answer, and all the
+    interface has to say is "the message did not go out, copy the link" — that is
+    not a refusal of the action.
     """
     if invitation.email is None or not mail_enabled():
         return False, None
-    # Язык письма — язык организации: о языке получателя, который ещё ничего в
-    # этой установке не открывал, неизвестно ничего.
+    # The message's language is the organization's language: nothing is known
+    # about the language of a recipient who has not opened anything in this
+    # installation yet.
     locale = org.default_locale
     sent = send_mail(
         to=invitation.email,
@@ -177,16 +184,17 @@ def _deliver(
             "inviter": inviter_name,
             "role": role_name(invitation.role, locale),
             "link": url,
-            # Дата, а не дата со временем: час и минуты в чужом часовом поясе
-            # ничего читателю не говорят, а ISO-форма читается на всех трёх
-            # языках одинаково.
+            # A date rather than a date and time: hours and minutes in someone
+            # else's timezone tell the reader nothing, while the ISO form reads
+            # the same way in all three languages.
             "expires": invitation.expires_at.date().isoformat(),
         },
     )
     if not sent:
-        # Причина отказа уже в журнале со стеком: наружу уходит один код —
-        # разбирать по нему, чем именно ответил чужой почтовый сервер, всё
-        # равно некому, а совет на экране от этого не меняется.
+        # The reason for the refusal is already in the log with a stack: a single
+        # code goes outward — there is nobody to work out from it what exactly
+        # someone else's mail server answered, and the advice on screen does not
+        # change either way.
         return False, "mail_failed"
     invitation.last_sent_at = now
     db.flush()
@@ -251,11 +259,12 @@ def create_invitations(
 def list_invitations(
     membership: Membership = Depends(current_membership), db: DbSession = Depends(get_db)
 ):
-    """Приглашения организации, новые сверху.
+    """The organization's invitations, newest first.
 
-    Отдаются все, включая принятые: приглашение живёт в базе и после приёма —
-    это журнал того, кто кого привёл. Открытых ссылок в ответе нет ни у одного
-    из них, и быть не может: сервер их не помнит.
+    All of them are returned, accepted ones included: an invitation lives in the
+    database after acceptance too — it is the record of who brought whom in. None
+    of them carries a plain link in the answer, and none can: the server does not
+    remember them.
     """
     _require_org_admin(membership)
     now = datetime.now(timezone.utc)
@@ -289,7 +298,7 @@ def list_invitations(
 
 def _own_invitation(db: DbSession, membership: Membership, invitation_id: uuid.UUID) -> Invitation:
     invitation = db.get(Invitation, invitation_id)
-    # Приглашение чужой организации неотличимо от несуществующего.
+    # An invitation of another organization is indistinguishable from a nonexistent one.
     if invitation is None or invitation.org_id != membership.org_id:
         raise HTTPException(status_code=404, detail="invite_not_found")
     return invitation
@@ -302,19 +311,19 @@ def reissue_invitation(
     membership: Membership = Depends(current_membership),
     db: DbSession = Depends(get_db),
 ):
-    """Выпускает новую ссылку взамен прежней — она же «отправить ещё раз».
+    """Issues a new link in place of the previous one — also known as "send again".
 
-    Одно действие, а не два: прежний токен умирает в обоих случаях, потому что
-    иначе отозвать уже отправленное письмо становится невозможно. Отличается
-    только доставка — уйдёт ли письмо или ссылку скопируют руками.
+    One action, not two: the previous token dies in both cases, because otherwise
+    revoking an already sent message becomes impossible. Only the delivery
+    differs — whether a message goes out or the link is copied by hand.
     """
     _require_org_admin(membership)
     invitation = _own_invitation(db, membership, invitation_id)
     now = datetime.now(timezone.utc)
 
     if payload.deliver and invitation.email is not None and mail_enabled():
-        # Письмо расходует тот же часовой потолок, что и создание: он стоит
-        # против рассылки, а не против записей в таблице.
+        # A message spends the same hourly ceiling as creation does: it stands
+        # against mailing out, not against rows in a table.
         try:
             ensure_capacity(db, org_id=membership.org_id, now=now, wanted=1)
         except InvitationError as error:
@@ -361,17 +370,19 @@ def _by_token_or_404(db: DbSession, token: str) -> Invitation:
 
 @public_router.get("/{token}", response_model=PreviewOut)
 def preview_invitation(token: str, db: DbSession = Depends(get_db)):
-    """Что за приглашение на руках — до входа и до регистрации.
+    """What invitation is in hand — before signing in and before registering.
 
-    Отвечает и анониму: человек с непринятым приглашением по определению ещё
-    не в организации, и требовать от него войти, прежде чем он узнает, куда
-    его зовут, — это просить подписать не глядя.
+    It answers anonymous callers too: a person with an unaccepted invitation is
+    by definition not in the organization yet, and demanding that they sign in
+    before learning where they are being invited is asking them to sign
+    unseen.
     """
     invitation = _by_token_or_404(db, token)
     state = status_of(invitation, datetime.now(timezone.utc))
     if state is not Status.PENDING:
-        # Три состояния — три разных кода: по «просрочено» человек просит новую
-        # ссылку, по «принято» просто входит, по «отозвано» идёт к тому, кто звал.
+        # Three states, three different codes: on "expired" a person asks for a
+        # new link, on "accepted" they simply sign in, on "revoked" they go to
+        # whoever invited them.
         raise HTTPException(status_code=409, detail=f"invite_{state.value}")
 
     org = db.get(Organization, invitation.org_id)
@@ -391,12 +402,12 @@ def accept_invitation(
     session: Session = Depends(current_session),
     db: DbSession = Depends(get_db),
 ):
-    """Принимает приглашение от имени вошедшего.
+    """Accepts an invitation on behalf of the signed-in person.
 
-    Членство появляется только здесь — по явному действию человека, а не по
-    совпадению адреса при регистрации. Сессия сразу переключается на новую
-    организацию: человек нажал «принять» и должен оказаться внутри, а не
-    искать её в переключателе.
+    A membership appears only here — by a person's explicit action, not by an
+    address matching at registration. The session switches to the new
+    organization right away: the person pressed "accept" and must end up inside
+    rather than looking for it in the switcher.
     """
     invitation = _by_token_or_404(db, token)
     user = db.get(User, session.user_id)

@@ -1,16 +1,16 @@
 """user last active at
 
-users.last_active_at — момент последней активности этого человека: последнего
-запроса с его валидной сессией. Отдельное поле, а не производная от
-Session.last_used_at: строки сессий подметаются (выход, просрочка, недельный
-простой без обращений — см. app.auth), и агрегат по ним слепнет ровно тогда,
-когда об активности спрашивают после давнего перерыва. Кормит панель
-владельца установки (/api/admin/users): кто зарегистрирован и когда в
-последний раз пользовался продуктом.
+users.last_active_at — the moment of this person's last activity: of the last
+request with a valid session of theirs. A separate field rather than something
+derived from Session.last_used_at: session rows are swept away (sign-out, expiry, a
+week of idleness with no requests — see app.auth), and an aggregate over them goes
+blind precisely when activity is asked about after a long break. It feeds the
+installation owner's panel (/api/admin/users): who is registered and when they last
+used the product.
 
-Nullable без значения по умолчанию: у уже заведённых аккаунтов, ни разу не
-обратившихся с момента миграции, активности ещё не видно — то же состояние,
-в котором рождается и только что созданный аккаунт.
+Nullable with no default: accounts already created that have made no request since
+the migration show no activity yet — the same state a freshly created account is
+born in.
 
 Revision ID: f1a4c8d7b6e2
 Revises: c1d4a8f6e293

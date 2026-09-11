@@ -10,15 +10,13 @@ import { dayIn } from "../time/zone";
 import { useTimeZone } from "../time/useToday";
 
 /**
- * Панель директора: кто зарегистрирован, в какой организации и когда в
- * последний раз пользовался продуктом.
+ * The director's panel: who is registered, in which organization and when they last used the product.
  *
- * Не про одну организацию — про установку целиком, поэтому своей ленты прав
- * (роль, состав) здесь нет: доступ решает не `Role.OWNER`, а роль директора,
- * закреплённая на сервере за одним адресом (см. app.director,
- * app.api.admin_routes). Не-директор получает `forbidden` тем же способом,
- * что и на любом другом закрытом маршруте, — и экран показывает его тем же
- * баннером отказа, а не отдельным «нет доступа».
+ * Not about one organization but about the whole install, so there is no permissions feed of its own
+ * (the role, the roster) here: access is decided not by `Role.OWNER` but by the director role, pinned
+ * on the server to one address (see app.director, app.api.admin_routes). A non-director gets
+ * `forbidden` the same way as on any other closed route — and the screen shows it with the same refusal
+ * banner rather than a separate "no access".
  */
 export function Admin() {
   const { t, locale } = useLocale();
@@ -109,11 +107,10 @@ function AdminUserRow({
 }) {
   const { t } = useLocale();
 
-  // Даты приходят с сервера моментом времени в UTC, а не голым календарным
-  // днём (в отличие от дат самого плана): срез символов строки отдал бы день
-  // по Гринвичу, и человек восточнее его увидел бы вчерашнее число там, где
-  // на часах уже настало сегодня. dayIn переводит момент в сутки пояса
-  // читателя — тем же способом, что и лента истории проекта.
+  // The dates arrive from the server as moments in time in UTC rather than as bare calendar days
+  // (unlike the plan's own dates): slicing the string's characters would give the day in Greenwich, and
+  // a person east of it would see yesterday's date where their clock already shows today. dayIn converts
+  // a moment into the reader's zone's day — the same way the project's history feed does.
   const registeredDay = dayIn(zone, new Date(row.created_at));
   const activeDay = row.last_active_at ? dayIn(zone, new Date(row.last_active_at)) : null;
 

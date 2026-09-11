@@ -13,17 +13,16 @@ const STORAGE_KEY = "planora.locale";
 
 type LocaleContextValue = {
   locale: Locale;
-  /** Явный выбор человека: запоминается и побеждает всё остальное. */
+  /** The person's explicit choice: it is remembered and beats everything else. */
   setLocale: (locale: Locale) => void;
   /**
-   * Язык из профиля вошедшего — он же главный.
+   * The language from the signed-in person's profile — which is also the main one.
    *
-   * Спор с локальным выбором невозможен по построению: всякий выбор человека
-   * тут же уходит в профиль (см. LocaleSwitch и экран профиля), и локальная
-   * память — это лишь то, что показать до ответа сервера и что показывать
-   * гостю, у которого профиля нет вовсе. Поэтому пришедшее из профиля
-   * применяется без оговорок: человек, выбравший русский на работе, обязан
-   * увидеть русский и дома.
+   * An argument with the local choice is impossible by construction: every choice a person makes goes
+   * straight into the profile (see LocaleSwitch and the profile screen), and the local memory is only
+   * what to show before the server's answer and what to show a guest, who has no profile at all. So
+   * what comes from the profile is applied without reservations: a person who chose Russian at work
+   * must see Russian at home too.
    */
   adoptProfileLocale: (locale: string) => void;
   t: (key: string, params?: Params) => string;
@@ -36,16 +35,15 @@ function storedChoice(): Locale | null {
     const value = localStorage.getItem(STORAGE_KEY);
     return isSupportedLocale(value) ? value : null;
   } catch {
-    // Приватный режим браузера умеет запрещать localStorage. Язык при этом
-    // просто не запоминается между сессиями — это не повод падать.
+    // A browser's private mode can forbid localStorage. The language then simply is not remembered
+    // between sessions — that is no reason to crash.
     return null;
   }
 }
 
 function fromBrowser(): Locale | null {
-  // Инвариантный toLowerCase: в азербайджанской локали `toLocaleLowerCase`
-  // превращает `I` в `ı`, и сравнение кодов языков начинает вести себя
-  // по-разному у разных людей.
+  // An invariant toLowerCase: in the Azerbaijani locale `toLocaleLowerCase` turns `I` into `ı`, and a
+  // comparison of language codes starts behaving differently for different people.
   const tag = navigator.language?.split("-")[0]?.toLowerCase();
   return isSupportedLocale(tag) ? tag : null;
 }
@@ -70,16 +68,16 @@ export function LocaleProvider({
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
-      // см. storedChoice()
+      // see storedChoice()
     }
   }, []);
 
   const adoptProfileLocale = useCallback(
     (next: string) => {
       if (!isSupportedLocale(next)) return;
-      // Через setLocale, а не мимо него: локальная память обязана совпасть с
-      // профилем, иначе следующая загрузка успеет показать прежний язык до
-      // того, как сервер ответит, кто вошёл.
+      // Through setLocale rather than past it: the local memory must agree with the profile, otherwise
+      // the next load will manage to show the previous language before the server answers who signed
+      // in.
       setLocale(next);
     },
     [setLocale],

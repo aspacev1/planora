@@ -9,36 +9,35 @@ import { patchTask } from "../project/optimistic";
 import { useProjectMutation } from "../project/useProjectMutation";
 
 /**
- * Исполнители задачи прямо со строки ленты.
+ * A task's assignees right from the strip's row.
  *
- * Назначить человека можно было только в карточке задачи — то есть открыв её,
- * найдя блок исполнителей и закрыв обратно. А раздают работу пачками, глядя на
- * весь план сразу: «этих троих — Нигяр, эту неделю — Алексею». Отсюда кнопка на
- * строке: назначение — единственное действие, которое делают не по одной
- * задаче, а по списку.
+ * A person could only be assigned in the task's card — that is, by opening it, finding
+ * the assignees block and closing it again. Work, though, is handed out in batches while
+ * looking at the whole plan at once: "these three to Nigar, this week to Alexey". Hence
+ * the button on the row: assignment is the only action done not task by task but by list.
  *
- * Панель стоит по координатам окна и рисуется в конце документа, а не внутри
- * строки. Обе части важны, и вторая — не следствие первой: закреплённая
- * колонка ленты позиционирована и держит свой слой (`sticky` с z-index), а
- * слой замыкает всё, что внутри, — включая `position: fixed`. Панель,
- * оставленная в строке, уходила бы под соседние строки, сколько бы ей ни
- * назначили z-index. Тот же довод, что у карточки наведения (см. BarTip), — с
- * той разницей, что там узел один на всю ленту и живёт рядом с ней, а здесь
- * панель принадлежит своей строке и выносится порталом.
+ * The panel stands by window coordinates and is rendered at the end of the document
+ * rather than inside the row. Both parts matter, and the second is not a consequence of
+ * the first: the strip's pinned column is positioned and holds its own layer (`sticky`
+ * with a z-index), and a layer contains everything inside it — including `position:
+ * fixed`. A panel left in the row would go under the neighbouring rows, however large a
+ * z-index it was given. The same argument as with the hover card (see BarTip) — with the
+ * difference that there the node is one for the whole strip and lives next to it, while
+ * here the panel belongs to its own row and is carried out through a portal.
  */
 
-/** Сколько аватаров помещается на кнопке, прежде чем остальные сворачиваются в «+N». */
+/** How many avatars fit on the button before the rest fold into a "+N". */
 const SHOWN_AVATARS = 3;
 
-/** Мера панели. Нужна до отрисовки: по ней решается, откроется она вниз или вверх. */
+/** The panel's measure. Needed before the render: it decides whether the panel opens downwards or upwards. */
 const PANEL_WIDTH = 224;
 const PANEL_HEIGHT = 268;
-/** Просвет между кнопкой и панелью — и минимальный отступ от края окна. */
+/** The gap between the button and the panel — and the minimum offset from the window's edge. */
 const GAP = 6;
 
 type Point = { left: number; top: number };
 
-/** Место панели: под кнопкой, а у нижнего края экрана — над ней. */
+/** The panel's place: under the button, and above it near the screen's bottom edge. */
 function placeBelow(rect: DOMRect): Point {
   const left = Math.max(
     GAP,
@@ -57,17 +56,17 @@ export function AssignMenu({
 }: {
   projectId: string;
   task: Task;
-  /** Состав организации: имена по идентификаторам. */
+  /** The organization's roster: names by id. */
   roster: ReadonlyMap<string, string>;
   /**
-   * Узел с названием задачи в той же строке.
+   * The node with the task's name in the same row.
    *
-   * Название кнопки — «Исполнители», без имени задачи, а сама задача названа
-   * описанием. Разница не косметическая: с именем внутри подписи кнопка на
-   * ленте становится вторым органом управления, чьё доступное имя содержит
-   * название задачи, — и «найди кнопку задачи X» перестаёт означать одно
-   * определённое место. Описание же читается вслед за именем и говорит ровно
-   * то, что нужно: «Исполнители, кнопка, Логотип».
+   * The button's name is "Assignees", without the task's name, while the task itself is
+   * named by the description. The difference is not cosmetic: with the name inside its
+   * caption the button on the strip becomes a second control whose accessible name
+   * contains a task's name — and "find task X's button" stops meaning one definite
+   * place. The description, though, is read after the name and says exactly what is
+   * needed: "Assignees, button, Logo".
    */
   describedBy?: string;
 }) {
@@ -76,8 +75,8 @@ export function AssignMenu({
   const root = useRef<HTMLSpanElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
-  // Точка, а не «открыто/закрыто»: место панели считается один раз, в момент
-  // открытия, — панель за строкой не едет и при первом же движении гаснет.
+  // A point rather than "open/closed": the panel's place is computed once, at the moment
+  // of opening — the panel does not travel with the row and goes out on the first movement.
   const [at, setAt] = useState<Point | null>(null);
   const open = at !== null;
 
@@ -93,9 +92,10 @@ export function AssignMenu({
       if (!inside) close();
     }
     document.addEventListener("pointerdown", onPointerDown);
-    // Захват, а не всплытие: прокручивается лента, а не окно, и её событие до
-    // окна иначе не доходит вовсе. Панель при этом закрывается, а не едет
-    // следом: она открыта на секунду, и догонять ею уезжающую кнопку незачем.
+    // Capture rather than bubbling: what scrolls is the strip, not the window, and its
+    // event otherwise never reaches the window. The panel closes at that rather than
+    // following along: it is open for a second, and there is no point chasing a departing
+    // button with it.
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
     return () => {
@@ -119,14 +119,14 @@ export function AssignMenu({
             ? task.assignee_ids.filter((id) => id !== userId)
             : [...task.assignee_ids, userId],
         }),
-      // Отказ молчит: догадка уже откачена внутри `apply`, и аватар вернулся
-      // на строку сам. Второе объяснение здесь читалось бы как поломка там,
-      // где человек и так видит, что назначение не удержалось.
+      // The refusal stays silent: the guess has already been rolled back inside `apply`,
+      // and the avatar returned to the row on its own. A second explanation here would
+      // read as a breakage where the person can already see the assignment did not hold.
     ).catch(() => {});
   };
 
-  // Имена в том порядке, в каком их прислал сервер: состав организации
-  // читается одним и тем же списком и в карточке, и здесь.
+  // The names in the order the server sent them: the organization's roster is read as one
+  // and the same list both in the card and here.
   const members = [...roster].map(([id, name]) => ({ id, name }));
   const assigned = task.assignee_ids
     .map((id) => ({ id, name: roster.get(id) }))
@@ -180,16 +180,15 @@ export function AssignMenu({
             role="group"
             aria-label={t("gantt.assign.aria", { name: task.name })}
             data-testid={`assign-${task.id}`}
-            // Панель вынесена из строки, и щелчок по ней больше не считается
-            // щелчком внутри `root` (см. слушатель выше): без этой отметки
-            // выбор исполнителя закрывал бы панель сам.
+            // The panel is carried out of the row, and a click on it no longer counts as a
+            // click inside `root` (see the listener above): without this marker choosing an
+            // assignee would close the panel itself.
             ref={panel}
           >
             {members.map((member) => (
-              // Каждый исполнитель — своя операция, как и в карточке: их
-              // снимают по одному, и в истории они читаются как отдельные
-              // события. Панель после выбора не закрывается — на задачу сажают
-              // двоих и троих подряд.
+              // Each assignee is its own operation, as in the card: they are removed one at
+              // a time and read in the history as separate events. The panel does not close
+              // after a choice — two and three people are put on a task in a row.
               <button
                 key={member.id}
                 type="button"
@@ -198,7 +197,7 @@ export function AssignMenu({
                 onClick={() => toggle(member.id)}
               >
                 <Avatar name={member.name} size={22} />
-                {/* Имя человека — содержимое, а не хрома. */}
+                {/* A person's name is content, not chrome. */}
                 <span className="gantt__assign-name">{member.name}</span>
               </button>
             ))}
@@ -210,11 +209,11 @@ export function AssignMenu({
 }
 
 /**
- * Знак «люди» — рисунком, а не буквой и не эмодзи.
+ * The "people" sign — as a drawing rather than as a letter or an emoji.
  *
- * Эмодзи здесь рисуется цветной картинкой шрифта системы и в ряду тонких
- * линий ленты выглядит наклейкой; к тому же на разных системах это разные
- * картинки. Рисунок берёт цвет текста и меняется вместе с ним.
+ * An emoji here is drawn as a coloured picture from the system's font and looks like a
+ * sticker among the strip's thin lines; besides, on different systems these are different
+ * pictures. A drawing takes the text's colour and changes along with it.
  */
 export function PeopleIcon() {
   return (

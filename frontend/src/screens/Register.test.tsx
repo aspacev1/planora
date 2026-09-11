@@ -7,9 +7,8 @@ import { server } from "../test/server";
 import { renderWithProviders } from "../test/utils";
 import { Register } from "./Register";
 
-// Единственное, что здесь подменяется, — переход роутера: сам факт «увёл
-// внутрь» иначе не наблюдаем в изоляции экрана. Сеть остаётся настоящей и
-// перехватывается MSW.
+// The only thing faked here is the router's navigation: the mere fact of "took us inside" is otherwise
+// unobservable in a screen's isolation. The network stays real and is intercepted by MSW.
 const { navigateSpy } = vi.hoisted(() => ({ navigateSpy: vi.fn() }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -22,8 +21,8 @@ beforeEach(() => {
 });
 
 async function fillAndSubmit() {
-  // Заякорено на весь текст подписи: «Şirkətin adı» и «Company name» тоже
-  // содержат «ad»/«name» кусками, а этому полю нужно ровно имя человека.
+  // Anchored to the whole caption: "Şirkətin adı" and "Company name" also contain "ad"/"name" as
+  // fragments, while this field needs the person's name exactly.
   await userEvent.type(screen.getByLabelText(/^(ad|name|имя)$/i), "Алексей");
   await userEvent.type(screen.getByLabelText(/şirkət|company|компани/i), "Acme");
   await userEvent.type(screen.getByLabelText(/e-?poçt|email|почта/i), "a@b.c");
@@ -112,8 +111,8 @@ describe("экран регистрации", () => {
   });
 
   it("не даёт нажать кнопку дважды, пока запрос в пути", async () => {
-    // Ответ не приходит никогда: только так «пока запрос в пути» вообще
-    // наблюдаемо — мгновенный ответ закрывает это состояние раньше проверки.
+    // The answer never arrives: that is the only way "while the request is in flight" is observable at
+    // all — an instant answer closes that state before the check.
     server.use(http.post("/api/auth/register", () => delay("infinite")));
 
     renderWithProviders(<Register />, { locale: "ru" });

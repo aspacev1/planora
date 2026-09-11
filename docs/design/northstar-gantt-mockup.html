@@ -259,7 +259,7 @@
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar" aria-label="Главная навигация">
+    <aside class="sidebar" aria-label="Main navigation">
       <div class="brand">
         <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M5 17V9m7 8V5m7 12v-5" stroke="white" stroke-width="2.4" stroke-linecap="round"/><path d="M3 20h18" stroke="white" stroke-width="2" stroke-linecap="round" opacity=".7"/></svg></div><span>Northstar</span>
       </div>
@@ -281,11 +281,11 @@
 
     <main class="main">
       <div class="topbar">
-        <button class="icon-btn" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+        <button class="icon-btn" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
         <div class="crumbs"><span>Projects</span><span>/</span><strong>Website redesign</strong></div>
         <div class="topbar-spacer"></div>
-        <button class="icon-btn" aria-label="Поиск"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
-        <button class="icon-btn" aria-label="Уведомления"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8"/><path d="M10 21h4"/></svg></button>
+        <button class="icon-btn" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+        <button class="icon-btn" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8"/><path d="M10 21h4"/></svg></button>
       </div>
 
       <header class="project-head">
@@ -299,7 +299,7 @@
             <div id="projectStatus" class="status-badge"><span class="status-dot"></span><span>Draft</span></div>
             <button id="approveBtn" class="btn primary">✓ Approve plan</button>
             <button class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg> Share</button>
-            <div class="menu-wrap"><button id="moreBtn" class="btn" aria-label="Ещё">•••</button><div id="moreMenu" class="popover"><button>Project settings</button><button>Duplicate project</button><button>Export as PDF</button><hr><button>Archive</button><button class="danger">Delete project</button></div></div>
+            <div class="menu-wrap"><button id="moreBtn" class="btn" aria-label="More">•••</button><div id="moreMenu" class="popover"><button>Project settings</button><button>Duplicate project</button><button>Export as PDF</button><hr><button>Archive</button><button class="danger">Delete project</button></div></div>
           </div>
         </div>
         <div class="metrics" aria-label="Project summary">
@@ -315,11 +315,11 @@
         <div class="gantt-toolbar">
           <button id="addTaskBtn" class="btn primary">＋ Task</button>
           <button id="todayBtn" class="btn">Today</button>
-          <button class="icon-btn" aria-label="Предыдущий период">‹</button>
+          <button class="icon-btn" aria-label="Previous period">‹</button>
           <div id="periodLabel" class="period">August 2026</div>
-          <button class="icon-btn" aria-label="Следующий период">›</button>
+          <button class="icon-btn" aria-label="Next period">›</button>
           <div class="toolbar-spacer"></div>
-          <div class="segmented" aria-label="Масштаб"><button data-zoom="Day" class="active">Day</button><button data-zoom="Week">Week</button><button data-zoom="Month">Month</button></div>
+          <div class="segmented" aria-label="Scale"><button data-zoom="Day" class="active">Day</button><button data-zoom="Week">Week</button><button data-zoom="Month">Month</button></div>
           <div class="toolbar-divider"></div>
           <div class="menu-wrap"><button id="filterBtn" class="btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M7 12h10m-7 6h4"/></svg><span class="hide-small">Filter</span><span>⌄</span></button><div id="filterMenu" class="popover"><label><input type="checkbox" checked> In progress</label><label><input type="checkbox" checked> Planned</label><label><input type="checkbox" checked> Done</label><label><input type="checkbox" checked> Blocked & overdue</label><hr><button>Clear filters</button></div></div>
           <button class="btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 12h16M4 19h16"/><circle cx="9" cy="5" r="2" fill="white"/><circle cx="15" cy="12" r="2" fill="white"/><circle cx="11" cy="19" r="2" fill="white"/></svg><span class="hide-small">View</span></button>
@@ -381,7 +381,7 @@
         <div class="legend" aria-label="Legend"><span class="legend-item"><i class="legend-swatch"></i> In progress</span><span class="legend-item"><i class="legend-swatch done"></i> Done</span><span class="legend-item"><i class="legend-swatch planned"></i> Planned</span><span class="legend-item"><i class="legend-swatch blocked"></i> Blocked / overdue</span><span class="legend-item"><i class="legend-line"></i> Today</span></div>
 
         <aside id="drawer" class="drawer open" aria-label="Task details">
-          <div class="drawer-head"><div class="drawer-title"><div class="task-key">DES-104 · DESIGN</div><h2 id="drawerName">Create wireframes</h2></div><button id="closeDrawer" class="icon-btn" aria-label="Закрыть">×</button></div>
+          <div class="drawer-head"><div class="drawer-title"><div class="task-key">DES-104 · DESIGN</div><h2 id="drawerName">Create wireframes</h2></div><button id="closeDrawer" class="icon-btn" aria-label="Close">×</button></div>
           <div class="drawer-body">
             <div class="field-grid">
               <div class="field"><label>Status</label><select class="control"><option>In progress</option><option>Planned</option><option>Done</option><option>Blocked</option></select></div>
@@ -396,7 +396,7 @@
           </div>
           <div class="drawer-footer"><span class="save-state">✓ Changes saved</span><button class="btn ghost">Delete</button><button class="btn primary">Save</button></div>
         </aside>
-        <div id="snackbar" class="snackbar show"><span>Task moved to Aug 13</span><button id="undoBtn">Undo</button><button id="dismissSnack" aria-label="Закрыть">×</button></div>
+        <div id="snackbar" class="snackbar show"><span>Task moved to Aug 13</span><button id="undoBtn">Undo</button><button id="dismissSnack" aria-label="Close">×</button></div>
         <div id="tooltip" class="tooltip"></div>
       </section>
     </main>

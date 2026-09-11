@@ -1,29 +1,28 @@
-/* Боковая панель «что изменилось после согласования».
+/* The "what changed after agreement" side panel.
 
-   Устройство и слой — общие с карточкой задачи (см. task/panel.css): та же
-   выдвижная колонка справа, те же три яруса — закреплённая шапка,
-   прокручиваемая середина, закреплённый подвал. Своего здесь только
-   содержимое середины: список пар «было → стало», сгруппированный по роду
-   расхождения.
+   Its structure and layer are shared with the task card (see task/panel.css): the same
+   sliding column on the right, the same three tiers — a pinned header, a scrollable
+   middle, a pinned footer. All that is its own here is the middle's content: a list of
+   "was -> became" pairs, grouped by the kind of divergence.
 
-   Подложки у панели нет намеренно. Список и лента рассказывают одно и то же
-   двумя языками — строками и призраками полосок, — и накрыть ленту значило бы
-   отнять половину ответа ровно тогда, когда рубильник в шапке панели включает
-   на ней вторую половину.
+   The panel deliberately has no backdrop. The list and the chart tell the same story in
+   two languages — as rows and as bar ghosts — and covering the chart would mean taking
+   away half the answer precisely when the switch in the panel's header turns the other
+   half on over it.
 
-   Строка держит три вещи в одной линии — имя, разницу и бейдж — и читается
-   справа налево ровно так, как её и спрашивают: «на сколько уехало, что
-   именно, как называется». */
+   A row holds three things in one line — the name, the difference and the badge — and it
+   reads right to left exactly the way it is asked: "how far it moved, what exactly, what
+   it is called". */
 
-/* Уже карточки задачи: здесь нет ни полей ввода, ни обсуждения — только
-   список из трёх коротких колонок. Лишняя ширина у панели без содержимого
-   отнимается прямо у ленты, ради которой панель и не стала окном. */
+/* Narrower than the task card: there are neither input fields nor a discussion here —
+   only a list of three short columns. Excess width on a panel with no content is taken
+   straight from the chart, for whose sake the panel did not become a dialog. */
 .plan-changes {
   width: min(460px, 100vw);
 }
 
-/* Между заголовком и строкой «План согласован …» просвета почти нет: вторая
-   поясняет первый, а не начинает новый ярус. */
+/* There is almost no gap between the heading and the "The plan was agreed ..." line: the
+   second explains the first rather than starting a new tier. */
 .plan-changes__head .panel__head-top {
   margin-bottom: var(--space-2);
 }
@@ -34,7 +33,7 @@
   color: var(--text-muted);
 }
 
-/* --- сводка-фильтр --- */
+/* --- the summary filter --- */
 
 .plan-changes__summary {
   display: flex;
@@ -42,13 +41,13 @@
   gap: var(--space-6);
 }
 
-/* Тег — не кнопка на вид: он сообщает число и лишь заодно фильтрует. Нажатый
-   набирается акцентом, как и прочие переключатели приложения.
+/* A tag does not look like a button: it reports a number and only incidentally filters. A
+   pressed one is set in the accent colour, like the application's other toggles.
 
-   Тень и заливка гасятся явно: общее правило кнопки даёт всякой кнопке
-   приложения синюю заливку с подсветкой, и тег без этих строк выглядел бы
-   рядом главным действием панели. По той же причине здесь и `:hover` — иначе
-   наведение красит тег цветом главного действия. */
+   The shadow and the fill are suppressed explicitly: the shared button rule gives every
+   button in the application a blue fill with a highlight, and without these lines a tag
+   would look like the panel's primary action. For the same reason `:hover` is here too —
+   otherwise hovering paints the tag in the primary action's colour. */
 .plan-changes__tag {
   height: 24px;
   padding: 0 var(--space-12);
@@ -74,14 +73,15 @@
   color: var(--accent);
 }
 
-/* --- призрак на ленте --- */
+/* --- the ghost on the chart --- */
 
-/* Переключатель слоя, а не строка списка: стоит последним в шапке и отделён
-   линиями от сводки над ним и от списка под ним — он про диаграмму, а не про
-   перечисленное ниже. Нижняя линия заодно служит панели границей шапки.
+/* A layer toggle rather than a list row: it stands last in the header and is separated by
+   lines from the summary above it and from the list below — it is about the chart rather
+   than about what is listed below. The lower line additionally serves the panel as the
+   header's boundary.
 
-   Свой нижний отступ рубильника здесь снимается: просвет держат поля обёртки,
-   и два источника одного расстояния разошлись бы. */
+   The toggle's own bottom margin is removed here: the gap is held by the wrapper's
+   padding, and two sources of one distance would diverge. */
 .plan-changes__ghost {
   margin-top: var(--space-12);
   padding: var(--space-12) 0;
@@ -94,7 +94,7 @@
   margin: 0;
 }
 
-/* --- группы --- */
+/* --- the groups --- */
 
 .plan-changes__group-title {
   display: flex;
@@ -108,14 +108,14 @@
   color: var(--text-faint);
 }
 
-/* Первому заголовку отступ сверху не нужен: его уже дало поле середины. */
+/* The first heading needs no top margin: the middle's padding has already given it one. */
 .plan-changes__group:first-child .plan-changes__group-title {
   margin-top: 0;
 }
 
-/* Счёт при заголовке — тот же, что в теге сводки: тег отвечает на «сколько
-   всего такого», заголовок повторяет его над самим списком, чтобы под
-   фильтром число не пропадало вместе с остальными тегами. */
+/* The count by a heading is the same as in the summary tag: the tag answers "how many of
+   these there are in total", while the heading repeats it above the list itself, so that
+   under a filter the number does not disappear along with the other tags. */
 .plan-changes__count {
   padding: 0 var(--space-8);
   border-radius: var(--radius-pill);
@@ -142,13 +142,13 @@
   gap: var(--space-8);
 }
 
-/* Имя тянет строку, разница и бейдж жмутся вправо и не переносятся: пара
-   «было → стало» разорванной по строкам перестаёт читаться парой.
+/* The name stretches the row while the difference and the badge press to the right and do
+   not wrap: a "was -> became" pair broken across lines stops reading as a pair.
 
-   Имя — текст, по которому можно нажать, а не кнопка: рост, заливка, тень и
-   выключенный перенос приходят от общего правила кнопки и здесь снимаются все
-   разом. Без этого длинное имя задачи не переносится, а короткое стоит
-   посреди своей колонки на залитой плашке. */
+   The name is text that can be clicked rather than a button: the height, the fill, the
+   shadow and the disabled wrapping all come from the shared button rule and are removed
+   here all at once. Without that a long task name would not wrap while a short one would
+   stand in the middle of its column on a filled chip. */
 .plan-changes__name {
   flex: 1;
   min-width: 0;
@@ -173,8 +173,8 @@
   text-decoration: underline;
 }
 
-/* Удалённой задачи в проекте нет: вести с её имени некуда, и оно набрано как
-   текст — приглушённо и без подчёркивания по наведению. */
+/* A deleted task is not in the project: its name leads nowhere, and it is set as text —
+   muted and with no underline on hover. */
 .plan-changes__name--gone {
   color: var(--text-muted);
   cursor: default;
@@ -185,7 +185,7 @@
   color: var(--text-muted);
   font-size: 13px;
   white-space: nowrap;
-  /* Цифры дат и длительностей стоят столбиком у правого края списка. */
+  /* The figures for dates and durations stand in a column at the list's right edge. */
   font-variant-numeric: tabular-nums;
 }
 
@@ -201,8 +201,8 @@
 .plan-changes__badge.is-early { background: var(--ok-soft); color: #176842; }
 .plan-changes__badge.is-new { background: var(--warn-soft); color: #785719; }
 
-/* Второе расхождение той же задачи — под парой дат, помельче: главное у
-   перенесённой задачи всё-таки начало, а растяжение — уточнение к нему. */
+/* A second divergence of the same task goes beneath the pair of dates, smaller: for a
+   moved task the start is the main thing after all, while a stretch is a clarification to it. */
 .plan-changes__also {
   margin: var(--space-4) 0 0;
   font-size: 12px;
@@ -210,7 +210,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Причина — текст человека: курсивом, как и в ленте истории. */
+/* The reason is a person's text: in italics, as in the history feed. */
 .plan-changes__reason {
   margin: var(--space-4) 0 0;
   font-size: 12px;
@@ -218,10 +218,10 @@
   color: var(--text-muted);
 }
 
-/* --- подвал --- */
+/* --- the footer --- */
 
-/* Подвал карточки задачи прижимает кнопки вправо; здесь слева стоит подпись,
-   объясняющая, что сделает кнопка справа, и они расходятся по краям. */
+/* The task card's footer presses its buttons to the right; here a label stands on the
+   left explaining what the button on the right will do, and they part to the edges. */
 .plan-changes__foot {
   justify-content: space-between;
   align-items: center;
@@ -233,8 +233,8 @@
 }
 
 @media (max-width: 520px) {
-  /* Подпись и кнопка встают друг под друга: вдвоём в строку они не помещаются,
-     и кнопка сжималась бы до нечитаемой. */
+  /* The label and the button stand one under the other: together they do not fit in a row,
+     and the button would shrink to illegibility. */
   .plan-changes__foot {
     flex-direction: column;
     align-items: stretch;

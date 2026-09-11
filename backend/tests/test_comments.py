@@ -43,7 +43,7 @@ def _task(db, project) -> Task:
 
 
 def test_reply_keeps_the_text_as_it_was_written(db, project, author):
-    """Тело — содержимое пользователя: ни перевода, ни переформатирования."""
+    """The body is the user's content: no translation, no reformatting."""
     comment = add_comment(db, project, body="  Согласовано с клиентом  ", author=author)
 
     assert comment.body == "Согласовано с клиентом"
@@ -53,8 +53,8 @@ def test_reply_keeps_the_text_as_it_was_written(db, project, author):
 
 
 def test_empty_reply_is_refused(db, project, author):
-    """Пробелы — не реплика. Иначе в ленте появляются пустые строки, которые
-    нельзя ни прочитать, ни удалить."""
+    """Spaces are not a remark. Otherwise the feed grows empty lines that can
+    neither be read nor deleted."""
     with pytest.raises(CommentRejected) as refusal:
         add_comment(db, project, body="   \n  ", author=author)
 
@@ -62,8 +62,9 @@ def test_empty_reply_is_refused(db, project, author):
 
 
 def test_reply_to_a_task_of_another_project_is_refused(db, project, author):
-    """Задача чужого проекта — не задача этого. Без проверки реплика уезжает
-    в чужую ленту, и увидит её тот, кому чужой проект не показывают."""
+    """A task of another project is not a task of this one. Without the check a
+    remark rides out into someone else's feed, and whoever is not shown that project
+    will see it."""
     other = Project(org_id=project.org_id, name="Other", slug="other")
     db.add(other)
     db.flush()
@@ -76,7 +77,7 @@ def test_reply_to_a_task_of_another_project_is_refused(db, project, author):
 
 
 def test_thread_reads_from_older_to_newer(db, project, author):
-    """Разговор читают сверху вниз, в отличие от журнала ревизий."""
+    """A conversation is read top to bottom, unlike the revision journal."""
     for text in ("первое", "второе", "третье"):
         add_comment(db, project, body=text, author=author)
 
@@ -84,11 +85,11 @@ def test_thread_reads_from_older_to_newer(db, project, author):
 
 
 def test_the_task_thread_shows_only_its_own_replies(db, project, author):
-    """Карточка задачи показывает разговор о ней, а не всё подряд.
+    """A task card shows the conversation about it rather than everything at once.
 
-    В обратную сторону отбора нет: лента проекта — это весь его разговор,
-    включая реплики к строкам. Прятать их от неё значило бы завести второе
-    место, куда надо заглянуть, чтобы не пропустить сказанное.
+    There is no filtering in the other direction: a project's feed is its whole
+    conversation, remarks on rows included. Hiding them from it would mean
+    introducing a second place one has to look into so as not to miss what was said.
     """
     task = _task(db, project)
     add_comment(db, project, body="о проекте", author=author)
@@ -99,9 +100,9 @@ def test_the_task_thread_shows_only_its_own_replies(db, project, author):
 
 
 def test_guest_signs_with_a_name(db, project):
-    """Гость по ссылке подписан именем, а не аккаунтом. Маршрута к нему ещё
-    нет, но домен обязан уметь его записать — иначе публичные ссылки начнут
-    с переписывания этого модуля."""
+    """A link-holding guest is signed by a name rather than by an account. There is
+    no route to them yet, but the domain must be able to record one — otherwise
+    public links would start with a rewrite of this module."""
     comment = add_comment(db, project, body="а когда сдача?", guest_name="Мария")
 
     assert comment.guest_name == "Мария"
@@ -109,15 +110,15 @@ def test_guest_signs_with_a_name(db, project):
 
 
 def test_reply_without_any_author_is_refused(db, project):
-    """Ни аккаунта, ни имени — подписать реплику нечем. Это ошибка вызывающего,
-    а не входных данных: маршрут либо знает участника, либо получил имя гостя,
-    и третьего случая у него нет."""
+    """Neither an account nor a name — there is nothing to sign the remark with. That
+    is the caller's error rather than bad input: a route either knows the member or
+    has received a guest's name, and it has no third case."""
     with pytest.raises(ValueError):
         add_comment(db, project, body="аноним")
 
 
 def test_reply_signed_twice_is_refused_as_well(db, project, author):
-    """Участник, притворившийся гостем, — тот же самый недосмотр с другой
-    стороны, и ограничение в базе его тоже не пропустит."""
+    """A member pretending to be a guest is the same oversight from the other side,
+    and the database constraint will not let that through either."""
     with pytest.raises(ValueError):
         add_comment(db, project, body="и так и так", author=author, guest_name="Мария")

@@ -1,17 +1,19 @@
-"""Коммерческое предложение проекта: смета до плана.
+"""A project's commercial proposal: the budget before the plan.
 
-Предложение — черновик сделки, а не состояние плана: его правки не имеют
-обратных операций, не попадают в журнал ревизий и не двигают диаграмму.
-Поэтому оно живёт своим модулем — тем же образом, что и комментарии, — а не
-ветками в реестре операций, где обязателен `inverse`.
+A proposal is a draft of a deal rather than a state of the plan: its edits have
+no inverse operations, do not land in the revision journal and do not move the
+chart. That is why it lives in a module of its own — the same way comments do —
+rather than as branches in the operation registry, where an `inverse` is
+mandatory.
 
-Предложение касается плана в двух местах, и они зеркальны. Перенос строк
-сметы в задачи диаграммы (push_to_plan) идёт через слой мутаций одной пачкой:
-созданные задачи — уже состояние плана, и человек вправе отменить перенос
-одной кнопкой. Сборка сметы из плана (build_from_plan) — обратный путь: она
-пишет только в таблицы сметы, плана не трогает и потому в журнал не попадает.
-Связывает оба пути ProposalTask.plan_task_id: строка помнит свою задачу, и
-перенос не заводит её второй раз.
+The proposal touches the plan in two places, and they mirror each other.
+Carrying budget rows across into chart tasks (push_to_plan) goes through the
+mutation layer as a single batch: the created tasks are already plan state, and a
+person is entitled to undo the carry-across with one button. Assembling the
+budget from the plan (build_from_plan) is the reverse path: it writes only into
+the budget's tables, does not touch the plan and therefore does not land in the
+journal. The two paths are linked by ProposalTask.plan_task_id: a row remembers
+its task, and a carry-across does not create it a second time.
 """
 
 import math
@@ -41,7 +43,7 @@ from app.schedule import RELATIVE_EPOCH
 
 
 class ProposalError(Exception):
-    """Отказ предложения — машинным кодом, как у мутаций и комментариев."""
+    """A proposal refusal — as a machine code, like mutations and comments."""
 
     def __init__(self, code: str, message: str):
         super().__init__(message)
@@ -53,21 +55,22 @@ def get_proposal(db: DbSession, project: Project) -> Proposal | None:
 
 
 def lock_project(db: DbSession, project: Project) -> None:
-    """Замок строки проекта до конца транзакции — тот же, что держит apply_op.
+    """A lock on the project's row until the end of the transaction — the same one apply_op holds.
 
-    Предложение принадлежит проекту, и второго замка для него не нужно; но
-    брать этот надо раньше любого чтения, по которому принимается решение:
-    прочитанное до замка — снимок из-под чужой незакоммиченной транзакции.
+    The proposal belongs to the project, and needs no second lock of its own; but
+    this one must be taken before any read a decision is made on: what is read
+    before the lock is a snapshot from under someone else's uncommitted
+    transaction.
     """
     db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
 
 
 def ensure_proposal(db: DbSession, project: Project) -> Proposal:
-    """Строка предложения — при первом изменении, а не при создании проекта.
+    """The proposal's row — on the first change, not when the project is created.
 
-    Гонку двух первых правок разрешает блокировка строки проекта: обе правки
-    берут её раньше, чем спрашивают о предложении, и вторая находит строку,
-    созданную первой.
+    A race between the first two edits is resolved by the lock on the project's
+    row: both edits take it before asking about the proposal, and the second finds
+    the row created by the first.
     """
     lock_project(db, project)
     proposal = get_proposal(db, project)
@@ -81,8 +84,8 @@ def ensure_proposal(db: DbSession, project: Project) -> Proposal:
 def require_category(
     db: DbSession, proposal: Proposal, category_id: uuid.UUID
 ) -> ProposalCategory:
-    # Раздел чужого предложения неотличим от несуществующего — тем же
-    # принципом, что у задач в маршрутах мутаций.
+    # A section of someone else's proposal is indistinguishable from a nonexistent
+    # one — by the same principle as tasks in the mutation routes.
     category = db.get(ProposalCategory, category_id)
     if category is None or category.proposal_id != proposal.id:
         raise ProposalError("proposal_category_not_found", "раздел не найден в этом предложении")
@@ -97,8 +100,8 @@ def require_task(db: DbSession, proposal: Proposal | None, task_id: uuid.UUID) -
 
 
 def _next_position(db: DbSession, model, owner_column, owner_id: uuid.UUID) -> int:
-    # max + 1, а не COUNT(*): удаление пробивает дыру в нумерации, и COUNT
-    # после удаления вновь выдал бы уже занятый номер.
+    # max + 1 rather than COUNT(*): a deletion punches a hole in the numbering, and
+    # COUNT after a deletion would hand out an already taken number again.
     return db.scalar(
         select(func.coalesce(func.max(model.position), -1) + 1).where(owner_column == owner_id)
     )
@@ -128,11 +131,11 @@ def add_task(
     effort: Decimal = Decimal("0"),
     rate: Decimal = Decimal("0"),
 ) -> ProposalTask:
-    """Строка сметы — сразу с ролью, оценкой и ставкой, если их назвали.
+    """A budget row — with its role, estimate and rate right away, if they were named.
 
-    Строка ввода в таблице спрашивает все четыре поля разом: смету пишут
-    построчно, и заводить строку одним именем, а деньги дописывать в карточке
-    значило бы открыть, поправить, закрыть — на каждой строке подряд.
+    The input row in the table asks for all four fields at once: a budget is
+    written row by row, and creating a row with just a name and then filling the
+    money in on a card would mean open, edit, close — on every row in turn.
     """
     category = require_category(db, proposal, category_id)
     task = ProposalTask(
@@ -150,17 +153,17 @@ def add_task(
 
 
 def set_stage(proposal: Proposal, stage: str, *, now: datetime | None = None) -> None:
-    """Отмечает этап сделки: черновик, отправлено клиенту, согласовано.
+    """Marks a stage of the deal: draft, sent to the client, agreed.
 
-    Отметка времени ставится при первом достижении этапа и остаётся, пока этап
-    не сняли: «отправлено 27 авг» под полосой этапов — дата события, а не
-    последнего нажатия. Шаг назад снимает более поздние отметки, чтобы полоса
-    не называла дату этапа, которого больше нет. Согласовано сразу из
-    черновика считает отправку пройденной: согласовать можно только то, что
-    клиент видел, — и «отправлено» получает ту же дату.
+    The timestamp is set when the stage is first reached and stays until the stage
+    is cleared: "sent 27 Aug" under the stage bar is the date of the event, not of
+    the last press. A step back clears the later marks so that the bar does not
+    name the date of a stage that no longer exists. Agreed straight from draft
+    counts the send as passed: only what the client has seen can be agreed — and
+    "sent" gets the same date.
 
-    Это заметки для себя, а не юридический статус: ходить по этапам можно в
-    любую сторону, и подтверждений здесь нет.
+    These are notes to oneself, not a legal status: the stages can be walked in
+    either direction, and there are no confirmations here.
     """
     at = now or datetime.now(timezone.utc)
     if stage == ProposalStatus.DRAFT:
@@ -177,37 +180,40 @@ def set_stage(proposal: Proposal, stage: str, *, now: datetime | None = None) ->
     proposal.status = stage
 
 
-#: Ширина колонок Numeric — потолки пересчёта. Те же числа, что у схем
-#: маршрутов: значение шире уехало бы в базу ошибкой усечения.
+#: The width of the Numeric columns — the ceilings for the conversion. The same
+#: numbers as in the route schemas: a wider value would go into the database as a
+#: truncation error.
 MAX_EFFORT = Decimal("999999.99")
 MAX_RATE = Decimal("9999999999.99")
-#: Те же потолки целой частью — для схем маршрутов: одно место на ввод и на
-#: пересчёт, чтобы ограничения не разъехались.
+#: The same ceilings as integer parts — for the route schemas: one place for input
+#: and for the conversion, so that the limits do not drift apart.
 EFFORT_MAX = int(MAX_EFFORT)
 RATE_MAX = int(MAX_RATE)
 _CENT = Decimal("0.01")
 
 
 def convert_unit(db: DbSession, proposal: Proposal, unit: str) -> None:
-    """Переводит оценки и ставки всех строк в другую единицу, не меняя цен.
+    """Converts the estimates and rates of every row into another unit without changing prices.
 
-    Смена единицы — смена того, чем меряют, а не переименование чисел: два
-    дня по 400 в день — это шестнадцать часов по 50 в час, и итог остаётся
-    тем же. Переводит «часов в дне» на момент смены: это число и определяло,
-    что такое день, когда оценку писали.
+    Changing the unit changes what things are measured in rather than renaming the
+    numbers: two days at 400 a day are sixteen hours at 50 an hour, and the total
+    stays the same. It converts using the "hours per day" in force at the moment of
+    the change: that number is what defined what a day was when the estimate was
+    written.
 
-    Трудоёмкость переводится и округляется до копейки — точности колонки, —
-    а ставка выводится заново из прежней цены строки, а не делится сама по
-    себе: когда деление трудоёмкости не сходится в двух знаках (7 часов — это
-    0.875 дня, в колонке 0.88), ошибку округления забирает ставка, и итог
-    предложения остаётся прежним с точностью до копейки. Строка без
-    трудоёмкости цены не имеет — её ставка просто переводится тем же
-    множителем, чтобы не пропасть при заполнении оценки. Строка, чья
-    трудоёмкость округлилась бы в ноль, получает минимальную сотую: иначе её
-    цена исчезла бы вместе с нулём.
+    The effort is converted and rounded to the cent — the column's precision —
+    while the rate is derived anew from the row's previous price rather than
+    divided on its own: when dividing the effort does not come out evenly in two
+    places (7 hours is 0.875 of a day, 0.88 in the column), the rate absorbs the
+    rounding error and the proposal's total stays the same to the cent. A row with
+    no effort has no price — its rate is simply converted by the same multiplier so
+    that it is not lost when the estimate is filled in. A row whose effort would
+    round to zero gets the minimal hundredth: otherwise its price would vanish
+    together with the zero.
 
-    Сначала считает всё, потом пишет: строка, не поместившаяся в колонку,
-    должна отказать целиком, а не оставить смету наполовину в часах.
+    It computes everything first and writes afterwards: a row that does not fit
+    into the column must refuse entirely rather than leave the budget half in
+    hours.
     """
     if unit == proposal.effort_unit:
         return
@@ -261,21 +267,22 @@ def add_task_comment(
     return comment
 
 
-#: Сколько ролей подсказывать при вводе строки. Организация с длинной
-#: историей смет накапливает десятки написаний, а строка ввода вмещает
-#: несколько — и лишние всё равно отсеет набор.
+#: How many roles to suggest while a row is being entered. An organization with a
+#: long history of budgets accumulates dozens of spellings, while the input row
+#: holds a few — and typing will filter the extras out anyway.
 ROLE_SUGGESTIONS_LIMIT = 20
 
 
 def role_suggestions(db: DbSession, project: Project) -> list[dict]:
-    """Роли, которые организация уже писала в сметах, с последней ставкой каждой.
+    """The roles the organization has already written in budgets, with each one's latest rate.
 
-    По всей организации, а не по проекту: ставка дизайнера одна на студию, и
-    во втором проекте её не должны набирать заново. Свежесть — по created_at
-    строки: последняя написанная ставка и есть действующая. Регистр и
-    пробелы не плодят ролей — «Дизайнер» и « дизайнер » одна роль, показанная
-    самым свежим написанием. Нулевая ставка роль не отбрасывает (имя всё
-    равно стоит подсказать), но ненулевая, если она была, выигрывает.
+    Across the whole organization rather than per project: a designer's rate is one
+    for the studio, and it must not be typed in again on the second project.
+    Recency is by the row's created_at: the last rate written is the one in force.
+    Case and spaces do not multiply roles — "Designer" and " designer " are one
+    role, shown in its most recent spelling. A zero rate does not discard a role
+    (the name is worth suggesting anyway), but a non-zero one, if there was one,
+    wins.
     """
     rows = db.execute(
         select(ProposalTask.role, ProposalTask.rate)
@@ -299,7 +306,7 @@ def role_suggestions(db: DbSession, project: Project) -> list[dict]:
 
 
 def _comment_counts(db: DbSession, proposal: Proposal) -> dict[uuid.UUID, int]:
-    """Сколько реплик у каждой строки — одним запросом на предложение."""
+    """How many remarks each row has — with one query per proposal."""
     rows = db.execute(
         select(ProposalComment.proposal_task_id, func.count())
         .join(ProposalTask, ProposalTask.id == ProposalComment.proposal_task_id)
@@ -310,21 +317,21 @@ def _comment_counts(db: DbSession, proposal: Proposal) -> dict[uuid.UUID, int]:
 
 
 def proposal_state(db: DbSession, project: Project) -> dict:
-    """Предложение целиком: настройки, разделы, строки.
+    """The whole proposal: settings, sections, rows.
 
-    Проекта без строки предложения это тоже касается: отдаются значения по
-    умолчанию, и клиент не отличает «ещё не заводили» от «завели и не
-    трогали» — различие это ничего ему не говорит.
+    This applies to a project with no proposal row too: the default values are
+    returned, and the client cannot tell "never created" from "created and never
+    touched" — that distinction tells it nothing.
 
-    Итоги (часы, сумма, налог) намеренно не считаются здесь: они — простое
-    произведение и сумма показанных чисел, и сервер, пересказывающий их,
-    завёл бы второе место, где живёт та же арифметика.
+    The totals (hours, sum, tax) are deliberately not computed here: they are a
+    simple product and sum of the numbers already shown, and a server restating
+    them would create a second place where the same arithmetic lives.
 
-    Счётчики переноса — исключение из этого правила, и оно оправдано: «сколько
-    строк уже в плане» и «сколько можно перенести» клиент мог бы вывести из
-    ссылок сам, но полоса этапов и главная кнопка спрашивают их первыми, ещё
-    до таблицы, и два места с одним правилом «оценённая строка без ссылки»
-    разошлись бы на первой правке правила.
+    The carry-across counters are an exception to that rule, and a justified one:
+    "how many rows are already in the plan" and "how many can be carried across"
+    could be derived from the links by the client itself, but the stage bar and the
+    main button ask for them first, before the table, and two places with one rule
+    of "an estimated row with no link" would diverge on the first edit of the rule.
     """
     proposal = get_proposal(db, project)
     common = {
@@ -369,9 +376,9 @@ def proposal_state(db: DbSession, project: Project) -> dict:
                 "description": task.description,
                 "details": task.details,
                 "role": task.role,
-                # float на проводе: JSON не знает Decimal, а строка заставила
-                # бы клиент разбирать числа. Двух знаков точности Numeric
-                # хватает, чтобы float пересказал их без потерь.
+                # A float on the wire: JSON does not know Decimal, and a string
+                # would force the client to parse numbers. Numeric's two places of
+                # precision are enough for a float to restate them without loss.
                 "effort": float(task.effort),
                 "rate": float(task.rate),
                 "notes": task.notes,
@@ -379,8 +386,9 @@ def proposal_state(db: DbSession, project: Project) -> dict:
                 "assumptions": task.assumptions,
                 "position": task.position,
                 "comment_count": counts.get(task.id, 0),
-                # Ссылка на задачу плана — чтобы экран знал, какие строки в
-                # плане уже есть, и не звал переносить то, что перенесено.
+                # A reference to the plan's task — so that the screen knows which
+                # rows are already in the plan and does not invite carrying across
+                # what has been carried.
                 "plan_task_id": str(task.plan_task_id) if task.plan_task_id else None,
             }
         )
@@ -395,9 +403,9 @@ def proposal_state(db: DbSession, project: Project) -> dict:
         "sent_at": proposal.sent_at.isoformat() if proposal.sent_at else None,
         "agreed_at": proposal.agreed_at.isoformat() if proposal.agreed_at else None,
         "pushed_count": sum(1 for task in tasks if task.plan_task_id is not None),
-        # Переносима строка с оценкой и без ссылки: нулевую оценку в план не
-        # зовут — задача из неё выходит однодневной заглушкой, которой никто
-        # не заказывал.
+        # A row is carryable if it has an estimate and no link: a zero estimate is
+        # not invited into the plan — a task out of it comes out as a one-day stub
+        # nobody ordered.
         "pushable_count": sum(
             1 for task in tasks if task.plan_task_id is None and task.effort > 0
         ),
@@ -416,15 +424,16 @@ def proposal_state(db: DbSession, project: Project) -> dict:
 
 
 def plan_facts(db: DbSession, project: Project) -> dict:
-    """Чем наполнен план — для карточки «Собрать из плана» на пустой смете.
+    """What the plan holds — for the "Assemble from the plan" card on an empty budget.
 
-    Внутри состояния сметы, а не отдельным маршрутом: карточка рисуется в
-    тот же момент, что и сама смета, и второй запрос показывал бы её без
-    чисел первые полсекунды. Два COUNT на чтение — дешевле этой заминки.
+    Inside the budget's state rather than as a separate route: the card is drawn at
+    the same moment as the budget itself, and a second request would show it
+    without numbers for the first half-second. Two COUNTs on a read are cheaper
+    than that hitch.
 
-    Категории считаются те, в которых есть задачи: сборка пустые пропускает,
-    и число на карточке обязано совпадать с числом разделов, которые она
-    заведёт.
+    The categories counted are those that have tasks: the assembly skips empty
+    ones, and the number on the card must match the number of sections it will
+    create.
     """
     tasks, categories = db.execute(
         select(func.count(), func.count(func.distinct(Task.category_id))).where(
@@ -435,10 +444,11 @@ def plan_facts(db: DbSession, project: Project) -> dict:
 
 
 def _effort(proposal: Proposal, duration_days: int) -> Decimal:
-    """Трудоёмкость строки из длительности задачи плана.
+    """A row's effort from the duration of a plan task.
 
-    Обратное _duration_days: дни — как есть, часы — через hours_per_day. Без
-    округления: оно нужно только в сторону плана, где меньше дня не бывает.
+    The inverse of _duration_days: days as they are, hours through hours_per_day.
+    No rounding: that is needed only towards the plan, where less than a day does
+    not exist.
     """
     if proposal.effort_unit == "hours":
         return Decimal(duration_days * proposal.hours_per_day)
@@ -446,21 +456,24 @@ def _effort(proposal: Proposal, duration_days: int) -> Decimal:
 
 
 def build_from_plan(db: DbSession, project: Project, proposal: Proposal) -> dict:
-    """Собирает смету из плана: категория — разделом, задача — строкой.
+    """Assembles the budget from the plan: a category becomes a section, a task a row.
 
-    Обратный путь к push_to_plan, и зеркальный ему: разделы идут в порядке
-    категорий (position), строки — в порядке задач внутри категории, оценка
-    берётся из длительности той же арифметикой, что перенос считает
-    длительность из оценки. Роль и ставка остаются пустыми: в плане их нет,
-    и любое число здесь выдавало бы себя за оценку, которой никто не делал.
+    The reverse path to push_to_plan, and a mirror of it: sections follow the order
+    of the categories (position), rows follow the order of tasks inside a category,
+    and the estimate is taken from the duration by the same arithmetic the
+    carry-across uses to compute duration from an estimate. The role and the rate
+    are left empty: they do not exist in the plan, and any number here would pass
+    itself off as an estimate nobody made.
 
-    Каждая строка сразу ссылается на свою задачу (plan_task_id): иначе смета,
-    собранная из плана, первым же переносом удвоила бы каждую его задачу.
+    Every row refers to its task right away (plan_task_id): otherwise a budget
+    assembled from the plan would double every one of its tasks on the very first
+    carry-across.
 
-    Только в пустую смету. Строки, набранные руками, с планом не сливаются:
-    какой из двух списков правда, решает человек, а не сборка. Категории без
-    задач пропускаются — раздел без работ в смете стоял бы строкой без суммы.
-    Плану без задач собирать нечего.
+    Into an empty budget only. Rows typed by hand are not merged with the plan:
+    which of the two lists is the truth is decided by a person, not by the
+    assembly. Categories with no tasks are skipped — a section with no work would
+    stand in the budget as a row with no amount. A plan with no tasks has nothing
+    to assemble from.
     """
     lines = db.scalar(
         select(func.count())
@@ -485,8 +498,8 @@ def build_from_plan(db: DbSession, project: Project, proposal: Proposal) -> dict
         .order_by(Category.position, Category.id)
     ).all()
 
-    # Разделы встают за уже заведёнными (пустыми) — не поверх них: чужую
-    # нумерацию сборка не переписывает.
+    # Sections stand after the ones already created (empty ones) rather than on top
+    # of them: the assembly does not rewrite someone else's numbering.
     position = _next_position(db, ProposalCategory, ProposalCategory.proposal_id, proposal.id)
     created_categories = 0
     created_tasks = 0
@@ -517,12 +530,12 @@ def build_from_plan(db: DbSession, project: Project, proposal: Proposal) -> dict
 
 
 def _duration_days(proposal: Proposal, effort: Decimal) -> int:
-    """Длительность задачи плана из трудоёмкости строки.
+    """The duration of a plan task from a row's effort.
 
-    Часы переводятся в дни по hours_per_day и округляются вверх: план мерит
-    календарём, и полдня работы всё равно занимают день в ленте. Нулевая
-    оценка тоже даёт день — задач короче дня у диаграммы нет (см. CHECK
-    ck_tasks_duration_days).
+    Hours are converted into days by hours_per_day and rounded up: a plan measures
+    by the calendar, and half a day of work still occupies a day on the chart. A
+    zero estimate also yields a day — the chart has no tasks shorter than a day
+    (see the CHECK ck_tasks_duration_days).
     """
     if proposal.effort_unit == "hours":
         days = float(effort) / proposal.hours_per_day
@@ -531,8 +544,8 @@ def _duration_days(proposal: Proposal, effort: Decimal) -> int:
     return max(1, math.ceil(days))
 
 
-# Та же палитра, что у клиента (CATEGORY_COLORS в CategoryForm.tsx): категория,
-# созданная переносом, не должна выбиваться из ряда созданных руками.
+# The same palette as on the client (CATEGORY_COLORS in CategoryForm.tsx): a
+# category created by a carry-across must not stand out from the ones created by hand.
 _CATEGORY_COLORS = (
     "#3b82f6",
     "#a855f7",
@@ -548,12 +561,13 @@ _CATEGORY_COLORS = (
 
 
 def _plan_categories_by_name(db: DbSession, project: Project) -> dict[str, Category]:
-    """Категории плана по имени без учёта регистра и пробелов.
+    """The plan's categories by name, ignoring case and spaces.
 
-    Раздел сметы находит категорию плана по имени, а не создаёт всегда новую:
-    повторный перенос и смета поверх начатого плана не должны плодить «Дизайн»
-    рядом с «дизайн». Одно правило на предпросмотр и на сам перенос — иначе
-    окно обещало бы одно, а перенос делал другое.
+    A budget section finds a plan category by name rather than always creating a
+    new one: a repeated carry-across, and a budget laid over a plan already begun,
+    must not multiply "Design" next to "design". One rule for the preview and for
+    the carry-across itself — otherwise the dialog would promise one thing while
+    the carry-across did another.
     """
     return {
         category.name.strip().casefold(): category
@@ -564,10 +578,11 @@ def _plan_categories_by_name(db: DbSession, project: Project) -> dict[str, Categ
 def _proposal_rows(db: DbSession, proposal: Proposal | None) -> list[ProposalTask]:
     if proposal is None:
         return []
-    # populate_existing: строку, уже загруженную в эту сессию, перечитать из
-    # базы, а не отдать из кэша сессии. Перенос читает строки сразу после
-    # замка проекта именно ради свежих ссылок на задачи — кэш вернул бы
-    # снимок, сделанный до того, как соперник закоммитил свои.
+    # populate_existing: a row already loaded into this session is re-read from the
+    # database rather than handed back from the session's cache. The carry-across
+    # reads the rows right after the project lock precisely for the sake of fresh
+    # references to tasks — the cache would return a snapshot taken before a rival
+    # committed theirs.
     return list(
         db.scalars(
             select(ProposalTask)
@@ -589,23 +604,23 @@ def _proposal_categories(db: DbSession, proposal: Proposal) -> list[ProposalCate
 
 
 def _pushable(row: ProposalTask) -> bool:
-    """Переносится по умолчанию: оценённая строка, которой в плане ещё нет.
+    """Carried across by default: an estimated row that is not in the plan yet.
 
-    Нулевую оценку в план не зовут: задача из неё выходит однодневной
-    заглушкой, которой никто не заказывал. То же правило считает
-    `pushable_count` в состоянии — см. proposal_state.
+    A zero estimate is not invited into the plan: a task out of it comes out as a
+    one-day stub nobody ordered. The same rule computes `pushable_count` in the
+    state — see proposal_state.
     """
     return row.plan_task_id is None and row.effort > 0
 
 
 def push_preview(db: DbSession, project: Project) -> dict:
-    """Что случится при переносе: куда ляжет каждый раздел, во сколько дней
-    выйдет каждая строка, что уже в плане, а что без оценки.
+    """What will happen on a carry-across: where each section will land, how many
+    days each row comes to, what is already in the plan and what has no estimate.
 
-    Считается здесь же, где и сам перенос, теми же функциями: клиент мог бы
-    вывести длительности и сопоставление категорий сам, но тогда правило
-    «часы вверх до целого дня» и «категория по имени без регистра» жили бы в
-    двух местах и разошлись бы на первой правке.
+    It is computed in the same place as the carry-across itself, with the same
+    functions: the client could derive the durations and the category matching
+    itself, but then the rules "hours round up to a whole day" and "a category by
+    case-insensitive name" would live in two places and diverge on the first edit.
     """
     proposal = get_proposal(db, project)
     rows = _proposal_rows(db, proposal)
@@ -648,13 +663,13 @@ def push_preview(db: DbSession, project: Project) -> dict:
 
 
 def _internal_note(row: ProposalTask, locale: str) -> str:
-    """Заметки, риски и допущения строки — внутренней заметкой задачи.
+    """A row's notes, risks and assumptions — as the task's internal note.
 
-    Перенос не должен терять того, что команда знала о работе, а внутренняя
-    заметка — ровно то поле, которое клиент не видит (READ_INTERNAL_NOTE).
-    Подписи — из словаря выгрузки на языке организации: текст этот пишет
-    сервер, и по тому же доводу, что у документов (см. export/labels.py),
-    словами его наполняет тот, кто пишет.
+    A carry-across must not lose what the team knew about the work, and the
+    internal note is exactly the field a client does not see (READ_INTERNAL_NOTE).
+    The labels come from the export dictionary in the organization's language: this
+    text is written by the server, and by the same argument as for documents (see
+    export/labels.py), whoever writes it fills it with words.
     """
     parts = []
     for key, text in (("notes", row.notes), ("risks", row.risks), ("assumptions", row.assumptions)):
@@ -671,28 +686,30 @@ def push_to_plan(
     task_ids: Iterable[uuid.UUID] | None = None,
     locale: str,
 ) -> dict:
-    """Переносит строки сметы в задачи диаграммы.
+    """Carries budget rows across into chart tasks.
 
-    Идёт через слой мутаций, а не пишет в таблицы напрямую: созданные задачи —
-    состояние плана, и перенос обязан оставить след в журнале и сниматься
-    одной отменой. Общий batch_id и делает пачку одной записью истории.
+    It goes through the mutation layer rather than writing into tables directly:
+    the created tasks are plan state, and a carry-across must leave a trace in the
+    journal and be removable with one undo. The shared batch_id is what makes the
+    batch a single history entry.
 
-    Какие строки: названные в `task_ids`, а без списка — все переносимые по
-    умолчанию (см. _pushable). Строка, уже связанная с задачей плана —
-    перенесённая раньше или собранная из плана (build_from_plan), —
-    пропускается в любом случае: у неё есть ссылка на задачу, и второй перенос
-    удваивал бы план. Замок проекта берётся до чтения строк, а не только внутри
-    apply_op: два одновременных переноса встают в очередь у самого входа, и
-    второй, дождавшись, читает строки уже со ссылками первого — переносить ему
-    нечего. Прочитай строки до замка, и обе стороны увидели бы пустые ссылки,
-    обе прошли бы проверку «уже в плане», и план удвоился бы
-    (tests/test_proposal_push_race.py). Живёт ссылка вне журнала: отмена
-    переноса удаляет задачу, и база сама гасит ссылку (SET NULL), возвращая
-    строку в число ещё не перенесённых.
+    Which rows: those named in `task_ids`, and with no list, all that are carryable
+    by default (see _pushable). A row already linked to a plan task — carried
+    across earlier or assembled from the plan (build_from_plan) — is skipped in any
+    case: it has a reference to a task, and a second carry-across would double the
+    plan. The project lock is taken before the rows are read, not only inside
+    apply_op: two simultaneous carry-acrosses queue up at the very entrance, and the
+    second, once it has waited, reads the rows already carrying the first one's
+    references — it has nothing to carry. Read the rows before the lock, and both
+    sides would see empty references, both would pass the "already in the plan"
+    check, and the plan would double
+    (tests/test_proposal_push_race.py). The reference lives outside the journal:
+    undoing a carry-across deletes the task, and the database extinguishes the
+    reference itself (SET NULL), returning the row to the not-yet-carried ones.
 
-    Задачи встают на старт плана — раскладывать их по оси человек будет сам, и
-    любая придуманная здесь последовательность выдавала бы себя за план,
-    которого никто не составлял.
+    The tasks are placed at the plan's start — a person will lay them out along the
+    axis themselves, and any sequence invented here would pass itself off as a plan
+    nobody drew up.
     """
     lock_project(db, project)
     proposal = get_proposal(db, project)
@@ -704,8 +721,8 @@ def push_to_plan(
     if wanted:
         known = {row.id for row in rows}
         if wanted - known:
-            # Чужая или несуществующая строка неотличима от отсутствующей —
-            # тем же принципом, что у require_task.
+            # A foreign or nonexistent row is indistinguishable from a missing one
+            # — by the same principle as in require_task.
             raise ProposalError("proposal_task_not_found", "строка не найдена в этом предложении")
         chosen = [row for row in rows if row.id in wanted and row.plan_task_id is None]
     else:

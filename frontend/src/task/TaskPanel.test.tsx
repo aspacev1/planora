@@ -53,14 +53,14 @@ describe("карточка задачи", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Логотип/ }));
 
     await userEvent.click(screen.getByRole("button", { name: "Удалить задачу" }));
-    // Первое нажатие ничего не удаляет — разворачивает подтверждение.
+    // The first press deletes nothing — it unfolds the confirmation.
     expect(sent).toHaveLength(0);
 
     await userEvent.click(screen.getByRole("button", { name: "Да, удалить" }));
     await waitFor(() =>
       expect(sent).toEqual([{ op: { type: "delete_task", task_id: "t1" } }]),
     );
-    // Задачи больше нет — ни карточки, ни полоски на ленте.
+    // The task is gone — neither the card nor the bar on the strip.
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: /Логотип/ })).not.toBeInTheDocument(),

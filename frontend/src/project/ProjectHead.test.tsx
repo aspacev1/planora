@@ -14,11 +14,11 @@ import {
 beforeEach(projectFixtures);
 
 /**
- * Цифра в ячейке сводки плана.
+ * A figure in a cell of the plan's summary.
  *
- * Ищется от подписи, а не от числа: чисел на экране много, и «1» нашлось бы
- * в первой попавшейся. Поиск ограничен самой сводкой — те же слова стоят и в
- * легенде диаграммы, и в карточке задачи.
+ * Looked up from the caption rather than from the number: there are many numbers on screen,
+ * and a "1" would be found in the first one to hand. The search is limited to the summary
+ * itself — the same words stand in the chart's legend and in the task's card too.
  */
 async function openSummary(): Promise<HTMLElement> {
   const toggle = await screen.findByRole("button", { name: "Сводка по проекту" });
@@ -36,8 +36,8 @@ describe("шапка проекта", () => {
   it("называет срок работ", async () => {
     renderProject();
 
-    // Срок — от самого раннего старта до посчитанного сервером окончания, а не
-    // до конца последней задачи: окончание бывает позже её.
+    // The dates run from the earliest start to the project end computed by the server rather
+    // than to the last task's end: the end can be later than it.
     await openSummary();
     expect(screen.getByText("4 марта — 8 июня")).toBeInTheDocument();
   });
@@ -45,7 +45,7 @@ describe("шапка проекта", () => {
   it("проект без задач срока не выдумывает", async () => {
     renderProject({ ...STATE, tasks: [], project_end: null });
 
-    // Срока у такого проекта нет — панель начинается сразу с метрик.
+    // Such a project has no dates — the panel starts straight with the metrics.
     await openSummary();
     expect(document.querySelector(".plan-summary__period")).toBeEmptyDOMElement();
   });
@@ -61,17 +61,17 @@ describe("шапка проекта", () => {
     renderProject(APPROVED);
 
     expect(await screen.findByText("План проекта · v1")).toBeInTheDocument();
-    // Даты совпадают с базовым планом: расхождению взяться неоткуда, и
-    // пометка о нём была бы ложной тревогой.
+    // The dates coincide with the baseline plan: there is nowhere for a divergence to come
+    // from, and a marker about one would be a false alarm.
     expect(screen.queryByText(/изменен/i)).toBeNull();
   });
 
   it("бейдж плана называет своё состояние, а не только текст", async () => {
-    // Черновик и согласованный план различаются цветом бейджа, и цвет тема
-    // берёт из `data-state`: без него оба остались бы янтарными — то есть
-    // согласованный план всё время требовал бы внимания.
-    // Текст лежит во вложенном узле (на телефоне он прячется, оставляя точку),
-    // а состояние носит сама плашка.
+    // A draft and an approved plan differ by the badge's colour, and the theme takes the colour
+    // from `data-state`: without it both would stay amber — that is, an approved plan would
+    // demand attention all the time.
+    // The text lies in a nested node (on a phone it is hidden, leaving a dot), while the state
+    // is carried by the chip itself.
     renderProject();
     expect(
       (await screen.findByText("План проекта · черновик")).closest(".project-head__plan-label"),
@@ -86,8 +86,8 @@ describe("шапка проекта", () => {
   it("состояние плана стоит в строке названия, а не хвостом за сводкой", async () => {
     renderProject(APPROVED);
 
-    // Проверяется именно место: расхождение с согласованным планом читают
-    // вместе с именем проекта, а не среди цифр сводки над лентой.
+    // What is checked is precisely the place: a divergence from the approved plan is read
+    // together with the project's name rather than among the summary's figures above the strip.
     const label = await screen.findByText("План проекта · v1");
     expect(label.closest(".project-bar")).not.toBeNull();
     expect(label.closest(".plan-summary")).toBeNull();
@@ -96,8 +96,8 @@ describe("шапка проекта", () => {
   it("публикация убрана под «⋯»: её открывают редко", async () => {
     renderProject();
 
-    // В строке шапки её нет — ярус растёт от каждой постоянной кнопки, и
-    // именно так он вырос в прошлый раз.
+    // It is not in the header's line — the tier grows with every permanent button, and that is
+    // exactly how it grew last time.
     expect(screen.queryByRole("button", { name: "Поделиться" })).toBeNull();
 
     await userEvent.click(await screen.findByRole("button", { name: "Ещё действия" }));
@@ -122,8 +122,8 @@ describe("шапка проекта", () => {
   });
 
   it("пометка называет число разошедшихся задач, а не один лишь факт", async () => {
-    // Две задачи уехали от базового плана, третья стоит на месте: число
-    // отвечает на «насколько всё серьёзно» до того, как список открыт.
+    // Two tasks have travelled from the baseline plan, the third stands still: the number
+    // answers "how serious is this" before the list is opened.
     renderProject({
       ...APPROVED,
       tasks: [
@@ -144,8 +144,8 @@ describe("шапка проекта", () => {
   });
 
   it("задача, которую и подвинули, и растянули, считается один раз", async () => {
-    // Иначе число зависело бы от того, сколько раз задачу трогали, и росло бы
-    // там, где расходится с планом всё та же одна строка.
+    // Otherwise the number would depend on how many times the task was touched, and would grow
+    // where it is still the same one row diverging from the plan.
     renderProject({
       ...APPROVED,
       tasks: [
@@ -164,18 +164,18 @@ describe("шапка проекта", () => {
   it("пометка ведёт в список изменений, а не просто сообщает о них", async () => {
     renderProject(APPROVED_WITH_EXTRA);
 
-    // Кнопка, а не набор: за пометкой есть куда пойти, и это должно быть видно
-    // до нажатия — иначе список остаётся никому не известным.
+    // A button rather than a set: there is somewhere to go behind the marker, and that must be
+    // visible before the press — otherwise the list stays unknown to everyone.
     expect(await screen.findByRole("button", { name: /1 изменение после v1/ })).toBeInTheDocument();
   });
 });
 
 /**
- * Пять задач, разложенных по всем четырём статусам, при дедлайне 1 июня.
+ * Five tasks spread across all four statuses, with a deadline of 1 June.
  *
- * Две уходят за дедлайн, и одна из них — завершённая: пересечение «Завершено»
- * и «После дедлайна проекта» заложено в оснастку нарочно, иначе тест на него
- * проверял бы отсутствие пересечения, а не его.
+ * Two go past the deadline, and one of them is finished: the overlap of "Finished" and "Past
+ * the project's deadline" is built into the fixture deliberately, otherwise the test for it
+ * would be checking the absence of an overlap rather than its presence.
  */
 const MIXED: ProjectState = {
   ...STATE,
@@ -228,9 +228,9 @@ describe("полоса метрик", () => {
   it("считает просроченной и завершённую задачу, если она кончилась позже дедлайна", async () => {
     renderProject(MIXED);
 
-    // Две задачи уходят за 1 июня, и одна из них уже готова. Пересечение с
-    // «Завершено» — не сбой счёта: это ответы на разные вопросы, «сделано ли»
-    // и «в срок ли».
+    // Two tasks go past 1 June, and one of them is already done. The overlap with "Finished" is
+    // not a broken count: these are answers to different questions, "is it done" and "was it on
+    // time".
     expect(await metric("После дедлайна проекта")).toBe("2");
     expect(await metric("Завершено")).toBe("2");
   });
@@ -238,17 +238,16 @@ describe("полоса метрик", () => {
   it("без дедлайна проекта ячейки просрочки нет вовсе", async () => {
     renderProject({ ...MIXED, deadline: null });
 
-    // Нулевая ячейка не показывается: «После дедлайна 0» — норма, а не сводка,
-    // и полоса называет только то, что есть.
+    // A zero cell is not shown: "Past the deadline 0" is the norm rather than a summary, and the
+    // bar names only what is there.
     const strip = await openSummary();
     expect(await metric("Всего задач")).toBe("5");
     expect(within(strip).queryByText("После дедлайна проекта")).toBeNull();
   });
 
   it("«Заблокировано» стоит в полосе и при нуле", async () => {
-    // Единственная задача — в работе, заблокированных нет. Ячейка всё равно
-    // на месте: её исчезновение читается как пропавший счётчик, а не как
-    // «всё хорошо».
+    // The only task is in progress, there are no blocked ones. The cell is in place all the
+    // same: its disappearance reads as a vanished counter rather than as "everything is fine".
     renderProject();
 
     expect(await metric("Заблокировано")).toBe("0");
@@ -279,7 +278,7 @@ describe("полоса метрик", () => {
   it("у черновика вне плана нет ничего: сравнивать не с чем", async () => {
     renderProject();
 
-    // Сравнивать не с чем — счёт нулевой, и ячейка не показывается вовсе.
+    // There is nothing to compare with — the count is zero, and the cell is not shown at all.
     const strip = await openSummary();
     expect(await metric("Всего задач")).toBe("1");
     expect(within(strip).queryByText("Вне плана")).toBeNull();

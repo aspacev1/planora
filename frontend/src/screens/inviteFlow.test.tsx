@@ -1,11 +1,10 @@
 /**
- * Путь приглашённого целиком — через настоящий роутер и настоящие переходы.
+ * An invitee's path in full — through a real router and real navigations.
  *
- * Экраны по отдельности эти сценарии не ловят: приглашение теряется не внутри
- * экрана, а на переходе между двумя, и увидеть это можно только пройдя цепочку
- * так же, как её проходит человек. Оба сценария ниже — не выдумка: приглашения
- * шлют на рабочие адреса, у которых аккаунт заведён давно, а пароль к нему
- * помнят не всегда.
+ * Screens taken separately do not catch these scenarios: an invitation is lost not inside a screen
+ * but on the transition between two, and that can only be seen by walking the chain the way a person
+ * walks it. Both scenarios below are not made up: invitations are sent to work addresses, which have
+ * had an account for a long time, and the password to it is not always remembered.
  */
 
 import { screen, waitFor } from "@testing-library/react";
@@ -21,14 +20,14 @@ const TOKEN = "inv-token-42";
 const PREVIEW = {
   org_name: "Şəhər Studiyası",
   role: "editor",
-  // Тот же адрес, что у профиля: иначе экран приглашения решит, что человек
-  // вошёл не под тем аккаунтом, и предложит выйти вместо «Принять».
+  // The same address as the profile's: otherwise the invitation screen will decide the person signed
+  // in under the wrong account and will offer to sign out instead of "Accept".
   email: USER.email,
   inviter_name: "Мария",
   expires_at: "2026-09-01T00:00:00+00:00",
 };
 
-/** Сессии нет, пока не вошли: первый `/api/auth/me` обязан ответить отказом. */
+/** There is no session until a sign-in: the first `/api/auth/me` must answer with a refusal. */
 function anonymousUntilLogin() {
   let signedIn = false;
   server.use(
@@ -68,18 +67,18 @@ describe("путь приглашённого", () => {
 
     renderApp({ route: `/invite/${TOKEN}` });
 
-    // Экран приглашения: видно, куда зовут, ещё до всякого входа.
+    // The invitation screen: you can see what you are being invited to before any sign-in.
     await screen.findByRole("heading", { name: /приглашение/i });
     await userEvent.click(screen.getByRole("link", { name: /зарегистр/i }));
 
-    // Форма подставила адрес приглашения и заперла его.
+    // The form filled in the invitation's address and locked it.
     await screen.findByRole("heading", { name: /регистрация/i });
     await userEvent.type(screen.getByLabelText(/имя/i), "Алексей");
     await userEvent.type(screen.getByLabelText(/пароль/i), "s3cret-pass");
     await userEvent.click(screen.getByRole("button", { name: /зарегистр/i }));
     expect(await screen.findByText("Этот адрес уже занят")).toBeInTheDocument();
 
-    // Экран сам предлагает выход — и этот выход обязан нести приглашение.
+    // The screen offers a sign-out itself — and that sign-out must carry the invitation.
     await userEvent.click(screen.getByRole("link", { name: /^войти$/i }));
     await waitFor(() =>
       expect(screen.getByTestId("location")).toHaveTextContent(
@@ -89,8 +88,8 @@ describe("путь приглашённого", () => {
 
     await logIn();
 
-    // Раньше здесь был /projects прежней организации, а приглашение навсегда
-    // оставалось в статусе «Ждёт».
+    // There used to be the former organization's /projects here, while the invitation stayed in
+    // "Pending" forever.
     await waitFor(() =>
       expect(screen.getByTestId("location")).toHaveTextContent(`/invite/${TOKEN}`),
     );
@@ -113,7 +112,7 @@ describe("путь приглашённого", () => {
     await screen.findByRole("heading", { name: /^вход$/i });
     await userEvent.click(screen.getByRole("link", { name: /забыли пароль/i }));
 
-    // Приглашение доехало до восстановления строкой запроса.
+    // The invitation got through to the recovery in the query string.
     await waitFor(() =>
       expect(screen.getByTestId("location")).toHaveTextContent(
         `/forgot-password?invite=${TOKEN}`,
@@ -123,8 +122,8 @@ describe("путь приглашённого", () => {
     await userEvent.click(screen.getByRole("button", { name: /отправить письмо/i }));
     await screen.findByText(/письмо уже в пути/i);
 
-    // Дальше человек уходит в почту и возвращается по ссылке, которую построил
-    // сервер: приглашения в ней нет и быть не может — только токен сброса.
+    // After that the person leaves for their mail and comes back by a link the server built: there is
+    // no invitation in it and cannot be — only the reset token.
     renderApp({ route: "/reset-password?token=reset-token" });
     await userEvent.type(
       await screen.findByLabelText(/новый пароль/i),
@@ -133,7 +132,7 @@ describe("путь приглашённого", () => {
     await userEvent.click(screen.getByRole("button", { name: /сохранить пароль/i }));
     await screen.findByText(/пароль изменён/i);
 
-    // Ссылка «Войти» голая — приглашение подхватывает память.
+    // The "Sign in" link is bare — the memory picks the invitation up.
     await userEvent.click(screen.getByRole("link", { name: /^войти$/i }));
     await logIn();
 

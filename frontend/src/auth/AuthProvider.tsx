@@ -13,9 +13,9 @@ import { ApiError } from "../api/client";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Состояний три, а не два. Без `checking` маршрут вынужден решать про доступ
- * раньше, чем узнал ответ сервера, — и человек при каждой перезагрузке видит
- * вспышку экрана входа, хотя он давно вошёл.
+ * There are three states, not two. Without `checking` a route is forced to decide about access
+ * before it learns the server's answer — and on every reload a person sees a flash of the sign-in
+ * screen even though they signed in long ago.
  */
 export type AuthStatus = "checking" | "authenticated" | "anonymous";
 
@@ -35,15 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const query = useQuery({
     queryKey: ME_QUERY_KEY,
     queryFn: me,
-    // Повтор здесь означал бы «подержим человека на индикаторе ещё пару
-    // секунд, чтобы получить тот же 401».
+    // A retry here would mean "let us keep the person on the indicator for another couple of
+    // seconds to get the same 401".
     retry: false,
     refetchOnWindowFocus: false,
     staleTime: Infinity,
   });
 
-  // Кука HTTP-only: клиент не может посмотреть, есть ли сессия, — он может
-  // только спросить сервер. Пока ответа нет, состояние честно неизвестно.
+  // The cookie is HTTP-only: the client cannot look at whether there is a session — it can only
+  // ask the server. Until the answer arrives the state is honestly unknown.
   const user = (query.data as User | null | undefined) ?? null;
   const status: AuthStatus = query.isPending
     ? "checking"
@@ -51,12 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ? "authenticated"
       : "anonymous";
 
-  // Язык профиля применяется один раз на вход, а не на каждое обновление
-  // профиля. Профиль переписывается ответом любой правки — имени, пояса, самого
-  // языка, — и ответ на более раннюю правку приходит позже более поздней:
-  // человек выбрал RU, потом EN, а вкладка вернулась на RU, когда доехал
-  // первый ответ. Выбор языка живёт в переключателе (см. LocaleSwitch) —
-  // отсюда берётся только то, с чем человек вошёл.
+  // The profile's language is applied once per sign-in rather than on every profile refresh. The
+  // profile is rewritten by the answer to any edit — the name, the zone, the language itself — and
+  // the answer to an earlier edit arrives after a later one: a person chose RU, then EN, and the
+  // tab went back to RU when the first answer got through. The language choice lives in the
+  // switcher (see LocaleSwitch) — what is taken from here is only what the person signed in with.
   const adoptedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!user) {
@@ -68,12 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     adoptProfileLocale(user.locale);
   }, [user, adoptProfileLocale]);
 
-  // Сессия кончилась — узнаёт об этом первый же запрос, а не человек по
-  // череде отказов. Профиль в кэше при этом сбрасывается, и защищённые
-  // маршруты уводят на вход сами (см. RequireAuth). Слушается кэш, а не
-  // каждый вызов `request` по отдельности: 401 приходит и запросам, и
-  // изменениям, и у каждого экрана свой обработчик ошибок, который о сессии
-  // знать не обязан.
+  // The session has ended — the very first request learns about it, rather than the person through
+  // a series of refusals. The profile in the cache is invalidated at that, and the protected routes
+  // take you to the sign-in themselves (see RequireAuth). What is listened to is the cache rather
+  // than every `request` call separately: a 401 arrives at queries and at mutations alike, and each
+  // screen has its own error handler, which need not know about the session.
   useEffect(() => {
     const dropSession = (error: unknown) => {
       if (!(error instanceof ApiError) || error.status !== 401) return;
@@ -105,15 +103,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: logoutRequest,
-    // По завершении, а не по успеху: выход обязан состояться и тогда, когда
-    // сервер ответил отказом — сессия уже просрочена, сети нет. Иначе
-    // «Выйти» на просроченной сессии не делало бы ничего, и уйти с экрана
-    // человек мог бы только перезагрузкой.
+    // On settle rather than on success: signing out must happen even when the server answered with
+    // a refusal — the session has already expired, there is no network. Otherwise "Sign out" on an
+    // expired session would do nothing, and the person could leave the screen only by reloading.
     onSettled: () => {
-      // Сначала выбрасывается весь кэш: в нём лежат проекты ушедшего
-      // человека, и следующий вошедший на этой же вкладке не должен увидеть
-      // их даже на кадр. Профиль ставится после очистки — иначе очистка
-      // снесла бы и его, и приложение снова ушло бы в «проверяю».
+      // First the whole cache is thrown out: it holds the departing person's projects, and the next
+      // person to sign in on this same tab must not see them even for a frame. The profile is set
+      // after the clearing — otherwise the clearing would take it too, and the application would go
+      // back into "checking".
       queryClient.clear();
       queryClient.setQueryData(ME_QUERY_KEY, null);
     },
@@ -124,9 +121,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       status,
       login: (input) => loginMutation.mutateAsync(input),
-      // Отказ сервера на выходе проглатывается: локально выход уже состоялся
-      // (см. onSettled), и сообщать «не удалось выйти» человеку, который уже
-      // на экране входа, не о чем.
+      // A server refusal on sign-out is swallowed: locally the sign-out has already happened (see
+      // onSettled), and there is nothing to report "could not sign out" about to a person who is
+      // already on the sign-in screen.
       logout: () =>
         logoutMutation.mutateAsync().then(
           () => undefined,

@@ -6,21 +6,21 @@ export type AdminUser = {
   id: string;
   name: string;
   email: string;
-  /** Дата регистрации — момент, когда завёлся аккаунт. */
+  /** The registration date — the moment the account was created. */
   created_at: string;
-  /** Последний раз, когда с сессией этого человека пришёл запрос. `null` —
-      активности ещё не видно. */
+  /** The last time a request arrived with this person's session. `null` —
+      no activity is visible yet. */
   last_active_at: string | null;
-  /** Организации, в которых состоит человек. Пусто — вышел из всех,
-      включая собственную, заведённую при регистрации. */
+  /** The organizations the person belongs to. Empty — they left them all,
+      including their own, created at registration. */
   organizations: string[];
 };
 
 /**
- * Все аккаунты установки — самые новые регистрации первыми.
+ * All the install's accounts — the newest registrations first.
  *
- * Доступен только роли директора на сервере; остальным маршрут отвечает 403
- * (см. `error.forbidden` в словаре).
+ * Available only to the director role on the server; for the rest the route answers with a 403 (see
+ * `error.forbidden` in the dictionary).
  */
 export function adminUsers(): Promise<AdminUser[]> {
   return request<AdminUser[]>("/api/admin/users");

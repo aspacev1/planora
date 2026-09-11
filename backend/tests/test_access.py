@@ -41,8 +41,8 @@ def test_client_and_guest_never_see_the_internal_note():
 
 
 def test_client_and_guest_never_read_the_proposal():
-    """Клиенту и гостю обещаны сроки и объём, а не ставки: предложение и
-    документ для клиента — у участников, включая наблюдателя."""
+    """A client and a guest were promised deadlines and scope, not rates: the proposal
+    and the client's document belong to members, the viewer included."""
     assert can(Role.CLIENT, Action.PROPOSAL_READ, project_granted=True) is False
     assert can(None, Action.PROPOSAL_READ, project_granted=True) is False
     assert can(Role.VIEWER, Action.PROPOSAL_READ) is True
@@ -56,9 +56,9 @@ def test_guest_reads_the_shared_project_and_comments():
 
 
 def test_the_proposal_is_internal_to_the_team():
-    """Смета — ставки, себестоимость и разговор о клиенте: читатель проекта
-    внутри команды её видит, клиент и гость по ссылке — нет, даже с грантом
-    на проект. Тот же урез, что уже действует у выгрузки."""
+    """The budget holds rates, cost and the conversation about the client: a reader of
+    the project inside the team sees it, a client and a link-holding guest do not, even
+    with a grant on the project. The same trimming the export already applies."""
     assert can(Role.OWNER, Action.PROPOSAL_READ) is True
     assert can(Role.EDITOR, Action.PROPOSAL_READ) is True
     assert can(Role.VIEWER, Action.PROPOSAL_READ) is True
@@ -72,9 +72,9 @@ def test_require_raises_for_a_forbidden_action():
 
 
 def test_owner_succeeds_without_an_explicit_project_grant():
-    # project_granted=False — это значение по умолчанию, и именно с ним
-    # приходят маршруты: owner не входит в _NEEDS_GRANT и не должен зависеть
-    # от гранта, который сегодня некому выдать.
+    # project_granted=False is the default value, and it is exactly what the routes
+    # arrive with: owner is not in _NEEDS_GRANT and must not depend on a grant there is
+    # nobody to issue today.
     for action in Action:
         assert can(Role.OWNER, action) is True
 
@@ -85,24 +85,24 @@ def test_comment_is_refused_to_client_and_guest_without_a_project_grant():
 
 
 def test_an_unknown_role_gets_nothing():
-    """Матрица заперта по умолчанию: значение, которого нет в Role, не даёт
-    даже прав гостя — иначе испорченная запись членства превращалась бы в
-    повышение до «гостя по ссылке»."""
+    """The matrix is locked by default: a value absent from Role does not even grant a
+    guest's rights — otherwise a corrupted membership row would turn into a promotion to
+    "link-holding guest"."""
     for action in Action:
         assert can(UNKNOWN_ROLE, action) is False
         assert can(UNKNOWN_ROLE, action, project_granted=True) is False
 
 
 def test_parse_role_turns_a_broken_value_into_a_refusal_not_a_crash():
-    # Role("шеф") поднимал ValueError — то есть пятисотку ещё до того, как
-    # спросят can(), и запертая матрица оказывалась недостижимой через HTTP.
+    # Role("шеф") raised ValueError — that is, a 500 before can() was even asked, and the
+    # locked matrix turned out to be unreachable over HTTP.
     assert parse_role("owner") is Role.OWNER
     assert parse_role(None) is None
     assert parse_role("шеф") == UNKNOWN_ROLE
     assert can(parse_role("шеф"), Action.PROJECT_READ, project_granted=True) is False
 
 
-# ---- Видимость полей журнала ------------------------------------------------
+# ---- The visibility of journal fields ----------------------------------------
 
 
 def _create_task_op() -> dict:
@@ -129,19 +129,19 @@ def test_visible_op_strips_the_note_for_client_and_guest():
 
 
 def test_visible_op_does_not_mutate_the_stored_payload():
-    # revision.op на самой записи трогать нельзя: будущая отмена восстановила
-    # бы задачу без заметки.
+    # revision.op on the entry itself must not be touched: a future undo would restore
+    # the task without its note.
     payload = _create_task_op()
     visible_op(payload, Role.CLIENT, project_granted=True)
     assert payload["internal_note"] == "тайный план"
 
 
 def test_visible_op_strips_notes_from_tasks_inside_a_deleted_category():
-    """Снимок удалённой категории несёт заметки своих задач — списком.
+    """The snapshot of a deleted category carries its tasks' notes — as a list.
 
-    Обход по вложенным словарям на нём молча не срабатывает: заметка лежит на
-    два уровня вглубь — в словаре внутри списка внутри записи, — и клиент
-    получил бы её вместе со снимком восстановления.
+    A walk over nested dicts silently fails on it: the note lies two levels deep — in a
+    dict inside a list inside the entry — and the client would get it along with the
+    restore snapshot.
     """
     payload = {
         "type": "create_category",
@@ -154,7 +154,7 @@ def test_visible_op_strips_notes_from_tasks_inside_a_deleted_category():
 
     assert "internal_note" not in shown["tasks"][0]
     assert shown["tasks"][0]["name"] == "Logo"
-    # Хранимая запись цела: отмена обязана вернуть задачу с заметкой.
+    # The stored entry is intact: an undo must bring the task back with its note.
     assert payload["tasks"][0]["internal_note"] == "тайный план"
 
 
@@ -164,9 +164,9 @@ def test_visible_op_passes_through_operations_without_a_note():
 
 
 def test_only_the_roles_that_are_invited_project_by_project_need_a_grant():
-    """Список ролей, которым нужен явный доступ, спрашивают снаружи — список
-    проектов отбирает по нему строки. Знание остаётся в access, но перестало
-    быть приватным."""
+    """The list of roles that need explicit access is asked for from outside — the
+    project list selects rows by it. The knowledge stays in access but has stopped
+    being private."""
     assert needs_project_grant(Role.CLIENT) is True
     assert needs_project_grant(None) is True
     assert needs_project_grant(Role.VIEWER) is False
@@ -174,24 +174,23 @@ def test_only_the_roles_that_are_invited_project_by_project_need_a_grant():
 
 
 def test_a_scoped_membership_needs_a_grant_regardless_of_role():
-    """`scoped` — свойство конкретного членства (Membership.project_scoped), а
-    не роли: редактора и наблюдателя можно сузить до отмеченных проектов, не
-    трогая саму матрицу прав."""
+    """`scoped` is a property of a particular membership (Membership.project_scoped)
+    rather than of a role: an editor and a viewer can be narrowed to the selected
+    projects without touching the permission matrix itself."""
     assert needs_project_grant(Role.EDITOR, scoped=True) is True
     assert needs_project_grant(Role.VIEWER, scoped=True) is True
-    # Без сужения — прежнее поведение: вся организация по одной роли.
+    # With no narrowing, the previous behaviour: the whole organization by role alone.
     assert needs_project_grant(Role.EDITOR, scoped=False) is False
     assert needs_project_grant(Role.VIEWER, scoped=False) is False
-    # client и гость сужены всегда, scoped им ничего не добавляет и не отнимает.
+    # client and guest are always narrowed; scoped adds nothing to them and takes nothing away.
     assert needs_project_grant(Role.CLIENT, scoped=False) is True
     assert needs_project_grant(None, scoped=False) is True
 
 
 def test_owner_is_never_scoped_even_if_the_flag_is_somehow_set():
-    """Владелец распоряжается организацией целиком: запертый в горстке
-    проектов владелец — это организация без администратора. Флаг на записи
-    членства (например, после повышения сужённого редактора) не должен это
-    менять."""
+    """An owner governs the whole organization: an owner locked inside a handful of
+    projects is an organization without an administrator. A flag on the membership row
+    (after a narrowed editor was promoted, for instance) must not change that."""
     assert needs_project_grant(Role.OWNER, scoped=True) is False
     assert can(Role.OWNER, Action.PROJECT_READ, project_granted=False, scoped=True) is True
 
@@ -204,16 +203,15 @@ def test_a_scoped_editor_reads_only_the_granted_project():
 
 
 def test_an_unscoped_editor_is_unaffected_by_the_new_parameter():
-    # scoped=False — то же значение по умолчанию, что и раньше: сужение не
-    # включается само по себе.
+    # scoped=False is the same default value as before: narrowing does not switch itself on.
     assert can(Role.EDITOR, Action.PROJECT_READ) is True
     assert can(Role.EDITOR, Action.PROJECT_WRITE) is True
 
 
 def test_team_pace_is_for_the_team_and_assessment_for_the_owner():
-    """Цифры темпа по людям видит команда, включая наблюдателя; оценку
-    («сорвал молча») — только владелец. Клиент и гость не видят ни того, ни
-    другого: они смотрят план, а не на исполнителей."""
+    """The per-person pace figures are seen by the team, the viewer included; the
+    assessment ("missed it silently") only by the owner. A client and a guest see
+    neither: they look at the plan, not at the contributors."""
     assert can(Role.OWNER, Action.TEAM_PACE_READ) is True
     assert can(Role.EDITOR, Action.TEAM_PACE_READ) is True
     assert can(Role.VIEWER, Action.TEAM_PACE_READ) is True

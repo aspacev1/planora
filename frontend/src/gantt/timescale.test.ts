@@ -15,7 +15,7 @@ describe("шкала времени", () => {
   });
 
   it("ширина полоски включает оба конца", () => {
-    // задача с 4 по 6 марта занимает три дня
+    // a task from 4 to 6 March takes three days
     expect(scale.widthOf("2026-03-04", "2026-03-06")).toBe(3 * 26);
   });
 
@@ -35,33 +35,32 @@ describe("шкала времени", () => {
   });
 
   it("день недели считается по календарю, а не по остатку от деления", () => {
-    expect(scale.days[0].weekday).toBe(0); // 1 марта 2026 — воскресенье
+    expect(scale.days[0].weekday).toBe(0); // 1 March 2026 is a Sunday
   });
 
   it("тот же день недели считается верно и при другом начале ленты", () => {
-    // Смещение начала на день обязано сдвинуть и день недели. Индекс от
-    // начала ленты этого не заметил бы, и ошибка вылезла бы только при
-    // смене границ окна.
+    // Shifting the start by a day must shift the weekday too. An index from the strip's start would
+    // not notice that, and the error would only show up when the window's bounds changed.
     const shifted = buildScale({ from: "2026-03-02", to: "2026-03-31", dayWidth: 26 });
-    expect(shifted.days[0].weekday).toBe(1); // 2 марта 2026 — понедельник
+    expect(shifted.days[0].weekday).toBe(1); // 2 March 2026 is a Monday
   });
 
   it("день на границе месяца попадает в свой месяц", () => {
-    expect(scale.months[0].days).toBe(31); // март
-    expect(scale.months[3].days).toBe(15); // июнь оборван пятнадцатым
+    expect(scale.months[0].days).toBe(31); // March
+    expect(scale.months[3].days).toBe(15); // June is truncated at the fifteenth
   });
 
   it("перевод пикселей в дату берёт день, внутрь которого попала точка", () => {
-    // Середина второго дня — всё ещё второй день, а не третий.
+    // The middle of the second day is still the second day rather than the third.
     expect(scale.dateAt(26 + 13)).toBe("2026-03-02");
-    // Ровно граница — уже следующий.
+    // Exactly on the boundary is already the next one.
     expect(scale.dateAt(26 * 2)).toBe("2026-03-03");
   });
 
   it("точка за пределами ленты прижимается к её краю", () => {
-    // Перетаскивание в план 3 будет спрашивать дату по координате курсора, и
-    // курсор умеет уезжать за край. Отдавать undefined или дату за пределами
-    // окна значило бы заставить каждого вызывающего проверять это самому.
+    // Dragging in plan 3 will ask for a date by the cursor's coordinate, and the cursor can travel
+    // beyond the edge. Returning undefined or a date outside the window would mean making every caller
+    // check that itself.
     expect(scale.dateAt(-100)).toBe("2026-03-01");
     expect(scale.dateAt(scale.width + 100)).toBe("2026-06-15");
   });
@@ -74,8 +73,8 @@ describe("шкала времени", () => {
   });
 
   it("перевод не зависит от часового пояса машины", () => {
-    // Арифметика идёт по UTC-полуночи. Объект Date, посчитанный в местном
-    // поясе, съезжает на день западнее Гринвича — и полоска вместе с ним.
+    // The arithmetic runs on UTC midnight. A Date object computed in the local zone slips by a day west
+    // of Greenwich — and the bar slips with it.
     const across = buildScale({ from: "2026-10-24", to: "2026-11-02", dayWidth: 10 });
     expect(across.days.map((d) => d.date)).toEqual([
       "2026-10-24",

@@ -23,7 +23,7 @@ async def test_subscriber_gets_what_was_published_to_its_room():
 
 @pytest.mark.asyncio
 async def test_a_room_hears_nothing_of_another_project():
-    """Без второй комнаты тест проходил бы и с рассылкой всем подряд."""
+    """Without a second room the test would pass with a broadcast to everyone too."""
     hub = Hub()
     with hub.subscribe(PROJECT) as mine, hub.subscribe(OTHER) as theirs:
         await hub.publish(PROJECT, event(1))
@@ -45,13 +45,13 @@ async def test_everyone_in_the_room_gets_the_same_event():
 
 @pytest.mark.asyncio
 async def test_leaving_removes_the_room():
-    """Комната обязана исчезать, а не оставаться пустой навсегда."""
+    """A room must vanish rather than stay empty forever."""
     hub = Hub()
     with hub.subscribe(PROJECT):
         assert hub.listeners(PROJECT) == 1
     assert hub.listeners(PROJECT) == 0
 
-    # И публикация в опустевшую комнату не должна ничего ломать.
+    # And publishing into a room that has emptied must not break anything.
     await hub.publish(PROJECT, event(1))
 
 
@@ -63,7 +63,7 @@ async def test_a_subscriber_that_falls_behind_is_marked_and_stops_growing():
             await hub.publish(PROJECT, event(seq))
 
         assert subscriber.lagging is True
-        # Очередь не выросла за потолок: лишнее выброшено, а не накоплено.
+        # The queue has not grown past the ceiling: the surplus is dropped, not accumulated.
         for seq in range(BACKLOG_LIMIT):
             assert await subscriber.next() == event(seq)
         with pytest.raises(TimeoutError):
@@ -72,10 +72,10 @@ async def test_a_subscriber_that_falls_behind_is_marked_and_stops_growing():
 
 @pytest.mark.asyncio
 async def test_lagging_survives_a_drained_queue():
-    """Отставание — не «очередь полна сейчас», а «лента уже порвана».
+    """Falling behind is not "the queue is full right now" but "the feed is already torn".
 
-    Иначе сокет, у которого очередь успела опустеть, продолжил бы получать
-    ревизии с дырой посередине и считал бы себя в курсе.
+    Otherwise a socket whose queue had time to empty would keep receiving revisions
+    with a hole in the middle and would consider itself up to date.
     """
     hub = Hub()
     with hub.subscribe(PROJECT) as subscriber:

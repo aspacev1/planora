@@ -1,20 +1,22 @@
-"""Проверка адреса LLM перед исходящим запросом: защита от SSRF.
+"""Validating the LLM address before an outbound request: SSRF protection.
 
-Адрес модели задаёт администратор организации — то есть пользователь, а
-запрос по нему выполняет сервер из своей сети. Без проверки это готовый
-SSRF: адресом назначается `http://169.254.169.254/…` или внутренний сервис
-установки, и «подключение LLM» превращается в прокси в приватную сеть от
-имени сервера.
+The model's address is set by an organization's administrator — that is, by a
+user — while the request to it is made by the server from its own network.
+Without a check this is ready-made SSRF: point the address at
+`http://169.254.169.254/...` or at an internal service of the installation, and
+"an LLM connection" turns into a proxy into a private network on the server's
+behalf.
 
-Правила: схема — только https; хост обязан резолвиться только в публичные
-адреса (проверяются все A/AAAA-записи — одной приватной достаточно для
-отказа). Резолв здесь не устраняет TOCTOU с последующим резолвом в самом
-запросе полностью, но закрывает дешёвый путь; редиректы запрещены отдельно
-(см. provider), чтобы публичный адрес не переадресовал внутрь.
+The rules: the scheme must be https only; the host must resolve to public
+addresses only (every A/AAAA record is checked — one private record is enough
+to refuse). Resolving here does not fully remove the TOCTOU against the later
+resolution inside the request itself, but it closes the cheap path; redirects
+are forbidden separately (see provider) so that a public address cannot forward
+inward.
 
-`AI_ALLOW_PRIVATE_URLS=true` отключает проверку целиком — осознанная ручка
-для self-hosted установки с локальной моделью (llama.cpp, vLLM) в той же
-сети: обещание «можно подсунуть локальную модель» без неё стало бы ложью.
+`AI_ALLOW_PRIVATE_URLS=true` disables the check entirely — a deliberate knob for
+a self-hosted installation with a local model (llama.cpp, vLLM) on the same
+network: without it the promise "you can plug in a local model" would be a lie.
 """
 
 import ipaddress
@@ -26,7 +28,7 @@ from app.config import get_settings
 
 
 def ensure_public_https(url: str) -> None:
-    """Поднимает LlmError, если по адресу нельзя ходить с сервера."""
+    """Raises LlmError if the server must not go to this address."""
     if get_settings().ai_allow_private_urls:
         return
 
@@ -44,8 +46,8 @@ def ensure_public_https(url: str) -> None:
 
     for *_, sockaddr in infos:
         address = ipaddress.ip_address(sockaddr[0])
-        # is_global отвергает и приватные диапазоны, и loopback, и
-        # link-local (169.254.0.0/16 — облачные метаданные), и CGN разом.
+        # is_global rejects private ranges, loopback, link-local
+        # (169.254.0.0/16 — cloud metadata) and CGN all at once.
         if not address.is_global:
             raise LlmError(
                 "llm_url_private",

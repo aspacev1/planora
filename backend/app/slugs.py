@@ -13,11 +13,11 @@ T = TypeVar("T")
 
 
 def _with_suffix(base: str, suffix: str) -> str:
-    """База с суффиксом, вместе не длиннее колонки.
+    """The base plus a suffix, together no longer than the column.
 
-    Суффикс пришивается к уже обрезанному слагу, поэтому урезается база, а не
-    суффикс: суффикс — это и есть гарантия уникальности, терять его символы
-    нельзя.
+    The suffix is attached to an already truncated slug, so it is the base that
+    gets trimmed, not the suffix: the suffix is the very guarantee of
+    uniqueness, and its characters must not be lost.
     """
     trimmed = base[: SLUG_MAX_LEN - len(suffix)].rstrip("-")
     return f"{trimmed}{suffix}"
@@ -33,17 +33,17 @@ def _candidate(name: str, *, forced: bool, is_taken: Callable[[str], bool], fall
 def suggest_free_slug(
     raw: str, *, is_taken: Callable[[str], bool], fallback: str = "project", limit: int = 20
 ) -> str:
-    """Свободный слаг, похожий на желаемый.
+    """A free slug resembling the desired one.
 
-    Нужен форме, а не вставке: занятый слаг обязан подсказать свободный
-    вариант прямо в поле ввода, до отправки. Поэтому суффикс здесь числовой и
-    по порядку — `redesign-2`, `redesign-3`, — а не случайный, как при
-    вставке: подсказку человек читает и вводит с голоса, и шесть
-    шестнадцатеричных цифр в ней бесполезны.
+    Needed by the form, not by the insert: a taken slug must suggest a free
+    variant right in the input field, before submission. That is why the suffix
+    here is numeric and sequential — `redesign-2`, `redesign-3` — rather than
+    random as on insert: a person reads the suggestion and dictates it aloud,
+    and six hexadecimal digits in it are useless.
 
-    Случайный суффикс остаётся последним средством: если заняты и первые
-    двадцать номеров, перебирать дальше дороже, чем предложить заведомо
-    свободное имя.
+    A random suffix remains the last resort: if the first twenty numbers are
+    taken too, enumerating further costs more than offering a name that is
+    knowingly free.
     """
     base = slugify(raw, fallback=fallback)
     if not is_taken(base):
@@ -56,13 +56,14 @@ def suggest_free_slug(
 
 
 def slug_check(raw: str, *, is_taken: Callable[[str], bool], fallback: str = "project") -> dict:
-    """Ответ поля ввода: во что превратится введённое, свободно ли оно и что
-    предложить взамен.
+    """The input field's answer: what the entered text turns into, whether it is
+    free, and what to offer instead.
 
-    Нормализованная форма отдаётся отдельно от подсказки, потому что это
-    разные ответы на разные вопросы: первый — «вот каким будет адрес», второй —
-    «а вот таким, если этот занят». Слив их в одно поле, интерфейс не смог бы
-    отличить «всё хорошо» от «мы подобрали за вас».
+    The normalized form is returned separately from the suggestion because those
+    are different answers to different questions: the first is "this is what the
+    address will be", the second is "and this one, if that is taken". Merged
+    into one field, the interface could not tell "all good" from "we picked one
+    for you".
     """
     normalized = slugify(raw, fallback=fallback)
     available = not is_taken(normalized)
@@ -83,25 +84,27 @@ def insert_with_unique_slug(
     is_taken: Callable[[str], bool],
     fallback: str = "project",
 ) -> T:
-    """Вставляет сущность со слагом, выведенным из названия.
+    """Inserts an entity with a slug derived from its name.
 
-    Проверить занятость и вставить — не одно и то же действие: между SELECT и
-    INSERT успевает пройти конкурентный запрос, и уникальный индекс отвергает
-    вставку. Поэтому проверка здесь — только чтобы не вешать суффикс без
-    нужды, а настоящая защита — ограничение в базе: коллизия ловится,
-    откатывается до SAVEPOINT (иначе прерванной оказалась бы вся транзакция
-    сессии) и попытка повторяется с новым случайным суффиксом.
+    Checking availability and inserting are not one action: a concurrent request
+    fits between the SELECT and the INSERT, and the unique index rejects the
+    insert. So the check here exists only to avoid attaching a suffix
+    needlessly, while the real protection is the database constraint: a
+    collision is caught, rolled back to a SAVEPOINT (otherwise the session's
+    whole transaction would be aborted) and the attempt is repeated with a new
+    random suffix.
 
-    Коллизия слага — не вина того, кто пришёл вторым: его организация или
-    проект просто называются как уже существующие. Поэтому цикл, а не отказ.
-    Число попыток ограничено, чтобы IntegrityError по другой причине —
-    например, по внешнему ключу — не превратился в вечный цикл: исчерпав
-    попытки, поднимаем последнюю ошибку как есть.
+    A slug collision is not the fault of whoever arrived second: their
+    organization or project simply has the same name as an existing one. Hence a
+    loop rather than a refusal. The number of attempts is bounded so that an
+    IntegrityError for another reason — a foreign key, say — does not turn into
+    an endless loop: having exhausted the attempts, we raise the last error as
+    is.
 
-    DataError ловится наравне с IntegrityError: слаг обрезается до колонки
-    ещё в slugify, но у сущности есть и другие строковые поля, а прерванной
-    без отката до SAVEPOINT осталась бы вся транзакция сессии — вместе с
-    изменениями, не имеющими к слагу никакого отношения.
+    DataError is caught alongside IntegrityError: the slug is truncated to the
+    column back in slugify, but the entity has other string fields too, and
+    without a rollback to the SAVEPOINT the session's whole transaction would be
+    left aborted — together with changes that have nothing to do with the slug.
     """
     last_error: DataError | IntegrityError | None = None
     for attempt in range(MAX_ATTEMPTS):

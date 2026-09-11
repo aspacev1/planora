@@ -13,17 +13,17 @@ import { Modal } from "../components/Modal";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Окно раздела сметы — тем же движением, что категория плана (CategoryForm):
- * кнопка в тулбаре, окно с полями, «Создать».
+ * The quote section's dialog — by the same motion as a plan category's (CategoryForm): a button in the
+ * toolbar, a dialog with fields, "Create".
  *
- * Оно же правит уже заведённый раздел. Отдельного окна правки нет намеренно:
- * поля те же самые, и второе такое же однажды разошлось бы с первым — а имя и
- * описание раздела правятся ещё и прямо в строке таблицы, до которой с
- * клавиатуры не дойти (см. components/rows). Окно — тот самый путь.
+ * It also edits an already created section. There is deliberately no separate edit dialog: the fields
+ * are the same, and a second one like it would one day diverge from the first — while a section's name
+ * and description are also edited right in the table's row, which cannot be reached from the keyboard
+ * (see components/rows). The dialog is that very path.
  *
- * Отличие от категории плана одно, и оно — от природы сметы: цвета нет,
- * раздел сметы не рисуется полосой на диаграмме, и выбирать ему цвет не для
- * чего.
+ * There is one difference from a plan category, and it comes from the quote's nature: there is no
+ * colour, a quote section is not drawn as a band on the chart, and there is nothing to choose a colour
+ * for it for.
  */
 export function ProposalCategoryForm({
   projectId,
@@ -31,7 +31,7 @@ export function ProposalCategoryForm({
   onClose,
 }: {
   projectId: string;
-  /** Раздел на правке. `undefined` — заводится новый. */
+  /** The section being edited. `undefined` — a new one is being created. */
   category?: ProposalCategory;
   onClose: () => void;
 }) {
@@ -49,8 +49,8 @@ export function ProposalCategoryForm({
             description: description.trim(),
           }),
     onSuccess: async () => {
-      // Перезапрос, а не дописывание в кэш: идентификатор и позицию назначил
-      // сервер — тот же довод, что у категории плана.
+      // A refetch rather than writing into the cache: the id and the position were assigned by the
+      // server — the same argument as with a plan category.
       await queryClient.invalidateQueries({ queryKey: proposalQueryKey(projectId) });
       onClose();
     },
@@ -82,8 +82,8 @@ export function ProposalCategoryForm({
           value={name}
           onChange={setName}
         />
-        {/* Описание — по желанию: строка о разделе целиком, она встанет на
-            его строке в таблице рядом с суммой работ. */}
+        {/* The description is optional: a line about the whole section, it will stand on its row in the
+            table next to the sum of the work. */}
         <Field
           id="proposal-category-description"
           label={t("proposal.category.description")}

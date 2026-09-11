@@ -1,13 +1,15 @@
-"""Суточный бюджет токенов LLM организации.
+"""An organization's daily LLM token budget.
 
-Ключ приносит организация, и платит за него она же. Без бюджета один
-участник — или один зациклившийся сценарий — выжигает месячный лимит ключа
-за вечер, и узнаёт об этом владелец ключа по счёту. Бюджет продукта — это
-предохранитель поверх лимитов провайдера, а не замена им.
+The organization brings the key, and the organization pays for it. Without a
+budget one member — or one scenario stuck in a loop — burns the key's monthly
+limit in an evening, and the key's owner learns about it from the invoice. The
+product's budget is a fuse on top of the provider's limits, not a replacement
+for them.
 
-Считается по календарным суткам UTC. Смена дня в чужом часовом поясе — не
-та точность, ради которой стоит таскать в счётчик часовой пояс организации:
-предохранитель одинаково работает при любом смещении границы суток.
+It is counted by UTC calendar days. The day boundary in someone else's timezone
+is not the kind of precision worth dragging the organization's timezone into
+the counter for: the fuse works the same whatever the offset of the day
+boundary.
 """
 
 from datetime import datetime, timezone
@@ -34,7 +36,7 @@ def spent_today(db: DbSession, org: Organization) -> int:
 
 
 def budget_left(db: DbSession, org: Organization) -> bool:
-    """Остался ли у организации бюджет на сегодня. 0 в настройке — без предела."""
+    """Whether the organization still has budget for today. 0 in the setting means no limit."""
     budget = get_settings().ai_daily_token_budget
     if budget <= 0:
         return True
@@ -42,8 +44,8 @@ def budget_left(db: DbSession, org: Organization) -> bool:
 
 
 def charge(db: DbSession, org: Organization, tokens: int) -> None:
-    """Записывает расход. Upsert, а не read-modify-write: два одновременных
-    вызова модели не должны терять токены друг друга."""
+    """Records consumption. An upsert rather than read-modify-write: two
+    concurrent model calls must not lose each other's tokens."""
     if tokens <= 0:
         return
     statement = pg_insert(AiUsage).values(org_id=org.id, day=_today(), tokens=tokens)
@@ -56,11 +58,12 @@ def charge(db: DbSession, org: Organization, tokens: int) -> None:
 
 
 class MeteredProvider:
-    """Обёртка провайдера: каждый ответ модели записывается в расход организации.
+    """A provider wrapper: every model answer is recorded against the organization.
 
-    Учёт здесь, а не в вызывающих местах: путей к модели несколько (интервью,
-    тезисы, черновик, разбиение задачи), и место, забывшее посчитать, — это
-    дыра в бюджете. propose_split до этой обёртки не считался вовсе.
+    The accounting lives here rather than at the call sites: there are several
+    paths to the model (the interview, the summary, the draft, splitting a
+    task), and a site that forgets to count is a hole in the budget. Before this
+    wrapper, propose_split was not counted at all.
     """
 
     def __init__(self, inner, db: DbSession, org: Organization):

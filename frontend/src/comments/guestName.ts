@@ -1,12 +1,12 @@
 const STORAGE_KEY = "planora.guest_name";
 
 /**
- * Имя гостя запоминается в браузере, а не на сервере: аккаунта у гостя нет,
- * и просить его назваться заново под каждой репликой — способ получить трёх
- * разных «Нигяр» в одной ленте.
+ * A guest's name is remembered in the browser rather than on the server: a guest has no account, and
+ * asking them to introduce themselves under every reply is a way to get three different "Nigar"s in one
+ * feed.
  *
- * Приватный режим браузера умеет запрещать localStorage — там имя просто не
- * переживёт перезагрузку. Это не повод падать (см. LocaleProvider).
+ * A browser's private mode can forbid localStorage — there the name simply does not survive a reload.
+ * That is no reason to crash (see LocaleProvider).
  */
 export function storedGuestName(): string {
   try {
@@ -20,6 +20,6 @@ export function rememberGuestName(name: string): void {
   try {
     localStorage.setItem(STORAGE_KEY, name);
   } catch {
-    // см. storedGuestName()
+    // see storedGuestName()
   }
 }

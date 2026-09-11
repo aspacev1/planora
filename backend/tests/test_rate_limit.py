@@ -15,8 +15,8 @@ def test_the_window_slides_instead_of_resetting_on_the_hour():
     window.allow("a", now=30.0)
 
     assert window.allow("a", now=59.0) is False
-    # Ушло только первое обращение: окно скользящее, а не «обнулиться в
-    # начале часа», иначе на границе часа проходит двойной потолок.
+    # Only the first request went out: the window slides rather than "reset at the
+    # start of the hour", otherwise a double ceiling passes at an hour boundary.
     assert window.allow("a", now=61.0) is True
     assert window.allow("a", now=62.0) is False
 
@@ -28,8 +28,8 @@ def test_a_refusal_does_not_extend_the_ban():
     for moment in (10.0, 20.0, 30.0):
         assert window.allow("a", now=moment) is False
 
-    # Отказ ничего не записывает: иначе тот, кто жмёт кнопку дальше,
-    # продлевал бы себе запрет каждым нажатием.
+    # A refusal records nothing: otherwise whoever keeps pressing the button would
+    # extend their own ban with every press.
     assert window.allow("a", now=61.0) is True
 
 
@@ -50,6 +50,7 @@ def test_stale_keys_do_not_pile_up_forever():
     for index in range(SlidingWindow.SWEEP_EVERY * 2):
         window.allow(f"guest-{index}", now=float(index))
 
-    # Уборка идёт раз в SWEEP_EVERY обращений, поэтому точное число ключей
-    # не фиксируется: важно, что словарь не растёт линейно по числу адресов.
+    # The cleanup happens once every SWEEP_EVERY requests, so the exact number of
+    # keys is not pinned: what matters is that the dictionary does not grow linearly
+    # with the number of addresses.
     assert len(window) < SlidingWindow.SWEEP_EVERY

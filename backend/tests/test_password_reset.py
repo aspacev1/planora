@@ -1,9 +1,9 @@
-"""Восстановление пароля: выдача ссылки, её погашение и защита формы.
+"""Password recovery: issuing a link, redeeming it and protecting the form.
 
-Письма перехватываются фикстурой `mailbox` (tests/conftest.py) — ни один
-тест не открывает сокет. Проверяется то, что решает наш код: одноразовость
-ссылки, срок жизни, смерть всех сессий при смене пароля и молчание формы о
-том, какие адреса зарегистрированы.
+Messages are intercepted by the `mailbox` fixture (tests/conftest.py) — not a single
+test opens a socket. What is checked is what our code decides: the link's
+single-use nature, its lifetime, the death of every session when the password
+changes, and the form's silence about which addresses are registered.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -46,11 +46,11 @@ def client(db):
 
 
 def _token_of(text: str) -> str:
-    """Токен из ссылки — так же, как его достаёт из письма человек."""
+    """The token from a link — the same way a person takes it out of an email."""
     return text.partition("token=")[2].split()[0]
 
 
-# ---- Выдача и погашение -----------------------------------------------------
+# ---- Issuing and redeeming ---------------------------------------------------
 
 
 def test_the_open_token_is_not_what_lands_in_the_database(db, user):
@@ -71,15 +71,15 @@ def test_redeeming_sets_the_new_password_and_burns_the_token(db, user):
     assert authenticate(db, email="alex@example.com", password="s3cret-pass") is None
     assert db.query(PasswordReset).filter_by(user_id=user.id).count() == 0
 
-    # Вторая попытка по той же ссылке ничего не даёт: токен погашен.
+    # A second attempt with the same link gives nothing: the token is redeemed.
     with pytest.raises(ResetError) as exc_info:
         redeem_token(db, raw, new_password="another-pass-123")
     assert exc_info.value.code == "invalid_token"
 
 
 def test_redeeming_closes_every_session_of_the_owner(db, user):
-    # Две сессии — «угонщик» и брошенный ноутбук. Обе должны умереть: за
-    # восстановлением приходят как раз тогда, когда пароль, похоже, утёк.
+    # Two sessions — the "intruder" and an abandoned laptop. Both must die: people
+    # come for recovery precisely when the password appears to have leaked.
     open_session(db, user)
     open_session(db, user)
 
@@ -104,7 +104,7 @@ def test_an_expired_link_is_rejected_and_swept_away(db, user):
         redeem_token(db, raw, new_password="n3w-secret-pass")
 
     assert exc_info.value.code == "token_expired"
-    # Пароль не тронут: просроченная ссылка ничего не меняет.
+    # The password is untouched: an expired link changes nothing.
     assert authenticate(db, email="alex@example.com", password="s3cret-pass") is not None
     assert db.query(PasswordReset).filter_by(user_id=user.id).count() == 0
 
@@ -127,7 +127,7 @@ def test_the_link_is_built_from_the_public_base_url(db, user):
     assert _token_of(link)
 
 
-# ---- Письмо -----------------------------------------------------------------
+# ---- The message -------------------------------------------------------------
 
 
 def test_the_letter_goes_out_in_the_language_of_its_recipient(db, user, mailbox):
@@ -142,8 +142,8 @@ def test_the_letter_goes_out_in_the_language_of_its_recipient(db, user, mailbox)
     assert "Alex" in letter.body
     assert str(int(RESET_TTL.total_seconds() // 3600)) in letter.body
 
-    # Ссылка из письма действительно работает — иначе проверять текст
-    # письма бессмысленно.
+    # The link from the message really works — otherwise checking the message's text
+    # would be pointless.
     assert redeem_token(db, _token_of(letter.body), new_password="n3w-secret-pass")
 
 
@@ -157,12 +157,12 @@ def test_an_undelivered_letter_still_leaves_a_usable_token(db, user, monkeypatch
     monkeypatch.setattr(mail_module, "build_transport", lambda settings: Broken())
 
     assert send_reset(db, user) is False
-    # Токен выдан: повторная просьба выпустит новый и погасит этот, а откат
-    # ничего бы не улучшил.
+    # The token is issued: a repeated request will issue a new one and redeem this
+    # one, and a rollback would improve nothing.
     assert db.query(PasswordReset).filter_by(user_id=user.id).count() == 1
 
 
-# ---- Маршруты ---------------------------------------------------------------
+# ---- The routes --------------------------------------------------------------
 
 
 def test_the_form_sends_a_letter_with_a_working_link(client, db, user, mailbox):
@@ -185,7 +185,7 @@ def test_the_form_sends_a_letter_with_a_working_link(client, db, user, mailbox):
 
 
 def test_an_unknown_address_gets_the_same_silent_answer(client, mailbox):
-    # 204 без письма: форма не справочник «кто здесь зарегистрирован».
+    # A 204 with no message: the form is not a directory of "who is registered here".
     response = client.post("/api/auth/password/forgot", json={"email": "nobody@example.com"})
 
     assert response.status_code == 204
@@ -196,15 +196,15 @@ def test_a_repeat_within_the_cooldown_is_silently_swallowed(client, db, user, ma
     assert client.post(
         "/api/auth/password/forgot", json={"email": "alex@example.com"}
     ).status_code == 204
-    # Тот же 204, но письма нет: ответ «слишком часто» выдал бы, что адрес
-    # зарегистрирован, — незнакомому адресу пауза не отвечает.
+    # The same 204, but with no message: a "too often" answer would reveal that the
+    # address is registered — an unknown address is not told about the pause.
     assert client.post(
         "/api/auth/password/forgot", json={"email": "alex@example.com"}
     ).status_code == 204
 
     assert len(mailbox) == 1
 
-    # Отматываем выдачу назад — как если бы прошла минута.
+    # We wind the issue time back — as if a minute had passed.
     record = db.query(PasswordReset).one()
     record.created_at = datetime.now(timezone.utc) - RESEND_COOLDOWN - timedelta(seconds=1)
     db.flush()
@@ -261,8 +261,8 @@ def test_a_short_password_is_rejected_by_validation(client, db, user, mailbox):
         json={"token": _token_of(mailbox[0].body), "new_password": "short"},
     )
 
-    # 422 от pydantic, токен не погашен: человек поправит пароль и отправит
-    # форму ещё раз по той же ссылке.
+    # A 422 from pydantic, the token not redeemed: the person will fix the password
+    # and submit the form again through the same link.
     assert response.status_code == 422
     assert db.query(PasswordReset).count() == 1
 

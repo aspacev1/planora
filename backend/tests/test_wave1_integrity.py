@@ -1,9 +1,9 @@
-"""Регрессионные тесты волны 1 плана исправлений: целостность данных.
+"""Wave 1 regression tests from the remediation plan: data integrity.
 
-Каждый тест воспроизводит путь, который до исправления вёл в 500 или в
-необратимую потерю данных: двойная отмена из двух вкладок, отмена удаления,
-теряющая связи и разговор, откат пачки в удалённую категорию, журнал
-реордера размером со весь проект.
+Every test reproduces a path that, before the fix, led to a 500 or to irreversible
+data loss: a double undo from two tabs, an undo of a deletion losing dependencies and
+the conversation, a batch rollback into a deleted category, a reorder journal the size
+of the whole project.
 """
 
 import threading
@@ -75,21 +75,21 @@ def _task(db, project, category, *, name="Logo", start=date(2026, 3, 2), duratio
     return db.get(Task, revision.op["task_id"])
 
 
-# --- 1.1: гонка двойной отмены ----------------------------------------------
+# --- 1.1: the double-undo race ------------------------------------------------
 
 
 def test_two_simultaneous_undos_do_not_double_undo(engine):
-    """Вторая из двух одновременных отмен ждёт замок и находит пустой журнал.
+    """The second of two simultaneous undos waits for the lock and finds an empty journal.
 
-    До исправления обе вкладки выбирали одну и ту же ревизию до замка, и
-    проигравшая применяла отмену второй раз — проект возвращался туда, откуда
-    первая только что ушла. Тест держит замок незакоммиченной первой отменой
-    и убеждается, что вторая блокируется, а дождавшись — получает
-    nothing_to_undo, а не двойной откат.
+    Before the fix both tabs picked the same revision before the lock, and the loser
+    applied the undo a second time — the project went back to where the first had just
+    left. The test holds the lock with an uncommitted first undo and makes sure the
+    second blocks, and that once it has waited it gets nothing_to_undo rather than a
+    double rollback.
 
-    Работает на собственных сессиях с настоящими коммитами: замок строки
-    виден только между разными транзакциями. Слаг уникален в базе, поэтому
-    свой, а уборка — в finally, чтобы не оставить мусор соседям.
+    It works on sessions of its own with real commits: a row lock is visible only
+    between different transactions. The slug is unique in the database, so it uses its
+    own, and the cleanup is in a finally so as not to leave litter for the neighbours.
     """
     make_session = sessionmaker(bind=engine)
     marker = uuid.uuid4().hex[:8]
@@ -130,8 +130,8 @@ def test_two_simultaneous_undos_do_not_double_undo(engine):
         )
         first.commit()
 
-        # Первая отмена: замок взят, транзакция открыта — как будто запрос
-        # ещё выполняется.
+        # The first undo: the lock is taken, the transaction is open — as if the request
+        # were still running.
         applied, undone = undo_last(first, project_one, actor_id=None)
         assert undone.op["type"] == "move_task"
 
@@ -149,7 +149,7 @@ def test_two_simultaneous_undos_do_not_double_undo(engine):
 
         rival = threading.Thread(target=concurrent_undo)
         rival.start()
-        # Соперник обязан стоять на замке, пока первая транзакция не закрыта.
+        # The rival must stand at the lock until the first transaction is closed.
         rival.join(timeout=0.5)
         assert rival.is_alive(), "вторая отмена не ждала замок проекта"
 
@@ -157,8 +157,8 @@ def test_two_simultaneous_undos_do_not_double_undo(engine):
         rival.join(timeout=10)
         assert not rival.is_alive()
 
-        # Два нажатия — два шага назад: соперник вправе отменить предыдущую
-        # ревизию (создание задачи), но не ту же самую ещё раз.
+        # Two presses mean two steps back: the rival is entitled to undo the previous
+        # revision (the creation of the task), but not the same one again.
         assert outcome.get("undone_seq") != undone.seq
 
         check = make_session()
@@ -168,11 +168,11 @@ def test_two_simultaneous_undos_do_not_double_undo(engine):
                     Revision.project_id == project_id, Revision.undoes_seq.is_not(None)
                 )
             ).all()
-            # Ключевая проверка: ход отменён ровно один раз.
+            # The key check: the move was undone exactly once.
             assert [r.undoes_seq for r in undo_revisions].count(undone.seq) == 1
             task = check.get(Task, task_id)
-            # Задача либо на исходном месте (второй жест шагнул дальше — к
-            # отмене создания), либо существует на исходной дате.
+            # The task is either back where it started (the second gesture stepped
+            # further — to undoing the creation) or exists on its original date.
             if task is not None:
                 assert task.start_date == date(2026, 3, 2)
         finally:
@@ -193,11 +193,11 @@ def test_undo_with_an_empty_journal_refuses_with_a_code(db, project):
     assert error.value.code == "nothing_to_undo"
 
 
-# --- 1.2: край дат ------------------------------------------------------------
+# --- 1.2: the edge of dates ----------------------------------------------------
 
 
 def test_wire_dates_beyond_the_horizon_are_refused():
-    """Дата за горизонтом отклоняется на проводе, а не падает в календаре."""
+    """A date beyond the horizon is rejected on the wire rather than failing in the calendar."""
     with pytest.raises(ValidationError):
         PublicMoveTask(task_id=uuid.uuid4(), start_date=date(2201, 1, 1))
     with pytest.raises(ValidationError):
@@ -217,7 +217,7 @@ def test_wire_dates_beyond_the_horizon_are_refused():
         )
 
 
-# --- 1.4: отмена удаления возвращает окружение задачи ------------------------
+# --- 1.4: undoing a deletion brings the task's environment back ---------------
 
 
 def _member(db, org_id, *, name="Мария", email="m@example.com") -> User:
@@ -251,7 +251,7 @@ def test_undoing_a_task_deletion_restores_links_assignees_and_comments(db, proje
     db.flush()
 
     deletion = apply_op(db, project, DeleteTask(task_id=task.id), actor_id=None)
-    # Каскад унёс окружение — ровно то, что до исправления пропадало навсегда.
+    # The cascade carried the environment away — exactly what used to vanish forever.
     assert db.get(Comment, comment_id) is None
 
     undo(db, project, deletion, actor_id=None)
@@ -276,10 +276,10 @@ def test_undoing_a_task_deletion_restores_links_assignees_and_comments(db, proje
 
 
 def test_restoring_a_task_skips_links_whose_other_end_is_gone(db, project, category):
-    """Мир ушёл вперёд: второй конец связи удалён — отмена не падает.
+    """The world has moved on: the dependency's other end was deleted — the undo does not fail.
 
-    Пропуск, а не отказ: каскад сделал бы со связью то же самое, а отказ
-    оставил бы человека вовсе без задачи.
+    A skip rather than a refusal: the cascade would have done the same to the dependency,
+    while a refusal would leave the person with no task at all.
     """
     task = _task(db, project, category)
     other = _task(db, project, category, name="Сайт")
@@ -319,11 +319,11 @@ def test_a_guest_comment_survives_the_delete_undo_cycle(db, project, category):
     assert comment.author_user_id is None
 
 
-# --- 1.5: откат пачки ---------------------------------------------------------
+# --- 1.5: a batch rollback ------------------------------------------------------
 
 
 def test_batch_undo_into_a_deleted_category_refuses_with_a_code(db, project, category):
-    """Восстановление в удалённую категорию — отказ с кодом, а не FK-пятисотка."""
+    """A restore into a deleted category is a coded refusal rather than an FK 500."""
     batch_id = uuid.uuid4()
     task_rev = apply_op(
         db,
@@ -357,11 +357,11 @@ def test_apply_positions_with_desynced_maps_refuses_with_a_code(db, project, cat
 
 
 def test_batch_undo_accepts_a_reason_and_passes_the_threshold(db, project, category):
-    """Откат, уводящий задачу от базового плана, объясним — и потому возможен.
+    """A rollback that takes a task away from the baseline plan is explainable — and therefore possible.
 
-    До исправления undo_batch причину не принимал вовсе: пачка, вернувшая
-    задачу к плану, была неоткатываемой — обратный ход требовал причину,
-    а передать её было некуда.
+    Before the fix undo_batch accepted no reason at all: a batch that had returned a task
+    to the plan was un-rollbackable — the reverse move required a reason, and there was
+    nowhere to pass one.
     """
     from app.plans import approve_plan
 
@@ -384,16 +384,16 @@ def test_batch_undo_accepts_a_reason_and_passes_the_threshold(db, project, categ
         batch_id=return_batch,
     )
 
-    # Откат возврата уводит от плана на 14 дней — без причины отказ...
+    # Rolling the return back takes it 14 days from the plan — with no reason, a refusal...
     with pytest.raises(ReasonRequired):
         undo_batch(db, project, return_batch, actor_id=None)
 
-    # ...а с причиной тот же откат проходит.
+    # ...and with a reason the same rollback passes.
     undo_batch(db, project, return_batch, actor_id=None, reason="возврат был ошибкой")
     assert task.start_date == date(2026, 3, 16)
 
 
-# --- 1.6: журнал реордера — дифф, а не снимок проекта -------------------------
+# --- 1.6: the reorder journal is a diff rather than a project snapshot ---------
 
 
 def test_reorder_journals_only_the_rows_that_moved(db, project, category):
@@ -414,14 +414,14 @@ def test_reorder_journals_only_the_rows_that_moved(db, project, category):
     )
 
     touched = set(revision.op["to"])
-    # Задача чужой категории не двигалась — в журнале её быть не должно.
+    # A task of another category did not move — it must not be in the journal.
     assert str(bystander.id) not in touched
-    # Третья задача осталась на своей позиции — тоже вне журнала.
+    # The third task stayed in its position — also outside the journal.
     assert str(third.id) not in touched
     assert touched == {str(first.id), str(second.id)}
     assert set(revision.inverse["positions"]) == touched
 
-    # Дифф достаточен для отмены: порядок возвращается в точности.
+    # The diff is enough for an undo: the order comes back exactly.
     undo(db, project, revision, actor_id=None)
     assert [db.get(Task, t.id).position for t in (first, second, third)] == [0, 1, 2]
 

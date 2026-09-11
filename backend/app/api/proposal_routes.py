@@ -1,14 +1,15 @@
-"""Маршруты коммерческого предложения.
+"""Routes of the commercial proposal.
 
-Свой файл, а не хвост project_routes: у предложения свой слой домена
-(app/proposals) и свой характер записи — правки без журнала ревизий, как у
-комментариев. План трогают два маршрута: сборка сметы из плана только читает
-его, а перенос строк в задачи меняет — и он один ходит в слой мутаций.
+Its own file rather than a tail of project_routes: the proposal has its own
+domain layer (app/proposals) and its own kind of writing — edits without the
+revision journal, as with comments. Two routes touch the plan: assembling the
+budget from the plan only reads it, while carrying rows across into tasks
+changes it — and that one alone goes through the mutation layer.
 
-Читать предложение вправе не всякий, кто читает проект: клиент и гость по
-ссылке видят план, но не смету с её ставками и рисками (см.
-Action.PROPOSAL_READ). Поэтому чтение здесь проверяется явно, а не
-наследуется от project_context.
+Not everyone who reads the project may read the proposal: a client and a
+link-holding guest see the plan but not the budget with its rates and risks (see
+Action.PROPOSAL_READ). That is why reading is checked here explicitly rather
+than inherited from project_context.
 """
 
 import uuid
@@ -50,14 +51,14 @@ router = APIRouter(prefix="/api/projects", tags=["proposal"])
 
 
 class ProposalSettingsIn(BaseModel):
-    """Настройки сметы. Каждое поле — по желанию: правится то, что прислано."""
+    """The budget's settings. Every field is optional: what was sent is what is edited."""
 
     effort_unit: Literal["days", "hours"] | None = None
     hours_per_day: int | None = Field(default=None, ge=1, le=24)
     tax_rate_pct: float | None = Field(default=None, ge=0, le=100)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
-    #: Допущения и примечания предложения целиком. Пустая строка — стереть;
-    #: None — не трогать.
+    #: The proposal's assumptions and notes as a whole. An empty string erases
+    #: them; None leaves them alone.
     notes: str | None = None
 
 
@@ -72,8 +73,9 @@ class ProposalCategoryPatch(BaseModel):
 
 
 class ProposalTaskIn(BaseModel):
-    """Новая строка: имя обязательно, роль, оценка и ставка — если назвали
-    сразу. Потолки чисел те же, что у правки, — ширина колонок Numeric."""
+    """A new row: the name is mandatory, while role, estimate and rate are
+    optional if named right away. The numeric ceilings are the same as on an
+    edit — the width of the Numeric columns."""
 
     name: str = Field(min_length=1, max_length=300)
     role: str = Field(default="", max_length=120)
@@ -86,10 +88,11 @@ class ProposalStageIn(BaseModel):
 
 
 class ProposalTaskPatch(BaseModel):
-    """Правка строки: присланные поля меняются, остальные не трогаются.
+    """Editing a row: the fields sent are changed, the rest are untouched.
 
-    Потолки чисел повторяют ширину колонок Numeric: значение шире уехало бы
-    в базу ошибкой усечения — пятисоткой вместо честного отказа.
+    The numeric ceilings repeat the width of the Numeric columns: a wider value
+    would go into the database as a truncation error — a 500 instead of an honest
+    refusal.
     """
 
     name: str | None = Field(default=None, min_length=1, max_length=300)
@@ -108,15 +111,15 @@ class ProposalCommentIn(BaseModel):
 
 
 class PushToPlanIn(BaseModel):
-    """Какие строки переносить. Пустой список — все переносимые по умолчанию:
-    оценённые и ещё не перенесённые (см. proposals._pushable)."""
+    """Which rows to carry across. An empty list means all that are carryable by
+    default: estimated and not yet carried across (see proposals._pushable)."""
 
     task_ids: list[uuid.UUID] = []
 
 
 def _refuse(error: ProposalError | MutationError) -> HTTPException:
-    """Отказ домена → отказ HTTP, той же логикой, что у мутаций: чужая или
-    несуществующая сущность — 404, всё остальное — 422."""
+    """A domain refusal becomes an HTTP refusal by the same logic as mutations: a
+    foreign or nonexistent entity is a 404, everything else is a 422."""
     if isinstance(error, NotFoundInProject) or error.code in {
         "proposal_category_not_found",
         "proposal_task_not_found",
@@ -128,14 +131,15 @@ def _refuse(error: ProposalError | MutationError) -> HTTPException:
 def _publish(
     background: BackgroundTasks, db: DbSession, project_id: uuid.UUID, event: dict
 ) -> None:
-    # Тот же порядок, что у мутаций: сперва коммит, затем рассылка — получив
-    # сигнал, клиент перечитывает данные и до коммита перечитал бы старое.
+    # The same order as in mutations: commit first, then broadcast — on getting
+    # the signal the client re-reads the data, and before the commit it would
+    # re-read the old state.
     db.commit()
     background.add_task(hub.publish, project_id, event)
 
 
-#: Событие для соседних вкладок: «предложение изменилось, перечитай».
-#: Текст не рассылается — клиент дочитает по HTTP, как и у комментариев.
+#: An event for neighbouring tabs: "the proposal changed, re-read it". The text
+#: is not broadcast — the client will fetch it over HTTP, as with comments.
 _CHANGED = {"type": "proposal"}
 
 
@@ -143,11 +147,11 @@ _CHANGED = {"type": "proposal"}
 def get_project_proposal(
     context: ProjectContext = Depends(project_context), db: DbSession = Depends(get_db)
 ):
-    """Предложение целиком: настройки, разделы, строки со счётчиками реплик.
+    """The whole proposal: settings, sections, rows with remark counters.
 
-    Итоги (сумма, налог, всего) считает клиент: это произведение и сумма уже
-    присланных чисел, и сервер, пересказывающий их, был бы вторым местом с
-    той же арифметикой.
+    The totals (sum, tax, grand total) are computed by the client: they are a
+    product and a sum of numbers already sent, and a server restating them would
+    be a second place with the same arithmetic.
     """
     context.require(Action.PROPOSAL_READ)
     return proposal_state(db, context.project)
@@ -164,8 +168,9 @@ def update_proposal_settings(
     proposal = ensure_proposal(db, context.project)
     changes = payload.model_dump(exclude_unset=True, exclude_none=True)
     if "effort_unit" in changes:
-        # Пересчёт строк — до новой нормы часов, если она пришла тем же
-        # запросом: оценки писались при старой, и переводить их надо ею.
+        # Rows are recomputed before the new hours norm, if it arrived in the
+        # same request: the estimates were written under the old one, and they
+        # have to be converted with it.
         try:
             convert_unit(db, proposal, changes["effort_unit"])
         except ProposalError as error:
@@ -173,8 +178,8 @@ def update_proposal_settings(
     if "hours_per_day" in changes:
         proposal.hours_per_day = changes["hours_per_day"]
     if "tax_rate_pct" in changes:
-        # Decimal из строки, а не из float: Decimal(0.1) — это
-        # 0.1000000000000000055…, и налог перестал бы быть круглым.
+        # A Decimal from a string rather than from a float: Decimal(0.1) is
+        # 0.1000000000000000055..., and the tax would stop coming out round.
         proposal.tax_rate_pct = Decimal(str(changes["tax_rate_pct"]))
     if "currency" in changes:
         proposal.currency = changes["currency"].upper()
@@ -192,7 +197,7 @@ def set_proposal_stage(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
-    """Отметить этап сделки — в любую сторону (см. proposals.set_stage)."""
+    """Mark a stage of the deal — in either direction (see proposals.set_stage)."""
     context.require(Action.PROJECT_WRITE)
     proposal = ensure_proposal(db, context.project)
     try:
@@ -256,8 +261,8 @@ def delete_proposal_category(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
-    """Удаляет раздел вместе со строками: смета — черновик, и правило плана
-    «сначала вынеси задачи» здесь было бы ритуалом без выгоды."""
+    """Deletes a section together with its rows: a budget is a draft, and the
+    plan's rule "carry the tasks out first" would be a ritual with no benefit here."""
     context.require(Action.PROJECT_WRITE)
     try:
         category = require_category(db, ensure_proposal(db, context.project), category_id)
@@ -287,7 +292,7 @@ def create_proposal_task(
             category_id,
             name,
             role=payload.role.strip(),
-            # Decimal из строки, а не из float — по той же причине, что у налога.
+            # A Decimal from a string rather than from a float — for the same reason as the tax.
             effort=Decimal(str(payload.effort)) if payload.effort is not None else Decimal("0"),
             rate=Decimal(str(payload.rate)) if payload.rate is not None else Decimal("0"),
         )
@@ -370,8 +375,8 @@ def create_proposal_task_comment(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
-    # Обе проверки: реплику к строке пишет тот, кто вправе и комментировать,
-    # и видеть смету. Одного COMMENT мало — он есть и у клиента.
+    # Both checks: a remark on a row is written by someone entitled both to
+    # comment and to see the budget. COMMENT alone is not enough — a client has it too.
     context.require(Action.PROPOSAL_READ)
     context.require(Action.COMMENT)
     try:
@@ -386,8 +391,8 @@ def create_proposal_task_comment(
 
 
 def _comment_out(comment: ProposalComment, names: dict[uuid.UUID, str]) -> dict:
-    # Та же форма, что у ленты проекта (comments_out): клиент рисует обе одним
-    # компонентом, и вторая форма означала бы вторую ленту.
+    # The same shape as the project's feed (comments_out): the client draws both
+    # with one component, and a second shape would mean a second feed.
     return {
         "id": str(comment.id),
         "task_id": str(comment.proposal_task_id),
@@ -401,12 +406,12 @@ def _comment_out(comment: ProposalComment, names: dict[uuid.UUID, str]) -> dict:
 def preview_push_to_plan(
     context: ProjectContext = Depends(project_context), db: DbSession = Depends(get_db)
 ):
-    """Что случится при переносе — до того, как он случился.
+    """What will happen on a carry-across — before it happens.
 
-    Окно переноса показывает, куда ляжет каждый раздел и во сколько дней
-    выйдет каждая строка, и отмечает то, что переносить не будет: уже
-    перенесённое и строки без оценки. Считает это сервер теми же функциями,
-    что и перенос, — см. proposals.push_preview.
+    The carry-across dialog shows where each section will land and how many days
+    each row comes out to, and marks what will not be carried: what has already
+    been carried and rows with no estimate. The server computes this with the same
+    functions as the carry-across itself — see proposals.push_preview.
     """
     context.require(Action.PROPOSAL_READ)
     return push_preview(db, context.project)
@@ -418,12 +423,12 @@ def build_proposal_from_plan(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
-    """Собирает пустую смету из плана: категория — разделом, задача — строкой.
+    """Assembles an empty budget from the plan: a category becomes a section, a task a row.
 
-    Под тем же замком проекта, что и остальные правки (ensure_proposal): две
-    одновременные сборки иначе обе застали бы смету пустой и собрали её
-    дважды. Отказы — 422 кодом: `proposal_not_empty`, если строки уже есть,
-    и `plan_empty`, если собирать не из чего.
+    Under the same project lock as the other edits (ensure_proposal): otherwise
+    two simultaneous assemblies would both find the budget empty and assemble it
+    twice. The refusals are 422 codes: `proposal_not_empty` if rows already
+    exist, and `plan_empty` if there is nothing to assemble from.
     """
     context.require(Action.PROJECT_WRITE)
     try:
@@ -441,13 +446,14 @@ def push_proposal_to_plan(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ):
-    """Переносит смету в план: раздел — категорией, строка — задачей.
+    """Carries the budget into the plan: a section becomes a category, a row a task.
 
-    Пачка ревизий с общим batch_id: в истории перенос читается одной записью
-    и снимается одной отменой — batch_id уходит в ответ ради кнопки «Вернуть»
-    в тосте. Задачи встают на старт плана — раскладку по оси человек делает
-    сам. Заметки, риски и допущения строки уходят во внутреннюю заметку
-    задачи на языке организации: её читает команда, а не клиент.
+    A batch of revisions with a shared batch_id: in the history the carry-across
+    reads as one entry and is removed by one undo — the batch_id goes into the
+    answer for the sake of the "Undo" button in the toast. The tasks are placed
+    at the plan's start — a person lays them out along the axis themselves. A
+    row's notes, risks and assumptions go into the task's internal note in the
+    organization's language: it is read by the team, not by the client.
     """
     context.require(Action.PROJECT_WRITE)
     try:
@@ -460,7 +466,8 @@ def push_proposal_to_plan(
         )
     except (ProposalError, MutationError) as error:
         raise _refuse(error)
-    # Ревизии уже в журнале — соседям достаточно факта «план изменился»:
-    # состояние они перечитывают целиком, как и после обычной мутации.
+    # The revisions are already in the journal — the fact that "the plan changed"
+    # is enough for the neighbours: they re-read the state in full, as after an
+    # ordinary mutation.
     _publish(background, db, context.project.id, {"type": "revision"})
     return result

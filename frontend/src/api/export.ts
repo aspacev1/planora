@@ -2,7 +2,7 @@ import type { Orientation, Period, Zoom } from "../export/pageBudget";
 import { request, requestFile, saveFile } from "./client";
 import type { DownloadedFile } from "./client";
 
-/** Что положить в файл. Значения совпадают с `ExportSection` на сервере. */
+/** What to put into the file. The values match `ExportSection` on the server. */
 export type ExportSection =
   | "overview"
   | "tasks"
@@ -25,11 +25,11 @@ export type ExportOptions = {
 };
 
 /**
- * Строка запроса выгрузки.
+ * The export's query string.
  *
- * `include` повторяется по разделу — так его объявляет сервер, и так его
- * проверяет схема FastAPI: неизвестный раздел отбраковывается ею, а не
- * рукописной проверкой на клиенте.
+ * `include` is repeated per section — that is how the server declares it, and that is how FastAPI's
+ * schema validates it: an unknown section is rejected by the schema rather than by a hand-written
+ * check on the client.
  */
 function query(options: ExportOptions): string {
   const params = new URLSearchParams();
@@ -42,12 +42,12 @@ function query(options: ExportOptions): string {
 }
 
 /**
- * Чем наполнены разделы — чтобы окно не предлагало пустых.
+ * What the sections are filled with — so that the dialog does not offer empty ones.
  *
- * Границы плана и «сегодня» приходят отсюда же, а не считаются в браузере: их
- * считает тот, кто потом соберёт файл, и число страниц на кнопке масштаба
- * из-за этого не может разойтись с числом страниц в файле. Часовой пояс у
- * проекта свой, и «сегодня» браузера ему не указ.
+ * The plan's bounds and "today" come from here too rather than being computed in the browser: they
+ * are computed by whoever will then assemble the file, and because of that the number of pages on the
+ * scale button cannot diverge from the number of pages in the file. A project has its own time zone,
+ * and the browser's "today" is no authority to it.
  */
 export type ExportFactsResponse = {
   start: string;
@@ -80,9 +80,9 @@ export function exportProject(
 }
 
 /**
- * Выгрузка с публичной страницы. Токен ссылки уже стоит в адресе страницы, и
- * сюда он передаётся как есть — собирать его заново клиент не умеет и не
- * должен (см. ShareControls: адрес ссылки знает только сервер).
+ * An export from the public page. The link's token is already in the page's address, and it is passed
+ * here as is — the client neither can nor should assemble it anew (see ShareControls: only the server
+ * knows the link's address).
  */
 export function exportPublicProject(
   orgSlug: string,
@@ -99,12 +99,12 @@ export function exportPublicProject(
 }
 
 /**
- * Адрес PDF коммерческого предложения — документа для клиента.
+ * The address of the commercial proposal's PDF — the document for the client.
  *
- * Адрес, а не загрузка: кнопка на экране — обычная ссылка с атрибутом
- * `download`, и браузер сохраняет файл сам, под именем из ответа сервера.
- * Язык передаётся тот, на котором человек сейчас смотрит на предложение, —
- * как и у выгрузки проекта.
+ * An address rather than a download: the button on the screen is an ordinary link with a `download`
+ * attribute, and the browser saves the file itself under the name from the server's response. The
+ * language passed is the one the person is currently viewing the proposal in — as with a project's
+ * export.
  */
 export function proposalPdfUrl(projectId: string, locale: string): string {
   const params = new URLSearchParams({ locale });

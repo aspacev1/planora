@@ -1,9 +1,9 @@
 """proposal status and plan links
 
-Этап предложения (черновик → отправлено → согласовано) с отметками времени и
-ссылка строки сметы на задачу плана: по ней перенос пропускает уже
-перенесённое и больше не удваивает план. created_at у строки — для подсказок
-ролей по свежести.
+The proposal's stage (draft -> sent -> agreed) with timestamps, and a budget row's
+reference to a plan task: by it a carry-across skips what has already been carried
+and no longer doubles the plan. created_at on a row is for the recency of role
+suggestions.
 
 Revision ID: c4d8e2f1a9b7
 Revises: a1b2c3d4e5f6
@@ -24,8 +24,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # server_default закрывает уже существующие строки: колонка NOT NULL без
-    # значения по умолчанию не добавляется к непустой таблице вовсе.
+    # The server_default covers the rows that already exist: a NOT NULL column with
+    # no default is not added to a non-empty table at all.
     op.add_column(
         'proposals',
         sa.Column('status', sa.Text(), server_default=sa.text("'draft'"), nullable=False),
@@ -36,8 +36,8 @@ def upgrade() -> None:
         'ck_proposals_status', 'proposals', "status IN ('draft', 'sent', 'agreed')"
     )
     op.add_column('proposal_tasks', sa.Column('plan_task_id', sa.UUID(), nullable=True))
-    # clock_timestamp(), а не now(): строки одной транзакции обязаны
-    # различаться по времени (см. ProposalTask.created_at).
+    # clock_timestamp(), not now(): rows from one transaction must differ in time
+    # (see ProposalTask.created_at).
     op.add_column(
         'proposal_tasks',
         sa.Column(

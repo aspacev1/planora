@@ -9,17 +9,15 @@ import { ORG, USER, renderApp, sessionHandlers } from "../test/utils";
 import { ToastProvider, useToast } from "./toast";
 
 /**
- * Тост как общее правило, а не как особенность перетаскивания.
+ * The toast as a general rule rather than as a peculiarity of dragging.
  *
- * Каждый случай здесь — операция, после которой на экране не остаётся другого
- * признака успеха: список проектов выглядит одинаково до и после удаления,
- * поле настроек — до и после записи, панель ссылки — до публикации и после
- * отзыва. Проверяется поэтому именно текст подтверждения: он и есть
- * единственный ответ системы на жест.
+ * Every case here is an operation after which no other sign of success is left on screen: the
+ * list of projects looks the same before and after a deletion, a settings field before and after
+ * a write, the link panel before publishing and after revoking. So what is checked is precisely
+ * the confirmation's text: it is the system's only answer to the gesture.
  *
- * Файл общий на все экраны намеренно. Правило одно, и разложенное по шести
- * файлам оно перестаёт читаться правилом — новый экран заводят, ни разу не
- * встретив его.
+ * The file is shared across all the screens deliberately. The rule is one, and spread across six
+ * files it stops reading as a rule — a new screen gets created without ever meeting it.
  */
 
 const UNPUBLISHED = { allowed: true, url: null, comments_enabled: true, created_at: null };
@@ -31,8 +29,8 @@ const PUBLISHED = {
 };
 
 /**
- * Сам тост, а не любой `role="status"`: этой же ролью помечены индикаторы
- * загрузки, и на экране, который только что перезапросил данные, их двое.
+ * The toast itself rather than any `role="status"`: loading indicators carry the same role, and
+ * on a screen that has just refetched its data there are two of them.
  */
 function toast(): HTMLElement {
   const node = document.querySelector<HTMLElement>(".toast");
@@ -56,17 +54,17 @@ describe("подтверждения тихих операций", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Удалить проект" }));
     await userEvent.click(screen.getByRole("button", { name: "Да, удалить проект" }));
 
-    // Название — из удалённого проекта: к этому моменту его нет уже ни на
-    // сервере, ни в кэше, и взять его тосту неоткуда, кроме как из жеста.
+    // The name comes from the deleted project: by this moment it is neither on the server nor in
+    // the cache, and the toast has nowhere to take it from but the gesture.
     expect(await screen.findByText("Проект «Редизайн» удалён")).toBeInTheDocument();
-    // Отменить удаление нельзя, и предлагать это тост не должен: журнал
-    // ревизий ушёл вместе с проектом.
+    // A deletion cannot be undone, and the toast must not offer that: the revision journal went
+    // with the project.
     expect(within(toast()).queryByRole("button")).toBeNull();
   });
 
-  // Это подтверждение — единственное здесь, которое тостом не показывается:
-  // полей на экране десяток, и о записи каждого отчитывается оно само,
-  // отметкой рядом (см. SaveMark). Тост назвал бы «сохранено», не назвав что.
+  // This confirmation is the only one here not shown with a toast: there are a dozen fields on the
+  // screen, and each reports its own write with a mark next to it (see SaveMark). A toast would
+  // say "saved" without saying what.
   it("поле настроек проекта, ушедшее по потере фокуса, подтверждается у поля", async () => {
     server.use(
       http.patch("/api/projects/p1", async ({ request }) => {
@@ -81,8 +79,8 @@ describe("подтверждения тихих операций", () => {
     await userEvent.type(name, "Редизайн сайта");
     await userEvent.tab();
 
-    // Отметка у поля, а не плашка внизу экрана: класс отличает одно от другого,
-    // а `role="status"` носят оба — и говорят они об одном и том же.
+    // The mark by the field rather than the chip at the bottom of the screen: the class tells one
+    // from the other, while `role="status"` is carried by both — and they speak about the same thing.
     expect(await screen.findByText("Сохранено")).toHaveClass("field__mark");
     expect(screen.queryByRole("status")).not.toHaveClass("toast");
   });
@@ -101,7 +99,7 @@ describe("подтверждения тихих операций", () => {
     renderProject(undefined, { route: "/projects/p1/settings" });
 
     await userEvent.click(await screen.findByRole("button", { name: "Закрыть ссылку" }));
-    // Кнопка сперва спрашивает: отзыв гасит уже разосланный адрес.
+    // The button asks first: revoking kills an address that has already been sent out.
     await userEvent.click(screen.getByRole("button", { name: "Да, закрыть ссылку" }));
 
     expect(await screen.findByText("Публичная ссылка закрыта")).toBeInTheDocument();
@@ -131,8 +129,8 @@ describe("подтверждения на экранах организации"
     await userEvent.type(screen.getByLabelText(/название/i), "Редизайн сайта");
     await userEvent.click(screen.getByRole("button", { name: /^создать$/i }));
 
-    // Тост переживает переход на экран проекта: он висит на раме приложения,
-    // а не на экране, с которого ушли.
+    // The toast outlives the navigation to the project screen: it hangs on the application's frame
+    // rather than on the screen that was left.
     expect(await screen.findByText("Проект «Редизайн сайта» создан")).toBeInTheDocument();
   });
 
@@ -210,8 +208,8 @@ describe("тон тоста", () => {
   beforeEach(projectFixtures);
 
   it("отказ не носит галочку подтверждения и объявляется как тревога", async () => {
-    // Отмена переноса из тоста — единственное место, где тост показывает
-    // отказ: строки ошибки рядом с лентой нет.
+    // Undoing a move from the toast is the only place where a toast shows a refusal: there is no
+    // error line next to the strip.
     server.use(
       http.post("/api/projects/p1/undo", () =>
         HttpResponse.json({ detail: "task_not_found" }, { status: 404 }),
@@ -225,7 +223,7 @@ describe("тон тоста", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Отменить" }));
 
-    // Тревога, а не сводка: читалка обязана объявить отказ сразу.
+    // An alarm rather than a summary: the screen reader must announce a refusal at once.
     const failure = await screen.findByRole("alert");
     expect(failure).toHaveClass("toast--error");
     expect(failure).not.toHaveTextContent("✓");
@@ -242,7 +240,7 @@ describe("тон тоста", () => {
   });
 });
 
-/** Две кнопки, каждая со своим тостом: смену тоста иначе не воспроизвести. */
+/** Two buttons, each with its own toast: a toast change cannot be reproduced otherwise. */
 function Harness() {
   const toast = useToast();
   return (
@@ -273,9 +271,9 @@ describe("тост", () => {
     const second = screen.getByRole("status");
 
     expect(second).toHaveTextContent("Задача возвращена");
-    // Узел именно новый, а не переписанный: появление тоста нарисовано
-    // анимацией, а она играет один раз на узел — сменив только текст, второй
-    // тост возник бы срезом там, где первый выехал.
+    // The node is new rather than rewritten: a toast's appearance is drawn by an animation, and it
+    // plays once per node — with only the text swapped, the second toast would appear as a cut
+    // where the first slid out.
     expect(second).not.toBe(first);
   });
 });

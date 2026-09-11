@@ -12,19 +12,22 @@ dependencies = [
     "pydantic-settings>=2.6",
     "argon2-cffi>=23.1",
     "email-validator>=2.3.0",
-    # Симметричное шифрование ключа LLM секретом приложения: в стандартной
-    # библиотеке шифров нет вовсе, а «зашифровать» его самодельно хуже, чем
-    # не шифровать — самодельное выглядит защитой, не будучи ею.
+    # Symmetric encryption of the LLM key with the application secret: the
+    # standard library has no ciphers at all, and "encrypting" it by hand is
+    # worse than not encrypting — a homemade scheme looks like protection
+    # without being one.
     "cryptography>=43",
-    # Список тем интервью лежит файлом конфигурации рядом с приложением.
+    # The list of interview topics is a config file next to the application.
     "pyyaml>=6",
-    # Выгрузка проекта в книгу Excel. Формат — зазипованный XML со схемой в
-    # несколько сотен элементов; писать его руками ради заливок, замороженной
-    # шапки и условного форматирования дороже, чем взять библиотеку.
+    # Project export to an Excel workbook. The format is zipped XML with a
+    # schema of several hundred elements; writing it by hand for the sake of
+    # fills, a frozen header and conditional formatting costs more than taking
+    # a library.
     "openpyxl>=3.1",
-    # Выгрузка в PDF. Лента Ганта рисуется вектором на канве — то есть нужен не
-    # шаблонизатор, а рисовалка. WeasyPrint отпал: он тянет cairo и pango
-    # системными библиотеками, а сборка едет и на Vercel, где их нет.
+    # Export to PDF. The Gantt chart is drawn as vectors on a canvas — so what
+    # is needed is not a template engine but a drawing surface. WeasyPrint was
+    # ruled out: it pulls in cairo and pango as system libraries, and the build
+    # also runs on Vercel, where those are absent.
     "reportlab>=4.2",
 ]
 
@@ -34,8 +37,9 @@ dev = [
     "pytest-asyncio>=0.24",
     "httpx>=0.27",
     "pytest-cov>=7.1.0",
-    # Чтение готового PDF в тестах: проверяется, что в документе есть имя
-    # проекта и имя задачи, а не только что байты начинаются с «%PDF».
+    # Reading the produced PDF in tests: it checks that the document contains
+    # the project name and the task name, not merely that the bytes start with
+    # "%PDF".
     "pypdf>=5.1",
 ]
 

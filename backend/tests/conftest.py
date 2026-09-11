@@ -1,25 +1,25 @@
 import os
 
 os.environ.setdefault("APP_SECRET", "test-secret-not-for-production")
-# Обязателен той же самой валидацией, что и APP_SECRET (см. app.config).
-# Тесты, которым важен конкретный адрес директора, подменяют переменную сами
-# monkeypatch'ем и сбрасывают кэш настроек — см. tests/test_admin_api.py.
+# Mandatory under the very same validation as APP_SECRET (see app.config). Tests
+# that care about a particular director address substitute the variable themselves
+# with monkeypatch and reset the settings cache — see tests/test_admin_api.py.
 os.environ.setdefault("DIRECTOR_EMAIL", "director@example.com")
-# Тестовые адреса LLM — выдуманные хосты и localhost; проверка публичности
-# адреса (защита от SSRF, app/ai/netguard.py) резолвила бы их в сеть на
-# каждом тесте. Сама проверка тестируется отдельно, с явно выключенным
-# рубильником и подменённым резолвером — без единого настоящего DNS-запроса.
+# The test LLM addresses are made-up hosts and localhost; the address publicity
+# check (SSRF protection, app/ai/netguard.py) would resolve them over the network
+# on every test. The check itself is tested separately, with the switch explicitly
+# off and the resolver substituted — without a single real DNS query.
 os.environ.setdefault("AI_ALLOW_PRIVATE_URLS", "true")
-# Пределы частоты и бюджета AI в общем прогоне выключены: сквозной сценарий
-# интервью делает больше вызовов модели в секунду, чем позволено человеку в
-# минуту. Сами ворота проверяются отдельными тестами, которые включают предел
-# на конкретном объекте настроек.
+# The AI rate and budget limits are off in the general run: the end-to-end
+# interview scenario makes more model calls per second than a person is allowed per
+# minute. The gates themselves are checked by separate tests that enable the limit
+# on a specific settings object.
 os.environ.setdefault("AI_REQUESTS_PER_MINUTE", "0")
 os.environ.setdefault("AI_DAILY_TOKEN_BUDGET", "0")
-# Тот же довод, что у AI_ALLOW_PRIVATE_URLS: тестовые адреса Jira — выдуманные
-# хосты и localhost, и без рубильника проверка публичности адреса
-# (app/jira/netguard.py) резолвила бы их в сеть на каждом тесте. Сама
-# проверка тестируется отдельно, с явно выключенным рубильником.
+# The same argument as with AI_ALLOW_PRIVATE_URLS: the test Jira addresses are
+# made-up hosts and localhost, and without the switch the address publicity check
+# (app/jira/netguard.py) would resolve them over the network on every test. The
+# check itself is tested separately, with the switch explicitly off.
 os.environ.setdefault("JIRA_ALLOW_PRIVATE_URLS", "true")
 
 import pytest
@@ -33,13 +33,14 @@ from app.db import Base
 
 
 def _safe_test_database_url() -> str:
-    """Адрес тестовой базы, выведенный из DATABASE_URL, а не боевой адрес как есть.
+    """The test database URL, derived from DATABASE_URL rather than the production URL as is.
 
-    Разрушающие операции (drop_all/create_all) допустимы только по базе, чьё
-    имя оканчивается на «_test», и никогда по базе из DATABASE_URL — иначе
-    прогон тестов однажды снесёт рабочую базу разработки. Адрес разбирается
-    через make_url()/set(), а не строковой склейкой, чтобы не развалиться на
-    паролях со спецсимволами (например, слэшами).
+    Destructive operations (drop_all/create_all) are allowed only against a database
+    whose name ends in "_test", and never against the one from DATABASE_URL —
+    otherwise a test run would one day wipe the working development database. The
+    URL is parsed through make_url()/set() rather than by string concatenation so
+    that it does not fall apart on passwords with special characters (slashes, for
+    instance).
     """
     prod_url = make_url(get_settings().database_url)
     prod_db = prod_url.database
@@ -53,8 +54,8 @@ def _safe_test_database_url() -> str:
             "оканчивается на '_test'. Тесты никогда не должны трогать базу из "
             "DATABASE_URL."
         )
-    # render_as_string(hide_password=False): str(url) маскирует пароль
-    # звёздочками, а нам нужен настоящий DSN для подключения.
+    # render_as_string(hide_password=False): str(url) masks the password with
+    # asterisks, while we need the real DSN to connect.
     return test_url.render_as_string(hide_password=False)
 
 
@@ -87,11 +88,12 @@ def engine():
 
 @pytest.fixture
 def mailbox(monkeypatch):
-    """Перехватывает письма вместо отправки и отдаёт список доставленных.
+    """Intercepts messages instead of sending them and returns the list delivered.
 
-    Подменяется build_transport, а не app.mail.send: так через тест проходит
-    и сборка текста по шаблону, и выбор языка адресата — то есть ровно то,
-    что ломается при правке словарей и молча уезжает в отправленное письмо.
+    build_transport is substituted rather than app.mail.send: that way both
+    assembling the text from the template and choosing the recipient's language pass
+    through the test — that is, exactly what breaks when the dictionaries are edited
+    and rides silently out in a sent message.
     """
     import app.mail as mail_module
 
@@ -107,7 +109,7 @@ def mailbox(monkeypatch):
 
 @pytest.fixture
 def db(engine):
-    """Сессия в транзакции, которая откатывается после теста."""
+    """A session inside a transaction that is rolled back after the test."""
     connection = engine.connect()
     transaction = connection.begin()
     session = sessionmaker(bind=connection)()

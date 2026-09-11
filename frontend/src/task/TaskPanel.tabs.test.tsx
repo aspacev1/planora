@@ -31,16 +31,16 @@ describe("вкладки карточки задачи", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Логотип/ }));
     const panel = screen.getByRole("complementary");
 
-    // По умолчанию — свойства задачи, поля видны сразу.
+    // By default the task's properties, the fields are visible at once.
     expect(within(panel).getByLabelText("Название")).toBeInTheDocument();
     expect(within(panel).queryByRole("region", { name: "Комментарии" })).not.toBeInTheDocument();
 
     await userEvent.click(within(panel).getByRole("tab", { name: "История" }));
-    // Автор и фраза события — соседние узлы одной строки: имя оформлено
-    // отдельным `span`, и цельная строка не собирается в один текстовый узел.
+    // The author and the event's phrase are neighbouring nodes of one line: the name is set in a separate
+    // `span`, and the whole line does not collapse into a single text node.
     expect(await within(panel).findByText(/изменил готовность с 30% на 40%/)).toBeInTheDocument();
     expect(within(panel).getByText("Мария")).toBeInTheDocument();
-    // Свойства ушли с глаз, пока открыта другая вкладка.
+    // The properties went out of sight while another tab is open.
     expect(within(panel).queryByLabelText("Название")).not.toBeInTheDocument();
 
     await userEvent.click(within(panel).getByRole("tab", { name: "Комментарии" }));
@@ -61,8 +61,8 @@ describe("вкладки карточки задачи", () => {
       "true",
     );
 
-    // Открыли соседнюю задачу, не закрывая карточку — прежняя вкладка не
-    // должна молча остаться открытой на чужой истории.
+    // A neighbouring task was opened without closing the card — the previous tab must not silently stay
+    // open on somebody else's history.
     await userEvent.click(screen.getByRole("button", { name: /Вторая/ }));
 
     await waitFor(() =>

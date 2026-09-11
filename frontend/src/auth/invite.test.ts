@@ -42,7 +42,7 @@ describe("приглашение в пути", () => {
     vi.advanceTimersByTime(61 * 60 * 1000);
 
     expect(pendingInvite()).toBeNull();
-    // И убирает за собой, а не отвечает «нет» над живой записью.
+    // And it cleans up after itself rather than answering "no" over a live record.
     expect(localStorage.getItem("planora.pending_invite")).toBeNull();
   });
 

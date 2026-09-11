@@ -1,7 +1,7 @@
-# Planora — диаграмма Ганта с AI-интейком
+# Planora — a Gantt chart with AI intake
 
-Дата: 2026-08-10
-Статус: утверждён к реализации
+Date: 2026-08-10
+Status: approved for implementation
 
 > **Historical, partially superseded.** This is the original v1 design spec.
 > The core model (org → project → category → task, the mutation/revision
@@ -11,134 +11,134 @@
 > For current architecture, see the repo's `CLAUDE.md` and the
 > `planora-conventions` skill.
 
-## 1. Что это и зачем
+## 1. What this is and what for
 
-Самостоятельно размещаемый планировщик проектов с диаграммой Ганта. Две задачи:
+A self-hosted project planner with a Gantt chart. Two jobs:
 
-1. Обычная работа с планом: категории, задачи, ответственные, сроки, критичность, история изменений.
-2. Создание проекта через AI-интервью: система задаёт вопросы, на выходе — готовая структура категорий и задач, которую человек правит и утверждает.
+1. Ordinary work on a plan: categories, tasks, owners, dates, criticality, the change history.
+2. Creating a project through an AI interview: the system asks questions, and what comes out is a ready structure of categories and tasks that a person edits and approves.
 
-Отдельная цель — показывать проект наружу по красивой ссылке без регистрации получателя.
+A separate goal is showing a project to the outside by a pretty link with no registration for the recipient.
 
-Ключевой принцип: **AI ничего не пишет в проект без явного подтверждения человека.**
+The key principle: **the AI writes nothing into a project without a person's explicit confirmation.**
 
-## 2. Пользователи, роли и приглашения
+## 2. Users, roles and invitations
 
-Мульти-тенантная система. Организация — единица изоляции данных, всё принадлежит ей.
+A multi-tenant system. The organization is the unit of data isolation; everything belongs to it.
 
-| Роль | Права |
+| Role | Permissions |
 |---|---|
-| `owner` | Всё, включая настройки организации, участников, LLM-ключ, удаление проектов |
-| `editor` | Создание и редактирование проектов, задач, утверждение плана |
-| `viewer` | Чтение всех проектов организации, комментарии |
-| `client` | Чтение **только тех проектов, куда его явно позвали**, комментарии. Не видит список остальных проектов, участников организации и настройки |
-| гость по ссылке | Чтение одного проекта по публичной ссылке, комментарии (если включены). Аккаунта нет |
+| `owner` | Everything, including the organization's settings, the members, the LLM key, deleting projects |
+| `editor` | Creating and editing projects and tasks, approving the plan |
+| `viewer` | Reading all the organization's projects, comments |
+| `client` | Reading **only the projects they were explicitly invited to**, comments. Does not see the list of the other projects, the organization's members or the settings |
+| a guest by link | Reading a single project by a public link, comments (if enabled). Has no account |
 
-`client` и гость **не видят поле «внутренняя заметка»** — ни на странице, ни в ответах API. Это единственное поле с ограниченной видимостью; сложной системы видимости по полям не будет.
+`client` and a guest **do not see the "internal note" field** — neither on the page nor in the API responses. This is the only field with restricted visibility; there will be no elaborate per-field visibility system.
 
-### Как человек попадает в организацию
+### How a person joins an organization
 
-**Регистрация свободная.** Человек заходит на сайт, вводит имя, адрес и пароль — и оказывается внутри. При регистрации создаётся его собственная организация: он становится в ней `owner`, слаг предлагается из названия и правится. Никаких консольных команд и предварительно заведённых аккаунтов: установка должна быть работоспособной сразу после развёртывания, без доступа к серверу.
+**Registration is open.** A person visits the site, enters a name, an address and a password — and finds themselves inside. Registration creates their own organization: they become its `owner`, the slug is suggested from the name and is editable. No console commands and no pre-created accounts: an install must be usable right after deployment, without access to the server.
 
-Приглашения нужны для второй задачи — позвать людей в **уже существующую** организацию. Один человек может состоять в нескольких: зарегистрировался со своей компанией, принял приглашение в чужую, и обе доступны из переключателя.
+Invitations exist for the second job — inviting people into an **already existing** organization. One person can belong to several: they registered with their own company, accepted an invitation into somebody else's, and both are available from a switcher.
 
-**Подтверждение адреса** запрашивается, только если в установке настроена почта. Если почтового транспорта нет, аккаунт работает сразу — иначе установка без почтового сервера превращается в неработающую, а это ровно тот сценарий, ради которого весь проект и самохостится. Подтверждение при этом не блокирует работу: до подтверждения нельзя приглашать других, всё остальное доступно.
+**Address confirmation** is requested only if mail is configured in the install. If there is no mail transport, the account works straight away — otherwise an install without a mail server turns into a broken one, and that is exactly the scenario the whole project is self-hosted for. Confirmation does not block work at that: until it is confirmed you cannot invite others, everything else is available.
 
-Для закрытых установок остаётся рубильник `SIGNUP_MODE` в окружении: `open` по умолчанию, `invite_only` — только по приглашению, `closed` — вход есть, регистрации нет. Это настройка того, кто разворачивает, а не поведение продукта по умолчанию.
+For closed installs there is still the `SIGNUP_MODE` switch in the environment: `open` by default, `invite_only` — by invitation only, `closed` — there is a sign-in but no registration. This is a setting for whoever deploys rather than the product's default behaviour.
 
-**Приглашение — одна сущность, два способа доставки.** Владелец открывает список участников, вводит адреса (можно несколько сразу), выбирает роль, а для роли `client` — ещё и проекты, к которым сразу даёт доступ. Дальше на каждое приглашение доступны оба действия:
+**An invitation is one entity with two delivery methods.** The owner opens the member list, enters addresses (several at once is fine), picks a role, and for the `client` role also the projects it grants access to straight away. After that both actions are available on every invitation:
 
-1. **Отправить письмо** — на адрес уходит ссылка.
-2. **Скопировать ссылку** — та же самая ссылка, чтобы отправить её как удобно: в мессенджер, голосом, распечаткой.
+1. **Send an email** — a link goes to the address.
+2. **Copy the link** — the very same link, to send however is convenient: in a messenger, by voice, on paper.
 
-Второй путь — не запасной вариант на случай поломки почты, а равноправный. Письма теряются в спаме, корпоративные фильтры режут незнакомых отправителей, а у половины людей рабочая переписка живёт в мессенджере. Инструмент, где единственный способ позвать человека — надеяться на доставку письма, регулярно оказывается неработающим в самый неподходящий момент.
+The second path is not a fallback for when mail breaks but an equal one. Emails get lost in spam, corporate filters cut unfamiliar senders, and for half the people work correspondence lives in a messenger. A tool whose only way to invite someone is to hope an email is delivered regularly turns out to be unusable at the least convenient moment.
 
-**Правила приглашения:**
+**The invitation's rules:**
 
-- **Одноразовое.** Принятое приглашение немедленно мертво — ссылку нельзя переиспользовать, переслав дальше.
-- **Срок жизни** по умолчанию 7 дней, задаётся настройкой. Просроченное приглашение показывает «срок истёк, попросите новое», а не молчаливую ошибку.
-- **Роль фиксируется в момент приглашения** и не может быть изменена принимающим. Ссылка на роль `viewer` не превращается в `editor`, как бы её ни открывали.
-- **Адрес привязывает приглашение.** Если адрес указан, при регистрации он подставляется и не редактируется; вошедшему под другим аккаунтом система прямо говорит, кому адресовано приглашение, и предлагает выйти. Приглашение, созданное без адреса (только для копирования ссылки), достаётся предъявителю — это осознанный размен, и в интерфейсе он назван словами.
-- **Отзыв.** Владелец может отозвать неиспользованное приглашение; ссылка умирает мгновенно.
-- **Повторная отправка** выпускает новый токен и убивает старый, иначе отозвать «то самое старое письмо» становится невозможно.
-- **Токен хранится хешем**, как пароль. Утечка дампа базы не должна раздавать доступ к организациям. Прямое следствие, которое надо принять сознательно: **ссылку показываем один раз** — в момент создания приглашения. Потом её негде взять, потому что сервер её не помнит; в списке участников у неприятого приглашения есть кнопка «выпустить ссылку заново», которая создаёт новый токен и убивает прежний. Альтернатива — хранить токен в расшифровываемом виде ради возможности скопировать позже — экономит один клик и превращает дамп базы в набор действующих ключей от всех организаций.
-- **Лимит на количество приглашений** в час на организацию. Без него приложение превращается в бесплатный рассыльщик писем с чужого домена — и домен отправителя быстро оказывается в чёрных списках.
+- **One-time.** An accepted invitation is dead immediately — the link cannot be reused by forwarding it on.
+- **A lifetime** of 7 days by default, set by a setting. An expired invitation shows "it has expired, ask for a new one" rather than a silent error.
+- **The role is fixed at the moment of the invitation** and cannot be changed by the recipient. A link for the `viewer` role does not turn into an `editor` one, however it is opened.
+- **The address ties the invitation down.** If an address is given, it is filled in at registration and is not editable; to someone signed in under a different account the system says outright who the invitation is addressed to and offers to sign out. An invitation created without an address (for copying the link only) goes to whoever holds it — that is a deliberate trade-off, and it is named in words in the interface.
+- **Revocation.** The owner can revoke an unused invitation; the link dies instantly.
+- **Re-sending** issues a new token and kills the old one, otherwise revoking "that particular old email" becomes impossible.
+- **The token is stored as a hash**, like a password. A leaked database dump must not hand out access to organizations. A direct consequence that has to be accepted deliberately: **we show the link once** — at the moment the invitation is created. After that there is nowhere to take it from, because the server does not remember it; in the member list an unaccepted invitation has an "issue a new link" button, which creates a new token and kills the previous one. The alternative — storing the token in a decryptable form so it can be copied later — saves one click and turns a database dump into a set of working keys to every organization.
+- **A limit on the number of invitations** per hour per organization. Without it the application turns into a free email blaster from somebody else's domain — and the sender's domain quickly ends up on blocklists.
 
-**Письмо содержит минимум:** кто пригласил, в какую организацию, какая роль, ссылка и срок её жизни. Ни названий проектов, ни задач: письмо уходит на адрес, который ещё никто не подтвердил. Язык письма — язык организации, потому что о языке получателя пока ничего не известно.
+**The email contains the minimum:** who invited, into which organization, which role, the link and its lifetime. No project names and no tasks: the email goes to an address nobody has confirmed yet. The email's language is the organization's, because nothing is known about the recipient's yet.
 
-Если приглашённый адрес уже принадлежит существующему пользователю, приглашение не создаёт второй аккаунт, а добавляет членство в организации.
+If the invited address already belongs to an existing user, the invitation does not create a second account but adds a membership in the organization.
 
-Если человек с приглашением на руках вместо приёма пошёл регистрироваться обычным путём — ничего не ломается: он получает свою организацию, а приглашение остаётся в силе и сработает, когда он откроет ссылку. Никакой автоматической подстановки в чужую организацию по совпадению адреса: членство появляется только после явного действия человека.
+If a person with an invitation in hand goes and registers the ordinary way instead of accepting it, nothing breaks: they get their own organization, while the invitation stays in force and fires when they open the link. There is no automatic placement into somebody else's organization by a matching address: a membership appears only after an explicit action by the person.
 
-## 3. Модель данных
+## 3. The data model
 
-### Иерархия
+### The hierarchy
 
-`Organization` → `Project` → `Category` → `Task`. Ровно два уровня внутри проекта, вложенности категорий и подзадач нет.
+`Organization` → `Project` → `Category` → `Task`. Exactly two levels inside a project, with no nesting of categories and no subtasks.
 
-### Сущности
+### The entities
 
-**Organization** — `id`, `name`, `slug` (уникален глобально) плюс блок дефолтов, которые наследуют проекты: `default_locale`, `default_timezone`, `working_days` (маска дней недели, по умолчанию пн–пт), `week_start`, `holiday_calendar` (список нерабочих дат — общий производственный календарь), `default_shift_threshold_days`, `public_sharing_enabled`, `default_comments_enabled`.
+**Organization** — `id`, `name`, `slug` (globally unique) plus the block of defaults the projects inherit: `default_locale`, `default_timezone`, `working_days` (a weekday mask, Mon–Fri by default), `week_start`, `holiday_calendar` (the list of non-working dates — the shared public-holiday calendar), `default_shift_threshold_days`, `public_sharing_enabled`, `default_comments_enabled`.
 
-**User** — `id`, `email`, `password_hash`, `name`, `locale` (`az` | `en` | `ru`, по умолчанию `az`), `email_verified_at` (nullable — остаётся пустым в установках без почты).
+**User** — `id`, `email`, `password_hash`, `name`, `locale` (`az` | `en` | `ru`, `az` by default), `email_verified_at` (nullable — stays empty in installs without mail).
 
 **Membership** — `org_id`, `user_id`, `role` (`owner` | `editor` | `viewer` | `client`).
 
-**ProjectAccess** — `project_id`, `user_id`. Нужна только для роли `client`: список проектов, куда его позвали.
+**ProjectAccess** — `project_id`, `user_id`. Needed only for the `client` role: the list of projects they were invited to.
 
-**Invitation** — `id`, `org_id`, `email` (nullable — приглашение только по ссылке), `role`, `project_ids` (для роли `client`), `token_hash`, `invited_by`, `created_at`, `expires_at`, `accepted_at` (nullable), `accepted_by` (nullable), `revoked_at` (nullable), `last_sent_at` (nullable — заполняется только при отправке письма).
+**Invitation** — `id`, `org_id`, `email` (nullable — a link-only invitation), `role`, `project_ids` (for the `client` role), `token_hash`, `invited_by`, `created_at`, `expires_at`, `accepted_at` (nullable), `accepted_by` (nullable), `revoked_at` (nullable), `last_sent_at` (nullable — filled in only when an email is sent).
 
-Приглашение живёт в базе и после принятия: это журнал того, кто кого привёл, а `accepted_at` заодно служит признаком «токен больше не работает».
+An invitation lives in the database after being accepted too: it is a record of who brought whom, and `accepted_at` doubles as the "the token no longer works" flag.
 
-**Project** — `id`, `org_id`, `name`, `slug` (уникален в пределах организации), `deadline` (целевая дата, nullable), `plan_approved_at`, `plan_version` (целое, растёт при переутверждении), `schedule_mode` (`relative` | `calendar`), `start_date` (назначенная дата старта, nullable — см. «Относительный план»).
+**Project** — `id`, `org_id`, `name`, `slug` (unique within the organization), `deadline` (a target date, nullable), `plan_approved_at`, `plan_version` (an integer, grows on re-approval), `schedule_mode` (`relative` | `calendar`), `start_date` (the assigned start date, nullable — see "The relative plan").
 
-Плюс переопределения настроек организации, все **nullable**: `timezone`, `working_days`, `shift_threshold_days`. `null` означает «наследовать от организации», а не «пусто». Это принципиально: если при создании проекта копировать значения организации, то последующая правка организационного дефолта не дойдёт до существующих проектов, и через полгода никто не поймёт, почему в двух проектах разный порог.
+Plus overrides of the organization's settings, all **nullable**: `timezone`, `working_days`, `shift_threshold_days`. `null` means "inherit from the organization" rather than "empty". That is fundamental: if the organization's values were copied when a project is created, a later edit of the organization's default would not reach the existing projects, and in six months nobody would understand why two projects have different thresholds.
 
-Отдельно `holidays_extra` (дополнительные нерабочие дни этого проекта) и `workdays_extra` (рабочие субботы и прочие переносы). Оба применяются поверх календаря организации, а не вместо него.
+Separately, `holidays_extra` (this project's additional non-working days) and `workdays_extra` (working Saturdays and other transfers). Both apply on top of the organization's calendar rather than instead of it.
 
 **Category** — `id`, `project_id`, `name`, `color`, `position`.
 
-**Task** — `id`, `project_id`, `category_id`, `name`, `description`, `start_date`, `duration_days`, `criticality` (`low` | `normal` | `high` | `critical`), `progress_pct` (0–100), `internal_note`, `position`, `baseline_start`, `baseline_duration` (оба `null`, если задача создана после утверждения плана), `created_by_ai_session_id` (nullable).
+**Task** — `id`, `project_id`, `category_id`, `name`, `description`, `start_date`, `duration_days`, `criticality` (`low` | `normal` | `high` | `critical`), `progress_pct` (0–100), `internal_note`, `position`, `baseline_start`, `baseline_duration` (both `null` if the task was created after the plan was approved), `created_by_ai_session_id` (nullable).
 
-Дата окончания не хранится — вычисляется из `start_date` и `duration_days` по календарю проекта.
+The end date is not stored — it is computed from `start_date` and `duration_days` by the project's calendar.
 
-**TaskAssignee** — `task_id`, `user_id`. Ответственных может быть несколько.
+**TaskAssignee** — `task_id`, `user_id`. There can be several owners.
 
-**Dependency** — `id`, `project_id`, `from_task_id`, `to_task_id`. Без типов связи и без лага: это стрелка на картинке, не правило расчёта.
+**Dependency** — `id`, `project_id`, `from_task_id`, `to_task_id`. Without link types and without lag: this is an arrow in a picture, not a calculation rule.
 
-**Revision** — `id`, `project_id`, `seq` (порядковый номер внутри проекта), `actor_user_id`, `op` (JSON операции: тип события и параметры, из него же собирается фраза истории на языке читателя — см. раздел «Языки»), `inverse` (JSON обратной операции), `reason` (nullable, заполняется при сдвиге за порог, хранится как введено и не переводится), `batch_id` (nullable, объединяет пачку от AI), `created_at`.
+**Revision** — `id`, `project_id`, `seq` (a sequence number within the project), `actor_user_id`, `op` (the operation's JSON: the event type and its parameters, from which the history's phrase is assembled in the reader's language — see the "Languages" section), `inverse` (the inverse operation's JSON), `reason` (nullable, filled in on a shift past the threshold, stored as entered and not translated), `batch_id` (nullable, groups a batch from the AI), `created_at`.
 
-**PlanVersion** — `id`, `project_id`, `version`, `approved_by`, `approved_at`, `snapshot` (JSON: даты и длительности всех задач на момент утверждения).
+**PlanVersion** — `id`, `project_id`, `version`, `approved_by`, `approved_at`, `snapshot` (JSON: the dates and durations of all the tasks at the moment of approval).
 
 **ShareLink** — `id`, `project_id`, `token`, `comments_enabled`, `revoked_at`.
 
-**Comment** — `id`, `project_id`, `task_id` (nullable — комментарий может быть к проекту целиком), `author_user_id` (nullable), `guest_name` (nullable), `body`, `created_at`.
+**Comment** — `id`, `project_id`, `task_id` (nullable — a comment can be on the whole project), `author_user_id` (nullable), `guest_name` (nullable), `body`, `created_at`.
 
-**OrgLlmCredential** — `org_id`, `provider`, `base_url`, `model`, `encrypted_key`. Ключ шифруется симметрично секретом приложения, наружу не отдаётся никогда — только признак «ключ настроен». `base_url` и `model` обязательны как настройки, а не константы: без них BYOK работает только с одним облаком по одной зашитой модели, и обещание «можно подсунуть локальную модель» остаётся на словах.
+**OrgLlmCredential** — `org_id`, `provider`, `base_url`, `model`, `encrypted_key`. The key is encrypted symmetrically with the application's secret and is never handed out — only a "the key is configured" flag. `base_url` and `model` are mandatory as settings rather than constants: without them BYOK works only with one cloud on one hard-wired model, and the promise "you can plug in a local model" stays words.
 
-**AiSession** — `id`, `org_id`, `project_id` (заполняется после применения), `locale` (язык интервью и черновика), `status` (`interview` | `summary` | `draft` | `applied` | `abandoned`), `transcript` (JSON: список вопросов и ответов), `summary` (JSON: тезисы), `draft` (JSON: категории и задачи), `tokens_used`, `applied_batch_id` (nullable).
+**AiSession** — `id`, `org_id`, `project_id` (filled in after applying), `locale` (the language of the interview and the draft), `status` (`interview` | `summary` | `draft` | `applied` | `abandoned`), `transcript` (JSON: the list of questions and answers), `summary` (JSON: the theses), `draft` (JSON: the categories and tasks), `tokens_used`, `applied_batch_id` (nullable).
 
-### Календарь
+### The calendar
 
-Длительность задаётся в **рабочих днях**. Какие дни недели рабочие — настройка (`working_days`), а не константа: по умолчанию понедельник–пятница, но выходные в разных странах приходятся на разные дни, и зашивать субботу с воскресеньем в инструмент, который показывают внешним клиентам, нельзя.
+Duration is set in **working days**. Which weekdays are working is a setting (`working_days`) rather than a constant: Monday–Friday by default, but weekends fall on different days in different countries, and hard-wiring Saturday and Sunday into a tool shown to external clients will not do.
 
-Итоговый календарь проекта собирается в таком порядке: маска рабочих дней недели → минус праздники из календаря организации → минус `holidays_extra` проекта → плюс `workdays_extra` проекта. Вся работа с датами идёт через две функции: «прибавить N рабочих дней» и «сколько рабочих дней между датами». Прямых операций с календарными днями в коде нет.
+A project's final calendar is assembled in this order: the weekday mask → minus the holidays from the organization's calendar → minus the project's `holidays_extra` → plus the project's `workdays_extra`. All date work goes through two functions: "add N working days" and "how many working days between two dates". There are no direct calendar-day operations in the code.
 
-Обоснование: если задача стартует в пятницу и длится 3 дня, окончание в воскресенье выглядит как ошибка и ломает доверие к диаграмме.
+The reasoning: if a task starts on a Friday and lasts 3 days, an end on Sunday looks like a bug and breaks trust in the chart.
 
-### Относительный план и привязка к дате старта
+### The relative plan and binding to a start date
 
-План проекта и календарные даты разделены. Новый проект рождается в режиме `relative`: дата начала при создании не спрашивается, шкала читается как «Месяц 1 / Неделя 1 / День 1» («месяц» — визуальная группа из четырёх недель, расчёты идут в днях), линия «сегодня» и названия настоящих месяцев не показываются. Задачи при этом полностью определены смещением от начала проекта в рабочих днях, длительностью и связями — структуру и общий срок можно показать заказчику до того, как известна дата старта.
+A project's plan and its calendar dates are separated. A new project is born in `relative` mode: the start date is not asked for at creation, the scale reads as "Month 1 / Week 1 / Day 1" (a "month" is a visual group of four weeks, the computations run in days), and the "today" line and real month names are not shown. The tasks are at that fully defined by their offset from the project's start in working days, their duration and their links — the structure and the overall length can be shown to a customer before the start date is known.
 
-Хранится смещение той же колонкой `start_date` — координатой на относительной оси: день N проекта = `RELATIVE_EPOCH` (2001-01-01, понедельник) + (N − 1) календарных дней. Смещение и координата взаимно однозначны при фиксированной недельной маске, а координатой уже говорят журнал ревизий, отмена, порог сдвига и снимки плана — вторая колонка была бы вторым представлением того же и однажды разошлась бы с первым. Календарь относительной оси — одна недельная маска, без праздников: праздник — свойство настоящей даты, которой у плана ещё нет. Наружу сериализация отдаёт и производное `start_offset_days`.
+The offset is stored in the same `start_date` column — as a coordinate on the relative axis: project day N = `RELATIVE_EPOCH` (2001-01-01, a Monday) + (N − 1) calendar days. The offset and the coordinate map one to one given a fixed weekly mask, while the coordinate is already spoken by the revision journal, the undo, the shift threshold and the plan snapshots — a second column would be a second representation of the same thing and would one day diverge from the first. The relative axis's calendar is a single weekly mask with no holidays: a holiday is a property of a real date, which the plan does not have yet. The serialization also hands out the derived `start_offset_days`.
 
-Кнопка «Назначить дату старта» открывает окно с датой, выбором рабочей недели (5/2, 6/1, календарные дни) и рассчитанной сервером датой завершения до подтверждения. Применение переводит проект в `calendar`: смещение каждой задачи откладывается от назначенного старта уже по настоящему календарю — с выходными и праздниками, — базовые планы переезжают той же осью, длительности и связи не меняются. Источник истины и до, и после — старт + длительности + связи + рабочий календарь, а не дата окончания: поэтому повторная смена старта пересчитывает план без дрейфа (или, по выбору, оставляет даты задач на месте). Переключатель представления «Относительный | Календарный» и сам индикатор относительного режима пропадают из тулбара сразу, как только дата старта назначена: у календарного проекта настоящие даты есть, и показывать его снова как «12 недель» незачем.
+The "Assign a start date" button opens a dialog with a date, a choice of working week (5/2, 6/1, calendar days) and a server-computed end date before the confirmation. Applying moves the project into `calendar`: every task's offset is laid out from the assigned start by the real calendar now — with weekends and holidays — the baselines travel along the same axis, the durations and the links do not change. The source of truth before and after is the start plus the durations plus the links plus the working calendar rather than the end date: that is why changing the start again recomputes the plan without drift (or, by choice, leaves the tasks' dates in place). The "Relative | Calendar" view switcher and the relative-mode indicator itself disappear from the toolbar as soon as a start date is assigned: a calendar project has real dates, and there is no point showing it again as "12 weeks".
 
-## 4. Планирование: что система делает и чего не делает
+## 4. Scheduling: what the system does and does not do
 
-**Делает:** хранит у каждой задачи дату старта и длительность, считает дату окончания по календарю, выводит границы категории как минимум и максимум по её задачам.
+**It does:** store a start date and a duration on every task, compute the end date by the calendar, derive a category's bounds as the minimum and maximum over its tasks.
 
-**Не делает:** не пересчитывает даты по связям, не двигает задачи автоматически, не считает критический путь и резервы, не выравнивает загрузку людей.
+**It does not:** recompute dates along links, move tasks automatically, compute the critical path and float, or level people's workload.
 
 > **Superseded.** Two of these were later built: critical-path/float
 > calculation (`backend/app/critical.py`) and opt-in auto-shift of
@@ -146,245 +146,245 @@
 > gated by the project's `auto_schedule` setting, off by default). Workload
 > balancing across people is still not implemented.
 
-Связи существуют только как стрелки. Единственное поведение: после сдвига задачи, у которой есть исходящая связь, если связанная задача теперь начинается раньше окончания предшественника — показывается ненавязчивое предложение «Подвинуть „Сделать сайт“ на 5 дней?» с одной кнопкой. Отказ ничего не ломает: стрелка просто рисуется наискось.
+Links exist only as arrows. The single behaviour: after a task with an outgoing link is moved, if the linked task now starts earlier than the predecessor's end, an unobtrusive offer appears — "Move 'Build the site' by 5 days?" with a single button. Refusing breaks nothing: the arrow is simply drawn askew.
 
-Категория собственных дат не имеет и мышью не двигается.
+A category has no dates of its own and is not dragged with the mouse.
 
-## 5. Утверждённый план и обязательная причина сдвига
+## 5. The approved plan and the mandatory shift reason
 
-**Черновик.** До нажатия «Утвердить план» правки свободны, ничего не спрашивается.
+**A draft.** Before "Approve plan" is pressed, edits are free and nothing is asked.
 
-**Утверждение.** Кнопка доступна `owner` и `editor`. Снимается снимок дат и длительностей всех задач: он пишется в `PlanVersion.snapshot` и одновременно в поля `baseline_start` / `baseline_duration` каждой задачи.
+**Approval.** The button is available to `owner` and `editor`. A snapshot of all the tasks' dates and durations is taken: it is written into `PlanVersion.snapshot` and at the same time into every task's `baseline_start` / `baseline_duration` fields.
 
-**После утверждения** изменение `start_date` или `duration_days` проверяется так:
+**After approval** a change to `start_date` or `duration_days` is checked like this:
 
 ```
-отклонение = max(|start_date - baseline_start|, |duration_days - baseline_duration|)
-если отклонение > shift_threshold_days → причина обязательна
+deviation = max(|start_date - baseline_start|, |duration_days - baseline_duration|)
+if deviation > shift_threshold_days → a reason is mandatory
 ```
 
-Отклонение считается **от базового плана, а не от предыдущего значения**. Иначе задачу двигают пять раз по одному дню, суммарно уезжает на неделю, и ни одного объяснения в истории.
+The deviation is measured **from the baseline plan rather than from the previous value**. Otherwise a task gets moved five times by one day, travels a week in total, and there is not a single explanation in the history.
 
-**Как спрашивается.** Модальное окно сразу при отпускании мыши (или при сохранении в карточке): текст «Сдвиг на 7 дней», пояснение, обязательное поле причины, кнопки «Вернуть» и «Сохранить». Пустая причина — кнопка неактивна. Изменение **не применяется**, пока причина не введена; промежуточного «сдвинуто, но не объяснено» состояния в системе не существует.
+**How it is asked.** A modal right when the mouse is released (or on saving in the card): the text "A shift of 7 days", an explanation, a mandatory reason field, and the "Revert" and "Save" buttons. An empty reason — the button is disabled. The change **is not applied** until the reason has been entered; the intermediate "shifted but not explained" state does not exist in the system.
 
-**Задачи, созданные после утверждения**, базового плана не имеют, помечаются значком «сверх первоначального плана» и от объяснений освобождены: добавление работы — нормально, скрытый перенос сроков — нет.
+**Tasks created after the approval** have no baseline plan, are marked with a "beyond the original plan" sign and are exempt from explanations: adding work is normal, a hidden shift of dates is not.
 
-**Переутверждение.** `owner` жмёт «Переутвердить план»: создаётся новая `PlanVersion`, базовые значения задач обновляются. Старые версии остаются доступны вместе с накопленными причинами — это летопись «что обещали в январе, что в марте и почему сдвинулось».
+**Re-approval.** The `owner` presses "Re-approve plan": a new `PlanVersion` is created and the tasks' baseline values are updated. The old versions stay available together with the accumulated reasons — this is a chronicle of "what was promised in January, what in March and why it slipped".
 
-**Отображение отставания идёт на двух уровнях сразу — задачи и проекта.**
+**The lag is displayed on two levels at once — the task's and the project's.**
 
-*Уровень задачи — призрак базового плана.* Под текущей полоской тонкая серая полоска с датами утверждённого плана, справа бейдж отклонения («+7 дней»). В карточке — сводка отклонения и список всех переносов с причинами. Это точно и честно: видно и сдвиг старта, и растяжение срока.
+*The task level — the baseline's ghost.* Under the current bar a thin grey bar with the approved plan's dates, and to the right a deviation badge ("+7 days"). In the card, a summary of the deviation and a list of all the moves with their reasons. That is precise and honest: both the start's shift and the duration's stretch are visible.
 
-*Уровень проекта — целевая дата и пробитие.* У проекта есть `deadline`. На диаграмме он рисуется красной пунктирной вертикалью через все строки, с подписью в шапке. Любая задача, которая заканчивается позже него, красится в красный и получает флажок в левой колонке. В шапке проекта постоянно висит плашка с итогом: либо «Проект заканчивается 8 июня — на 7 дней позже дедлайна 1 июня» красным, либо «Укладываемся в 1 июня — запас 5 дней» зелёным. Плашка видна и по публичной ссылке: это единственная цифра, которая по-настоящему интересует заказчика.
+*The project level — the target date and overshooting it.* A project has a `deadline`. On the chart it is drawn as a red dashed vertical across every row, with a caption in the header. Any task ending later than it is painted red and gets a flag in the left column. A chip with the verdict hangs permanently in the project's header: either "The project ends on 8 June — 7 days later than the 1 June deadline" in red, or "We fit into 1 June — 5 days of slack" in green. The chip is visible by the public link too: it is the only figure that genuinely interests the customer.
 
-Почему именно эти два, а не больше. Призрак отвечает на вопрос «где задача должна была стоять», линия дедлайна — на вопрос «успеваем ли мы вообще». Отставание в днях никого не волнует, пока оно не пробивает обещанную дату, поэтому без второго уровня первый остаётся бухгалтерией ради бухгалтерии.
+Why exactly these two and not more. The ghost answers the question "where should the task have stood", the deadline line answers "are we going to make it at all". A lag in days interests nobody until it breaks the promised date, so without the second level the first stays bookkeeping for bookkeeping's sake.
 
-Отвергнутый вариант, который стоит зафиксировать: заливать разрыв между плановым и фактическим окончанием прямо в полоске, продлевая её. Выглядит нагляднее всего, но тогда начало полоски означает плановую дату, а конец — фактическую, и полоска перестаёт означать реальные даты задачи. Один раз обманув глаз, диаграмма теряет доверие целиком.
+A rejected option worth recording: filling the gap between the planned and the actual end right inside the bar, extending it. It looks the most illustrative, but then the bar's start means the planned date and its end the actual one, and the bar stops meaning the task's real dates. Having deceived the eye once, the chart loses trust entirely.
 
-Отложено до появления спроса: тепловая шкала отставания в левой колонке со свёрткой по категориям (нужна на длинных проектах, когда полоски не помещаются на экран) и график динамики обещанной даты окончания по версиям плана (осмыслен, только когда версий накопилось несколько).
+Deferred until there is demand: a lag heat scale in the left column with a reduction over categories (needed on long projects, when the bars do not fit on screen) and a chart of how the promised end date moved across plan versions (only meaningful once several versions have accumulated).
 
-## 6. Мутации, история, живые обновления
+## 6. Mutations, history, live updates
 
-Клиент не отправляет объект задачи целиком. Он отправляет операцию: `create_task`, `move_task`, `set_duration`, `set_criticality`, `assign_user`, `create_category`, `add_dependency` и так далее. Каждая операция умеет применить себя и построить обратную.
+The client does not send a whole task object. It sends an operation: `create_task`, `move_task`, `set_duration`, `set_criticality`, `assign_user`, `create_category`, `add_dependency` and so on. Every operation can apply itself and build its own inverse.
 
-Из этого следует:
+It follows from this that:
 
-- **История задачи** — отфильтрованный по задаче журнал ревизий. «19 марта, Алексей перенёс старт с 12 на 19 марта. Причина: заказчик не прислал брендбук».
-- **Undo** — применение `inverse` последней ревизии.
-- **Применение AI** — пачка обычных мутаций с общим `batch_id`, откатывается целиком одной кнопкой.
-- **Живые обновления** — ревизии рассылаются в WebSocket проекта, клиенты применяют их к своей копии состояния.
+- **A task's history** is the revision journal filtered by that task. "19 March, Alexey moved the start from 12 to 19 March. Reason: the customer did not send the brand book".
+- **Undo** is applying the last revision's `inverse`.
+- **Applying the AI** is a batch of ordinary mutations with a shared `batch_id`, rolled back whole with one button.
+- **Live updates** — the revisions are broadcast into the project's WebSocket, and the clients apply them to their own copy of the state.
 
-**Конфликты.** Мутации точечные, поэтому правки разных задач не конфликтуют вообще. При одновременной правке одного поля одной задачи выигрывает последний; оба изменения остаются в истории, потерянная правка всегда находится. Блокировок и индикаторов «кто-то редактирует» нет.
+**Conflicts.** The mutations are pointwise, so edits of different tasks do not conflict at all. On simultaneous edits of one field of one task the last one wins; both changes stay in the history, and a lost edit can always be found. There are no locks and no "someone is editing" indicators.
 
-**Гости** подключены к тому же WebSocket в режиме прослушивания: видят появляющиеся комментарии и движение полосок без перезагрузки.
+**Guests** are connected to the same WebSocket in listening mode: they see comments appearing and bars moving without a reload.
 
-## 7. Публичный доступ
+## 7. Public access
 
-Адрес вида `planora.ru/p/acme/redesign-2026` — слаг организации и слаг проекта, оба редактируются владельцем. Занятый слаг подсказывает свободный вариант прямо в поле ввода.
+An address of the form `planora.ru/p/acme/redesign-2026` — the organization's slug and the project's slug, both editable by the owner. A taken slug suggests a free variant right in the input field.
 
-Страница показывает ту же раскладку, что и рабочий экран, но без инструментов редактирования и без внутренних заметок.
+The page shows the same layout as the working screen, but without the editing tools and without the internal notes.
 
-Гость при первом комментарии вводит имя. Оно запоминается в браузере и подписывает его реплики пометкой «гость», визуально отличаясь от участников с аккаунтом. Владелец может выключить комментарии переключателем и перевыпустить ссылку: старая умирает мгновенно.
+A guest enters a name on their first comment. It is remembered in the browser and signs their replies with a "guest" mark, visually distinct from members with accounts. The owner can switch the comments off with a toggle and reissue the link: the old one dies instantly.
 
-## 8. AI-интейк
+## 8. AI intake
 
-Интервью доступно **только при создании нового проекта**. Запуск полного интервью внутри существующего проекта — следующий этап, не первая версия. Точечное действие «разбить задачу» (см. ниже) работает в любом проекте и интервью не требует.
+The interview is available **only when creating a new project**. Launching a full interview inside an existing project is the next stage, not the first version. The pointwise "split the task" action (see below) works in any project and requires no interview.
 
-### Шаг 1: интервью
+### Step 1: the interview
 
-Бэк держит список обязательных тем: цель проекта, объём работ, дедлайн, участники, ограничения, что уже готово, что в проект точно не входит. После каждого ответа помечается, какие темы закрыты; модель видит остаток и выбирает следующий вопрос. Вопросы задаются по одному.
+The backend holds a list of mandatory topics: the project's goal, the scope of work, the deadline, the participants, the constraints, what is already done, what is definitely out of scope. After every answer it is marked which topics are closed; the model sees what is left and picks the next question. The questions are asked one at a time.
 
-Жёсткий потолок — 12 вопросов. На любом шаге доступна кнопка «хватит, генерируй». Без потолка модель уточняет бесконечно.
+A hard ceiling of 12 questions. At any step a "that's enough, generate it" button is available. Without a ceiling the model clarifies endlessly.
 
-### Шаг 2: конспект (ворота)
+### Step 2: the summary (a gate)
 
-Перед генерацией показывается список тезисов «вот что я понял про проект». Тезисы редактируются и удаляются. Здесь дешевле всего поймать неверно понятое — до того, как оно превратится в сто неправильных задач.
+Before generating, a list of theses is shown: "here is what I understood about the project". The theses are editable and deletable. This is where a misunderstanding is cheapest to catch — before it turns into a hundred wrong tasks.
 
-### Шаг 3: черновик (главные ворота)
+### Step 3: the draft (the main gate)
 
-Модель возвращает строгую структуру: категории, в каждой задачи с названием, описанием, длительностью в днях, критичностью и предлагаемой датой старта. Ответ валидируется по схеме на бэке. Не прошло — повторный запрос, максимум два раза, затем честное сообщение об ошибке с сохранением сессии.
+The model returns a strict structure: categories, each with tasks carrying a name, a description, a duration in days, a criticality and a suggested start date. The answer is validated against a schema on the backend. If it does not pass — a repeat request, at most twice, then an honest error message with the session preserved.
 
-Черновик открывается редактируемой таблицей: правка названий и сроков, удаление, добавление своего, перенос задач между категориями. **В проект не записано ничего, пока не нажата «Применить».**
+The draft opens as an editable table: editing names and dates, deleting, adding your own, moving tasks between categories. **Nothing is written into the project until "Apply" is pressed.**
 
-### Шаг 4: применение
+### Step 4: applying
 
-Черновик применяется пачкой мутаций с общим `batch_id` и меткой AI-сессии. В истории каждой задачи остаётся «создана AI-сессией от 10 августа». Вся пачка откатывается одной кнопкой.
+The draft is applied as a batch of mutations with a shared `batch_id` and the AI session's mark. Every task's history keeps "created by the AI session of 10 August". The whole batch is rolled back with one button.
 
-### Точечное действие
+### The pointwise action
 
-На любой задаче — «разбить на несколько». AI предлагает 3–5 задач в той же категории с поделёнными сроками, показывает превью, применяет только по кнопке. Других AI-действий в первой версии нет.
+On any task — "split into several". The AI offers 3–5 tasks in the same category with the dates divided up, shows a preview and applies only on a button press. There are no other AI actions in the first version.
 
-### Ключи
+### Keys
 
-Ключ хранится на организацию, шифруется в базе, вводится в настройках владельцем. Провайдер спрятан за тонким интерфейсом (`generate(messages, schema) -> dict`), чтобы смена провайдера или переход на локальную модель не задевали остальной код. Нет ключа — кнопки AI неактивны со ссылкой в настройки. Расход токенов пишется по сессиям.
+The key is stored per organization, encrypted in the database, and entered in the settings by the owner. The provider is hidden behind a thin interface (`generate(messages, schema) -> dict`), so that changing providers or moving to a local model does not touch the rest of the code. No key — the AI buttons are disabled with a link to the settings. Token spend is recorded per session.
 
-## 9. Языки
+## 9. Languages
 
-Интерфейс на трёх языках: **азербайджанский (по умолчанию), английский и русский**.
+The interface is in three languages: **Azerbaijani (by default), English and Russian**.
 
-Азербайджанский — язык по умолчанию: он подставляется новому пользователю, если браузер не просит явно другой из поддерживаемых, и на него же падает интерфейс, если в словаре не хватает ключа.
+Azerbaijani is the default language: it is set for a new user if the browser does not explicitly ask for another supported one, and it is also what the interface falls back to when a key is missing from a dictionary.
 
-**Что переводится и что нет.** Переводится только интерфейс: подписи, кнопки, сообщения об ошибках, названия месяцев и дней недели. Содержимое пользователя — названия проектов, категорий и задач, описания, внутренние заметки, комментарии и причины сдвигов — хранится ровно так, как введено, и не переводится никогда. Азербайджанская команда, ведущая проект на азербайджанском, покажет его английскому клиенту с азербайджанскими названиями задач, и это правильно: подмена содержимого машинным переводом хуже, чем честный чужой язык.
+**What is translated and what is not.** Only the interface is translated: the captions, the buttons, the error messages, the month and weekday names. User content — project, category and task names, descriptions, internal notes, comments and shift reasons — is stored exactly as entered and is never translated. An Azerbaijani team running a project in Azerbaijani will show it to an English client with Azerbaijani task names, and that is right: replacing content with a machine translation is worse than an honest foreign language.
 
-**История задачи хранится структурно, а не текстом.** В журнале лежит `{событие, параметры}` — например `{k: "moved_start", from: …, to: …}`, а не готовая фраза «перенёс старт с 12 на 19 марта». Фраза собирается при показе, на языке читателя. Иначе история, записанная азербайджанцем, навсегда осталась бы азербайджанской для английского клиента. Причина сдвига — исключение: это текст пользователя, он остаётся как есть.
+**A task's history is stored structurally rather than as text.** The journal holds `{event, parameters}` — for example `{k: "moved_start", from: …, to: …}` — rather than a ready phrase "moved the start from 12 to 19 March". The phrase is assembled at display time, in the reader's language. Otherwise a history written by an Azerbaijani would stay Azerbaijani forever for an English client. The shift reason is the exception: it is the user's text and stays as is.
 
-**Выбор языка.** Язык хранится в профиле пользователя. При первом входе берётся из заголовка `Accept-Language`, если он просит один из трёх поддерживаемых; иначе — азербайджанский. Дальше — только то, что человек выбрал сам. На публичной странице у гостя профиля нет: язык определяется по браузеру с тем же правилом, а в углу страницы стоит переключатель, потому что клиент может не совпадать по языку с командой.
+**Choosing a language.** The language is stored in the user's profile. On the first sign-in it is taken from the `Accept-Language` header if it asks for one of the three supported ones; otherwise Azerbaijani. After that, only what the person chose themselves. On the public page a guest has no profile: the language is determined from the browser by the same rule, and a switcher stands in the page's corner, because a client may not share a language with the team.
 
-**Форматы.** Неделя начинается с понедельника во всех трёх языках. Даты выводятся своим форматом для каждой локали. Известное ограничение, принятое сознательно: нативный `input[type=date]` показывает дату в формате локали браузера, а не приложения — свой датапикер в первую версию не берём.
+**Formats.** The week starts on Monday in all three languages. Dates are printed in each locale's own format. A known limitation, accepted deliberately: a native `input[type=date]` shows the date in the browser's locale format rather than the application's — a date picker of our own is not in the first version.
 
-**Азербайджанская i-ловушка.** В азербайджанском и турецком есть два разных «i»: `İ/i` с точкой и `I/ı` без. Приведение регистра с учётом локали разводит их не туда: в браузере `"I".toLocaleLowerCase("az")` даёт `ı`, а не `i`, и то же самое делает collation базы, настроенная на азербайджанскую локаль. Всё, что опирается на регистр, начинает вести себя по-разному в зависимости от того, чья локаль оказалась активной. Правила:
+**The Azerbaijani i trap.** Azerbaijani and Turkish have two different "i"s: `İ/i` with a dot and `I/ı` without. Locale-aware case conversion sends them the wrong way: in a browser `"I".toLocaleLowerCase("az")` gives `ı` rather than `i`, and a database collation configured for the Azerbaijani locale does the same. Everything that relies on case starts behaving differently depending on whose locale happened to be active. The rules:
 
-- Приведение регистра для сравнений, поиска и логинов делается **только в инвариантной локали**, никогда в локали пользователя. На фронте это значит `toLowerCase`, а не `toLocaleLowerCase`; на бэке — `casefold`, который от локали процесса не зависит вовсе.
-- Слаг проекта строится по явной таблице транслитерации: `ə→e, ğ→g, ı→i, İ→i, ö→o, ş→s, ü→u, ç→c` плюс кириллица. Автоматическое снятие диакритики запрещено **как единственный механизм**: `ə` — самостоятельная буква, а не «e с украшением», и ни в какое `e` она не раскладывается. Как запасной вариант для языков вне таблицы автоматика допустима и полезна: французское название проекта лучше превратить в `cafe-central`, чем в `caf-central`.
-- Проверка уникальности слага и email опирается на явное сравнение по нормализованной форме, а не на collation базы.
+- Case conversion for comparisons, search and logins is done **only in the invariant locale**, never in the user's. On the frontend that means `toLowerCase` rather than `toLocaleLowerCase`; on the backend `casefold`, which does not depend on the process's locale at all.
+- A project's slug is built from an explicit transliteration table: `ə→e, ğ→g, ı→i, İ→i, ö→o, ş→s, ü→u, ç→c` plus Cyrillic. Automatic diacritic stripping is forbidden **as the only mechanism**: `ə` is a letter in its own right rather than "an e with an ornament", and it decomposes into no `e` at all. As a fallback for languages outside the table the automatic route is permissible and useful: a French project name is better turned into `cafe-central` than into `caf-central`.
+- The slug and email uniqueness checks rely on an explicit comparison of the normalized form rather than on the database's collation.
 
-Следствие, которое надо принять сознательно: `İsmail@x.com` и `Ismail@x.com` останутся **разными** адресами, потому что полное регистронезависимое свёртывание даёт для них разные строки. Это правильно — молчаливое слияние двух аккаунтов хуже, чем два похожих адреса.
+A consequence that has to be accepted deliberately: `İsmail@x.com` and `Ismail@x.com` will remain **different** addresses, because full case folding gives different strings for them. That is right — silently merging two accounts is worse than two similar addresses.
 
-**AI на нужном языке.** Язык того, кто запустил сессию, фиксируется в `AiSession.locale` и передаётся в промпт явным параметром: интервью ведётся и черновик задач генерируется на нём. Схема ответа при этом остаётся языконезависимой — на языке пользователя приходят значения, а не ключи. Язык фиксируется именно на сессии, а не берётся из профиля каждый раз: иначе человек, переключивший интерфейс посреди интервью, получил бы черновик наполовину на одном языке, наполовину на другом.
+**The AI in the right language.** The language of whoever started the session is fixed in `AiSession.locale` and passed into the prompt as an explicit parameter: the interview is conducted and the task draft generated in it. The response schema stays language-independent at that — what arrives in the user's language are the values, not the keys. The language is fixed on the session rather than taken from the profile every time: otherwise a person who switched the interface mid-interview would get a draft half in one language and half in another.
 
-**Как устроено технически.** По одному JSON-файлу словаря на язык (`az`, `en`, `ru`), ключи смысловые (`task.deadline_missed`), а не фразы на каком-то из языков: иначе правка текста в одном языке молча ломает остальные. Отсутствующий ключ падает на азербайджанский и пишет предупреждение в лог, а не показывает пустоту. Третий язык не меняет ничего архитектурно — это ещё один файл словаря; цена в другом: каждая новая строка интерфейса теперь требует трёх переводов, и рассинхрон копится незаметно, поэтому проверка полноты словарей идёт в тестах, а не глазами.
+**How it works technically.** One JSON dictionary file per language (`az`, `en`, `ru`), with meaningful keys (`task.deadline_missed`) rather than phrases in one of the languages: otherwise editing the text in one language silently breaks the rest. A missing key falls back to Azerbaijani and writes a warning to the log rather than showing emptiness. A third language changes nothing architecturally — it is one more dictionary file; the cost is elsewhere: every new interface string now requires three translations, and drift accumulates unnoticed, so the dictionaries' completeness check goes in the tests rather than by eye.
 
-**Отдельным пунктом:** азербайджанские строки, написанные при разработке, до релиза должен вычитать носитель языка. Машинный перевод интерфейса проектного инструмента читается как незаконченный продукт — и особенно заметно это на языке по умолчанию, который увидит большинство пользователей.
+**As a separate point:** the Azerbaijani strings written during development must be proofread by a native speaker before release. A machine-translated project tool's interface reads as an unfinished product — and that is especially noticeable in the default language, which most users will see.
 
-## 10. Настройки и конфигурация
+## 10. Settings and configuration
 
-Четыре уровня. Правило простое: чем реже значение меняется и чем опаснее его менять, тем ниже уровень. Значение живёт **на одном уровне**; ниже стоящий уровень задаёт дефолт, верхний — переопределяет через `null`-наследование.
+Four levels. The rule is simple: the less often a value changes and the more dangerous it is to change, the lower its level. A value lives **on one level**; a lower level sets the default, an upper one overrides it through `null` inheritance.
 
-### Уровень 1. Переменные окружения (тот, кто разворачивает)
+### Level 1. Environment variables (whoever deploys)
 
-Меняются при деплое, недоступны из интерфейса.
+Changed at deploy time, unavailable from the interface.
 
-| Переменная | Зачем |
+| Variable | What for |
 |---|---|
-| `DATABASE_URL` | подключение к Postgres |
-| `APP_SECRET` | шифрование LLM-ключей и подпись сессий; при ротации ключи требуют перешифровки |
-| `PUBLIC_BASE_URL` | из чего собираются публичные ссылки на проекты |
-| `SITE_DOMAIN`, `ACME_EMAIL` | домен и почта для выпуска TLS в Caddy |
-| `DEFAULT_LOCALE`, `SUPPORTED_LOCALES` | язык по умолчанию и список доступных |
-| `MAIL_TRANSPORT` | `smtp` / `api` / `none` — как отправлять письма; `none` полностью выключает почту |
-| `SMTP_URL` | адрес, порт и учётные данные SMTP-сервера |
-| `MAIL_API_KEY`, `MAIL_API_URL` | если выбран транспорт через API рассылочного сервиса |
-| `MAIL_FROM` | адрес отправителя, от чьего имени уходят приглашения |
-| `INVITE_TTL_DAYS`, `INVITE_RATE_LIMIT` | срок жизни приглашения и потолок приглашений в час на организацию |
-| `PUBLIC_SHARING_ENABLED` | глобальный запрет публичных ссылок для закрытых установок |
-| `SIGNUP_MODE` | `open` (по умолчанию) / `invite_only` / `closed` — доступна ли свободная регистрация |
-| `AI_MAX_QUESTIONS`, `AI_SCHEMA_RETRIES`, `AI_REQUEST_TIMEOUT` | потолок интервью, число повторов при битой схеме, таймаут запроса |
-| `GUEST_COMMENT_RATE_LIMIT` | ограничение частоты гостевых комментариев по IP |
-| `MAX_TASKS_PER_PROJECT`, `MAX_TEXT_LEN` | предохранители от вырожденных данных |
-| `LOG_LEVEL` | уровень логирования |
+| `DATABASE_URL` | the connection to Postgres |
+| `APP_SECRET` | encrypting the LLM keys and signing the sessions; on rotation the keys need re-encrypting |
+| `PUBLIC_BASE_URL` | what the public links to projects are assembled from |
+| `SITE_DOMAIN`, `ACME_EMAIL` | the domain and the email for issuing TLS in Caddy |
+| `DEFAULT_LOCALE`, `SUPPORTED_LOCALES` | the default language and the list of available ones |
+| `MAIL_TRANSPORT` | `smtp` / `api` / `none` — how to send emails; `none` switches mail off entirely |
+| `SMTP_URL` | the address, port and credentials of the SMTP server |
+| `MAIL_API_KEY`, `MAIL_API_URL` | if the transport through a mailing service's API is chosen |
+| `MAIL_FROM` | the sender's address, in whose name the invitations go out |
+| `INVITE_TTL_DAYS`, `INVITE_RATE_LIMIT` | an invitation's lifetime and the ceiling of invitations per hour per organization |
+| `PUBLIC_SHARING_ENABLED` | a global ban on public links for closed installs |
+| `SIGNUP_MODE` | `open` (the default) / `invite_only` / `closed` — whether open registration is available |
+| `AI_MAX_QUESTIONS`, `AI_SCHEMA_RETRIES`, `AI_REQUEST_TIMEOUT` | the interview's ceiling, the number of retries on a broken schema, the request timeout |
+| `GUEST_COMMENT_RATE_LIMIT` | a rate limit on guest comments by IP |
+| `MAX_TASKS_PER_PROJECT`, `MAX_TEXT_LEN` | safety catches against degenerate data |
+| `LOG_LEVEL` | the logging level |
 
-Домен и язык по умолчанию — самые обидные из зашитых значений: без них установку нельзя развернуть на другом домене и под другую страну, не трогая код.
+The domain and the default language are the most galling of the hard-wired values: without them an install cannot be deployed on a different domain and for a different country without touching the code.
 
-**Что значит «из окружения» точнее.** Обязательны и не имеют значения по умолчанию только те переменные, у которых безопасного умолчания не существует: `APP_SECRET` и `DATABASE_URL`. Без них приложение не стартует — и это правильно, потому что придуманный за деплойщика секрет хуже отсутствующего. У остальных в коде лежит безопасное значение по умолчанию, которое переопределяется переменной окружения. Требовать явного `DEFAULT_LOCALE` от каждого, кто разворачивает, значит ломать обещание «работает сразу после развёртывания» ради буквализма.
+**What "from the environment" means more precisely.** Mandatory and without a default value are only those variables for which no safe default exists: `APP_SECRET` and `DATABASE_URL`. Without them the application does not start — and that is right, because a secret invented for the deployer is worse than a missing one. The rest have a safe default value in the code, overridden by an environment variable. Demanding an explicit `DEFAULT_LOCALE` from everyone who deploys means breaking the "works right after deployment" promise for the sake of literalism.
 
-Признак, по которому значение попадает в первую группу: его нельзя угадать правильно. Секрет, адрес базы, учётные данные. Всё, у чего есть разумное умолчание — язык, таймзона, пороги, лимиты — живёт во второй.
+The test by which a value falls into the first group: it cannot be guessed correctly. A secret, a database address, credentials. Everything with a sensible default — the language, the time zone, the thresholds, the limits — lives in the second.
 
-### Уровень 2. Настройки организации (`owner`)
+### Level 2. The organization's settings (`owner`)
 
-Дефолты, которые наследуют все проекты организации: язык, часовой пояс, рабочие дни недели, первый день недели, производственный календарь праздников, порог сдвига, разрешены ли публичные ссылки и включены ли в них комментарии по умолчанию. Плюс подключение LLM: провайдер, адрес, модель, ключ.
+The defaults inherited by all the organization's projects: the language, the time zone, the working weekdays, the first day of the week, the public-holiday calendar, the shift threshold, whether public links are allowed and whether comments are enabled in them by default. Plus the LLM connection: the provider, the address, the model, the key.
 
-Производственный календарь именно на организации, а не на проекте: никто не станет вбивать даты Новруза в каждый новый проект руками, а забытый праздник тихо сдвигает все сроки.
+The public-holiday calendar lives on the organization rather than on the project precisely because nobody will type the dates of Novruz into every new project by hand, while a forgotten holiday quietly shifts every date.
 
-### Уровень 3. Настройки проекта (`owner`, `editor`)
+### Level 3. The project's settings (`owner`, `editor`)
 
-Слаг, целевая дата, публичная ссылка и комментарии в ней. Плюс переопределения организационных дефолтов там, где проект действительно отличается: часовой пояс, рабочие дни, порог сдвига, дополнительные праздники и рабочие субботы.
+The slug, the target date, the public link and its comments. Plus overrides of the organization's defaults where a project really does differ: the time zone, the working days, the shift threshold, the additional holidays and working Saturdays.
 
-Переопределение хранится как `null` = «наследовать», а не копией значения.
+An override is stored as `null` = "inherit" rather than as a copy of the value.
 
-### Уровень 4. Настройки пользователя
+### Level 4. The user's settings
 
-Язык интерфейса. Всё.
+The interface language. That is all.
 
-### Что остаётся в коде — и почему
+### What stays in the code — and why
 
-Не всякая константа заслуживает настройки. Здесь настройка была бы вредна:
+Not every constant deserves a setting. Here a setting would do harm:
 
-- **Роли и матрица прав.** Настраиваемые права — классическая ловушка: гибкость, которой пользуются полтора клиента, ценой того, что ответ на вопрос «кто это видит» перестаёт быть однозначным. Четыре роли плюс гость покрывают задачу.
-- **Уровни критичности** (`low` / `normal` / `high` / `critical`). Enum в коде; их подписи и так приходят из словарей языков, а цвета — из темы оформления.
-- **Порядок шагов AI и ворота между ними.** Возможность отключить ворота уничтожает главный принцип продукта.
-- **Правило «отклонение считается от базового плана».** Настраиваемым его делать нельзя: возможность считать от предыдущего значения — это дыра, через которую сдвиги накапливаются незаметно, а не альтернативный режим работы.
-- **Палитра цветов категорий, шаг прогресса, размеры и масштаб диаграммы.** Оформление и состояние интерфейса; масштаб живёт в браузере пользователя, а не на сервере.
-- **Список обязательных тем интервью** лежит файлом конфигурации рядом с приложением (`config/intake_topics.yml`), а не в базе: править его будет тот, кто разворачивает, а не пользователь. Перенос в настройки организации — когда появится спрос на отраслевые шаблоны интейка.
+- **The roles and the permission matrix.** Configurable permissions are a classic trap: flexibility used by one and a half clients, at the cost of the answer to "who sees this" ceasing to be unambiguous. Four roles plus a guest cover the job.
+- **The criticality levels** (`low` / `normal` / `high` / `critical`). An enum in the code; their captions come from the language dictionaries anyway, and their colours from the theme.
+- **The order of the AI's steps and the gates between them.** The ability to switch the gates off destroys the product's main principle.
+- **The "the deviation is measured from the baseline plan" rule.** It must not be made configurable: the ability to measure from the previous value is a hole through which shifts accumulate unnoticed rather than an alternative working mode.
+- **The category colour palette, the progress step, the chart's sizes and scale.** Styling and interface state; the scale lives in the user's browser rather than on the server.
+- **The list of mandatory interview topics** lies in a configuration file next to the application (`config/intake_topics.yml`) rather than in the database: it will be edited by whoever deploys rather than by a user. Moving it into the organization's settings is for when there is demand for industry intake templates.
 
-## 11. Архитектура и деплой
+## 11. Architecture and deployment
 
-Один `docker compose`: FastAPI под uvicorn, Postgres, Caddy как TLS-терминатор и раздатчик собранной статики React. Миграции — Alembic. Внешних сервисов нет: ни очередей, ни объектного хранилища, ни Redis.
+One `docker compose`: FastAPI under uvicorn, Postgres, Caddy as the TLS terminator and the server of React's built static files. Migrations are Alembic. There are no external services: no queues, no object storage, no Redis.
 
-Модули бэка, каждый тестируется отдельно:
+The backend's modules, each tested separately:
 
-- `calendar/` — рабочие дни, праздники, арифметика дат. Чистые функции.
-- `mutations/` — реестр операций, применение и построение обратной. Не знает про HTTP.
-- `access/` — матрица прав: субъект, роль, действие, объект. Единственное место, где решается «можно ли».
-- `api/` — HTTP и WebSocket, сериализация, авторизация запроса. Бизнес-логики нет.
-- `ai/` — провайдер LLM, сценарий интервью, схемы вывода. Пишет в `AiSession`, не в проект.
-- `mail/` — отправка писем за интерфейсом `send(to, template, params)`. Реализации: SMTP, API рассылочного сервиса и заглушка, которая пишет письмо в лог.
+- `calendar/` — working days, holidays, date arithmetic. Pure functions.
+- `mutations/` — the operation registry, applying and building the inverse. Knows nothing about HTTP.
+- `access/` — the permission matrix: subject, role, action, object. The only place where "is this allowed" is decided.
+- `api/` — HTTP and WebSocket, serialization, request authorization. No business logic.
+- `ai/` — the LLM provider, the interview scenario, the output schemas. Writes into `AiSession`, not into a project.
+- `mail/` — sending emails behind a `send(to, template, params)` interface. The implementations: SMTP, a mailing service's API and a stub that writes the email into the log.
 
-**Почта — по той же схеме, что и LLM: тонкий интерфейс, несколько реализаций.** Основной вариант — SMTP: он работает с любым провайдером, включая собственный сервер, и не привязывает к платному сервису. Реализация через API рассылочного сервиса добавляется тем, кому важна доставляемость и статистика, но заранее в зависимость никто не загоняется.
+**Mail follows the same scheme as the LLM: a thin interface with several implementations.** The main option is SMTP: it works with any provider, including your own server, and does not tie you to a paid service. An implementation through a mailing service's API is added for whoever cares about deliverability and statistics, but nobody is forced into that dependency in advance.
 
-Письма уходят **синхронно, в том же запросе**, потому что очереди в первой версии нет, а приглашение — единственное письмо во всём приложении. Если отправка не удалась, приглашение всё равно создано и ссылка доступна для копирования: интерфейс честно говорит «письмо не ушло, скопируйте ссылку», вместо того чтобы откатывать всё действие. При `MAIL_TRANSPORT=none` кнопка отправки не показывается вовсе, остаётся только копирование ссылки — установка без почтового сервера должна оставаться полноценной.
+The emails go out **synchronously, in the same request**, because there is no queue in the first version and an invitation is the only email in the whole application. If sending failed, the invitation is created anyway and the link is available for copying: the interface honestly says "the email did not go out, copy the link" instead of rolling the whole action back. With `MAIL_TRANSPORT=none` the send button is not shown at all, leaving only copying the link — an install without a mail server must stay fully usable.
 
-WebSocket-рассылка держится в памяти процесса. Пока сервер один, этого достаточно; Redis добавляется заменой одного класса, если понадобится горизонтальное масштабирование.
+The WebSocket broadcast is held in the process's memory. While there is one server that is enough; Redis is added by replacing one class, should horizontal scaling be needed.
 
-Фронт — React, тонкий: рисует состояние, отправляет мутации, применяет входящие ревизии. Расчётов планирования на фронте нет.
+The frontend is React and thin: it draws the state, sends mutations and applies incoming revisions. There are no scheduling computations on the frontend.
 
-**Раскладка экрана** (одинаковая для участников и для публичной ссылки): узкая левая колонка с названиями задач и аватарками ответственных, справа таймлайн на всю оставшуюся ширину. Категории — строки-заголовки с цветной точкой и полосой, охватывающей даты своих задач.
+**The screen's layout** (the same for members and for the public link): a narrow left column with the tasks' names and the owners' avatars, and on the right a timeline across all the remaining width. The categories are heading rows with a coloured dot and a band spanning their tasks' dates.
 
-**Шкала времени — по дням, а не по неделям или месяцам.** Шапка двухуровневая: сверху месяцы, снизу каждый день с числом и днём недели. Нерабочие дни — выходные и праздники проекта — залиты фоном по всей высоте диаграммы, так что провалы в плане видно сразу и никто не ставит задачу на воскресенье по невнимательности. Лента прокручивается горизонтально, левая колонка с названиями при этом остаётся на месте; при открытии проект проматывается к сегодняшнему дню, который отмечен вертикальной линией.
+**The time scale is by days rather than by weeks or months.** The header has two levels: the months on top, and below every day with its date and weekday. The non-working days — the project's weekends and holidays — are filled with a background across the chart's full height, so that the gaps in the plan are visible at once and nobody puts a task on a Sunday by inattention. The strip scrolls horizontally while the left column with the names stays put; on opening, the project scrolls to today, which is marked with a vertical line.
 
-Панель с деталями задачи **по умолчанию скрыта**: диаграмма занимает всю ширину экрана. Панель открывается кликом по задаче и закрывается крестиком, клавишей Esc или повторным кликом по той же задаче. Постоянно висящая панель забирает четверть ширины у того, ради чего человек пришёл, — у самой диаграммы.
+The task detail panel is **hidden by default**: the chart takes the whole width of the screen. The panel opens on a click on a task and closes with the cross, the Esc key or a repeat click on the same task. A permanently hanging panel takes a quarter of the width from the very thing the person came for — the chart itself.
 
-**Порядок задач меняется перетаскиванием строки за левую колонку.** Разделение жёсткое: горизонтальное перетаскивание полоски на таймлайне меняет даты, вертикальное перетаскивание строки в левой колонке меняет порядок. Одна и та же задача не должна отвечать за две вещи сразу, иначе человек будет случайно двигать сроки, пытаясь переставить строку. При перетаскивании показывается линия вставки; строку можно бросить на заголовок категории — тогда задача переезжает в неё и встаёт последней. Смена категории пишется в историю задачи, перестановка внутри категории — нет: это раскладка, а не изменение плана.
+**The order of tasks is changed by dragging a row by the left column.** The separation is strict: dragging a bar horizontally on the timeline changes the dates, dragging a row vertically in the left column changes the order. One and the same task must not answer for two things at once, otherwise a person will accidentally move dates while trying to reorder a row. An insertion line is shown during a drag; a row can be dropped on a category heading — then the task moves into it and goes last. A change of category is written into the task's history, a reorder within a category is not: that is layout rather than a change to the plan.
 
-**Создание и правка вручную.** Категория создаётся кнопкой в шапке (название и цвет), задача — кнопкой в шапке или плюсом на строке нужной категории, тогда категория подставляется сама. Форма задачи спрашивает название, описание, категорию, критичность, дату старта, длительность и ответственных. Правка существующей задачи идёт в её карточке: каждое поле редактируется на месте, без отдельного режима редактирования и кнопки «Сохранить». Изменение даты старта или длительности проходит ту же проверку порога, что и перетаскивание мышью, — правило одно независимо от способа ввода. Удаление задачи даёт полоску отмены.
+**Creating and editing by hand.** A category is created with a button in the header (a name and a colour), a task with a button in the header or a plus on the required category's row, in which case the category is filled in itself. The task form asks for a name, a description, a category, a criticality, a start date, a duration and the owners. Editing an existing task happens in its card: every field is edited in place, without a separate edit mode and a "Save" button. Changing the start date or the duration goes through the same threshold check as dragging with the mouse — the rule is one regardless of the input method. Deleting a task gives an undo strip.
 
-## 12. Обработка ошибок
+## 12. Error handling
 
-- **Обрыв WebSocket** — полоска «нет связи, показаны данные на 14:32», редактирование блокируется. При восстановлении состояние проекта перезапрашивается целиком, а не доигрывается по пропущенным ревизиям.
-- **Отклонённая мутация** — оптимистичное изменение откатывается, показывается конкретная причина: «Мария удалила эту задачу минуту назад», а не «ошибка сохранения».
-- **Сбой LLM** (таймаут, мусор вместо схемы, исчерпан лимит ключа) — переписка и черновик сохраняются, сессия продолжается с того же места.
-- **Занятый слаг** — свободный вариант предлагается в поле ввода до отправки формы.
-- **Письмо не ушло** — приглашение создано, ссылка показана для копирования, ошибка названа прямо. Действие не откатывается: приглашение существует независимо от того, доставили его письмом или нет.
-- **Приглашение просрочено, отозвано или уже принято** — три разных сообщения, а не одно «ссылка недействительна». Человек должен понимать, просить ли новую ссылку или он уже в системе и достаточно войти.
+- **A dropped WebSocket** — a "no connection, showing data as of 14:32" strip, editing is blocked. On recovery the project's state is refetched whole rather than replayed from the missed revisions.
+- **A rejected mutation** — the optimistic change is rolled back and a concrete reason is shown: "Maria deleted this task a minute ago" rather than "save error".
+- **An LLM failure** (a timeout, junk instead of a schema, the key's limit exhausted) — the conversation and the draft are preserved, the session continues from the same place.
+- **A taken slug** — a free variant is offered in the input field before the form is submitted.
+- **The email did not go out** — the invitation is created, the link is shown for copying, the error is named outright. The action is not rolled back: an invitation exists regardless of whether it was delivered by email.
+- **An invitation is expired, revoked or already accepted** — three different messages rather than a single "the link is invalid". A person must understand whether to ask for a new link or whether they are already in the system and simply need to sign in.
 
-## 13. Тестирование
+## 13. Testing
 
-По убыванию важности:
+In descending order of importance:
 
-1. **Мутации** — на каждую операцию тест применения и тест обратной. Фундамент истории, undo и применения AI.
-2. **Порог сдвига** — включая накопление: три сдвига по одному дню от базового плана требуют причину на третьем.
-3. **Права** — матрица из пяти субъектов (владелец, редактор, наблюдатель, клиент, гость) на список действий, по тесту на клетку. Отдельно: внутренняя заметка не утекает клиенту и гостю ни через страницу, ни через API.
-4. **Календарь** — переходы через выходные и праздники, длительность в один день, длительность, начинающаяся в пятницу, нестандартная рабочая неделя, рабочая суббота из `workdays_extra`.
-5. **Регистрация** — новый аккаунт получает собственную организацию и роль `owner` в ней; при `SIGNUP_MODE=invite_only` и `closed` регистрация отбивается; без настроенной почты аккаунт работоспособен сразу, с настроенной — до подтверждения адреса нельзя приглашать других.
-6. **Приглашения** — принятое повторно не срабатывает; просроченное и отозванное отбиваются; роль из ссылки нельзя подменить при приёме; приглашение с адресом не принимается под другим аккаунтом; повторная отправка убивает прежний токен; лимит на количество срабатывает. Отдельно: токен в базе лежит хешем, а не открытым текстом.
-7. **Наследование настроек** — смена дефолта организации меняет поведение проектов, где стоит `null`, и не трогает те, где значение переопределено явно.
-8. **Дедлайн** — задача, заканчивающаяся ровно в день дедлайна, не считается просроченной; окончание проекта берётся как максимум по всем задачам, включая созданные сверх плана.
-9. **Языки** — полнота словарей: в `en` и `ru` нет ключей, отсутствующих в `az`, и наоборот; тест падает при рассинхроне. Отдельно — азербайджанская i-ловушка: `"I"` и `"İ"` в слагах, email и поиске приводятся к регистру одинаково независимо от локали процесса.
-10. **AI** — на записанных ответах модели, без сети: валидная схема применяется, битая отбивается и не роняет сессию.
-11. **Сквозной сценарий** — создать проект через интервью, утвердить план, сдвинуть задачу с причиной, открыть публичную ссылку в другом браузере, убедиться, что видны диаграмма и комментарии, но не внутренние заметки.
+1. **The mutations** — an apply test and an inverse test for every operation. The foundation of the history, the undo and applying the AI.
+2. **The shift threshold** — including accumulation: three one-day shifts from the baseline plan demand a reason on the third.
+3. **The permissions** — a matrix of five subjects (owner, editor, viewer, client, guest) against a list of actions, a test per cell. Separately: the internal note does not leak to a client or a guest, neither through the page nor through the API.
+4. **The calendar** — crossings of weekends and holidays, a duration of one day, a duration starting on a Friday, a non-standard working week, a working Saturday from `workdays_extra`.
+5. **Registration** — a new account gets its own organization and the `owner` role in it; with `SIGNUP_MODE=invite_only` and `closed` registration is rejected; without mail configured the account is usable at once, with mail configured you cannot invite others until the address is confirmed.
+6. **Invitations** — an accepted one does not fire again; expired and revoked ones are rejected; the role from the link cannot be substituted on acceptance; an invitation with an address is not accepted under a different account; re-sending kills the previous token; the count limit fires. Separately: the token lies in the database as a hash rather than as plain text.
+7. **Settings inheritance** — changing the organization's default changes the behaviour of the projects where `null` stands and does not touch those where the value is explicitly overridden.
+8. **The deadline** — a task ending exactly on the deadline's day does not count as overdue; the project's end is taken as the maximum over all the tasks, including those created beyond the plan.
+9. **Languages** — the dictionaries' completeness: `en` and `ru` have no keys absent from `az`, and vice versa; the test fails on drift. Separately, the Azerbaijani i trap: `"I"` and `"İ"` in slugs, emails and search are case-converted identically regardless of the process's locale.
+10. **The AI** — against recorded model answers, with no network: a valid schema is applied, a broken one is rejected and does not bring the session down.
+11. **An end-to-end scenario** — create a project through the interview, approve the plan, move a task with a reason, open the public link in another browser, make sure the chart and the comments are visible but the internal notes are not.
 
-## 14. Вне первой версии
+## 14. Out of the first version
 
-Записано явно, чтобы не возвращаться к спорам: AI-сессия внутри существующего проекта, автосдвиг по связям и типы связей, критический путь и резервы, ресурсы и загрузка людей, биллинг, OG-превью ссылок, экспорт в MS Project и Excel, мобильное приложение, совместное редактирование с курсорами.
+Recorded explicitly so as not to come back to the arguments: an AI session inside an existing project, auto-shifting along links and link types, the critical path and float, resources and people's workload, billing, OG previews for the links, export to MS Project and Excel, a mobile application, collaborative editing with cursors.
 
 > **Superseded / incomplete list.** Auto-shift by dependencies and
 > critical-path/float were built after all (see the §4 note above). This
@@ -397,6 +397,6 @@ WebSocket-рассылка держится в памяти процесса. П
 > OG previews, MS Project/Excel export, a mobile app, and collaborative
 > cursors are still out of scope as of this writing.
 
-Про почту отдельно, чтобы не путать: письмо-приглашение в первой версии **есть** — это единственное транзакционное письмо во всём приложении. Писем-уведомлений (задачу назначили, срок сдвинули, пришёл комментарий) **нет**: внутри приложения значок, и всё. Как только уведомления понадобятся, к ним придётся добавить очередь, повторные попытки и отписку — это отдельная работа, а не «ещё один вызов `send`».
+About mail separately, so as not to confuse things: the invitation email **does** exist in the first version — it is the only transactional email in the whole application. Notification emails (a task was assigned, a date slipped, a comment arrived) do **not**: inside the application there is a badge, and that is all. As soon as notifications are needed, a queue, retries and unsubscribing will have to be added to them — that is separate work rather than "one more `send` call".
 
-Также вне первой версии: многоразовая ссылка-приглашение на всю команду. Одноразовые приглашения покрывают задачу и не расползаются бесконтрольно; общая ссылка понадобится, когда людей станут звать десятками, и тогда ей нужны свои ограничители — потолок использований и срок жизни.
+Also out of the first version: a reusable invitation link for a whole team. One-time invitations cover the job and do not spread uncontrollably; a shared link will be needed when people start being invited by the dozen, and then it needs limiters of its own — a usage ceiling and a lifetime.

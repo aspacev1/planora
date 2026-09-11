@@ -10,30 +10,32 @@ from app.models import PlanVersion, Project, Task
 def deviation_days(
     task: Task, *, start_date: date | None = None, duration_days: int | None = None
 ) -> int | None:
-    """Отклонение задачи от её базового плана, в днях.
+    """A task's deviation from its baseline plan, in days.
 
-    ``None`` означает, что базового плана у задачи нет: она создана после
-    утверждения и от объяснений освобождена — добавление работы нормально,
-    скрытый перенос сроков нет.
+    ``None`` means the task has no baseline: it was created after approval and
+    is exempt from explanations — adding work is normal, hiding a schedule shift
+    is not.
 
-    Считается от базового плана, а не от предыдущего значения. Это не деталь
-    реализации, а само правило: от предыдущего значения задачу двигают пять
-    раз по одному дню, суммарно она уезжает на неделю, и ни одного объяснения
-    в истории не остаётся.
+    It is measured against the baseline plan, not against the previous value.
+    That is not an implementation detail but the rule itself: measured against
+    the previous value, a task is moved five times by one day, ends up a week
+    away in total, and not a single explanation is left in its history.
 
-    Сдвиг старта меряется календарными днями, а длительность — рабочими,
-    потому что в рабочих она и задана. Смешение единиц осознанное: «перенесли
-    на неделю» человек говорит про календарь, а «стало на два дня дольше» —
-    про работу, и ни один из двух вопросов не становится понятнее, если
-    ответить на него в чужих единицах.
+    A shift of the start is measured in calendar days while duration is measured
+    in working days, because that is the unit duration is given in. Mixing units
+    is deliberate: "we pushed it by a week" is something a person says about the
+    calendar, while "it got two days longer" is about the work, and neither of
+    the two questions becomes clearer when answered in the other's units.
 
-    Измерения не смешиваются: названное измерение и меряется. Передан
-    ``start_date`` — считается только сдвиг старта, передан ``duration_days``
-    — только длительность. Иначе задача, чей срок уже объяснённо уехал за
-    порог, требовала бы причину на каждую правку длительности в один день —
-    и наоборот; заголовок X-Shift-Deviation-Days при этом называл бы число из
-    чужого измерения. Без аргументов возвращается наибольшее из двух текущих
-    отклонений — ответ на вопрос «насколько задача ушла от обещанного».
+    The dimensions are not mixed: the dimension named is the one measured. Pass
+    ``start_date`` and only the shift of the start is computed; pass
+    ``duration_days`` and only the duration is. Otherwise a task whose dates
+    have already moved past the threshold with an explanation would demand a
+    reason for every one-day edit of its duration — and vice versa; the
+    X-Shift-Deviation-Days header would then name a number from the other
+    dimension. With no arguments, the greater of the two current deviations is
+    returned — the answer to "how far has the task drifted from what was
+    promised".
     """
     if task.baseline_start is None or task.baseline_duration is None:
         return None
@@ -53,18 +55,19 @@ def deviation_days(
 
 
 def approve_plan(db: DbSession, project: Project, *, actor_id: uuid.UUID | None) -> PlanVersion:
-    """Утверждение (или переутверждение) плана.
+    """Approving (or re-approving) a plan.
 
-    Снимок пишется сразу в двух местах: в ``PlanVersion.snapshot`` — как
-    летопись, и в ``baseline_start`` / ``baseline_duration`` каждой задачи —
-    как то, с чем сравнивается каждая последующая правка. Второе — не кэш
-    первого: проверка порога случается на каждом перетаскивании, и разбирать
-    ради неё JSON последней версии значило бы платить за одно и то же дважды.
+    The snapshot is written in two places at once: into ``PlanVersion.snapshot``
+    as a chronicle, and into every task's ``baseline_start`` /
+    ``baseline_duration`` as the thing every subsequent edit is compared
+    against. The second is not a cache of the first: the threshold check happens
+    on every drag, and parsing the latest version's JSON for it would mean
+    paying twice for the same thing.
 
-    Строка проекта блокируется на всё время: номер версии считается как
-    ``plan_version + 1``, и два одновременных утверждения без блокировки
-    получили бы один номер — а его держит уникальное ограничение, то есть
-    проигравший получил бы голую пятисотку.
+    The project's row is locked for the whole time: the version number is
+    computed as ``plan_version + 1``, and two simultaneous approvals without a
+    lock would get the same number — which a unique constraint holds, meaning
+    the loser would get a bare 500.
     """
     db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
 
@@ -74,10 +77,11 @@ def approve_plan(db: DbSession, project: Project, *, actor_id: uuid.UUID | None)
 
     snapshot = {
         str(task.id): {
-            # Название лежит в снимке рядом с датами, хотя спецификация
-            # требует только дат: старая версия читается как обещание, а
-            # обещание из голых идентификаторов не читается вовсе — тем более
-            # что задачу с тех пор могли переименовать или удалить.
+            # The name sits in the snapshot next to the dates even though the
+            # specification requires only dates: an old version reads as a
+            # promise, and a promise made of bare identifiers does not read at
+            # all — all the more so since the task may have been renamed or
+            # deleted since.
             "name": task.name,
             "start_date": task.start_date.isoformat(),
             "duration_days": task.duration_days,
@@ -104,25 +108,26 @@ def approve_plan(db: DbSession, project: Project, *, actor_id: uuid.UUID | None)
 
 
 class PlanVersionNotFound(Exception):
-    """Названной версии у проекта нет."""
+    """The project has no version by that name."""
 
 
 def restore_plan_version(
     db: DbSession, project: Project, version: int, *, actor_id: uuid.UUID | None
 ) -> PlanVersion:
-    """Возвращает базовый план к обещаниям версии `version`.
+    """Returns the baseline plan to the promises of version `version`.
 
-    Утверждение перестаёт быть необратимым: нажатый по ошибке «Утвердить»
-    переписывал baseline у всех задач, и вернуть прежнее обещание было нечем —
-    снимок лежал в летописи мёртвым грузом. Восстановление трогает только
-    baseline_*: текущие даты задач — реальность, а не обещание, и откат
-    обещания не должен двигать реальность.
+    Approval stops being irreversible: an "Approve" pressed by mistake used to
+    rewrite the baseline of every task, and there was nothing to bring the
+    previous promise back with — the snapshot lay in the chronicle as dead
+    weight. Restoring touches only baseline_*: a task's current dates are
+    reality, not a promise, and rolling a promise back must not move reality.
 
-    Результат — новая версия с тем же снимком, а не подмена текущей: летопись
-    осталась летописью, и в ней видно, что обещание вернули к версии N.
+    The result is a new version with the same snapshot rather than a replacement
+    of the current one: the chronicle stays a chronicle, and it shows that the
+    promise was returned to version N.
 
-    Задачи, созданные после версии N, в снимке отсутствуют — их baseline
-    очищается: относительно возвращённого обещания они «сверх плана».
+    Tasks created after version N are absent from the snapshot — their baseline
+    is cleared: relative to the restored promise they are "beyond the plan".
     """
     db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
 
@@ -158,7 +163,7 @@ def restore_plan_version(
 
 
 def plan_versions(db: DbSession, project: Project) -> list[PlanVersion]:
-    """Все версии плана, новые сверху."""
+    """Every version of the plan, newest first."""
     return list(
         db.scalars(
             select(PlanVersion)

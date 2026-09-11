@@ -40,35 +40,37 @@ import { PushToPlanDialog } from "./PushToPlanDialog";
 import "./proposal.css";
 
 /**
- * Вкладка «Предложение»: смета проекта до плана.
+ * The "Proposal" tab: the project's quote before the plan.
  *
- * Одна таблица на все разделы, как в макете: раздел — строкой-заголовком со
- * сводкой своих работ, работы — строками под ним, итоги — карточкой справа.
- * Цена строки и все итоги считаются здесь, на экране: это произведение и
- * сумма уже показанных чисел, и сервер, пересказывающий их, был бы вторым
- * местом с той же арифметикой (см. api/proposal.ts).
+ * One table for all the sections, as in the mockup: a section is a heading row
+ * with a summary of its own work items, the work items are rows under it, the
+ * totals are a card on the right. A line's price and all the totals are computed
+ * here, on the screen: they are the product and the sum of numbers already shown,
+ * and a server retelling them would be a second place with the same arithmetic
+ * (see api/proposal.ts).
  *
- * Разделы и строки заводятся теми же движениями, что категории и задачи в
- * ленте: у каждого уровня списка свой «плюс» в таблице — строка «Добавить
- * работу» в конце раздела и «Новый раздел» внизу (см. NewProposalTaskRow),
- * а тулбар держит только этапы сделки и параметры.
+ * Sections and lines are created by the same motions as categories and tasks in
+ * the strip: every level of the list has its own "plus" in the table — an "Add
+ * work" row at the end of a section and "New section" at the bottom (see
+ * NewProposalTaskRow) — while the toolbar holds only the deal's stages and the
+ * parameters.
  *
- * И правятся тем же движением: любая ячейка открывается щелчком по ней и
- * уходит на сервер потерей фокуса — как ячейки закреплённой таблицы ленты
- * (components/rows). Смету пишут построчно, сверяя числа с соседними, и
- * карточка ради одной ставки означала бы открыть, поправить, закрыть — на
- * каждой строке подряд. Карточка остаётся для того, чего в таблице нет:
- * подробностей, рисков, допущений и разговора.
+ * And they are edited by the same motion: any cell opens on a click and leaves
+ * for the server on blur — like the cells of the strip's pinned table
+ * (components/rows). A quote is written line by line, checking numbers against
+ * their neighbours, and a card for the sake of one rate would mean opening,
+ * fixing, closing — on every row in turn. The card is left for what the table
+ * does not have: the details, the risks, the assumptions and the conversation.
  *
- * Экран держит данные и состояние вкладки; таблица (ProposalTable), итоги
- * (ProposalSummary) и примечания (ProposalNotes) — свои компоненты, каждому
- * достаётся ровно то, что он показывает.
+ * The screen holds the data and the tab's state; the table (ProposalTable), the
+ * totals (ProposalSummary) and the notes (ProposalNotes) are their own
+ * components, each getting exactly what it shows.
  *
- * Пока разделов нет, вместо таблицы стоит объяснение с двумя стартами
- * (ProposalEmptyState): пустая таблица с шестью заголовками не говорит
- * новичку ни что это, ни с чего начать. Карточка итогов и полоса этапов до
- * первой строки тоже не показываются — нули в них были бы ответом на
- * незаданный вопрос.
+ * While there are no sections, an explanation with two starts stands instead of
+ * the table (ProposalEmptyState): an empty table with six headings tells a
+ * newcomer neither what this is nor where to begin. The totals card and the stage
+ * bar are not shown before the first line either — zeros in them would be an
+ * answer to a question nobody asked.
  */
 export function Proposal({
   projectId,
@@ -77,7 +79,7 @@ export function Proposal({
 }: {
   projectId: string;
   canWrite: boolean;
-  /** Вправе ли смотрящий получить документ для клиента (см. permissions). */
+  /** Whether the viewer is entitled to get the document for the client (see permissions). */
   canExport: boolean;
 }) {
   const { t, locale } = useLocale();
@@ -90,26 +92,26 @@ export function Proposal({
     retry: false,
   });
 
-  // Карточка строки — идентификатором, а не объектом: после каждой правки
-  // состояние приходит с сервера заново, и карточка, помнящая объект,
-  // показывала бы устаревшие данные. Тот же приём, что у карточки задачи.
+  // A line's card is held by id rather than by object: after every edit the state
+  // arrives from the server anew, and a card remembering the object would show
+  // stale data. The same device as the task card's.
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [addingCategory, setAddingCategory] = useState(false);
-  // Раздел, открытый на правку в окне. Идентификатором, а не объектом — по той
-  // же причине, что и строка выше.
+  // The section opened for editing in a dialog. By id rather than by object — for
+  // the same reason as the line above.
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  // Раздел, в котором открыта строка новой работы. `null` — закрыта.
+  // The section a new work line is open in. `null` — closed.
   const [newTaskIn, setNewTaskIn] = useState<string | null>(null);
-  // Свёрнутые разделы. Пустое множество — всё развёрнуто: смету читают
-  // целиком, и прятать что-то по умолчанию не за чем.
+  // The collapsed sections. An empty set means everything is unfolded: a quote is
+  // read whole, and there is no reason to hide anything by default.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  // Открыто ли окно переноса в план.
+  // Whether the transfer-into-the-plan dialog is open.
   const [pushing, setPushing] = useState(false);
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: proposalQueryKey(projectId) });
 
-  // Настройки и примечания сохраняют себя сами, как поля настроек проекта.
+  // The settings and the notes save themselves, like the project settings' fields.
   const saves = useFieldSaves((patch: ProposalSettingsPatch) =>
     updateProposalSettings(projectId, patch).then(invalidate),
   );
@@ -120,8 +122,9 @@ export function Proposal({
     onSuccess: invalidate,
   });
 
-  // Этап сделки — отметка рукой, в любую сторону. Отказ — тостом: полоса
-  // этапов стоит над таблицей, и строке ошибки под ней места нет.
+  // A deal's stage is marked by hand, in either direction. A refusal goes in a
+  // toast: the stage bar stands above the table, and there is no room for an error
+  // line under it.
   const mark = useMutation({
     mutationFn: (stage: ProposalStage) => setProposalStage(projectId, stage),
     onSuccess: invalidate,
@@ -130,8 +133,9 @@ export function Proposal({
     },
   });
 
-  // Сборка из плана — старт пустой сметы: разделы из категорий, строки из
-  // задач. Отказ — тостом: на пустом экране нет строки ошибки под таблицей.
+  // Assembly from the plan is the start of an empty quote: sections from
+  // categories, lines from tasks. A refusal goes in a toast: on an empty screen
+  // there is no error line under the table.
   const build = useMutation({
     mutationFn: () => buildProposalFromPlan(projectId),
     onSuccess: async (result) => {
@@ -156,26 +160,27 @@ export function Proposal({
     onSuccess: invalidate,
   });
 
-  // Правка ячейки — та же операция, что и в карточке строки: таблица не
-  // заводит своего способа менять оценку или ставку, она вызывает
-  // существующий. Ответ сервера перечитывает смету целиком, и итоги справа
-  // сходятся с колонкой цены сами.
+  // Editing a cell is the same operation as in the line's card: the table does not
+  // create its own way to change an estimate or a rate, it calls the existing one.
+  // The server's answer re-reads the quote whole, and the totals on the right come
+  // to agree with the price column on their own.
   const patchTask = useMutation({
     mutationFn: (input: { taskId: string; patch: ProposalTaskPatch }) =>
       updateProposalTask(projectId, input.taskId, input.patch),
     onSuccess: invalidate,
   });
 
-  // Карточку удалённой строки закрывать нечем и не за чем: она ищется по
-  // идентификатору в свежем ответе сервера и исчезает вместе со строкой.
+  // There is nothing and no reason to close a deleted line's card with: it is
+  // looked up by id in the server's fresh answer and disappears with the line.
   const removeTask = useMutation({
     mutationFn: (taskId: string) => deleteProposalTask(projectId, taskId),
     onSuccess: invalidate,
   });
 
-  // Перенос случился в окне; здесь — что после него: тост с дорогой к
-  // диаграмме и кнопкой «Вернуть», и перечитанный проект целиком — перенос
-  // рождает ревизии плана, а вложенный ключ сметы сбрасывается тем же вызовом.
+  // The transfer happened in the dialog; here is what comes after it: a toast with
+  // the road to the chart and a "Revert" button, and the project re-read whole —
+  // the transfer produces plan revisions, and the quote's nested key is
+  // invalidated by the same call.
   const pushed = async (result: { created_tasks: number; batch_id: string }) => {
     setPushing(false);
     toast({
@@ -227,10 +232,10 @@ export function Proposal({
     proposal.categories.find((category) => category.id === editingCategoryId) ?? null;
   const hours = proposal.effort_unit === "hours";
 
-  // Оценка живёт в единице сметы, а показывается в обеих: колонка дней и
-  // колонка часов пересчитываются через «часов в дне» — те же правила, по
-  // которым перенос в план считает длительности. Обратный пересчёт нужен
-  // правке: правят ту колонку, в которую смотрят.
+  // The estimate lives in the quote's unit and is shown in both: the days column
+  // and the hours column are converted through "hours in a day" — the same rules
+  // by which the transfer into the plan computes durations. The reverse conversion
+  // is needed for editing: people edit the column they are looking at.
   const math: EffortMath = {
     toDays: (effort) => (hours ? effort / proposal.hours_per_day : effort),
     toHours: (effort) => (hours ? effort : effort * proposal.hours_per_day),
@@ -245,8 +250,8 @@ export function Proposal({
     price: (value) => formatMoneyAmount(locale, value),
     money: (value) => formatMoney(locale, proposal.currency, value),
   };
-  // Ставка — за день или за час, и шапка колонки обязана это говорить: голое
-  // «Ставка» не отвечает на вопрос «за что».
+  // The rate is per day or per hour, and the column's heading must say so: a bare
+  // "Rate" does not answer the question "for what".
   const unitLetter = t(hours ? "proposal.format.hour_letter" : "proposal.format.day_letter");
 
   const subtotal = sumMoney(tasks.map((task) => lineAmount(task.effort, task.rate)));
@@ -287,10 +292,10 @@ export function Proposal({
           <ProposalParams proposal={proposal} canWrite={canWrite} saves={saves} />
         </div>
 
-        {/* Таблица прокручивается вбок в своих берегах: шесть колонок с
-            именами, описаниями и деньгами на узком экране уже, чем есть, не
-            становятся — а без этого они уезжали бы под карточку итогов, и
-            колонка цены пропадала бы вовсе. */}
+        {/* The table scrolls sideways within its own banks: six columns with
+            names, descriptions and money do not get any narrower than they are on
+            a narrow screen — and without this they would slide under the totals
+            card, and the price column would disappear entirely. */}
         <div className="proposal-table__scroll">
             <table className="proposal-table">
               <thead>
@@ -334,16 +339,16 @@ export function Proposal({
                     onPatchTask={(taskId, patch) => patchTask.mutate({ taskId, patch })}
                     onDeleteTask={(taskId) => removeTask.mutate(taskId)}
                     onOpenTask={(taskId) =>
-                      // Повторный щелчок по той же строке закрывает карточку —
-                      // тем же движением, что открыл. Как у карточки задачи.
+                      // A repeat click on the same row closes the card — by the
+                      // same motion that opened it. As with the task card.
                       setSelectedTaskId((current) => (current === taskId ? null : taskId))
                     }
                     t={t}
                   />
                 ))}
-                {/* Раздел заводят строкой внизу таблицы — окном, как категорию
-                    в ленте: у раздела есть описание, и одной строкой ввода его
-                    не спросить. */}
+                {/* A section is created by a row at the bottom of the table — with
+                    a dialog, like a category in the strip: a section has a
+                    description, and one input row cannot ask for it. */}
                 {canWrite && (
                   <tr className="proposal-row proposal-row--add">
                     <td colSpan={COLUMNS}>
@@ -415,9 +420,10 @@ export function Proposal({
         <ProposalCategoryForm projectId={projectId} onClose={() => setAddingCategory(false)} />
       )}
 
-      {/* Окно раздела на правке — то же, что и при заведении: имя и описание
-          правятся и прямо в строке, но с клавиатуры до ячейки не дойти (см.
-          components/rows), и окно остаётся тем самым путём. */}
+      {/* The section dialog when editing is the same as when creating: the name
+          and the description are also edited right in the row, but the cell cannot
+          be reached from the keyboard (see components/rows), and the dialog stays
+          that very path. */}
       {editingCategory && (
         <ProposalCategoryForm
           projectId={projectId}

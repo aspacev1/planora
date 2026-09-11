@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
 
 /**
- * Аккордеон карточки: заголовок-створка и содержимое под ней.
+ * The card's accordion: a heading panel and the content under it.
  *
- * Нативный `details`: створка доступна с клавиатуры и читается вслух без
- * единой строки скрипта. Раскрыт с порога — аккордеон здесь способ свернуть
- * прочитанное, а не спрятать поля по умолчанию.
+ * A native `details`: the panel is keyboard-accessible and read aloud without a single line of script.
+ * Unfolded from the start — an accordion here is a way to fold away what has been read rather than to
+ * hide fields by default.
  *
- * Общий для карточки задачи и карточки строки сметы: две створки с разной
- * разметкой разошлись бы на первой правке каретика.
+ * Shared by the task card and the quote line's card: two panels with different markup would diverge on
+ * the first edit of the chevron.
  */
 export function PanelSection({
   title,
@@ -17,9 +17,9 @@ export function PanelSection({
   children,
 }: {
   title: string;
-  /** Значок перед заголовком — например, замок у раздела «только для команды». */
+  /** An icon before the heading — the lock on the "team only" section, for example. */
   icon?: ReactNode;
-  /** Пояснение мелким шрифтом после заголовка: кому видно содержимое. */
+  /** An explanation in small type after the heading: who can see the content. */
   note?: string;
   children: ReactNode;
 }) {

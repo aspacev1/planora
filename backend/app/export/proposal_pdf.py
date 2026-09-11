@@ -1,18 +1,21 @@
-"""Документ для клиента: коммерческое предложение одним PDF.
+"""A document for the client: the commercial proposal as a single PDF.
 
-Не ещё один раздел общей выгрузки, а отдельный документ с отдельным составом.
-Общая выгрузка — снимок проекта для того, кто в нём работает; этот файл уходит
-за порог организации, и всё, что в нём есть, клиент вправе прочитать: имя
-работы, короткое описание, объём, ставка и сумма, итоги и примечания ко всему
-предложению. Роли, подробностей, заметок, рисков, допущений строки и
-обсуждения здесь нет **по построению**: у строк документа (`_Line`) для них
-нет полей, и попасть в файл им неоткуда.
+Not another section of the general export but a separate document with separate
+contents. The general export is a snapshot of the project for whoever works in
+it; this file leaves the organization's premises, and everything in it is
+something the client is entitled to read: the name of the work, a short
+description, the volume, the rate and the amount, the totals and the notes on
+the proposal as a whole. Roles, details, a row's notes, risks, assumptions and
+discussion are absent here **by construction**: the document's rows (`_Line`)
+have no fields for them, and there is nowhere for them to come into the file
+from.
 
-Рисуется platypus'ом, а не канвой с помощниками из `app.export.pdf`: у тех
-`_table` не переносит строки на следующую страницу и режет длинную ячейку
-многоточием, а клиентский документ обязан переносить и то и другое — описание
-работы в предложении дочитывают до конца. Шрифты, палитра и колонтитул — те
-же, что у общей выгрузки: документ читается продолжением экрана.
+Drawn with platypus rather than with a canvas and the helpers from
+`app.export.pdf`: those have a `_table` that does not carry a row over to the
+next page and cuts a long cell off with an ellipsis, whereas the client's
+document must carry both over — the description of the work in a proposal is
+read to the end. The fonts, the palette and the footer are the same as in the
+general export: the document reads as a continuation of the screen.
 """
 
 from dataclasses import dataclass
@@ -43,21 +46,21 @@ from app.export.pdf import MARGIN, _rule, _text, register_fonts
 from app.models import Organization, Project
 from app.proposals import proposal_state
 
-#: Сколько дней предложение действительно с даты выпуска. Тридцать — обычный
-#: срок оферты; отдельной настройки нет, пока о ней не попросили.
+#: How many days the proposal is valid from the date of issue. Thirty is the
+#: usual term of an offer; there is no separate setting until someone asks for one.
 VALIDITY_DAYS = 30
 
 PAGE_W, PAGE_H = A4
 CONTENT_W = PAGE_W - 2 * MARGIN
 
 
-# --- строки документа ---------------------------------------------------------
+# --- the document's rows ------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class _Line:
-    """Строка сметы в том виде, в каком её видит клиент. Полей для роли,
-    заметок, рисков и допущений здесь нет намеренно — см. модуль."""
+    """A budget row as the client sees it. Fields for the role, notes, risks and
+    assumptions are deliberately absent here — see the module docstring."""
 
     number: int
     name: str
@@ -86,9 +89,9 @@ class ProposalDocument:
     labels: Labels
     org_name: str
     project_name: str
-    #: Номер предложения — для ссылки в переписке. Выводится из проекта, а не
-    #: из даты: одно и то же предложение, скачанное дважды, обязано носить
-    #: один номер.
+    #: The proposal's number — for referring to it in correspondence. Derived
+    #: from the project rather than from the date: one and the same proposal,
+    #: downloaded twice, must carry one number.
     number: str
     issued: date
     valid_until: date
@@ -111,29 +114,29 @@ class ProposalDocument:
         return self.subtotal + self.tax
 
     def file_stem(self) -> str:
-        """Имя файла без расширения — с именем проекта, как просят, и датой
-        в ISO, чтобы файлы сортировались в папке получателя."""
+        """The file name without an extension — with the project's name, as
+        requested, and the date in ISO so that files sort in the recipient's folder."""
         safe = "".join(
             ch if ch.isalnum() or ch in " -_()" else "-" for ch in self.project_name
         ).strip()
         return f"{self.labels('proposal_doc', 'title')} - {safe} - {self.issued.isoformat()}"
 
 
-# --- сборка -------------------------------------------------------------------
+# --- assembly -----------------------------------------------------------------
 
 
 def build_document(
     db: DbSession, project: Project, org: Organization, *, locale: str, issued: date
 ) -> ProposalDocument:
-    """Снимок предложения под клиентский документ.
+    """A snapshot of the proposal for the client's document.
 
-    `issued` — дата документа; сегодня по таймзоне проекта, пока у предложения
-    нет собственной даты отправки. Приходит параметром, а не берётся здесь:
-    когда у предложения появится дата отправки, поменяется вызывающий, а не
-    сборка.
+    `issued` is the document's date; today in the project's timezone, while the
+    proposal has no send date of its own. It arrives as a parameter rather than
+    being taken here: when the proposal gains a send date, the caller changes,
+    not the assembly.
 
-    Пустое предложение — отказ, а не документ из одних заголовков: такой файл
-    читается как поломка, а не как «работ пока нет».
+    An empty proposal is a refusal rather than a document of nothing but
+    headings: such a file reads as a breakage, not as "there is no work yet".
     """
     state = proposal_state(db, project)
     groups: list[_Group] = []
@@ -147,7 +150,7 @@ def build_document(
                     number=number,
                     name=raw["name"],
                     description=raw["description"],
-                    # Decimal из строки, а не из float: 0.1 обязан остаться 0.1.
+                    # A Decimal from a string rather than from a float: 0.1 must stay 0.1.
                     effort=Decimal(str(raw["effort"])),
                     rate=Decimal(str(raw["rate"])),
                 )
@@ -174,18 +177,18 @@ def build_document(
     )
 
 
-# --- рисование ----------------------------------------------------------------
+# --- drawing ------------------------------------------------------------------
 
 
 def _money(value: Decimal) -> str:
-    """Сумма с разрядами через пробел и копейками только там, где они есть:
-    «12 000» читается быстрее «12 000.00», а «12 000.50» терять нельзя.
+    """An amount with space-separated groups and fractions only where they exist:
+    "12 000" reads faster than "12 000.00", while "12 000.50" must not be lost.
 
-    Половина копейки — вверх, а не к чётному: так же считает экран сметы
-    (frontend/src/proposal/money.ts) и так же приводит к копейкам оценку и
-    ставку proposals.py. Умолчание Decimal — ROUND_HALF_EVEN — давало «1,12»
-    за 0,5 × 2,25 там, где экран показывал «1,13», и документ расходился с
-    тем, что клиенту только что показали.
+    Half a cent goes up rather than to even: the budget screen counts the same way
+    (frontend/src/proposal/money.ts) and proposals.py rounds the estimate and the
+    rate to cents the same way. Decimal's default — ROUND_HALF_EVEN — gave "1.12"
+    for 0.5 x 2.25 where the screen showed "1.13", and the document diverged from
+    what the client had just been shown.
     """
     rounded = value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     if rounded == rounded.to_integral_value():
@@ -205,8 +208,8 @@ def _day(doc: ProposalDocument, value: date) -> str:
 
 
 def _markup(text: str) -> str:
-    """Текст пользователя в разметку Paragraph: экранирован и с переносами
-    строк — иначе «&» в имени работы уронил бы разборщик разметки."""
+    """A user's text into Paragraph markup: escaped and with line breaks —
+    otherwise an "&" in the name of a work would bring the markup parser down."""
     return escape(text).replace("\n", "<br/>")
 
 
@@ -322,12 +325,12 @@ def _letterhead(doc: ProposalDocument, st: dict[str, ParagraphStyle]) -> list:
 
 
 def _scope_table(doc: ProposalDocument, st: dict[str, ParagraphStyle]) -> Table:
-    """Таблица работ по разделам. Шапка повторяется на каждой странице
-    (`repeatRows`), длинная строка переносится по словам."""
+    """The table of works by section. The header repeats on every page
+    (`repeatRows`), and a long row wraps by words."""
     t = doc.labels
     hours = doc.effort_unit == "hours"
-    # Колонка номера вмещает три знака без переноса: «100» в две строки —
-    # не номер, а загадка.
+    # The number column fits three characters without wrapping: "100" over two
+    # lines is not a number but a riddle.
     widths = [30.0, 0.0, 58.0, 78.0, 78.0]
     widths[1] = CONTENT_W - sum(widths)
 
@@ -400,7 +403,7 @@ def _totals(doc: ProposalDocument, st: dict[str, ParagraphStyle]) -> Table:
             Paragraph(f"{_money(doc.subtotal)} {doc.currency}", st["total_value"]),
         ]
     ]
-    # Нулевой налог в клиентском документе — строка ни о чём: «Налог 0%: 0».
+    # A zero tax in the client's document is a line about nothing: "Tax 0%: 0".
     if doc.tax_rate_pct:
         rows.append(
             [
@@ -430,7 +433,7 @@ def _totals(doc: ProposalDocument, st: dict[str, ParagraphStyle]) -> Table:
 
 
 def _notes(doc: ProposalDocument, st: dict[str, ParagraphStyle]) -> list:
-    """Примечания — по пункту на строку, как их и пишут."""
+    """Notes — one item per line, the way they are written."""
     items = [line.strip() for line in doc.notes.split("\n") if line.strip()]
     if not items:
         return []
@@ -444,21 +447,21 @@ def _notes(doc: ProposalDocument, st: dict[str, ParagraphStyle]) -> list:
 
 
 class _NumberedCanvas(Canvas):
-    """Канва, знающая общее число страниц.
+    """A canvas that knows the total number of pages.
 
-    Platypus рисует страницы по очереди и общего числа не знает; здесь каждая
-    страница откладывается, а колонтитул со «стр. N из M» дорисовывается при
-    сохранении, когда M уже известно. Иначе честного номера страницы не
-    получить без второго прохода сборки.
+    Platypus draws pages one after another and does not know the total; here
+    every page is deferred and the footer with "p. N of M" is drawn in on save,
+    when M is already known. Otherwise an honest page number cannot be had
+    without a second assembly pass.
     """
 
     def __init__(self, doc: ProposalDocument, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Не `_doc`: так у канвы ReportLab называется её собственный документ.
+        # Not `_doc`: that is what a ReportLab canvas calls its own document.
         self._proposal = doc
         self._states: list[dict] = []
 
-    def showPage(self) -> None:  # noqa: N802 — имя задано ReportLab
+    def showPage(self) -> None:  # noqa: N802 — the name is dictated by ReportLab
         self._states.append(dict(self.__dict__))
         self._startPage()
 
@@ -502,8 +505,8 @@ def render(doc: ProposalDocument) -> bytes:
         Spacer(1, 8),
         _scope_table(doc, st),
         Spacer(1, 12),
-        # Итоги не отрываются от таблицы страницей: сумма без своей таблицы
-        # читается как сумма неизвестно чего.
+        # The totals are not separated from the table by a page: a sum without
+        # its table reads as the sum of who knows what.
         KeepTogether([_totals(doc, st)]),
         *_notes(doc, st),
     ]

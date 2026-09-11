@@ -1,9 +1,10 @@
-# Страховочная сетка (волна 0 плана исправлений): ни одна правка поведения не
-# въезжает в main без прогона тестов бэкенда на настоящем Postgres, проверки
-# типов и линта фронтенда, его тестов и сборки docker-образов.
+# Safety net (wave 0 of the remediation plan): no behaviour change lands in
+# main without a backend test run against a real Postgres, a frontend
+# typecheck and lint, its tests, and a build of the docker images.
 #
-# push ограничен main, чтобы ветка с открытым PR не гоняла всё дважды:
-# pull_request покрывает ветки, push — сам main после слияния.
+# push is limited to main so that a branch with an open PR does not run
+# everything twice: pull_request covers branches, push covers main itself
+# after the merge.
 name: CI
 
 on:
@@ -13,7 +14,7 @@ on:
 
 jobs:
   backend:
-    name: Бэкенд (pytest + Postgres)
+    name: Backend (pytest + Postgres)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -24,8 +25,9 @@ jobs:
           POSTGRES_PASSWORD: planora
           POSTGRES_DB: planora
         ports: ["5432:5432"]
-        # Без healthcheck шаги стартуют раньше, чем база готова принимать
-        # подключения, и прогон мигает «connection refused» на ровном месте.
+        # Without a healthcheck the steps start before the database is ready to
+        # accept connections, and the run flickers "connection refused" for no
+        # reason at all.
         options: >-
           --health-cmd "pg_isready -U planora"
           --health-interval 5s
@@ -46,21 +48,21 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
 
-      - name: Зависимости
+      - name: Dependencies
         run: uv sync --locked
 
-      # Тесты работают не с базой из DATABASE_URL, а с выведенной из неё
-      # `<имя>_test` (см. backend/tests/conftest.py) — её нужно создать.
-      # Локально это делает docker/postgres-init, у сервисного контейнера
-      # GitHub Actions таких скриптов нет.
-      - name: Тестовая база
+      # The tests work not against the database from DATABASE_URL but against
+      # `<name>_test` derived from it (see backend/tests/conftest.py) — it has
+      # to be created. Locally docker/postgres-init does this; the GitHub
+      # Actions service container has no such scripts.
+      - name: Test database
         run: psql postgresql://planora:planora@localhost:5432/planora -c 'CREATE DATABASE planora_test'
 
-      - name: Тесты с покрытием
+      - name: Tests with coverage
         run: uv run pytest --cov=app --cov-report=term-missing
 
   frontend:
-    name: Фронтенд (типы, линт, тесты, контракт API)
+    name: Frontend (types, lint, tests, API contract)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -75,38 +77,39 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Зависимости
+      - name: Dependencies
         run: npm ci
 
-      - name: Линт
+      - name: Lint
         run: npm run lint
 
-      - name: Типы
+      - name: Types
         run: npx tsc -b
 
-      # Типы API в src/api/schema.d.ts генерируются из backend/openapi.json
-      # (а тот — снимок app.openapi(), закреплённый бэкенд-тестом). Если после
-      # генерации есть дифф — снимок обновили, а типы забыли: `npm run gen:api`
-      # и закоммитить результат.
-      - name: Контракт API актуален
+      # The API types in src/api/schema.d.ts are generated from
+      # backend/openapi.json (which is itself a snapshot of app.openapi(),
+      # pinned by a backend test). If there is a diff after generation, the
+      # snapshot was updated and the types were forgotten: run `npm run gen:api`
+      # and commit the result.
+      - name: API contract is up to date
         run: |
           npm run gen:api
           git diff --exit-code -- src/api/schema.d.ts
 
-      - name: Тесты с покрытием
+      - name: Tests with coverage
         run: npx vitest run --coverage
 
   docker:
-    name: Сборка образов (docker compose build)
+    name: Image build (docker compose build)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
-      # compose объявляет env_file: .env и не разбирает конфигурацию без него;
-      # для сборки достаточно шаблона.
-      - name: .env из шаблона
+      # compose declares env_file: .env and will not parse the configuration
+      # without it; for a build the template is enough.
+      - name: .env from the template
         run: cp .env.example .env
 
-      - name: Сборка
+      - name: Build
         run: docker compose build

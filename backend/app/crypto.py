@@ -1,11 +1,12 @@
-"""Симметричное шифрование секретом приложения.
+"""Symmetric encryption with the application secret.
 
-Нужно ровно одному значению — ключу LLM организации. Ключ шифрования выводится
-из `APP_SECRET`, а не хранится отдельно: второй секрет пришлось бы задавать
-тому, кто разворачивает, и половина установок оставила бы его умолчанием.
+Exactly one value needs it — an organization's LLM key. The encryption key is
+derived from `APP_SECRET` rather than stored separately: a second secret would
+have to be set by whoever deploys, and half of the installations would leave it
+at its default.
 
-Ротация `APP_SECRET` требует перешифровки ключей — это записано в
-спецификации как известное следствие, а не как недосмотр.
+Rotating `APP_SECRET` requires re-encrypting the keys — that is recorded in the
+specification as a known consequence, not as an oversight.
 """
 
 import base64
@@ -17,18 +18,19 @@ from app.config import get_settings
 
 
 class DecryptionError(Exception):
-    """Значение не расшифровывается этим секретом.
+    """The value cannot be decrypted with this secret.
 
-    Обычно это значит, что `APP_SECRET` сменили, а ключи не перешифровали.
-    Отдельный класс, потому что это не «ключа нет» — это «ключ есть, но
-    прочитать его нечем», и путать их нельзя: первое чинится вводом ключа,
-    второе — возвратом прежнего секрета.
+    Usually this means `APP_SECRET` was changed without re-encrypting the keys.
+    A separate class, because this is not "there is no key" but "there is a key
+    and nothing to read it with", and the two must not be confused: the first is
+    fixed by entering a key, the second by restoring the previous secret.
     """
 
 
 def _key() -> bytes:
-    # SHA-256 от секрета, а не сам секрет: Fernet требует ровно 32 байта в
-    # base64, а APP_SECRET — произвольная строка от деплойщика.
+    # SHA-256 of the secret rather than the secret itself: Fernet requires
+    # exactly 32 base64-encoded bytes, while APP_SECRET is an arbitrary string
+    # chosen by whoever deploys.
     digest = hashlib.sha256(get_settings().app_secret.encode()).digest()
     return base64.urlsafe_b64encode(digest)
 

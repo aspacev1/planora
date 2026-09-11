@@ -59,8 +59,7 @@ describe("окно экспорта", () => {
 
     const checkbox = screen.getByRole("checkbox", { name: /Предложение/ });
     expect(checkbox).toBeDisabled();
-    // Не молча выключенная галочка, а причина: иначе человек решит, что
-    // выгрузка сломана.
+    // Not a silently disabled checkbox but a reason: otherwise the person will decide the export is broken.
     expect(screen.getByText("В проекте этого нет")).toBeInTheDocument();
   });
 
@@ -71,7 +70,7 @@ describe("окно экспорта", () => {
 
   it("на кнопке масштаба написано, во сколько страниц он обойдётся", () => {
     show();
-    // Проект в 136 дней: день — две страницы, неделя — одна.
+    // A project of 136 days: a day is two pages, a week is one.
     expect(screen.getByRole("button", { name: /День/ })).toHaveTextContent(
       "2 страницы",
     );
@@ -138,12 +137,12 @@ describe("окно экспорта", () => {
 
     await user.click(screen.getByRole("button", { name: "Скачать" }));
 
-    // Именно тост, а не подсказка окна про масштаб: та стоит на экране и до
-    // отказа, и по ней тест проходил бы даже с сырым кодом в тосте.
+    // The toast specifically rather than the dialog's hint about the scale: that stands on screen before
+    // the refusal too, and the test would pass by it even with a raw code in the toast.
     const toast = await screen.findByRole("status");
     expect(toast).toHaveTextContent(/масштаб/i);
     expect(toast).not.toHaveTextContent("error.");
-    // Окно остаётся открытым: человеку есть что здесь поправить.
+    // The dialog stays open: the person has something to correct here.
     expect(onClose).not.toHaveBeenCalled();
   });
 });

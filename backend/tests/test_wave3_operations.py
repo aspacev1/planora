@@ -1,9 +1,9 @@
-"""Регрессионные тесты волны 3: доступность сервиса и эксплуатация.
+"""Wave 3 regression tests: the service's availability and its operation.
 
-Проверяемое здесь ломалось не у пользователя в браузере, а у того, кто
-разворачивает и сопровождает установку: рассылка живой ленты, обходящая
-половину пишущих маршрутов, зависшая на SMTP регистрация, requirements.txt,
-уехавший от uv.lock, health, который зелёный при мёртвой базе.
+What is checked here broke not for a user in a browser but for whoever deploys and
+maintains an installation: a live-feed broadcast that went around half of the
+writing routes, a registration hung on SMTP, a requirements.txt that had drifted
+from uv.lock, a health check that stays green with a dead database.
 """
 
 import re
@@ -45,14 +45,14 @@ def authed(client):
     return client
 
 
-# --- 3.4: живая лента накрывает все пишущие маршруты --------------------------
+# --- 3.4: the live feed covers every writing route -----------------------------
 
 
 def test_every_writing_route_publishes_into_the_hub(authed, monkeypatch):
-    """Отмена, откат пачки, настройки, план и комментарий — событие в комнату.
+    """An undo, a batch rollback, settings, the plan and a comment — an event into the room.
 
-    До волны 3 публиковал только маршрут мутаций: соседние вкладки узнавали
-    об отмене и новых настройках только перезагрузкой.
+    Until wave 3 only the mutation route published: neighbouring tabs learned about
+    an undo and new settings only through a reload.
     """
     from app.api import project_routes
 
@@ -60,8 +60,8 @@ def test_every_writing_route_publishes_into_the_hub(authed, monkeypatch):
     monkeypatch.setattr(
         project_routes.hub, "publish", lambda project_id, event: published.append(event)
     )
-    # Коммит внутри _publish закрыл бы транзакцию тестовой сессии — а тест
-    # живёт внутри неё. Публикацию это не задевает: она следующая строка.
+    # A commit inside _publish would close the test session's transaction — and the
+    # test lives inside it. The publishing is unaffected: it is the next line.
     monkeypatch.setattr(project_routes, "_publish",
         lambda background, db, project_id, event: published.append(event))
 
@@ -76,14 +76,14 @@ def test_every_writing_route_publishes_into_the_hub(authed, monkeypatch):
     authed.post(f"/api/projects/{project_id}/comments", json={"body": "Реплика"})
 
     kinds = [event["type"] for event in published]
-    # Мутация публикует своим, старым путём — здесь считаются новые четыре.
-    assert kinds.count("revision") >= 3  # отмена, настройки, план
+    # A mutation publishes its own, old way — the four new ones are counted here.
+    assert kinds.count("revision") >= 3  # the undo, the settings, the plan
     assert "comment" in kinds
 
 
 def test_the_comment_event_carries_no_text(authed, monkeypatch):
-    """В комнате сидит и клиент: событие о реплике не смеет нести тело —
-    внутреннюю реплику фильтрует HTTP-маршрут, а не сокет."""
+    """A client sits in the room too: an event about a remark must not carry a body —
+    an internal remark is filtered by the HTTP route, not by the socket."""
     from app.api import project_routes
 
     published: list[dict] = []
@@ -100,7 +100,7 @@ def test_the_comment_event_carries_no_text(authed, monkeypatch):
     assert comment_events == [{"type": "comment"}]
 
 
-# --- 3.6: наблюдаемость -------------------------------------------------------
+# --- 3.6: observability --------------------------------------------------------
 
 
 def test_responses_carry_a_request_id(client):
@@ -129,18 +129,18 @@ def test_readiness_asks_the_database(client, monkeypatch):
 
     monkeypatch.setattr(db_module, "engine", _DeadEngine())
     assert client.get("/api/health/ready").status_code == 503
-    # Liveness при этом остаётся зелёным: мёртвая база — не повод
-    # перезапускать процесс.
+    # Liveness stays green meanwhile: a dead database is no reason to restart the
+    # process.
     assert client.get("/api/health").status_code == 200
 
 
-# --- 3.8: requirements.txt не расходится с uv.lock ----------------------------
+# --- 3.8: requirements.txt does not drift from uv.lock -------------------------
 
 
 def test_vercel_requirements_match_uv_lock():
-    """requirements.txt (Vercel) закреплён по uv.lock — и это обещание из его
-    же шапки. Расхождение означает, что бой собирается из других версий, чем
-    локальная разработка и CI.
+    """requirements.txt (Vercel) is pinned from uv.lock — and that is a promise from
+    its own header. A divergence means production is built from different versions
+    than local development and CI.
     """
     lock = tomllib.loads((REPO_ROOT / "backend" / "uv.lock").read_text())
     locked = {package["name"].lower(): package["version"] for package in lock["package"]}

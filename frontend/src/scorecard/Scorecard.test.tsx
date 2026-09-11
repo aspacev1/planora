@@ -8,9 +8,9 @@ import { projectFixtures, renderProject } from "../test/project";
 import { server } from "../test/server";
 
 /**
- * Скоркард по фикстуре: три числа проекта в шапке и темп по людям. Алексей
- * сорвал срок молча (красный сигнал), Мария в темпе со сверхплановой задачей.
- * Сигнал приходит только с правом на оценку — без него колонки нет вовсе.
+ * The scorecard by the fixture: three project figures in the header and the per-person pace. Alexey
+ * missed a date silently (a red signal), Maria is keeping pace with a task beyond the plan. The signal
+ * arrives only with the right to assessment — without it the column is absent entirely.
  */
 function member(over: Partial<TeamMember> & { user: TeamMember["user"] }): TeamMember {
   return {
@@ -107,14 +107,14 @@ describe("Scorecard", () => {
     renderProject(undefined, { route: "/projects/p1/scorecard" });
 
     expect(await screen.findByText(/Команда: 3 из 6 задач недели сделано/)).toBeInTheDocument();
-    // Три плитки: просрочка со средней (дробь с запятой в ru), блок с самой
-    // долгой задачей, сдвиг финиша со знаком и прогнозом.
+    // Three tiles: overdueness with its average (a fraction with a comma in ru), blocked with the longest
+    // task, the finish shift with a sign and a forecast.
     expect(screen.getByText("в среднем 2,5 р.д.")).toBeInTheDocument();
     expect(screen.getByText("дольше всех: Auth API, 3 р.д.")).toBeInTheDocument();
     expect(screen.getByText("+2 р.д.")).toBeInTheDocument();
     expect(screen.getByText("прогноз 14 окт")).toBeInTheDocument();
 
-    // Темп: сделано из плана, «сверх» чипом, вовремя из сделанного.
+    // The pace: done out of the plan, "beyond" as a chip, on time out of what was done.
     const alexey = screen.getByText("Алексей").closest("tr")!;
     expect(within(alexey).getByText("1 / 4")).toBeInTheDocument();
     expect(within(alexey).getByText("сорвано 2, без предупреждения")).toBeInTheDocument();

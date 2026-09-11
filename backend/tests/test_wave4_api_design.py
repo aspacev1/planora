@@ -1,7 +1,7 @@
-"""Регрессионные тесты волны 4: модель данных и дизайн API.
+"""Wave 4 regression tests: the data model and the API's design.
 
-Идемпотентность, пагинация, обратимость плана, циклы связей, потолки входа,
-раздельные «создать» и «перевыпустить» у публичной ссылки, /api/v1.
+Idempotency, pagination, the reversibility of a plan, dependency cycles, sign-in
+ceilings, separate "create" and "reissue" for a public link, /api/v1.
 """
 
 from datetime import date
@@ -68,7 +68,7 @@ def _create_task(authed, project_id, category_id, name="Логотип", start="
     ).json()["op"]["task_id"]
 
 
-# --- 4.6: идемпотентность -----------------------------------------------------
+# --- 4.6: idempotency ---------------------------------------------------------
 
 
 def test_a_retried_mutation_applies_once(authed, project_id, category_id):
@@ -86,7 +86,7 @@ def test_a_retried_mutation_applies_once(authed, project_id, category_id):
     )
 
     assert first.status_code == 201
-    # Повтор получает тот же ответ — и не рождает вторую ревизию.
+    # A repeat gets the same answer — and gives birth to no second revision.
     assert second.json() == first.json()
     revisions = authed.get(f"/api/projects/{project_id}/revisions").json()
     assert [r["op"]["type"] for r in revisions].count("move_task") == 1
@@ -107,19 +107,19 @@ def test_share_create_and_rotate_are_separate_acts(authed, project_id):
     assert first.status_code == 201
     url = first.json()["url"]
 
-    # Повторное «создать» не убивает разосланный адрес.
+    # A repeated "create" does not kill the distributed address.
     repeat = authed.post(f"/api/projects/{project_id}/share")
     assert repeat.status_code == 409
     assert repeat.json()["detail"] == "share_link_exists"
     assert authed.get(f"/api/projects/{project_id}/share").json()["url"] == url
 
-    # Перевыпуск — отдельный, явно названный акт.
+    # Reissuing is a separate, explicitly named act.
     rotated = authed.post(f"/api/projects/{project_id}/share/rotate")
     assert rotated.status_code == 201
     assert rotated.json()["url"] != url
 
 
-# --- 4.7: пагинация -----------------------------------------------------------
+# --- 4.7: pagination ----------------------------------------------------------
 
 
 def test_comments_paginate_backwards_with_a_cursor(authed, project_id):
@@ -161,7 +161,7 @@ def test_revisions_paginate_with_before_seq(authed, project_id, category_id):
     assert [r["seq"] for r in older] == [3, 2]
 
 
-# --- 4.5: обратимость утверждения плана ---------------------------------------
+# --- 4.5: the reversibility of plan approval -----------------------------------
 
 
 def test_a_plan_version_can_be_restored(authed, project_id, category_id):
@@ -177,7 +177,7 @@ def test_a_plan_version_can_be_restored(authed, project_id, category_id):
     )
     assert authed.post(f"/api/projects/{project_id}/plan/approvals").status_code == 201
 
-    # Возврат к версии 1: базовый план снова обещает 2 марта.
+    # Back to version 1: the baseline plan promises 2 March again.
     restored = authed.post(f"/api/projects/{project_id}/plan/approvals/1/restore")
     assert restored.status_code == 201
     assert restored.json()["restored_from"] == 1
@@ -190,7 +190,7 @@ def test_a_plan_version_can_be_restored(authed, project_id, category_id):
     assert missing.status_code == 404
 
 
-# --- 4.11: циклы и внутренние проверки ----------------------------------------
+# --- 4.11: cycles and internal checks ------------------------------------------
 
 
 def test_a_dependency_cycle_is_refused(authed, project_id, category_id):
@@ -241,7 +241,7 @@ def test_max_text_len_is_read_at_call_time(authed, project_id, category_id, monk
     assert refused.status_code == 422
 
 
-# --- 4.3: позиции внутри категории --------------------------------------------
+# --- 4.3: positions within a category ------------------------------------------
 
 
 def test_positions_number_rows_inside_their_category(authed, project_id):
@@ -262,13 +262,13 @@ def test_positions_number_rows_inside_their_category(authed, project_id):
     by_category: dict[str, list[int]] = {}
     for task in state["tasks"]:
         by_category.setdefault(task["category_id"], []).append(task["position"])
-    # В каждой категории нумерация своя и с нуля — раньше «В» получала бы
-    # позицию 2, сквозную по проекту.
+    # Every category has its own numbering starting from zero — before this, "B"
+    # would have got position 2, counted across the whole project.
     assert sorted(by_category[first_cat]) == [0, 1]
     assert by_category[second_cat] == [0]
 
 
-# --- 4.8: потолок тела --------------------------------------------------------
+# --- 4.8: the body ceiling ----------------------------------------------------
 
 
 def test_an_oversized_body_is_refused_before_parsing(client, monkeypatch):
@@ -283,11 +283,11 @@ def test_an_oversized_body_is_refused_before_parsing(client, monkeypatch):
     assert refused.status_code == 413
 
 
-# --- 4.9: арифметика календаря ------------------------------------------------
+# --- 4.9: calendar arithmetic -------------------------------------------------
 
 
 def test_the_arithmetic_end_date_matches_the_day_by_day_walk():
-    """Новая арифметика обязана быть неотличима от прежнего шага по дням."""
+    """The new arithmetic must be indistinguishable from the previous step-by-day."""
     cal = Calendar(
         holidays=frozenset({date(2026, 3, 20), date(2026, 4, 6)}),
         extra_workdays=frozenset({date(2026, 3, 21)}),

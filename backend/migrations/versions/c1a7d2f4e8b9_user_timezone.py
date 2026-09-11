@@ -1,10 +1,10 @@
 """user timezone
 
-users.timezone — часовой пояс читателя, по которому интерфейс считает
-сегодняшний день. Nullable без значения по умолчанию: `null` означает
-«спросить у браузера», и это состояние всех уже заведённых аккаунтов. Копия
-пояса организации здесь была бы хуже пустоты — она выглядела бы как
-сознательный выбор человека и пережила бы правку дефолта организации.
+users.timezone — the reader's timezone, by which the interface counts today.
+Nullable with no default: `null` means "ask the browser", and that is the state of
+every account already created. A copy of the organization's timezone here would be
+worse than emptiness — it would look like a deliberate choice by the person and
+would outlive an edit to the organization's default.
 
 Revision ID: c1a7d2f4e8b9
 Revises: b7c4e1f0a9d3

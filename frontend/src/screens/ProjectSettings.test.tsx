@@ -9,8 +9,8 @@ import { ORG } from "../test/utils";
 
 beforeEach(projectFixtures);
 
-// Публикация висит на этом же экране: тест про удаление не должен падать на
-// запросе, к которому не имеет отношения. Не опубликовано.
+// Publishing hangs on this same screen: a test about deletion must not fail on a request it has
+// nothing to do with. Not published.
 beforeEach(() => {
   server.use(
     http.get("/api/projects/p1/share", () =>
@@ -23,8 +23,8 @@ describe("удаление проекта", () => {
   it("владелец удаляет проект после подтверждения и попадает к списку", async () => {
     let deleted = false;
     server.use(
-      // Список, куда экран уводит после удаления. Пустой: проект только что
-      // удалили, и других в оснастке нет.
+      // The list the screen leads to after a deletion. Empty: the project has just been deleted, and
+      // there are no others in the harness.
       http.get("/api/projects", () => HttpResponse.json([])),
       http.delete("/api/projects/p1", () => {
         deleted = true;
@@ -34,15 +34,15 @@ describe("удаление проекта", () => {
     renderProject(undefined, { route: "/projects/p1/settings" });
 
     await userEvent.click(await screen.findByRole("button", { name: "Удалить проект" }));
-    // Первое нажатие ничего не удаляет — разворачивает подтверждение.
+    // The first press deletes nothing — it unfolds the confirmation.
     expect(deleted).toBe(false);
     expect(screen.getByText(/отменить это будет нельзя/i)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Да, удалить проект" }));
 
     await waitFor(() => expect(deleted).toBe(true));
-    // Переход проверяется по адресу, как его видит человек, а не по вызову
-    // navigate (см. LocationProbe в test/utils).
+    // The navigation is checked by the address as a person sees it rather than by a navigate call (see
+    // LocationProbe in test/utils).
     await waitFor(() =>
       expect(screen.getByTestId("location")).toHaveTextContent("/projects"),
     );
@@ -61,12 +61,12 @@ describe("удаление проекта", () => {
   });
 
   it("редактору кнопка удаления не показывается", async () => {
-    // Позже оснастки — значит, перебивает её обработчик роли owner: msw
-    // отдаёт предпочтение зарегистрированному последним.
+    // Later than the harness — which means it overrides its owner-role handler: msw prefers the one
+    // registered last.
     server.use(http.get("/api/org", () => HttpResponse.json({ ...ORG, role: "editor" })));
     renderProject(undefined, { route: "/projects/p1/settings" });
 
-    // Экран загружен: настройки уже видны.
+    // The screen has loaded: the settings are already visible.
     await screen.findByLabelText("Название");
     expect(screen.queryByRole("button", { name: "Удалить проект" })).not.toBeInTheDocument();
   });
@@ -84,8 +84,8 @@ describe("публичная ссылка в настройках проекта
     const calls: string[] = [];
     server.use(
       http.get("/api/projects/p1/share", () => HttpResponse.json(PUBLISHED)),
-      // Повторный POST /share сервер встречает 409-м: выпуск и перевыпуск —
-      // разные решения, и разными маршрутами они и остаются.
+      // The server meets a repeat POST /share with a 409: issuing and reissuing are different
+      // decisions, and they stay different routes.
       http.post("/api/projects/p1/share", () => {
         calls.push("issue");
         return HttpResponse.json({ detail: "share_link_exists" }, { status: 409 });

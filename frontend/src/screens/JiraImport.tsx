@@ -16,12 +16,11 @@ import { useToast } from "../components/toast";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Импорт проекта из Jira: экран, а не окно поверх списка проектов.
+ * Importing a project from Jira: a screen rather than a dialog over the list of projects.
  *
- * Тот же выбор, что у интервью с AI (/projects/new/ai): заведение проекта —
- * не мимолётное действие, которое можно свернуть в диалог, а отдельный шаг
- * со своим состоянием загрузки — сперва список проектов Jira, потом сам
- * импорт, — и адрес экрана переживает обновление страницы.
+ * The same choice as with the AI interview (/projects/new/ai): creating a project is not a fleeting
+ * action that can be folded into a dialog but a separate step with its own loading state — first the
+ * list of Jira projects, then the import itself — and the screen's address survives a page reload.
  */
 export function JiraImport() {
   const { t } = useLocale();
@@ -45,8 +44,8 @@ export function JiraImport() {
 
   const [projectKey, setProjectKey] = useState("");
   const [name, setName] = useState("");
-  // Название вводили руками — выбор другого проекта Jira больше не
-  // переписывает поле поверх того, что человек уже поправил.
+  // The name was typed by hand — choosing a different Jira project no longer overwrites the field on top
+  // of what the person has already corrected.
   const [nameTouched, setNameTouched] = useState(false);
 
   const importMutation = useMutation({
@@ -79,8 +78,8 @@ export function JiraImport() {
         </p>
       )}
 
-      {/* Не спрятано: спрятанная форма не объясняет, почему импорт
-          недоступен, — тем же правилом, что у интервью с AI. */}
+      {/* Not hidden: a hidden form does not explain why the import is unavailable — by the same rule as
+          with the AI interview. */}
       {!configured && !credential.error && (
         <>
           <p>{t("jira.not_configured")}</p>

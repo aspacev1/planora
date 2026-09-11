@@ -6,20 +6,20 @@ import { useLocale } from "../i18n/LocaleProvider";
 import type { ShiftRequest } from "./baseline";
 
 /**
- * Окно, которое спрашивает причину сдвига.
+ * The dialog that asks for a shift's reason.
  *
- * Живёт провайдером, а не куском разметки внутри жеста, потому что жестов
- * несколько — перетаскивание полоски, правка даты в карточке, изменение
- * длительности, — а окно у них одно и то же. Спецификация говорит об этом
- * прямо: правило одно независимо от способа ввода. Написанное в каждом жесте
- * заново, оно в каждом разъедется по мелочи, и разъедется незаметно.
+ * It lives as a provider rather than a piece of markup inside a gesture, because there are several
+ * gestures — dragging a bar, editing a date in the card, changing a duration — while the dialog is
+ * one and the same for them. The specification says so outright: the rule is one regardless of the
+ * input method. Written anew in every gesture, it would diverge in each on the small things, and
+ * diverge unnoticed.
  *
- * Спрашивает обещанием: жест ждёт ответа человека и продолжается или не
- * продолжается вовсе. Промежуточного состояния «сдвинуто, но не объяснено» не
- * возникает даже на кадр — изменение не отправляется, пока причина не введена.
+ * It asks with a promise: the gesture waits for the person's answer and either continues or does
+ * not happen at all. The intermediate state of "shifted but not explained" does not arise even for
+ * a frame — the change is not sent until the reason has been entered.
  */
 
-/** Отказ человека объяснять сдвиг. Не ошибка: жест просто не состоялся. */
+/** The person's refusal to explain a shift. Not an error: the gesture simply did not happen. */
 export class ShiftCancelled extends Error {
   constructor() {
     super("сдвиг отменён: причина не введена");
@@ -31,7 +31,7 @@ export function isShiftCancelled(error: unknown): boolean {
   return error instanceof ShiftCancelled;
 }
 
-/** `null` в ответе — человек нажал «Вернуть». */
+/** A `null` in the answer — the person pressed "Revert". */
 type AskReason = (request: ShiftRequest) => Promise<string | null>;
 
 const ShiftReasonContext = createContext<AskReason | null>(null);
@@ -65,12 +65,12 @@ export function ShiftReasonProvider({ children }: { children: ReactNode }) {
 }
 
 /**
- * Спрашивающая сторона.
+ * The asking side.
  *
- * Вне провайдера возвращает `null`, а не бросает: карточка задачи и лента
- * рисуются и в тех местах, где окна нет вовсе (например, на публичной
- * странице, где менять нечего). Отсутствие окна тогда означает «не спрашиваем
- * здесь», а не поломку, — а последнее слово о причине всё равно за сервером.
+ * Outside the provider it returns `null` rather than throwing: the task card and the strip are also
+ * drawn in places where there is no dialog at all (on the public page, for example, where there is
+ * nothing to change). The absence of a dialog then means "we do not ask here" rather than a
+ * breakage — and the last word about a reason is the server's anyway.
  */
 export function useAskShiftReason(): AskReason | null {
   return useContext(ShiftReasonContext);
@@ -85,18 +85,18 @@ function ReasonDialog({
 }) {
   const { t } = useLocale();
   const [reason, setReason] = useState("");
-  // Пробелы причиной не считаются — ровно так же, как на сервере: иначе
-  // кнопка оживала бы от пробела, а сервер отвечал бы отказом.
+  // Whitespace does not count as a reason — exactly as on the server: otherwise the button would
+  // come alive from a space while the server answered with a refusal.
   const filled = reason.trim().length > 0;
 
   return (
     <Modal
       title={t("shift.title", { days: t("common.days", { count: request.deviationDays }) })}
-      // Закрытие по Esc и щелчком мимо — тот же ответ, что и «Вернуть»:
-      // изменение не применяется.
+      // Closing with Esc and with a click outside is the same answer as "Revert": the change is not
+      // applied.
       onClose={() => onAnswer(null)}
-      // Написанная причина делает промах дорогим вдвойне: пропадает и текст, и
-      // сам сдвиг, ради которого его писали.
+      // A written reason makes a stray click doubly expensive: both the text and the shift it was
+      // written for are lost.
       dirty={filled}
     >
       <form
@@ -106,7 +106,7 @@ function ReasonDialog({
         }}
       >
         <p className="muted">
-          {/* Название задачи — содержимое пользователя: не переводится. */}
+          {/* The task's name is user content: it is not translated. */}
           {t("shift.explain", {
             name: request.taskName,
             threshold: t("common.days", { count: request.thresholdDays }),
@@ -126,8 +126,8 @@ function ReasonDialog({
         </p>
 
         <div className="modal__actions">
-          {/* Пустая причина — кнопка неактивна. Само изменение при этом никуда
-              не ушло: спрашивают до отправки, а не после. */}
+          {/* An empty reason — the button is disabled. The change itself has gone nowhere at that:
+              the asking happens before sending rather than after. */}
           <button type="submit" disabled={!filled}>
             {t("shift.save")}
           </button>

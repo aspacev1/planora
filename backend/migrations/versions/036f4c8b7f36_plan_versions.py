@@ -1,9 +1,9 @@
 """plan versions
 
-Летопись утверждённых планов. Базовые значения задач (baseline_start,
-baseline_duration) хранят только последнюю версию — сравнить обещанное в
-январе с обещанным в марте по ним нельзя, а раздел 5 спецификации требует
-именно этого.
+The chronicle of approved plans. A task's baseline values (baseline_start,
+baseline_duration) hold only the latest version — what was promised in January
+cannot be compared with what was promised in March from them, and section 5 of
+the specification requires exactly that.
 
 Revision ID: 036f4c8b7f36
 Revises: adee83e4d023

@@ -8,14 +8,14 @@ logger = logging.getLogger(__name__)
 
 
 def _dates(raw: list[str] | None) -> frozenset[date]:
-    """Даты из JSON-списка; непригодные записи пропускаются.
+    """Dates from a JSON list; unusable entries are skipped.
 
-    Список приходит из базы, а не из тела запроса, и содержимое там могло
-    оказаться каким угодно — от правки руками до старой версии формата.
-    date.fromisoformat на одной такой строке поднимал исключение, и проект
-    переставал читаться навсегда, без способа это исправить через
-    приложение. Потерять один день календаря — меньшее зло, чем потерять
-    проект; в журнале это видно.
+    The list comes from the database rather than from a request body, and what
+    ended up there could be anything — from a hand edit to an old version of the
+    format. date.fromisoformat raised on one such string, and the project became
+    permanently unreadable, with no way to fix it through the application.
+    Losing one calendar day is the lesser evil compared to losing the project;
+    it is visible in the log.
     """
     parsed: set[date] = set()
     for item in raw or []:
@@ -41,8 +41,8 @@ def resolve_shift_threshold(project: Project, org: Organization) -> int:
 
 
 def project_calendar(project: Project, org: Organization) -> Calendar:
-    """Календарь проекта: маска недели, минус праздники организации и проекта,
-    плюс явно объявленные рабочие дни проекта."""
+    """The project's calendar: the week mask, minus the organization's and the
+    project's holidays, plus the project's explicitly declared working days."""
     holidays = _dates(org.holiday_calendar) | _dates(project.holidays_extra)
     return Calendar(
         working_days=resolve_working_days(project, org),

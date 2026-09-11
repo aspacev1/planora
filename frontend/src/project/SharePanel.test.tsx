@@ -26,9 +26,9 @@ describe("публичная ссылка в настройках проекта
   beforeEach(projectFixtures);
 
   it("перевыпуск идёт отдельным маршрутом, а не повторным выпуском", async () => {
-    // POST /share на опубликованном проекте отвечает 409 — этим он и защищает
-    // разосланный адрес от ретрая. Если панель зовёт его, перевыпуск не
-    // работает никогда, и тест ловит именно это: маршрут, а не текст ошибки.
+    // A POST /share on a published project answers with a 409 — that is how it protects an address that
+    // has been sent out from a retry. If the panel calls it, a reissue never works, and the test catches
+    // exactly that: the route rather than the error's text.
     const calls: string[] = [];
     server.use(
       http.get("/api/projects/p1/share", () =>
@@ -47,7 +47,7 @@ describe("публичная ссылка в настройках проекта
     renderSettings();
 
     await userEvent.click(await screen.findByRole("button", { name: "Перевыпустить" }));
-    // Кнопка сперва спрашивает: разосланный адрес умирает мгновенно.
+    // The button asks first: an address that has been sent out dies instantly.
     await userEvent.click(screen.getByRole("button", { name: "Да, перевыпустить" }));
 
     await waitFor(() => expect(calls).toEqual(["rotate"]));
@@ -75,9 +75,9 @@ describe("публичная ссылка в настройках проекта
   });
 
   it("неопубликованный проект не показывает ни адреса, ни перевыпуска", async () => {
-    // Сервер отвечает и на неопубликованный проект — объектом с `url: null`.
-    // Панель, считающая опубликованным всё, на что пришёл ответ, показала бы
-    // пустое поле адреса и кнопку перевыпуска, которой нечего перевыпускать.
+    // The server answers for an unpublished project too — with an object carrying `url: null`. A panel
+    // that treats anything it got an answer for as published would show an empty address field and a
+    // reissue button with nothing to reissue.
     server.use(http.get("/api/projects/p1/share", () => HttpResponse.json(UNPUBLISHED)));
 
     renderSettings();

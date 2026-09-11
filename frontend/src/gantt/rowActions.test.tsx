@@ -15,38 +15,37 @@ import { renderWithProviders } from "../test/utils";
 import { Gantt } from "./Gantt";
 
 /**
- * То, что строка ленты показывает при наведении, и меню «⋯», куда переехали
- * вторичные действия строки.
+ * What a strip row shows on hover, and the "⋯" menu the row's secondary actions moved
+ * into.
  *
- * Раньше строка отвечала только на «когда»: имя, даты, полоска. Всё
- * остальное — сколько об этой задаче уже сказано, кто её делает, и «а сюда бы
- * ещё одну строку» — жило в карточке, то есть открывалось по одной задаче за
- * раз. Планом же занимаются, глядя на весь список сразу.
+ * The row used to answer only "when": the name, the dates, the bar. Everything else —
+ * how much has already been said about this task, who is doing it, and "a row could go
+ * here too" — lived in the card, that is, opened one task at a time. A plan, though, is
+ * worked on looking at the whole list at once.
  *
- * Дальше это же «всё остальное» перебралось со строки (где оно всплывало по
- * наведению и отъедало место у имени) в единое меню «⋯»: имя получает
- * максимум ширины, а вторичные действия собраны в одном предсказуемом месте.
+ * Then this same "everything else" moved from the row (where it surfaced on hover and
+ * ate room from the name) into a single "⋯" menu: the name gets the maximum width, and
+ * the secondary actions are gathered in one predictable place.
  *
- * Кнопка «⋯» названа одинаково на любой строке («Действия с задачей») —
- * какой строке она принадлежит, говорит `aria-describedby`, а не имя кнопки
- * (см. RowMenu). Поэтому строки в тестах ищут не по подписи кнопки, а по
- * идентификатору задачи или категории — тем же `data-testid`, которым
- * помечена и сама панель.
+ * The "⋯" button is named identically on any row ("Task actions") — which row it
+ * belongs to is said by `aria-describedby` rather than by the button's name (see
+ * RowMenu). So the tests look for rows not by the button's caption but by the task's or
+ * category's id — the same `data-testid` the panel itself is marked with.
  */
 
 beforeEach(projectFixtures);
 
-/** Счётчик реплик на строке названной задачи. */
+/** The reply counter on the named task's row. */
 function comments(name: string) {
   return screen.queryByRole("img", { name: new RegExp(`Обсуждение «${name}»`) });
 }
 
-/** Меню «⋯» строки задачи по её идентификатору. */
+/** A task row's "⋯" menu by its id. */
 async function openRowMenu(taskId: string) {
   await userEvent.click(await screen.findByTestId(`row-menu-${taskId}-button`));
 }
 
-/** Меню «⋯» строки категории по её идентификатору. */
+/** A category row's "⋯" menu by its id. */
 async function openCategoryMenu(categoryId: string) {
   await userEvent.click(await screen.findByTestId(`category-menu-${categoryId}-button`));
 }
@@ -73,8 +72,8 @@ describe("обсуждение на строке", () => {
     await userEvent.click(await screen.findByLabelText("Обсуждение «Логотип»: 1 реплика"));
 
     const panel = await screen.findByRole("complementary", { name: /Логотип/ });
-    // Именно обсуждение, а не свойства: счётчик, приводящий не туда, куда
-    // обещал, — это лишний щелчок по вкладке на каждое открытие.
+    // The discussion specifically, not the properties: a counter that leads somewhere
+    // other than it promised is an extra click on the tab on every opening.
     expect(within(panel).getByRole("tab", { name: "Комментарии" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -85,10 +84,10 @@ describe("обсуждение на строке", () => {
     renderProject();
     await screen.findByRole("button", { name: /Логотип/ });
 
-    // «0» на каждой из ста строк — рябь, в которой не видно единственной
-    // строки с разговором. Раньше на её месте молчал до наведения пустой
-    // знак-приглашение; теперь на строке нет и его — начать разговор можно
-    // только через меню.
+    // A "0" on each of a hundred rows is a ripple in which the single row with a
+    // conversation cannot be seen. There used to be an empty invitation sign staying
+    // silent until hover in its place; now the row has not even that — a conversation
+    // can only be started through the menu.
     expect(comments("Логотип")).not.toBeInTheDocument();
 
     await openRowMenu("t1");
@@ -96,9 +95,9 @@ describe("обсуждение на строке", () => {
   });
 
   it("гостю число видно, а щёлкать по нему нечем", () => {
-    // Публичная страница: карточки задачи там нет вовсе, и знак перестаёт быть
-    // органом управления — остаётся подписью с числом (см. Bar в Row.tsx, где
-    // тем же образом перестаёт быть кнопкой сама полоска).
+    // The public page: there is no task card there at all, and the sign stops being a
+    // control — what is left is a caption with a number (see Bar in Row.tsx, where the
+    // bar itself stops being a button the same way).
     renderWithProviders(
       <Gantt projectId="p1" state={STATE} commentCounts={new Map([["t1", 2]])} />,
       { locale: "ru" },
@@ -128,7 +127,7 @@ describe("исполнители со строки", () => {
 
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0].op).toEqual({ type: "assign_user", task_id: "t1", user_id: "u2" });
-    // Панель не закрывается после выбора: на задачу сажают двоих и троих подряд.
+    // The panel does not close after a choice: two and three people are put on a task in a row.
     expect(screen.getByTestId("row-menu-t1")).toBeInTheDocument();
   });
 
@@ -170,15 +169,15 @@ describe("исполнители со строки", () => {
 });
 
 describe("пустая категория", () => {
-  // В STATE (см. test/project.ts) задачи есть только у «Дизайна»; «Разработка»
-  // пуста — она и объясняет пустую полосу.
+  // In STATE (see test/project.ts) only "Design" has tasks; "Development" is empty — that
+  // is what explains the empty band.
 
   it("объясняет пустую полосу и заводит из неё первую задачу", async () => {
     renderProject(STATE);
     await screen.findByRole("button", { name: /Логотип/ });
 
     const hint = screen.getByRole("button", { name: "Задач пока нет — добавьте первую" });
-    // Подсказка стоит в полосе своей категории, а не отдельной строкой ленты.
+    // The hint stands in its own category's band rather than as a separate strip row.
     expect(hint.closest(".gantt__row")).toHaveAttribute("data-drop-id", "c2");
 
     await userEvent.click(hint);
@@ -198,8 +197,8 @@ describe("пустая категория", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Задач пока нет — добавьте первую" }));
 
-    // «Задач пока нет» рядом с уже открытым полем спорило бы с набираемым
-    // именем строкой ниже.
+    // "No tasks yet" next to an already open field would argue with the name being typed
+    // on the line below.
     expect(document.querySelector(".gantt__lane-hint")).toBeNull();
   });
 
@@ -207,8 +206,8 @@ describe("пустая категория", () => {
     renderProject(STATE);
     await screen.findByRole("button", { name: /Логотип/ });
 
-    // Признак — на строке: сама видимость задана стилем (см. is-empty в
-    // gantt.css), а jsdom стилей не считает.
+    // The flag is on the row: the visibility itself is set by a style (see is-empty in
+    // gantt.css), and jsdom does not compute styles.
     const rows = [...document.querySelectorAll(".gantt__row--category")];
     const byId = (id: string) => rows.find((row) => row.getAttribute("data-drop-id") === id);
     expect(byId("c2")).toHaveClass("is-empty");
@@ -224,7 +223,7 @@ describe("пустая категория", () => {
 });
 
 describe("вставка строки посередине", () => {
-  /** «Плюс» на верхней границе строки названной задачи — теперь пункт меню «⋯». */
+  /** The "plus" on the upper boundary of the named task's row — now an item in the "⋯" menu. */
   async function insert(taskId: string) {
     await openRowMenu(taskId);
     await userEvent.click(await screen.findByRole("button", { name: "Добавить задачу" }));
@@ -238,8 +237,8 @@ describe("вставка строки посередине", () => {
 
     const field = screen.getByRole("textbox", { name: "Новая задача в «Дизайн»" });
     expect(field).toHaveFocus();
-    // Порядок строк в разметке — это и есть порядок ленты: поле стоит между
-    // первой и второй, а не в конце категории.
+    // The order of rows in the markup is the strip's order: the field stands between the
+    // first and the second, not at the end of the category.
     const names = [...document.querySelectorAll(".gantt__row")].map(
       (row) =>
         row.querySelector(".gantt__label-name")?.textContent ??
@@ -267,8 +266,8 @@ describe("вставка строки посередине", () => {
     );
 
     await waitFor(() => expect(sent).toHaveLength(1));
-    // Одна операция, а не «создать в конце» плюс «переставить»: человек сделал
-    // одно движение, и отменяется оно одним нажатием.
+    // One operation rather than "create at the end" plus "reorder": the person made one
+    // motion, and it is undone with one press.
     expect(sent[0].op).toMatchObject({ type: "create_task", name: "Между", position: 2 });
   });
 
@@ -284,8 +283,8 @@ describe("вставка строки посередине", () => {
     );
 
     await waitFor(() => expect(sent).toHaveLength(2));
-    // Первая заняла номер «Второй» и сдвинула её вниз — значит, следующая
-    // встаёт на номер ниже, иначе «б» оказалась бы над «а».
+    // The first took "Second"'s number and pushed it down — so the next one goes to the
+    // number below, otherwise "b" would end up above "a".
     expect(sent.map((row) => [row.op.name, row.op.position])).toEqual([
       ["а", 1],
       ["б", 2],
@@ -300,16 +299,16 @@ describe("вставка строки посередине", () => {
     await insert("t2");
     const field = () => screen.getByRole("textbox", { name: "Новая задача в «Дизайн»" });
     await userEvent.type(field(), "а{Enter}");
-    // Сервер ответил: «а» стоит на месте «Второй», а та съехала на единицу.
-    // Строки ожидания больше нет — состояние уже отражает вставку.
+    // The server answered: "a" stands in "Second"'s place, and that one moved by one.
+    // There is no pending row any more — the state already reflects the insertion.
     await waitFor(() => expect(document.querySelector(".gantt__row--pending")).toBeNull());
     await screen.findByText("а");
 
     await userEvent.type(field(), "б{Enter}");
 
     await waitFor(() => expect(sent).toHaveLength(2));
-    // Номер «Второй» уже 2 — и «б» идёт на него, а не на 3 за «Второй»: сдвиг,
-    // который сервер уже сделал, не прибавляется второй раз.
+    // "Second"'s number is already 2 — and "b" goes to it rather than to 3 behind
+    // "Second": the shift the server has already made is not added a second time.
     expect(sent.map((row) => [row.op.name, row.op.position])).toEqual([
       ["а", 1],
       ["б", 2],
@@ -328,8 +327,8 @@ describe("вставка строки посередине", () => {
     );
 
     await waitFor(() => expect(sent).toHaveLength(1));
-    // Номер не назван вовсе: конец списка знает сервер, и вкладке его считать
-    // не за чем.
+    // No number is named at all: the end of the list is known by the server, and there is
+    // no reason for the tab to compute it.
     expect(sent[0].op).not.toHaveProperty("position");
   });
 
@@ -350,7 +349,7 @@ describe("меню «⋯» задачи", () => {
     await openRowMenu("t1");
     expect(screen.getByTestId("row-menu-t1")).toBeInTheDocument();
 
-    // Щелчок вне панели — по названию проекта, например.
+    // A click outside the panel — on the project's name, for example.
     await userEvent.click(document.body);
     await waitFor(() => expect(screen.queryByTestId("row-menu-t1")).not.toBeInTheDocument());
   });
@@ -410,8 +409,8 @@ describe("меню «⋯» задачи", () => {
     await openRowMenu("t1");
     await userEvent.click(await screen.findByRole("button", { name: "Удалить" }));
 
-    // Вопрос — на месте пункта, а не отдельным окном: удаление ещё не
-    // случилось, и отменить его можно, не закрывая меню.
+    // The question goes in the item's place rather than as a separate dialog: the deletion
+    // has not happened yet, and it can be cancelled without closing the menu.
     expect(sent).toHaveLength(0);
     expect(screen.getByRole("button", { name: "Отмена" })).toBeInTheDocument();
 

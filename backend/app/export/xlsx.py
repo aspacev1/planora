@@ -1,9 +1,9 @@
-"""Книга Excel: обзор, задачи, лента ячейками, связи, смета, скоркард, разговор.
+"""An Excel workbook: overview, tasks, the chart in cells, dependencies, budget, scorecard, conversation.
 
-Даты кладутся настоящими датами, деньги и проценты — числами, итоги сметы —
-формулами. Иначе книга превращается в картинку таблицы: получатель не может ни
-отсортировать по сроку, ни отфильтровать по статусу, ни поправить ставку и
-увидеть новый итог, — то есть не получает ничего, чего не давал бы PDF.
+Dates go in as real dates, money and percentages as numbers, budget totals as
+formulas. Otherwise the workbook turns into a picture of a table: the recipient
+can neither sort by deadline, nor filter by status, nor fix a rate and see the
+new total — that is, gets nothing a PDF would not have given.
 """
 
 from datetime import date, timedelta
@@ -21,20 +21,20 @@ from app.export.document import DocTask, ExportDocument, ExportSection
 
 FONT = theme.XLSX_FONT
 
-#: Рост строки. Задаётся явно: на листе ленты высота строки — это высота
-#: полоски, и значение по умолчанию превращает диаграмму в набор нитей.
+#: The row's height. Set explicitly: on the chart sheet a row's height is the
+#: bar's height, and the default value turns the chart into a set of threads.
 ROW_H = 18.0
 
-#: Ширина колонки одного дня на листе ленты, в знаках. Меньше — и полоска
-#: короткой задачи вырождается в засечку.
+#: The width of one day's column on the chart sheet, in characters. Any narrower
+#: and a short task's bar degenerates into a tick mark.
 DAY_COL_W = 3.0
 
 _thin = Side(style="thin", color=theme.BORDER)
 
 
 def _styles(wb: Workbook) -> None:
-    """Именованные стили — один раз на книгу, а не на ячейку: иначе размер
-    файла растёт числом ячеек, а не числом видов ячеек."""
+    """Named styles — once per workbook rather than per cell: otherwise the file
+    size grows with the number of cells rather than the number of kinds of cell."""
 
     def add(name: str, **kw) -> None:
         style = NamedStyle(name=name)
@@ -64,8 +64,8 @@ def _styles(wb: Workbook) -> None:
     add("x-num", align=right)
     add("x-date", number_format="DD.MM.YYYY", align=right)
     add("x-pct", number_format="0%", align=right)
-    # Отклонение со знаком: «+4» читается как отставание, «4» — как просто
-    # число дней.
+    # A signed deviation: "+4" reads as running late, "4" reads as merely a
+    # number of days.
     add("x-dev", number_format="+0;-0;0", align=right)
     add(
         "x-group",
@@ -84,23 +84,23 @@ def _fill(color: str) -> PatternFill:
 
 
 def _sheet(wb: Workbook, title: str) -> Worksheet:
-    # Excel режет имя листа на 31 знаке и падает на нескольких запрещённых
-    # знаках. Обрезаем сами: молчаливое усечение библиотекой дало бы два листа
-    # с одинаковым именем на длинных переводах.
+    # Excel cuts a sheet name at 31 characters and fails on several forbidden
+    # characters. We truncate ourselves: silent truncation by the library would
+    # produce two sheets with the same name on long translations.
     safe = "".join(ch for ch in title if ch not in r"[]:*?/\\")[:31]
     ws = wb.create_sheet(safe)
     ws.sheet_view.showGridLines = False
     return ws
 
 
-# --- Обзор --------------------------------------------------------------------
+# --- Overview -----------------------------------------------------------------
 
 
 def _overview(wb: Workbook, doc: ExportDocument) -> None:
     t = doc.labels
     ws = _sheet(wb, t("section", "overview"))
-    # Колонка A — узкий жёлоб под образец цвета категории. Плитки начинаются с
-    # B: в узкой колонке Excel показывает вместо числа «#».
+    # Column A is a narrow gutter for the category's colour swatch. The tiles
+    # start at B: in a narrow column Excel shows "#" instead of a number.
     _widths(ws, [3, 20, 18, 18, 18, 18, 18, 26])
 
     ws["B2"] = doc.project_name
@@ -158,7 +158,7 @@ def _overview(wb: Workbook, doc: ExportDocument) -> None:
         row += 1
 
 
-# --- Задачи -------------------------------------------------------------------
+# --- Tasks --------------------------------------------------------------------
 
 
 def _tasks(wb: Workbook, doc: ExportDocument) -> None:
@@ -248,7 +248,7 @@ def _tasks(wb: Workbook, doc: ExportDocument) -> None:
                 ws.cell(row=row, column=4).font = Font(
                     name=FONT, size=9, bold=True, color=theme.DANGER_STRONG
                 )
-            # Строки задач сворачиваются родным «плюсом» Excel по категориям.
+            # Task rows collapse by category with Excel's native "plus".
             ws.row_dimensions[row].outlineLevel = 1
             ws.row_dimensions[row].height = ROW_H
             row += 1
@@ -259,8 +259,8 @@ def _tasks(wb: Workbook, doc: ExportDocument) -> None:
 
     ws.freeze_panes = "C2"
     ws.auto_filter.ref = f"A1:{get_column_letter(len(columns))}{last}"
-    # Итог сворачивания — строка категории сверху, а не снизу: она заголовок,
-    # а не сумма.
+    # The result of collapsing is the category row on top rather than at the
+    # bottom: it is a heading, not a sum.
     ws.sheet_properties.outlinePr.summaryBelow = False
 
     ws.conditional_formatting.add(
@@ -274,9 +274,9 @@ def _tasks(wb: Workbook, doc: ExportDocument) -> None:
             showValue=True,
         ),
     )
-    # Просрочка — правилом по колонке конца, а не отдельным столбцом с
-    # восклицательным знаком: правило переживает сортировку и фильтр, столбец
-    # с готовым ответом — нет.
+    # Overdue is a rule on the finish column rather than a separate column with
+    # an exclamation mark: a rule survives sorting and filtering, a column with a
+    # ready-made answer does not.
     if doc.dated:
         today = doc.today
         ws.conditional_formatting.add(
@@ -290,7 +290,7 @@ def _tasks(wb: Workbook, doc: ExportDocument) -> None:
         )
 
 
-# --- Диаграмма Ганта ----------------------------------------------------------
+# --- The Gantt chart ----------------------------------------------------------
 
 
 def _gantt(wb: Workbook, doc: ExportDocument) -> None:
@@ -303,7 +303,7 @@ def _gantt(wb: Workbook, doc: ExportDocument) -> None:
     step = budget.DAYS_PER_UNIT[zoom]
     columns = budget.columns_for(window.days, zoom)
 
-    LEFT = 3  # задача | начало | конец
+    LEFT = 3  # task | start | finish
     _widths(ws, [34, 11, 11] + [DAY_COL_W] * columns)
 
     def column_of(day: date) -> int:
@@ -341,8 +341,8 @@ def _gantt(wb: Workbook, doc: ExportDocument) -> None:
             ws.cell(row=row, column=3, value=task.end).style = "x-date"
             ws.row_dimensions[row].height = ROW_H
 
-            # Подложка: нерабочие дни и сегодня. Только в дневном масштабе —
-            # колонка недели или месяца не бывает выходной целиком.
+            # The backing: non-working days and today. Only at day scale — a week
+            # or month column is never a day off in its entirety.
             if zoom is Zoom.DAY:
                 for i in range(columns):
                     day = day_of(i)
@@ -366,7 +366,7 @@ def _gantt(wb: Workbook, doc: ExportDocument) -> None:
 
 
 def _scale_header(ws, doc, window, zoom, columns, left: int, day_of) -> None:
-    """Две строки шапки: месяцы объединённой строкой, под ними — числа."""
+    """Two header rows: months as a merged row, the day numbers underneath."""
     t = doc.labels
     run_start = 0
     for i in range(columns + 1):
@@ -386,8 +386,8 @@ def _scale_header(ws, doc, window, zoom, columns, left: int, day_of) -> None:
 
     for i in range(columns):
         day = day_of(i)
-        # В дневном масштабе числа через одно: подряд они слипаются на ширине
-        # в три знака.
+        # At day scale every other number: consecutive ones run together at a
+        # width of three characters.
         text = str(day.day) if zoom is not Zoom.DAY or day.day % 2 else None
         cell = ws.cell(row=2, column=left + 1 + i, value=text)
         cell.font = Font(name=FONT, size=7, color=theme.TEXT_FAINT)
@@ -396,7 +396,7 @@ def _scale_header(ws, doc, window, zoom, columns, left: int, day_of) -> None:
 
 
 def _bar(ws, row: int, task: DocTask, window, column_of) -> None:
-    """Полоска задачи ячейками. Веха — ромб в своей колонке, а не отрезок."""
+    """A task's bar in cells. A milestone is a diamond in its own column, not a segment."""
     if task.end < window.start or task.start > window.end:
         return
 
@@ -410,9 +410,9 @@ def _bar(ws, row: int, task: DocTask, window, column_of) -> None:
     last = column_of(min(task.end, window.end))
     fill = _fill(theme.STATUS_BAR[task.status][0])
 
-    # Запланированная полоска по правилу ленты не залита — а бледная заливка
-    # на белом почти не видна и на призраке базового плана не видна вовсе.
-    # Поэтому в книге она ещё и обводится.
+    # By the chart's rule a planned bar is unfilled — and a pale fill on white is
+    # barely visible, and on the ghost of the baseline plan not visible at all.
+    # So in the workbook it is outlined as well.
     edge = Side(style="thin", color=theme.LINE_PLANNED) if task.status == "planned" else None
     warn = Side(style="medium", color=theme.WARN) if task.late else None
     outline = warn or edge
@@ -429,7 +429,7 @@ def _bar(ws, row: int, task: DocTask, window, column_of) -> None:
             )
 
 
-# --- прочие листы -------------------------------------------------------------
+# --- the other sheets ---------------------------------------------------------
 
 
 def _links(wb: Workbook, doc: ExportDocument) -> None:
@@ -478,9 +478,10 @@ def _proposal(wb: Workbook, doc: ExportDocument) -> None:
             ws.cell(row=row, column=2, value=line.role).style = "x-cell-muted"
             ws.cell(row=row, column=3, value=float(line.effort)).style = "x-num"
             ws.cell(row=row, column=4, value=float(line.rate)).style = "x-num"
-            # Цена — формулой, а не числом: получатель правит ставку и видит
-            # новый итог, не заказывая выгрузку заново. Это единственное место
-            # в книге, где формулы заслуживают своего усложнения.
+            # The price is a formula rather than a number: the recipient edits a
+            # rate and sees the new total without ordering the export again. This
+            # is the one place in the workbook where formulas earn their
+            # complication.
             cell = ws.cell(row=row, column=5, value=f"=C{row}*D{row}")
             cell.style = "x-num"
             cell.number_format = money
@@ -586,15 +587,15 @@ def _history(wb: Workbook, doc: ExportDocument) -> None:
 
 
 def _plain(value) -> str:
-    """Процент без хвоста нулей: «18», а не «18.00»."""
+    """A percentage without a tail of zeros: "18", not "18.00"."""
     text = f"{value:f}".rstrip("0").rstrip(".")
     return text or "0"
 
 
-# --- сборка -------------------------------------------------------------------
+# --- assembly -----------------------------------------------------------------
 
-#: Какой лист рисует какая функция. Порядок листов — порядок словаря: обзор
-#: первым, журнал последним, как их и читают.
+#: Which sheet is drawn by which function. The order of sheets is the
+#: dictionary's order: the overview first, the journal last, as they are read.
 _SHEETS = [
     (ExportSection.OVERVIEW, _overview),
     (ExportSection.TASKS, _tasks),
@@ -606,8 +607,8 @@ _SHEETS = [
     (ExportSection.HISTORY, _history),
 ]
 
-#: Разделы, у которых нет данных, лист не заводят вовсе: страница из одних
-#: заголовков читается как поломка выгрузки, а не как «здесь пусто».
+#: Sections with no data create no sheet at all: a page of nothing but headings
+#: reads as a broken export rather than as "there is nothing here".
 def _has_content(doc: ExportDocument, section: ExportSection) -> bool:
     if section is ExportSection.PROPOSAL:
         return doc.proposal is not None
@@ -631,14 +632,15 @@ def render(doc: ExportDocument) -> bytes:
         if doc.has(section) and _has_content(doc, section):
             draw(wb, doc)
 
-    # Книга без единого листа Excel не открывает вовсе — а пустой выбор
-    # отсекается маршрутом раньше, так что сюда мы попадаем только если все
-    # выбранные разделы оказались пустыми.
+    # Excel does not open a workbook without a single sheet at all — and an empty
+    # selection is rejected by the route earlier, so we only get here if every
+    # selected section turned out to be empty.
     if not wb.worksheets:
         _overview(wb, doc)
 
-    # Печать: альбомная и «вписать по ширине» на каждом листе. Книгу, которую
-    # получатель первым делом печатает, стыдно отдавать разорванной по колонкам.
+    # Printing: landscape and "fit to width" on every sheet. It is shameful to
+    # hand over a workbook torn apart across columns to a recipient whose first
+    # move is to print it.
     for ws in wb.worksheets:
         ws.page_setup.orientation = "landscape"
         ws.page_setup.fitToWidth = 1

@@ -6,40 +6,42 @@ import type { ColumnKey, ColumnLayout } from "./columns";
 import { COLUMN_KEYS, MIN_WIDTH, clampWidth } from "./columns";
 
 /**
- * Ячейки закреплённой таблицы — левой части ленты.
+ * The cells of the pinned table — the strip's left part.
  *
- * Одна раскладка на три места: шапку, строку категории и строку задачи. Ширины
- * приходят из неё же, поэтому колонка, потянутая за границу в шапке,
- * сдвигается сразу во всех строках — второго списка ширин, который однажды
- * разойдётся с первым, не существует.
+ * One layout for three places: the header, a category row and a task row. The widths
+ * come from it too, so a column dragged by its boundary in the header moves at once
+ * in every row — there is no second list of widths that would one day diverge from
+ * the first.
  *
- * Правятся прямо здесь только те поля, которые операции уже умеют менять
- * поодиночке: старт, длительность, процент. Дата окончания — показ и только:
- * её считает сервер по календарю проекта, и поле для правки обещало бы
- * влияние, которого нет (та же причина, что и в карточке задачи).
+ * Edited right here are only those fields the operations can already change one at a
+ * time: the start, the duration, the percentage. The end date is display only: it is
+ * computed by the server from the project's calendar, and a field for editing it
+ * would promise an influence that does not exist (the same reason as in the task
+ * card).
  *
- * Сама ячейка, которую правят на месте, живёт не здесь, а в components/rows:
- * тем же движением правится строка сметы, и второй такой же ячейкой они
- * разошлись бы на первой правке одной из них.
+ * The cell that is edited in place lives not here but in components/rows: a quote's
+ * row is edited by the same motion, and with a second identical cell they would
+ * diverge on the first edit of one of them.
  */
 
 /**
- * Колонки, которые строка рисует сейчас.
+ * The columns a row is drawing right now.
  *
- * У свёрнутой таблицы их нет ни одной: от неё осталась полоса шириной в
- * кнопку (см. COLLAPSED_WIDTH), и ячейки в неё не помещаются — они вылезли бы
- * поверх шкалы. Набор колонок и их ширины при этом целы и ждут разворота:
- * свёртка — это про место на экране, а не про то, что человек выбрал видеть.
+ * A collapsed table has none at all: what is left of it is a strip a button wide (see
+ * COLLAPSED_WIDTH), and the cells do not fit into it — they would spill over the
+ * scale. The set of columns and their widths are intact at that and await the
+ * expansion: collapsing is about room on screen, not about what the person chose to
+ * see.
  *
- * Правило одно на все три места, где рисуются ячейки таблицы, — шапку, строку
- * категории и строку задачи: три отдельные проверки разошлись бы, и одна из
- * них рисовала бы колонки поверх соседней ленты.
+ * One rule for all three places where the table's cells are drawn — the header, a
+ * category row and a task row: three separate checks would diverge, and one of them
+ * would draw the columns over the neighbouring strip.
  */
 export function shownColumns(layout: ColumnLayout): readonly ColumnKey[] {
   return layout.collapsed ? [] : layout.shown;
 }
 
-/** Одна ячейка строки: ширину задаёт раскладка, содержимое — вызывающий. */
+/** One cell of a row: the width is set by the layout, the content by the caller. */
 export function Cell({
   column,
   layout,
@@ -52,8 +54,9 @@ export function Cell({
   return (
     <span
       className={`gantt__cell gantt__cell--${column}`}
-      // Имя колонки — в разметке: перенос ищет цель попаданием в точку, и
-      // узнать по найденному элементу, что это за колонка, больше не по чему.
+      // The column's name goes in the markup: a move looks for its target by
+      // hit-testing a point, and there is nothing else left to tell from the found
+      // element which column it is.
       data-column={column}
       style={{ flex: `0 0 ${layout.widths[column]}px`, width: layout.widths[column] }}
     >
@@ -63,11 +66,11 @@ export function Cell({
 }
 
 /**
- * Шапка таблицы: подписи колонок и границы, за которые их тянут.
+ * The table's header: the column captions and the boundaries they are dragged by.
  *
- * Граница — отдельный узел поверх стыка, а не `resize` у ячейки: CSS-ресайз
- * тянется только за правый нижний угол и оставляет в нём засечку, которой в
- * шапке таблицы взяться неоткуда.
+ * A boundary is a separate node on top of the seam rather than a `resize` on the
+ * cell: a CSS resize is dragged only by the bottom right corner and leaves a notch in
+ * it, which a table header has nowhere to get.
  */
 export function HeadCells({
   layout,
@@ -81,15 +84,15 @@ export function HeadCells({
   layout: ColumnLayout;
   labels: Record<ColumnKey, string>;
   /**
-   * Что стоит перед заголовком первой колонки — «плюс» новой категории.
-   * Внутри ячейки, а не рядом с ней: ячейка названия несёт поле слева
-   * (`--gantt-pad`), и узел вне её встал бы либо в это поле, либо за ним,
-   * сдвинув заголовок относительно имён задач под ним.
+   * What stands before the first column's heading — the "plus" for a new category.
+   * Inside the cell rather than next to it: the name cell carries a margin on the
+   * left (`--gantt-pad`), and a node outside it would stand either in that margin or
+   * beyond it, shifting the heading relative to the task names below it.
    */
   leading?: ReactNode;
-  /** `undefined` — ширины не меняются (у ленты нет памяти, например в тесте). */
+  /** `undefined` — the widths do not change (the strip has no memory, in a test for example). */
   onResize?: (column: ColumnKey, width: number) => void;
-  /** `undefined` — колонки не переставляются. */
+  /** `undefined` — the columns are not reordered. */
   onReorder?: (moved: ColumnKey, before: ColumnKey) => void;
   resizeLabel: (column: string) => string;
   reorderLabel?: (column: string) => string;
@@ -105,9 +108,9 @@ export function HeadCells({
             className={`gantt__corner-label${
               onReorder && column !== "task" ? " gantt__corner-label--movable" : ""
             }`}
-            // Имя колонки — и подпись, и ручка переноса: отдельная ручка на
-            // заголовок шириной в семьдесят пикселей отняла бы у подписи
-            // столько места, что от неё осталось бы многоточие.
+            // The column's name is both a caption and a drag handle: a separate handle
+            // on a heading seventy pixels wide would take so much room from the caption
+            // that an ellipsis would be all that was left of it.
             title={onReorder && column !== "task" ? reorderLabel?.(labels[column]) : undefined}
             {...(onReorder && column !== "task" ? drag.handleProps(column) : {})}
           >
@@ -127,15 +130,17 @@ export function HeadCells({
 }
 
 /**
- * Перенос колонки за её заголовок.
+ * Moving a column by its heading.
  *
- * Колонку роняют на соседнюю, и она встаёт перед ней. Цель ищется попаданием
- * в точку, а не адресатом события, по той же причине, что и у перестановки
- * строк: пальцем указатель после нажатия захвачен заголовком, с которого начали,
- * и соседние о движении не узнают (см. `targetAt` в useReorder).
+ * A column is dropped onto a neighbour and stands before it. The target is found by
+ * hit-testing a point rather than by the event's target, for the same reason as with
+ * row reordering: with a finger, after the press the pointer is captured by the
+ * heading the drag started on, and the neighbours never learn about the movement (see
+ * `targetAt` in useReorder).
  *
- * Подсветка цели идёт классом прямо в DOM, мимо состояния React: цель меняется
- * на каждом пересечении границы, а перерисовка шапки тянет за собой всю ленту.
+ * The target highlight goes as a class straight into the DOM, past React state: the
+ * target changes on every crossing of a boundary, and a repaint of the header drags
+ * the whole strip along with it.
  */
 function useColumnDrag(onReorder?: (moved: ColumnKey, before: ColumnKey) => void) {
   const from = useRef<{ pointerId: number; column: ColumnKey } | null>(null);
@@ -151,9 +156,9 @@ function useColumnDrag(onReorder?: (moved: ColumnKey, before: ColumnKey) => void
   const cellAt = (clientX: number, clientY: number): HTMLElement | null => {
     const under = document.elementFromPoint?.(clientX, clientY) ?? null;
     const cell = under?.closest<HTMLElement>("[data-column]") ?? null;
-    // Своя же колонка целью не подсвечивается: бросок на себя ничего не
-    // меняет, и обещать перестановку там, где её не будет, не за чем. Имя
-    // задачи целью не бывает вовсе — оно всегда первое.
+    // A column's own self is not highlighted as a target: a drop onto yourself changes
+    // nothing, and there is no point promising a reorder that will not happen. The
+    // task's name is never a target at all — it is always first.
     const key = cell?.dataset.column;
     if (key === undefined || key === "task" || key === from.current?.column) return null;
     return cell;
@@ -169,8 +174,8 @@ function useColumnDrag(onReorder?: (moved: ColumnKey, before: ColumnKey) => void
       return {
         onPointerDown(event: PointerEvent<HTMLElement>) {
           if (event.button !== 0) return;
-          // Без этого нажатие начинает выделение текста заголовка вместо
-          // переноса — то же, что и у граней полоски.
+          // Without this the press starts a text selection of the heading instead of a
+          // move — the same as with a bar's edges.
           event.preventDefault();
           from.current = { pointerId: event.pointerId, column };
           event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -199,11 +204,11 @@ function isColumnKey(value: string | undefined): value is ColumnKey {
 }
 
 /**
- * Граница колонки: тянется указателем, ходит стрелками с клавиатуры.
+ * A column's boundary: dragged with the pointer, walked with the keyboard arrows.
  *
- * Стрелки здесь не формальность ради доступности: попасть указателем в полосу
- * в четыре пикселя трудно и мышью, а ширина — единственное свойство таблицы,
- * которое иначе не настроить вовсе.
+ * The arrows here are not a formality for the sake of accessibility: hitting a
+ * four-pixel band with a pointer is hard even with a mouse, and the width is the only
+ * property of the table that otherwise cannot be configured at all.
  */
 function ColumnGrip({
   width,
@@ -228,8 +233,8 @@ function ColumnGrip({
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         event.preventDefault();
-        // Граница лежит в том же заголовке, за который колонку переносят: без
-        // этого одно нажатие начинало бы оба жеста разом.
+        // The boundary lies in the same heading the column is moved by: without this one
+        // press would start both gestures at once.
         event.stopPropagation();
         from.current = { pointerId: event.pointerId, x: event.clientX, width };
         event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -255,12 +260,12 @@ function ColumnGrip({
   );
 }
 
-/** Сводка по группе строк — то, что показывает строка категории. */
+/** A summary over a group of rows — what a category row shows. */
 export function rollUp(tasks: Task[]): { start: string; end: string; progress: number } | null {
   if (tasks.length === 0) return null;
-  // Процент группы — средний по длительностям, а не по числу строк: неделя,
-  // сделанная наполовину, весит больше, чем сделанный целиком однодневный
-  // созвон, и «50 %» по головам говорило бы обратное.
+  // A group's percentage is averaged by durations rather than by the number of rows: a
+  // week done by half weighs more than a fully completed one-day call, and "50%" by
+  // heads would say the opposite.
   const work = tasks.reduce((total, task) => total + task.duration_days, 0);
   const done = tasks.reduce((total, task) => total + task.duration_days * task.progress_pct, 0);
   return {

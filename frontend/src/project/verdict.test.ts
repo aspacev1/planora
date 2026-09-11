@@ -5,7 +5,7 @@ import { deadlineOverrunDays, overdueTasks, pastDeadlineTasks } from "./verdict"
 
 const TODAY = "2026-03-15";
 
-/** Задача по умолчанию — впереди сегодняшнего дня: просрочку тест объявляет сам. */
+/** The default task is ahead of today: overdueness is declared by the test itself. */
 function task(fields: Partial<Task> = {}): Task {
   return {
     id: "t1",
@@ -50,7 +50,7 @@ function project(fields: Partial<ProjectState> = {}): ProjectState {
   };
 }
 
-/** Относительный план: координаты оси от RELATIVE_EPOCH, а не даты. */
+/** A relative plan: axis coordinates from RELATIVE_EPOCH rather than dates. */
 function relative(fields: Partial<ProjectState> = {}): ProjectState {
   return project({
     schedule_mode: "relative",
@@ -74,9 +74,8 @@ describe("просрочка", () => {
   });
 
   it("не трогает относительный план: там «даты» — координаты 2001 года", () => {
-    // Ловушка живая: без проверки режима сравнение с сегодняшним днём
-    // помечало бы просроченной каждую строку плана, которому даты ещё не
-    // назначали, — и «Отчёты» с «Моими задачами» показывали это годами.
+    // The trap is live: without a mode check a comparison with today would mark every row of a plan with
+    // no assigned dates as overdue — and "Reports" and "My tasks" showed that for years.
     const state = relative();
 
     expect(overdueTasks(state, TODAY)).toEqual([]);
@@ -111,8 +110,8 @@ describe("выход за дедлайн проекта", () => {
       ],
     });
 
-    // Обе кончаются позже дедлайна, и завершённость одной из них ответа не
-    // меняет: это другая величина, чем просрочка выше.
+    // Both end later than the deadline, and one of them being finished does not change the answer: this is
+    // a different quantity from the overdueness above.
     expect(pastDeadlineTasks(state)).toHaveLength(2);
     expect(overdueTasks(state, TODAY)).toHaveLength(1);
   });

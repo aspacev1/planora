@@ -114,8 +114,8 @@ describe("память раскладки", () => {
   });
 
   it("возвращает порядок таким, каким его выставили", () => {
-    // Порядок принадлежит человеку: колонки переставляют за заголовок, и
-    // прочитанное обязано вернуть их в том же порядке, а не в объявленном.
+    // The order belongs to the person: columns are reordered by their heading, and what is read back must
+    // return them in the same order rather than in the declared one.
     localStorage.setItem(
       "planora.gantt_columns.p2",
       JSON.stringify({ shown: ["end", "start"], widths: {} }),

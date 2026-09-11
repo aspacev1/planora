@@ -1,9 +1,10 @@
-"""Публичная ссылка на проект: выпуск, отзыв, разбор адреса.
+"""A project's public link: issuing, revoking, parsing the address.
 
-Здесь же собирается сам адрес — из `PUBLIC_BASE_URL`, а не из заголовков
-запроса. Заголовок `Host` подставляется тем, кто пришёл, и ссылка, собранная
-из него, однажды уедет в письмо с чужим доменом; переменная окружения задана
-тем, кто разворачивал, и одинакова для всех запросов.
+The address itself is assembled here too — from `PUBLIC_BASE_URL` rather than
+from the request's headers. The `Host` header is supplied by whoever came, and
+a link assembled from it will one day go out in an email with somebody else's
+domain; an environment variable is set by whoever deployed and is the same for
+every request.
 """
 
 import secrets
@@ -16,25 +17,27 @@ from sqlalchemy.orm import Session as DbSession
 from app.config import get_settings
 from app.models import Organization, Project, ShareLink
 
-# Публичный адрес: /p/<слаг организации>/<слаг проекта>. Токен идёт запросом,
-# а не частью пути, и это разделение не косметическое. Путь — то, что человек
-# читает и по чему узнаёт проект; токен — то, что делает отзыв ссылки
-# осмысленным: без него «перевыпустить ссылку» не меняло бы адрес вовсе, и
-# старая ссылка не умирала бы, а продолжала работать.
+# The public address: /p/<organization slug>/<project slug>. The token goes in
+# the query rather than as part of the path, and that separation is not
+# cosmetic. The path is what a person reads and recognizes the project by; the
+# token is what makes revoking a link meaningful: without it "reissue the link"
+# would not change the address at all, and the old link would not die but keep
+# working.
 PUBLIC_PATH_PREFIX = "/p"
 TOKEN_PARAM = "s"
 
 
 class SharingDisabled(Exception):
-    """Публичные ссылки запрещены — установкой или настройкой организации."""
+    """Public links are forbidden — by the installation or by an organization setting."""
 
 
 def sharing_allowed(org: Organization) -> bool:
-    """Разрешены ли публичные ссылки этой организации.
+    """Whether public links are allowed for this organization.
 
-    Два рубильника, и порядок между ними односторонний: `PUBLIC_SHARING_ENABLED`
-    выключает публикацию во всей установке, и никакая настройка организации
-    его не перебивает. Закрытый контур — решение того, кто разворачивал.
+    Two switches, and the order between them is one-way:
+    `PUBLIC_SHARING_ENABLED` turns publishing off across the whole installation,
+    and no organization setting overrides it. A closed perimeter is the decision
+    of whoever deployed.
     """
     return get_settings().public_sharing_enabled and org.public_sharing_enabled
 
@@ -48,20 +51,20 @@ def active_link(db: DbSession, project: Project) -> ShareLink | None:
 
 
 class AlreadyShared(Exception):
-    """У проекта уже есть живая ссылка — «создать» здесь не к чему."""
+    """The project already has a live link — there is nothing to "create" here."""
 
 
 class NotShared(Exception):
-    """Живой ссылки нет — «перевыпускать» нечего."""
+    """There is no live link — there is nothing to "reissue"."""
 
 
 def create_link(db: DbSession, project: Project, org: Organization) -> ShareLink:
-    """Первый выпуск ссылки. Если ссылка уже есть — отказ, а не тихий перевыпуск.
+    """The first issue of a link. If one already exists — a refusal, not a silent reissue.
 
-    Разделение с rotate_link — про идемпотентность худшего случая: два клика
-    по «Опубликовать» (или повтор запроса сетью) не должны молча убивать
-    только что разосланный адрес. Убийство адреса — отдельное, явно названное
-    действие.
+    Separating this from rotate_link is about idempotence in the worst case: two
+    clicks on "Publish" (or a network retry) must not silently kill an address
+    that has just been sent around. Killing an address is a separate, explicitly
+    named action.
     """
     if active_link(db, project) is not None:
         raise AlreadyShared
@@ -69,18 +72,18 @@ def create_link(db: DbSession, project: Project, org: Organization) -> ShareLink
 
 
 def rotate_link(db: DbSession, project: Project, org: Organization) -> ShareLink:
-    """Перевыпуск: старый адрес умирает мгновенно, настройки переезжают."""
+    """Reissue: the old address dies instantly, the settings move across."""
     if active_link(db, project) is None:
         raise NotShared
     return issue_link(db, project, org)
 
 
 def issue_link(db: DbSession, project: Project, org: Organization) -> ShareLink:
-    """Выпускает ссылку, убивая прежнюю.
+    """Issues a link, killing the previous one.
 
-    Общее тело create_link и rotate_link. Настройка комментариев переезжает
-    на новую ссылку: человек выключил их сознательно, и перевыпуск адреса —
-    не повод молча включить их обратно.
+    The shared body of create_link and rotate_link. The comment setting moves to
+    the new link: the person turned comments off deliberately, and reissuing the
+    address is no reason to silently turn them back on.
     """
     if not sharing_allowed(org):
         raise SharingDisabled
@@ -103,8 +106,8 @@ def issue_link(db: DbSession, project: Project, org: Organization) -> ShareLink:
 
 
 def revoke_link(db: DbSession, project: Project) -> ShareLink | None:
-    """Гасит действующую ссылку. Запись остаётся: адрес обязан отвечать
-    «ссылка больше не действует», а не «такого проекта нет»."""
+    """Extinguishes the link in force. The row stays: the address must answer
+    "this link is no longer valid" rather than "there is no such project"."""
     link = active_link(db, project)
     if link is None:
         return None
@@ -125,15 +128,16 @@ def set_comments_enabled(db: DbSession, project: Project, enabled: bool) -> Shar
 def resolve(
     db: DbSession, *, org_slug: str, project_slug: str, token: str
 ) -> tuple[Organization, Project, ShareLink] | None:
-    """Проект по публичному адресу и токену.
+    """The project behind a public address and token.
 
-    Совпасть обязано всё сразу: слаги называют проект, токен доказывает, что
-    адрес выдан владельцем. Токен, подошедший к другому проекту, не открывает
-    этот — иначе одной действующей ссылки хватало бы, чтобы читать любой
-    проект установки, подставляя чужие слаги.
+    Everything must match at once: the slugs name the project, the token proves
+    the address was issued by the owner. A token that fits another project does
+    not open this one — otherwise one valid link would be enough to read any
+    project of the installation by substituting other people's slugs.
 
-    Отдельного ответа «слаг есть, а токен не тот» нет и не будет: он
-    превращает адрес без токена в способ проверять, существует ли проект.
+    There is no separate answer for "the slug exists but the token is wrong",
+    and there will not be: it turns a tokenless address into a way of checking
+    whether a project exists.
     """
     if not token:
         return None
@@ -153,9 +157,9 @@ def resolve(
         return None
 
     org, project, link = row
-    # Рубильник действует и на уже выданные ссылки: организация, выключившая
-    # публикацию, ожидает, что розданные адреса перестали открываться, а не
-    # что закрылся только выпуск новых.
+    # The switch applies to links already handed out as well: an organization
+    # that turned publishing off expects the addresses it distributed to have
+    # stopped opening, not merely that issuing new ones was closed.
     if not sharing_allowed(org):
         return None
     return org, project, link

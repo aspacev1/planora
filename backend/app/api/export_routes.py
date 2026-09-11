@@ -1,12 +1,13 @@
-"""Маршруты выгрузки проекта в Excel и PDF.
+"""Routes for exporting a project to Excel and PDF.
 
-Свой файл по тому же правилу, что у скоркарда и предложения: у выгрузки свой
-слой домена (`app/export`) и свой характер ответа — не JSON, а файл.
+Its own file by the same rule as the scorecard and the proposal: the export has
+its own domain layer (`app/export`) and its own kind of answer — a file rather
+than JSON.
 
-Состав файла выбирает человек, а масштаб ленты — правило (`app/export/budget`):
-`zoom` можно не передавать, и тогда его считает сервер. Умолчание живёт здесь,
-а не в окне экспорта, потому что маршрут зовут и мимо окна — закладкой,
-скриптом, публичной ссылкой.
+A person chooses the file's contents, while the chart's scale is chosen by a
+rule (`app/export/budget`): `zoom` may be omitted, and then the server computes
+it. The default lives here rather than in the export dialog, because the route
+is also called from outside the dialog — by a bookmark, a script, a public link.
 """
 
 from datetime import date, datetime
@@ -53,13 +54,14 @@ router = APIRouter(prefix="/api/projects", tags=["export"])
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 PDF_MIME = "application/pdf"
 
-#: Потолок по числу задач. Сборка PDF — работа процессора, а на Vercel у
-#: функции тридцать секунд: упереться в них молча хуже, чем честно отказать.
+#: A ceiling on the number of tasks. Assembling a PDF is processor work, and on
+#: Vercel a function has thirty seconds: hitting them silently is worse than
+#: refusing honestly.
 MAX_TASKS = 2000
 
-#: Не больше стольких выгрузок в минуту с одного адреса. Счётчик в памяти, а
-#: не в базе (app/throttle): выгрузка — не про безопасность, и переживать
-#: перезапуск этому потолку незачем.
+#: No more than this many exports per minute from one address. The counter lives
+#: in memory rather than in the database (app/throttle): an export is not about
+#: security, and this ceiling has no reason to survive a restart.
 EXPORTS_PER_MINUTE = 10
 _MINUTE = 60.0
 
@@ -74,33 +76,34 @@ def export_limiter() -> SlidingWindow:
 
 
 def refuse(error: ExportError) -> HTTPException:
-    """Отказ домена → отказ HTTP той же логикой, что у мутаций: несуществующее
-    — 404, неисполнимое — 422."""
+    """A domain refusal becomes an HTTP refusal by the same logic as mutations:
+    a nonexistent thing is a 404, an unfeasible one is a 422."""
     if error.code == "export_label_missing":
-        # Дырка в словаре — не вина спрашивающего: это поломка установки.
+        # A hole in the dictionary is not the caller's fault: it is a broken installation.
         return HTTPException(status_code=500, detail=error.code)
     return HTTPException(status_code=422, detail=error.code)
 
 
 def _sections(raw: list[str] | None, *, client_copy: bool) -> frozenset[ExportSection]:
-    """Что положить в файл.
+    """What to put into the file.
 
-    Пустой список — не «всё», а отказ: молча отдать всё в ответ на «ничего не
-    выбрано» значило бы выдать клиенту разделы, которых он не просил.
+    An empty list is not "everything" but a refusal: silently returning
+    everything in answer to "nothing was selected" would mean handing the client
+    sections they did not ask for.
     """
     if not raw:
         raise ExportError("export_empty_selection", "не выбран ни один раздел")
     try:
         sections = frozenset(ExportSection(value) for value in raw)
     except ValueError as error:
-        # Публичные адреса разбирают строку запроса руками, и незнакомый
-        # раздел доходит сюда живым значением. Для участника то же самое
-        # отсекает схема FastAPI — но полагаться на неё одну нельзя: у отказа
-        # должен быть один код на оба входа.
+        # The public addresses parse the query string by hand, and an unknown
+        # section arrives here as a live value. For a member the same thing is cut
+        # off by the FastAPI schema — but relying on that alone will not do: a
+        # refusal must have one code for both entrances.
         raise ExportError("validation_error", f"неизвестный раздел: {error}") from error
     if client_copy:
-        # Внутренние разделы не отказ, а вычет: клиент, попросивший историю
-        # правок, получит файл без неё, а не пустой ответ.
+        # Internal sections are not a refusal but a deduction: a client who asked
+        # for the edit history gets a file without it rather than an empty answer.
         sections -= INTERNAL_SECTIONS
     if not sections:
         raise ExportError("export_empty_selection", "все выбранные разделы недоступны")
@@ -108,8 +111,9 @@ def _sections(raw: list[str] | None, *, client_copy: bool) -> frozenset[ExportSe
 
 
 def _today(project: Project, org: Organization) -> date:
-    """Сегодня по таймзоне проекта, а не сервера: просрочка считается от даты,
-    и на границе суток она у заказчика и у сервера разная."""
+    """Today in the project's timezone, not the server's: being overdue is
+    counted from a date, and at the day boundary it differs between the orderer
+    and the server."""
     try:
         tz = ZoneInfo(resolve_timezone(project, org))
     except (KeyError, ValueError):
@@ -118,13 +122,14 @@ def _today(project: Project, org: Organization) -> date:
 
 
 def _locale(request: Request, asked: str | None, profile: str | None) -> str:
-    """Язык документа.
+    """The document's language.
 
-    Порядок: явно попрошенный в адресе (окно шлёт язык интерфейса, на котором
-    человек сейчас смотрит на проект) → язык профиля → `Accept-Language` →
-    язык установки. Профиль важнее заголовка по тому же правилу, что и везде
-    в продукте: заголовок решает только при первом появлении человека
-    (см. app/locales.py), дальше — только то, что он выбрал сам.
+    The order: explicitly asked for in the address (the dialog sends the
+    interface language the person is currently looking at the project in) -> the
+    profile's language -> `Accept-Language` -> the installation's language. The
+    profile outranks the header by the same rule as everywhere else in the
+    product: the header decides only on a person's first appearance (see
+    app/locales.py), and after that only what they chose themselves.
     """
     supported = get_settings().locales
     for candidate in (asked, profile):
@@ -134,9 +139,9 @@ def _locale(request: Request, asked: str | None, profile: str | None) -> str:
 
 
 def _disposition(stem: str, extension: str) -> str:
-    """Имя файла в заголовке — дважды: ASCII-заглушка для старых клиентов и
-    RFC 5987 для настоящего имени. Имя проекта бывает кириллицей, а голый
-    `filename=` её не переживает."""
+    """The file name in the header — twice: an ASCII placeholder for old clients
+    and RFC 5987 for the real name. A project name is sometimes in Cyrillic, and
+    a bare `filename=` does not survive it."""
     name = f"{stem}.{extension}"
     fallback = name.encode("ascii", "replace").decode("ascii").replace("?", "_")
     return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(name)}"
@@ -158,11 +163,11 @@ def build(
     show_people: bool,
     client_copy: bool,
 ) -> ExportDocument:
-    """Общее тело обоих форматов и обоих входов — участника и гостя по ссылке.
+    """The shared body of both formats and both entrances — a member and a guest with a link.
 
-    Живёт здесь, а не в каждом маршруте: четыре маршрута с копией этой сборки
-    разошлись бы первой же правкой, и разошлись бы именно в том, что видно
-    клиенту.
+    It lives here rather than in every route: four routes with a copy of this
+    assembly would drift apart on the first edit, and would drift apart in
+    exactly what the client sees.
     """
     if not export_limiter().allow(client_key(request)):
         raise HTTPException(status_code=429, detail="rate_limited")
@@ -199,34 +204,36 @@ def as_response(document: ExportDocument, fmt: str) -> Response:
         media_type=PDF_MIME if fmt == "pdf" else XLSX_MIME,
         headers={
             "Content-Disposition": _disposition(document.file_stem(), fmt),
-            # Файл собран под конкретного спрашивающего и его права — общий
-            # кэш посередине отдал бы внутренние заметки клиенту.
+            # The file is assembled for a specific caller and their permissions —
+            # a shared cache in between would hand internal notes to a client.
             "Cache-Control": "private, no-store",
         },
     )
 
 
-#: Описание ответа для снимка OpenAPI: без него FastAPI объявил бы, что
-#: маршрут отдаёт JSON, и генератор типов на фронте поверил бы ему. Открыто
-#: наружу — тем же описанием пользуются публичные адреса (public_routes).
+#: The response description for the OpenAPI snapshot: without it FastAPI would
+#: declare that the route returns JSON, and the type generator on the frontend
+#: would believe it. Exposed outward — the public addresses (public_routes) use
+#: the same description.
 FILE_RESPONSES = {
     "xlsx": {200: {"content": {XLSX_MIME: {"schema": {"type": "string", "format": "binary"}}}}},
     "pdf": {200: {"content": {PDF_MIME: {"schema": {"type": "string", "format": "binary"}}}}},
 }
 
 
-@router.get("/{project_id}/export/facts", summary="Что в проекте есть для выгрузки")
+@router.get("/{project_id}/export/facts", summary="What the project holds for export")
 def export_facts(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ) -> dict:
-    """Чем наполнены разделы — чтобы окно не предлагало пустых.
+    """What the sections contain — so that the dialog does not offer empty ones.
 
-    Отдельный маршрут, а не поля в состоянии проекта: эти числа нужны раз в
-    жизни экрана, при открытии окна, а состояние проекта читается на каждый
-    кадр ленты. Заодно отсюда приходят границы плана и «сегодня» по таймзоне
-    проекта — те самые, от которых сервер считает страницы, так что число на
-    кнопке масштаба не может разойтись с числом в файле.
+    A separate route rather than fields in the project's state: these numbers are
+    needed once in a screen's lifetime, when the dialog opens, while the
+    project's state is read for every frame of the chart. The plan's bounds and
+    "today" in the project's timezone come from here too — the very ones the
+    server counts pages from, so the number on the scale button cannot diverge
+    from the number in the file.
     """
     context.require(Action.PROJECT_EXPORT)
     internal = context.can(Action.READ_INTERNAL_NOTE)
@@ -246,9 +253,9 @@ def facts(
     ).one()
     today = _today(project, org)
     start, last_start = bounds
-    # Конец плана — по последней задаче; точная дата окончания считается
-    # календарём, но для оценки числа страниц хватает старта: разница в
-    # несколько дней не переводит масштаб через границу.
+    # The plan's end comes from the last task; the exact finish date is computed
+    # by the calendar, but the start is enough to estimate the number of pages: a
+    # difference of a few days does not push the scale across a boundary.
     end = max(last_start, start) if start else today
 
     comments = count(
@@ -286,7 +293,7 @@ def facts(
 
 
 def _export(fmt: str):
-    """Один обработчик на оба формата: они различаются ровно рисовальщиком."""
+    """One handler for both formats: they differ in exactly the renderer."""
 
     def handler(
         request: Request,
@@ -299,8 +306,8 @@ def _export(fmt: str):
         db: DbSession = Depends(get_db),
     ) -> Response:
         context.require(Action.PROJECT_EXPORT)
-        # Клиентский экземпляр — не отдельная ветка сборки, а те же два флага,
-        # что уже решают состав публичной страницы.
+        # The client copy is not a separate assembly branch but the same two
+        # flags that already decide the contents of the public page.
         show_notes = context.can(Action.READ_INTERNAL_NOTE)
         client_copy = not show_notes
         try:
@@ -331,7 +338,7 @@ router.add_api_route(
     "/{project_id}/export.xlsx",
     _export("xlsx"),
     methods=["GET"],
-    summary="Выгрузить проект книгой Excel",
+    summary="Export the project as an Excel workbook",
     responses=FILE_RESPONSES["xlsx"],
     response_class=Response,
 )
@@ -339,7 +346,7 @@ router.add_api_route(
     "/{project_id}/export.pdf",
     _export("pdf"),
     methods=["GET"],
-    summary="Выгрузить проект документом PDF",
+    summary="Export the project as a PDF document",
     responses=FILE_RESPONSES["pdf"],
     response_class=Response,
 )
@@ -347,7 +354,7 @@ router.add_api_route(
 
 @router.get(
     "/{project_id}/proposal/export.pdf",
-    summary="Скачать коммерческое предложение документом для клиента",
+    summary="Download the commercial proposal as a document for the client",
     responses=FILE_RESPONSES["pdf"],
     response_class=Response,
 )
@@ -357,13 +364,14 @@ def export_proposal_pdf(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
 ) -> Response:
-    """Предложение целиком одним файлом — тем, что уйдёт клиенту.
+    """The whole proposal as one file — the one that will go to the client.
 
-    Не раздел общей выгрузки, а свой документ: у него другой читатель и другой
-    состав (см. app/export/proposal_pdf.py). Два права: читать предложение —
-    у клиента и гостя его нет, им обещаны сроки, а не ставки; и выносить
-    файлом — тот же рычаг, что у выгрузки проекта. Счётчик выгрузок общий:
-    для сервера это такая же сборка PDF.
+    Not a section of the general export but a document of its own: it has a
+    different reader and different contents (see app/export/proposal_pdf.py). Two
+    permissions: reading the proposal — which a client and a guest do not have,
+    since they were promised deadlines, not rates; and carrying it out as a file
+    — the same lever as the project export. The export counter is shared: for the
+    server this is the same kind of PDF assembly.
     """
     context.require(Action.PROPOSAL_READ)
     context.require(Action.PROJECT_EXPORT)
@@ -375,8 +383,8 @@ def export_proposal_pdf(
             context.project,
             context.org,
             locale=_locale(request, locale, context.user.locale),
-            # Дата документа — сегодня по таймзоне проекта: собственной даты
-            # отправки у предложения нет.
+            # The document's date is today in the project's timezone: a proposal
+            # has no send date of its own.
             issued=_today(context.project, context.org),
         )
     except ExportError as error:

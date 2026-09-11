@@ -1,12 +1,12 @@
 <!doctype html>
-<!-- Эталон вкладки «История» проекта.
+<!-- The reference for a project's "History" tab.
 
-     Оболочка — колонка, шапка и токены — взята из northstar-gantt-mockup.html
-     как есть, чтобы обе вкладки смотрелись рядом без расхождений; гантовская
-     часть стилей едет с ней и здесь не используется. Оформление самой ленты —
-     копия боевого frontend/src/project/history.css: мокап показывает то, что
-     собрано, а не то, что когда-то задумывалось. -->
-<html lang="ru">
+     The shell — the column, the header and the tokens — is taken from
+     northstar-gantt-mockup.html as is, so that both tabs look consistent side by
+     side; the Gantt part of the styles travels with it and is not used here. The
+     feed's own styling is a copy of the production frontend/src/project/history.css:
+     the mockup shows what was built rather than what was once intended. -->
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -265,7 +265,7 @@
   </style>
 
   <style>
-    /* Мост токенов: имена темы приложения поверх токенов мокапа. */
+    /* A token bridge: the application theme's names on top of the mockup's tokens. */
     :root {
       --text:#172033; --text-muted:#667085; --text-faint:#98a2b3;
       --bg-subtle:#fbfcfe; --surface:#ffffff;
@@ -281,7 +281,7 @@
     }
     body { overflow:auto; }
     .main { height:100vh; display:flex; flex-direction:column; }
-    /* Вкладки — как в приложении: линия, активная — акцентом. */
+    /* The tabs are as in the application: a rule, the active one in the accent colour. */
     .tabs { display:flex; gap:4px; padding:0 28px; background:#fff; border-bottom:1px solid var(--border); }
     .tabs a { padding:10px 10px 12px; font-size:13px; font-weight:620; color:var(--text-muted); text-decoration:none; border-bottom:2px solid transparent; margin-bottom:-1px; }
     .tabs a.is-current { color:var(--accent); border-bottom-color:var(--accent); }
@@ -295,16 +295,17 @@
     .feed__toggle { height:auto; box-shadow:none; background:none; border:0; padding:0; cursor:pointer; }
   </style>
   <style>
-/* Лента истории проекта — вкладка «История».
+/* The project's history feed — the "History" tab.
 
-   Рисунок — вертикальный таймлайн: узел дня слева, от него вниз спица, справа
-   от спицы — карточки событий. Карточка, а не строка: у записи три разнородных
-   части — значок рода события, фраза с подписью и время с кнопкой, — и без
-   собственной рамки их колонки не за что выровнять.
+   The drawing is a vertical timeline: the day's node on the left, a spoke running
+   down from it, and to the right of the spoke the event cards. A card rather than a
+   row: an entry has three heterogeneous parts — the event-kind icon, the phrase with
+   its caption, and the time with a button — and without a frame of its own there is
+   nothing to align their columns by.
 
-   Одна колонка ограниченной ширины: ленту читают, а не сканируют, и строка на
-   всю ширину диаграммного экрана заставляла бы глаз прыгать от фразы к времени
-   через пол-экрана пустоты. */
+   One column of limited width: a feed is read rather than scanned, and a row across
+   the whole width of the chart screen would make the eye jump from the phrase to the
+   time across half a screen of emptiness. */
 
 .feed {
   max-width: 760px;
@@ -326,12 +327,12 @@
   color: var(--text-muted);
 }
 
-/* --- день --- */
+/* --- a day --- */
 
-/* Отступ слева — под узел дня: карточки начинаются правее спицы. Спица —
-   псевдоэлементом от узла вниз; отрицательный низ дотягивает её через
-   межсекционный просвет до узла следующего дня, чтобы таймлайн читался одной
-   нитью, а не пунктиром по числу дней. */
+/* The left indent makes room for the day's node: the cards start to the right of the
+   spoke. The spoke is a pseudo-element running down from the node; a negative bottom
+   stretches it across the gap between sections to the next day's node, so that the
+   timeline reads as a single thread rather than a dotted line by the number of days. */
 .feed__day {
   position: relative;
   margin-bottom: 26px;
@@ -348,7 +349,7 @@
   background: var(--border-strong);
 }
 
-/* У последнего дня спице некуда вести. */
+/* On the last day the spoke has nowhere to lead. */
 .feed__day:last-of-type::before {
   display: none;
 }
@@ -357,7 +358,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  /* Узел выезжает влево, на линию спицы: заголовок дня стоит в её колонке. */
+  /* The node moves out to the left, onto the spoke's line: the day's heading stands in its column. */
   margin: 0 0 12px -48px;
 }
 
@@ -375,8 +376,8 @@
   font-weight: 700;
 }
 
-/* Сегодняшний узел — акцентом: «вы здесь» на нити времени, тем же цветом,
-   каким приложение говорит это во всех остальных местах. */
+/* Today's node is in the accent colour: "you are here" on the thread of time, in the
+   same colour the application says that with everywhere else. */
 .feed__day--today .feed__day-dot {
   border-color: transparent;
   background: var(--accent-soft);
@@ -389,7 +390,7 @@
   font-weight: 700;
 }
 
-/* --- карточка события --- */
+/* --- an event card --- */
 
 .feed__list {
   list-style: none;
@@ -422,9 +423,9 @@
   align-self: center;
 }
 
-/* Значок — квадратная плитка с глифом шрифта, тон парой «мягкий фон + густой
-   знак». Тёмные оттенки знака — те же, что у плашек статуса и состояния плана:
-   светлые --ok и --warn на своих подложках не набирают контраста текста. */
+/* The icon is a square tile with a font glyph, toned as a "soft background + dense
+   mark" pair. The mark's dark shades are the same as the status and plan-state chips':
+   the light --ok and --warn do not reach text contrast on their own backgrounds. */
 .feed__icon {
   display: grid;
   place-items: center;
@@ -464,10 +465,10 @@
   color: var(--text-muted);
 }
 
-/* Правая колонка: время у верхнего края карточки, под ним — кнопка отмены,
-   когда она есть. Кнопка видна всегда, а не по наведению, как в макете: она
-   стоит у единственной записи, которую сервер согласен отменить, и прятать
-   один-единственный орган управления ленты — терять его вовсе. */
+/* The right column: the time at the card's top edge and under it the undo button,
+   when there is one. The button is always visible rather than on hover as in the
+   mockup: it stands by the only entry the server agrees to undo, and hiding the feed's
+   one and only control means losing it entirely. */
 .feed__tools {
   display: flex;
   flex-direction: column;
@@ -488,13 +489,13 @@
   font-size: 12px;
 }
 
-/* Причина — текст человека: выделяется курсивом, а не кавычками интерфейса. */
+/* The reason is a person's text: set in italics rather than in the interface's quotation marks. */
 .feed__reason {
   font-style: italic;
 }
 
-/* Отменённая запись гаснет, но остаётся читаемой: история не переписывается,
-   и «что пытались сделать» — тоже её часть. */
+/* An undone entry goes dim but stays readable: the history is not rewritten, and
+   "what was attempted" is part of it too. */
 .feed__item--undone .feed__line {
   text-decoration: line-through;
   color: var(--text-muted);
@@ -516,7 +517,7 @@
   color: var(--text-muted);
 }
 
-/* --- пачка --- */
+/* --- a batch --- */
 
 .feed__toggle {
   border: none;
@@ -528,9 +529,10 @@
   cursor: pointer;
 }
 
-/* Вложенный список раскрытой пачки: сдвиг вместо рамки — записи те же,
-   просто их скобка видна по отступу. Своих плиток у них нет: род каждой
-   мелкой записи внутри пачки не стоит тридцати повторов значка. */
+/* The nested list of an unfolded batch: an indent instead of a frame — the entries are
+   the same, their bracket is simply visible through the indent. They have no tiles of
+   their own: the kind of every small entry inside a batch is not worth thirty repeats of
+   an icon. */
 .feed__list--nested {
   margin-top: 10px;
   padding-left: 14px;
@@ -542,10 +544,11 @@
   margin-top: 2px;
 }
 
-/* --- веха --- */
+/* --- a milestone --- */
 
-/* Веха — флажок поперёк ленты, не запись: зелёная целиком, без кнопок.
-   Кайма — тоном плашки согласованного плана: это одно и то же событие. */
+/* A milestone is a flag across the feed rather than an entry: green throughout, with no
+   buttons. The border takes the approved plan chip's tone: this is one and the same
+   event. */
 .feed__milestone {
   border-color: #bde5ce;
   background: var(--ok-soft);
@@ -556,7 +559,7 @@
   font-weight: 650;
 }
 
-/* --- край ленты --- */
+/* --- the feed's edge --- */
 
 .feed__empty {
   padding: 36px 24px;
@@ -566,19 +569,19 @@
   text-align: center;
 }
 
-/* «Показать ещё» встаёт в колонну карточек, а не под узлы дней. */
+/* "Show more" stands in the cards' column rather than under the day nodes. */
 .feed__more {
   margin: 14px 0 0 48px;
 }
 
-/* --- теснота --- */
+/* --- tight quarters --- */
 
 @media (max-width: 760px) {
   .feed__day { padding-left: 26px; }
   .feed__day::before { left: 8px; }
   .feed__day-head { margin-left: -26px; }
 
-  /* Узел сжимается до точки: номер дня уже есть в заголовке рядом. */
+  /* The node shrinks to a dot: the day's number is already in the heading next to it. */
   .feed__day-dot {
     width: 17px;
     height: 17px;
@@ -586,14 +589,14 @@
     font-size: 0;
   }
 
-  /* Без номера мягкая заливка «сегодня» сливается со страницей: точке нужен
-     сплошной акцент, чтобы остаться отметкой «вы здесь». */
+  /* Without a number the soft "today" fill merges with the page: a dot needs a solid
+     accent to stay a "you are here" marker. */
   .feed__day--today .feed__day-dot {
     background: var(--accent);
   }
 
-  /* Правой колонке не хватает ширины: время и отмена уходят под фразу,
-     время — к правому краю своей строки. */
+  /* The right column runs out of width: the time and the undo move under the phrase, and
+     the time goes to the right edge of its own line. */
   .feed__card { grid-template-columns: 30px minmax(0, 1fr); }
   .feed__icon { width: 30px; height: 30px; border-radius: 9px; font-size: 14px; }
 
@@ -616,7 +619,7 @@
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar" aria-label="Главная навигация">
+    <aside class="sidebar" aria-label="Main navigation">
       <div class="brand">
         <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M5 17V9m7 8V5m7 12v-5" stroke="white" stroke-width="2.4" stroke-linecap="round"/><path d="M3 20h18" stroke="white" stroke-width="2" stroke-linecap="round" opacity=".7"/></svg></div><span>Northstar</span>
       </div>
@@ -638,11 +641,11 @@
 
     <main class="main">
       <div class="topbar">
-        <button class="icon-btn" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+        <button class="icon-btn" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
         <div class="crumbs"><span>Projects</span><span>/</span><strong>Website redesign</strong></div>
         <div class="topbar-spacer"></div>
-        <button class="icon-btn" aria-label="Поиск"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
-        <button class="icon-btn" aria-label="Уведомления"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8"/><path d="M10 21h4"/></svg></button>
+        <button class="icon-btn" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+        <button class="icon-btn" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8"/><path d="M10 21h4"/></svg></button>
       </div>
 
       <header class="project-head">
@@ -656,7 +659,7 @@
             <div id="projectStatus" class="status-badge"><span class="status-dot"></span><span>Draft</span></div>
             <button id="approveBtn" class="btn primary">✓ Approve plan</button>
             <button class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg> Share</button>
-            <div class="menu-wrap"><button id="moreBtn" class="btn" aria-label="Ещё">•••</button><div id="moreMenu" class="popover"><button>Project settings</button><button>Duplicate project</button><button>Export as PDF</button><hr><button>Archive</button><button class="danger">Delete project</button></div></div>
+            <div class="menu-wrap"><button id="moreBtn" class="btn" aria-label="More">•••</button><div id="moreMenu" class="popover"><button>Project settings</button><button>Duplicate project</button><button>Export as PDF</button><hr><button>Archive</button><button class="danger">Delete project</button></div></div>
           </div>
         </div>
         <div class="metrics" aria-label="Project summary">
@@ -669,46 +672,46 @@
       </header>
 
       
-      <nav class="tabs" aria-label="Разделы проекта">
-        <a href="#">Диаграмма</a>
-        <a class="is-current" href="#" aria-current="page">История</a>
+      <nav class="tabs" aria-label="Project sections">
+        <a href="#">Timeline</a>
+        <a class="is-current" href="#" aria-current="page">History</a>
       </nav>
       <div class="history-wrap">
-      <section class="feed" aria-label="История">
+      <section class="feed" aria-label="History">
         <div class="feed__filters">
-          <label class="feed__filter">Автор<select><option>Все</option></select></label>
-          <label class="feed__filter">Задача<select><option>Все</option></select></label>
-          <label class="feed__filter">Тип изменения<select><option>Все</option></select></label>
+          <label class="feed__filter">Author<select><option>All</option></select></label>
+          <label class="feed__filter">Task<select><option>All</option></select></label>
+          <label class="feed__filter">Change type<select><option>All</option></select></label>
         </div>
 
         <section class="feed__day feed__day--today">
           <header class="feed__day-head">
             <span class="feed__day-dot" aria-hidden="true">14</span>
-            <h3 class="feed__day-title">Сегодня · 14 августа</h3>
+            <h3 class="feed__day-title">Today · 14 August</h3>
           </header>
           <ol class="feed__list">
             <li class="feed__card feed__item">
               <span class="feed__icon feed__icon--accent" aria-hidden="true">↔</span>
               <div class="feed__main">
-                <p class="feed__line"><span class="feed__actor">Мария Ким </span>перенёс старт с 18 авг на 20 авг<span class="feed__subject"> · Запуск главной страницы</span></p>
-                <p class="feed__meta"><span class="feed__reason">клиент попросил сдвинуть под релиз</span></p>
+                <p class="feed__line"><span class="feed__actor">Maria Kim </span>moved the start from 18 Aug to 20 Aug<span class="feed__subject"> · Homepage launch</span></p>
+                <p class="feed__meta"><span class="feed__reason">the client asked to move it for the release</span></p>
               </div>
               <div class="feed__tools">
                 <span class="feed__time">10:42</span>
-                <button type="button" class="button--quiet feed__undo">Отменить</button>
+                <button type="button" class="button--quiet feed__undo">Undo</button>
               </div>
             </li>
             <li class="feed__card feed__item">
               <span class="feed__icon feed__icon--ok" aria-hidden="true">✓</span>
               <div class="feed__main">
-                <p class="feed__line"><span class="feed__actor">Алексей Морган </span>изменил статус с «В работе» на «Готово»<span class="feed__subject"> · Дизайн-система</span></p>
+                <p class="feed__line"><span class="feed__actor">Alexey Morgan </span>changed the status from "In progress" to "Done"<span class="feed__subject"> · Design system</span></p>
               </div>
               <div class="feed__tools"><span class="feed__time">09:18</span></div>
             </li>
             <li class="feed__card feed__item">
               <span class="feed__icon feed__icon--ok" aria-hidden="true">＋</span>
               <div class="feed__main">
-                <p class="feed__line"><span class="feed__actor">Ной Уилсон </span>назначил исполнителя: Сэм Ли<span class="feed__subject"> · Пользовательское тестирование</span></p>
+                <p class="feed__line"><span class="feed__actor">Noah Wilson </span>assigned an owner: Sam Lee<span class="feed__subject"> · User testing</span></p>
               </div>
               <div class="feed__tools"><span class="feed__time">08:51</span></div>
             </li>
@@ -718,29 +721,29 @@
         <section class="feed__day">
           <header class="feed__day-head">
             <span class="feed__day-dot" aria-hidden="true">13</span>
-            <h3 class="feed__day-title">Вчера · 13 августа</h3>
+            <h3 class="feed__day-title">Yesterday · 13 August</h3>
           </header>
           <ol class="feed__list">
             <li class="feed__card feed__batch">
               <span class="feed__icon feed__icon--accent" aria-hidden="true">✦</span>
               <div class="feed__main">
-                <p class="feed__line"><span class="feed__actor">AI </span>пачка изменений · 12</p>
-                <p class="feed__meta"><button type="button" class="feed__toggle">развернуть</button></p>
+                <p class="feed__line"><span class="feed__actor">AI </span>batch of changes · 12</p>
+                <p class="feed__meta"><button type="button" class="feed__toggle">unfold</button></p>
               </div>
               <div class="feed__tools"><span class="feed__time">16:36</span></div>
             </li>
             <li class="feed__card feed__milestone">
               <span class="feed__icon feed__icon--ok" aria-hidden="true">⚑</span>
               <div class="feed__main">
-                <p class="feed__line">План согласован · v2<span class="feed__subject"> · Алексей Морган</span></p>
+                <p class="feed__line">Plan approved · v2<span class="feed__subject"> · Alexey Morgan</span></p>
               </div>
               <div class="feed__tools"><span class="feed__time">15:02</span></div>
             </li>
             <li class="feed__card feed__item feed__item--undone">
               <span class="feed__icon feed__icon--danger" aria-hidden="true">!</span>
               <div class="feed__main">
-                <p class="feed__line"><span class="feed__actor">Мария Ким </span>изменил критичность с «Обычная» на «Высокая»<span class="feed__subject"> · Оплата заказа</span></p>
-                <p class="feed__meta"><span class="feed__undone-mark">отменено · Алексей Морган</span></p>
+                <p class="feed__line"><span class="feed__actor">Maria Kim </span>changed the priority from "Normal" to "High"<span class="feed__subject"> · Order payment</span></p>
+                <p class="feed__meta"><span class="feed__undone-mark">undone · Alexey Morgan</span></p>
               </div>
               <div class="feed__tools"><span class="feed__time">14:07</span></div>
             </li>
@@ -750,27 +753,27 @@
         <section class="feed__day">
           <header class="feed__day-head">
             <span class="feed__day-dot" aria-hidden="true">11</span>
-            <h3 class="feed__day-title">11 августа</h3>
+            <h3 class="feed__day-title">11 August</h3>
           </header>
           <ol class="feed__list">
             <li class="feed__card feed__item">
               <span class="feed__icon feed__icon--warn" aria-hidden="true">✎</span>
               <div class="feed__main">
-                <p class="feed__line"><span class="feed__actor">Алексей Морган </span>изменил название, описание<span class="feed__subject"> · Настройка аналитики</span></p>
+                <p class="feed__line"><span class="feed__actor">Alexey Morgan </span>changed the name, the description<span class="feed__subject"> · Analytics setup</span></p>
               </div>
               <div class="feed__tools"><span class="feed__time">11:22</span></div>
             </li>
             <li class="feed__card feed__item">
               <span class="feed__icon feed__icon--accent" aria-hidden="true">→</span>
               <div class="feed__main">
-                <p class="feed__line"><span class="feed__actor">Ной Уилсон </span>добавил связь: Контент → Запуск главной страницы</p>
+                <p class="feed__line"><span class="feed__actor">Noah Wilson </span>added a link: Content → Homepage launch</p>
               </div>
               <div class="feed__tools"><span class="feed__time">09:45</span></div>
             </li>
           </ol>
         </section>
 
-        <button type="button" class="button--quiet feed__more">Показать ещё</button>
+        <button type="button" class="button--quiet feed__more">Show more</button>
       </section>
       </div>
 

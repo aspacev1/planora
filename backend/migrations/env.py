@@ -11,20 +11,21 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-# disable_existing_loggers=False: умолчание fileConfig глушит все уже
-# созданные логгеры приложения — миграция, выполненная на старте, оставляла
-# бы процесс наполовину немым (а тесты — зависимыми от порядка запуска).
+# disable_existing_loggers=False: fileConfig's default silences every logger the
+# application has already created — a migration run at start-up would leave the
+# process half mute (and the tests dependent on the order they run in).
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 from app.config import get_settings
 from app.db import Base
-from app import models  # noqa: F401  импорт ради регистрации таблиц
+from app import models  # noqa: F401  imported so that the tables register
 
-# Адрес базы можно переопределить, не трогая настройки приложения: тест
-# миграций гоняет upgrade/downgrade по одноразовой чистой базе, а не по той,
-# что в DATABASE_URL. Поддерживаются оба канала alembic: config.attributes —
-# для вызова из python (тесты), `-x db_url=…` — для командной строки.
+# The database URL can be overridden without touching the application's settings:
+# the migration test runs upgrade/downgrade against a disposable clean database
+# rather than the one in DATABASE_URL. Both alembic channels are supported:
+# config.attributes for a call from python (the tests), `-x db_url=...` for the
+# command line.
 _url_override = config.attributes.get("db_url") or context.get_x_argument(
     as_dictionary=True
 ).get("db_url")
@@ -75,18 +76,18 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        # Advisory-lock на всё время накатки: две реплики (или migrate,
-        # запущенный дважды) не должны исполнять одну миграцию параллельно —
-        # DDL вперемешку даёт неопределённое состояние схемы. Ключ —
-        # произвольная константа, одна на приложение; замок отпускается сам
-        # с закрытием соединения, в том числе при падении миграции.
+        # An advisory lock for the whole duration of the run: two replicas (or a
+        # migrate started twice) must not execute one migration in parallel — DDL
+        # interleaved gives an undefined state of the schema. The key is an
+        # arbitrary constant, one per application; the lock releases itself when
+        # the connection closes, including when a migration fails.
         from sqlalchemy import text
 
         connection.execute(text("SELECT pg_advisory_lock(573929041)"))
-        # Немедленный commit закрывает транзакцию, которую SQLAlchemy открыл
-        # под сам SELECT (autobegin): оставленная открытой, она поглотила бы
-        # DDL миграций и откатила его при закрытии соединения. Замок при этом
-        # не отпускается — pg_advisory_lock живёт сессией, а не транзакцией.
+        # An immediate commit closes the transaction SQLAlchemy opened for the
+        # SELECT itself (autobegin): left open, it would swallow the migrations'
+        # DDL and roll it back when the connection closed. The lock is not released
+        # by that — pg_advisory_lock lives with the session, not the transaction.
         connection.commit()
         context.configure(
             connection=connection, target_metadata=target_metadata

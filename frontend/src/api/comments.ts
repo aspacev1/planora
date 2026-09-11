@@ -2,11 +2,11 @@ import { request } from "./client";
 
 export type Comment = {
   id: string;
-  /** `null` — реплика к проекту целиком, а не к задаче. */
+  /** `null` — a reply to the whole project rather than to a task. */
   task_id: string | null;
   /**
-   * Подпись под репликой. Гость и участник подписаны одинаково — именем;
-   * различает их признак `guest`, а не форма записи.
+   * The signature under a reply. A guest and a member are signed the same way — by name; what tells
+   * them apart is the `guest` flag rather than the shape of the record.
    */
   author: { name: string; guest: boolean };
   body: string;
@@ -14,32 +14,31 @@ export type Comment = {
 };
 
 export function commentsQueryKey(projectId: string, taskId?: string) {
-  // Задача в конце ключа, а не отдельным ключом: лента задачи — это та же
-  // лента проекта, отфильтрованная сервером, и обновление одной обязано
-  // задевать другую.
+  // The task is at the end of the key rather than a key of its own: a task's feed is the same project
+  // feed filtered by the server, and refreshing one must touch the other.
   return taskId === undefined
     ? (["project", projectId, "comments"] as const)
     : (["project", projectId, "comments", taskId] as const);
 }
 
 /**
- * Ключ счётчика реплик — внутри ключа ленты, а не рядом с ним.
+ * The reply counter's key is inside the feed's key rather than next to it.
  *
- * Счётчик обязан обновляться ровно тогда же, когда сама лента: своей репликой
- * из карточки и чужой, приехавшей по сокету. Оба места уже сбрасывают ленту
- * проекта целиком, и вложенный ключ подхватывается тем же вызовом. Отдельный
- * пришлось бы сбрасывать вторым — и однажды его бы забыли.
+ * The counter must refresh at exactly the same time as the feed itself: with one's own reply from the
+ * card and with somebody else's arriving over the socket. Both places already invalidate the project's
+ * feed whole, and a nested key is picked up by the same call. A separate one would have to be
+ * invalidated second — and one day it would be forgotten.
  */
 export function commentCountsQueryKey(projectId: string) {
   return ["project", projectId, "comments", "counts"] as const;
 }
 
 /**
- * Сколько реплик у каждой задачи — число, которое лента показывает на строке.
+ * How many replies each task has — the number the strip shows on a row.
  *
- * Отдельным запросом, а не подсчётом по ленте: лента отдаётся хвостом в сотню
- * реплик, и счёт по ней врал бы ровно там, где переписки много. Задачи без
- * реплик в ответе отсутствуют: ноль — это отсутствие ключа.
+ * As a separate request rather than a count over the feed: the feed is served as a tail of a hundred
+ * replies, and counting over it would lie exactly where there is a lot of conversation. Tasks with no
+ * replies are absent from the response: zero is the absence of a key.
  */
 export function commentCounts(projectId: string): Promise<Record<string, number>> {
   return request<Record<string, number>>(`/api/projects/${projectId}/comments/counts`);

@@ -1,17 +1,15 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
 /**
- * Нативный tooltip с полным текстом — но только когда текст обрезан
- * многоточием.
+ * A native tooltip with the full text — but only when the text is truncated with an ellipsis.
  *
- * Не обрезанный текст своего тултипа не получает: подсказка, повторяющая то,
- * что и так дочитано глазами, — лишний слой между курсором и ответом.
+ * Text that is not truncated gets no tooltip of its own: a hint repeating what has already been read by
+ * eye is an extra layer between the cursor and the answer.
  *
- * @param text текст, который может быть обрезан
- * @param watch что ещё, кроме текста, меняет доступную ширину и потому обязано
- *   перезапускать проверку — у ленты это ширина колонки названия: её тянут за
- *   границу, и имя, влезавшее секунду назад, может обрезаться без единой
- *   правки самого текста.
+ * @param text the text that may be truncated
+ * @param watch what else besides the text changes the available width and therefore must restart the
+ *   check — on the strip that is the name column's width: it is dragged by its boundary, and a name
+ *   that fitted a second ago can become truncated without a single edit of the text itself.
  */
 export function useTruncatedTitle<T extends HTMLElement>(text: string, watch?: unknown) {
   const ref = useRef<T>(null);
@@ -19,8 +17,8 @@ export function useTruncatedTitle<T extends HTMLElement>(text: string, watch?: u
 
   useLayoutEffect(() => {
     const el = ref.current;
-    // Запас в один пиксель — округление ширины при дробном масштабе экрана
-    // иначе засчитывало бы точно влезающее имя как обрезанное.
+    // A one-pixel margin — rounding the width at a fractional screen scale would otherwise count a name
+    // that fits exactly as truncated.
     setTruncated(el !== null && el.scrollWidth > el.clientWidth + 1);
   }, [text, watch]);
 

@@ -9,18 +9,16 @@ function isZoom(value: string | null): value is Zoom {
 }
 
 /**
- * Последний выбранный масштаб ленты для этого проекта.
+ * The strip's last chosen scale for this project.
  *
- * Масштаб живёт в браузере, привязанным к проекту, а не в одном общем ключе:
- * человек листает несколько проектов подряд, и годовой портфель с недельным
- * масштабом не должен подменять собой дневной масштаб спринта. Переключение
- * вкладки «История» и обратно, уход на другой экран и возврат — всё это
- * размонтирует ленту, и без памяти здесь она открывалась бы заново на
- * «дне», как будто выбора и не было.
+ * The scale lives in the browser tied to the project rather than under one shared key: a person flips
+ * through several projects in a row, and a yearly portfolio at a weekly scale must not stand in for a
+ * sprint's daily scale. Switching to the "History" tab and back, leaving for another screen and
+ * returning — all of that unmounts the strip, and without memory here it would open at "day" again, as
+ * if there had been no choice.
  *
- * Приватный режим браузера умеет запрещать localStorage — тогда масштаб
- * просто не переживёт переход между экранами. Это не повод падать (см.
- * LocaleProvider и guestName.ts, тот же приём).
+ * A browser's private mode can forbid localStorage — the scale then simply does not survive a move
+ * between screens. That is no reason to crash (see LocaleProvider and guestName.ts, the same device).
  */
 export function storedZoom(projectId: string): Zoom | null {
   try {
@@ -35,6 +33,6 @@ export function rememberZoom(projectId: string, zoom: Zoom): void {
   try {
     localStorage.setItem(STORAGE_PREFIX + projectId, zoom);
   } catch {
-    // см. storedZoom()
+    // see storedZoom()
   }
 }

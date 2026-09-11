@@ -1,18 +1,19 @@
 """invitations, project access, active organization on the session
 
-Приглашения: одноразовый токен лежит хешем (как пароль и как сессия), поэтому
-уникальность по token_hash, а не по адресу — на один адрес в организации может
-смениться сколько угодно ссылок, и старые остаются в таблице как журнал того,
-кто кого звал. Индекс по org_id: список приглашений спрашивают экраном
-участников, то есть всегда по организации.
+Invitations: the single-use token lies as a hash (like a password and like a
+session), hence the uniqueness on token_hash rather than on the address — one
+address in an organization may go through any number of links, and the old ones
+stay in the table as the record of who invited whom. An index on org_id: the list
+of invitations is asked for by the members screen, that is, always by organization.
 
-project_access — поимённый доступ к проекту для роли client. Индексы с обеих
-сторон: по user_id собирается список проектов такого человека, по project_id
-проверяется право на конкретный проект.
+project_access — individually granted access to a project for the client role.
+Indexes on both sides: user_id assembles such a person's project list, project_id
+checks the right to a particular project.
 
-sessions.active_org_id — организация, выбранная переключателем. Живёт на
-сессии, а не на пользователе: с одной вкладки смотрят свою компанию, с другой
-— чужую. SET NULL, чтобы удалённая организация не уносила с собой сессию.
+sessions.active_org_id — the organization chosen by the switcher. It lives on the
+session rather than on the user: one tab looks at one's own company while another
+looks at someone else's. SET NULL, so that a deleted organization does not carry
+the session away with it.
 
 Revision ID: 822f5eb3ea88
 Revises: 3b3648273b7a

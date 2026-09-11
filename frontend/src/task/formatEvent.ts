@@ -4,17 +4,17 @@ import { translate } from "../i18n";
 import type { Locale, Params } from "../i18n";
 
 /**
- * Запись журнала → фраза на языке читателя.
+ * A journal entry → a phrase in the reader's language.
  *
- * Здесь окупается решение хранить событие параметрами, а не готовым текстом:
- * один и тот же перенос читается на трёх языках, и язык выбирает тот, кто
- * смотрит, — а не тот, кто когда-то нажал кнопку.
+ * This is where the decision to store an event as parameters rather than as ready text pays
+ * off: one and the same move is read in three languages, and the language is chosen by
+ * whoever is looking — not by whoever once pressed a button.
  *
- * Причина сдвига через эту функцию не проходит вовсе: это текст пользователя,
- * и переводить его нечем и не нужно. Её показывает лента, как есть.
+ * A shift's reason does not go through this function at all: it is the user's text, and
+ * there is nothing to translate it with and no need. The feed shows it as is.
  */
 
-/** Поля, которые карточка сохраняет одной операцией. Порядок — как в карточке. */
+/** The fields the card saves in one operation. The order is the card's. */
 const TEXT_FIELDS = ["name", "description", "internal_note"] as const;
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -25,15 +25,15 @@ export function formatEvent(
   op: Record<string, unknown>,
   locale: Locale,
   /**
-   * Имена сущностей по идентификатору — как их отдаёт журнал. Позволяют
-   * назвать исполнителя и концы связи; без словаря фраза остаётся безымянной,
-   * как и была, — запись старого формата не ломает ленту.
+   * Entity names by id — as the journal hands them out. They make it possible to name an
+   * assignee and the ends of a link; without the dictionary the phrase stays nameless, as it
+   * was — an entry in the old format does not break the feed.
    */
   names: Record<string, string> = {},
   /**
-   * Читать ли даты как дни относительной оси. Журнал хранит координаты, и у
-   * относительного проекта «переносом с 3 января» была бы выдача внутренней
-   * системы координат за настоящую дату.
+   * Whether to read the dates as days of the relative axis. The journal stores coordinates,
+   * and for a relative project "moved from 3 January" would be passing off an internal
+   * coordinate system as a real date.
    */
   relative = false,
 ): string {
@@ -49,17 +49,17 @@ export function formatEvent(
       });
 
     case "set_duration":
-      // Через common.days, а не «{n} дней»: русский различает три формы, и
-      // «21 дней» в ленте истории читается как опечатка приложения.
+      // Through common.days rather than "{n} days": Russian distinguishes three forms, and
+      // "21 дней" in the history feed reads as a typo by the application.
       return say("set_duration", {
         from: t("common.days", { count: Number(op.from) }),
         to: t("common.days", { count: Number(op.to) }),
       });
 
     case "resize_task": {
-      // Левая грань меняет два поля одним движением, и фраза обязана назвать
-      // оба: «сдвинул начало» умолчало бы о том, что задача заодно стала
-      // длиннее, а «изменил длительность» — о том, что она сдвинулась.
+      // The left edge changes two fields in one motion, and the phrase must name both: "moved
+      // the start" would pass over the task becoming longer as well, and "changed the duration"
+      // would pass over it moving.
       const before = asRecord(op.from);
       const after = asRecord(op.to);
       return say("resize_task", {
@@ -71,8 +71,8 @@ export function formatEvent(
     }
 
     case "move_category":
-      // Знак сдвига решает, какую из двух фраз читать: «на 3 дня позже» и «на
-      // 3 дня раньше» — разные события, и минус перед числом их не различает.
+      // The shift's sign decides which of the two phrases to read: "3 days later" and "3 days
+      // earlier" are different events, and a minus before the number does not tell them apart.
       return say(Number(op.days) > 0 ? "move_category_late" : "move_category_early", {
         days: t("common.days", { count: Math.abs(Number(op.days)) }),
         count: Array.isArray(op.task_ids) ? op.task_ids.length : 0,
@@ -91,8 +91,8 @@ export function formatEvent(
       });
 
     case "set_risk": {
-      // Причина — текст человека, и во фразу она входит как есть: переводить
-      // её нечем, а фраза без неё умалчивала бы о главном.
+      // The reason is a person's text, and it enters the phrase as is: there is nothing to
+      // translate it with, and a phrase without it would pass over the main thing.
       const before = asRecord(op.from);
       const after = asRecord(op.to);
       const bounds = {
@@ -114,10 +114,10 @@ export function formatEvent(
     case "set_task_fields": {
       const before = asRecord(op.from);
       const after = asRecord(op.to);
-      // Только изменившиеся: операция несёт все три поля разом, и «изменил
-      // название, описание и заметку» после правки одного описания — неправда.
-      // Заметки может не быть ни в одной из границ: роль, которая её не видит,
-      // получает запись без неё, и упоминать её тогда нечем.
+      // Only the changed ones: the operation carries all three fields at once, and "changed the
+      // name, the description and the note" after editing one description is untrue. The note
+      // may be absent from both bounds: a role that does not see it gets an entry without it,
+      // and there is then nothing to mention it with.
       const changed = TEXT_FIELDS.filter(
         (field) => field in after && before[field] !== after[field],
       );
@@ -137,8 +137,8 @@ export function formatEvent(
       return say("reorder_category");
     case "assign_user":
     case "unassign_user": {
-      // Имя — содержимое, а не хрома: подставляется как есть. Безымянная
-      // форма остаётся для записей, чей исполнитель стёр аккаунт.
+      // The name is content, not chrome: it is substituted as is. The nameless form is left for
+      // entries whose assignee has erased their account.
       const name = names[String(op.user_id)];
       return name ? say(`${String(op.type)}_named`, { name }) : say(String(op.type));
     }
@@ -151,16 +151,16 @@ export function formatEvent(
         : say(String(op.type));
     }
     case "create_category": {
-      // Восстановленная отменой категория приходит со снимком своих задач:
-      // «создал категорию» о вернувшемся вместе с ней этапе умалчивало бы.
+      // A category restored by an undo arrives with a snapshot of its tasks: "created a category"
+      // would pass over the stage that came back with it.
       const restored = Array.isArray(op.tasks) ? op.tasks.length : 0;
       return restored === 0
         ? say("create_category")
         : say("create_category_with_tasks", { tasks: t("common.tasks", { count: restored }) });
     }
     case "delete_category": {
-      // Число задач кладёт в запись сервер: снимок восстановления, по
-      // которому их можно было бы сосчитать, виден не всякой роли.
+      // The number of tasks is put into the entry by the server: the restoration snapshot, which
+      // they could be counted from, is not visible to every role.
       const gone = typeof op.tasks === "number" ? op.tasks : 0;
       return gone === 0
         ? say("delete_category")
@@ -172,8 +172,8 @@ export function formatEvent(
       return say("set_category_color");
 
     default:
-      // Журнал переживёт версии приложения: запись, сделанную новой версией,
-      // старая вкладка обязана показать, а не уронить карточку целиком.
+      // The journal will outlive the application's versions: an entry made by a new version must
+      // be shown by an old tab rather than bringing the whole card down.
       return say("unknown");
   }
 }

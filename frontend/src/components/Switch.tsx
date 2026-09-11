@@ -1,13 +1,13 @@
 /**
- * Переключатель «включено/выключено».
+ * An on/off toggle.
  *
- * `role="switch"`, а не флажок: флажок отвечает на вопрос «отметить ли этот
- * пункт», а здесь состояние меняется сразу и без кнопки «сохранить» — это
- * рубильник, и объявлять его надо тем, что он есть.
+ * `role="switch"` rather than a checkbox: a checkbox answers the question "should this item be ticked",
+ * while here the state changes at once and with no "save" button — this is a switch, and it should be
+ * declared as what it is.
  *
- * Подпись связана с ручкой через `aria-labelledby`, а не повторена в
- * `aria-label`: копия подписи однажды разойдётся с видимым текстом, и с
- * экрана прочитается не то, что написано на экране.
+ * The caption is tied to the control through `aria-labelledby` rather than repeated in `aria-label`: a
+ * copy of the caption will one day diverge from the visible text, and what is read from the screen will
+ * not be what is written on it.
  */
 export function Switch({
   id,

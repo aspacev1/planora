@@ -1,4 +1,4 @@
-"""Комментарии участника с аккаунтом. Гостевые — в tests/test_public_api.py."""
+"""Comments from a member with an account. Guest ones are in tests/test_public_api.py."""
 
 import uuid
 
@@ -73,8 +73,8 @@ def test_the_thread_is_read_oldest_first(authed, project_id):
 
     listed = authed.get(f"/api/projects/{project_id}/comments").json()
 
-    # Разговор читается сверху вниз — в отличие от журнала ревизий, где
-    # нужна последняя запись.
+    # A conversation is read top to bottom — unlike the revision journal, where the
+    # latest entry is what is wanted.
     assert [c["body"] for c in listed] == ["первое", "второе", "третье"]
 
 
@@ -85,8 +85,8 @@ def test_a_client_invited_to_the_project_may_comment(authed, db, project_id):
     response = authed.post(f"/api/projects/{project_id}/comments", json={"body": "Принято"})
 
     assert response.status_code == 201
-    # Комментировать — да, менять план — нет: это ровно та строка матрицы,
-    # ради которой роль и существует.
+    # Commenting, yes; changing the plan, no: that is exactly the row of the matrix
+    # the role exists for.
     forbidden = authed.post(
         f"/api/projects/{project_id}/mutations",
         json={"op": {"type": "create_category", "name": "Свои задачи", "color": "#3b82f6"}},
@@ -182,7 +182,7 @@ def test_the_counter_holds_one_number_per_task(authed, project_id):
         authed.post(
             f"/api/projects/{project_id}/comments", json={"body": text, "task_id": task_id}
         )
-    # Реплика к проекту целиком ничьей строке не принадлежит и в счёт не идёт.
+    # A remark on the whole project belongs to no row and does not count.
     authed.post(f"/api/projects/{project_id}/comments", json={"body": "к проекту"})
 
     counts = authed.get(f"/api/projects/{project_id}/comments/counts").json()
@@ -193,8 +193,8 @@ def test_the_counter_holds_one_number_per_task(authed, project_id):
 def test_a_task_without_comments_is_absent_from_the_counter(authed, project_id):
     _task(authed, project_id, "Logo")
 
-    # Ноль — это отсутствие ключа: слать сотню нулей ради строк, где ничего не
-    # написано, незачем.
+    # Zero is the absence of a key: there is no reason to send a hundred zeros for
+    # rows where nothing has been written.
     assert authed.get(f"/api/projects/{project_id}/comments/counts").json() == {}
 
 
@@ -206,6 +206,6 @@ def test_the_counter_of_a_member_includes_the_internal_thread(authed, project_id
         json={"body": "в сторону", "task_id": task_id, "internal": True},
     )
 
-    # Участник видит внутренние реплики в самой ленте — значит, и число рядом
-    # с задачей обязано совпадать с тем, что он там найдёт.
+    # A member sees internal remarks in the feed itself — so the number next to a
+    # task must match what they will find there.
     assert authed.get(f"/api/projects/{project_id}/comments/counts").json() == {task_id: 1}

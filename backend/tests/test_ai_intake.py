@@ -1,9 +1,9 @@
-"""AI-интейк — пункт 10 раздела 13.
+"""The AI intake — item 10 of section 13.
 
-На записанных ответах модели, без сети: валидная схема применяется, битая
-отбивается и не роняет сессию. `RecordedProvider` — не заглушка «чтобы
-компилировалось», а полноправная реализация того же интерфейса, что и боевой
-провайдер.
+Against recorded model answers, with no network: a valid schema is applied, a broken
+one is rejected and does not bring the session down. `RecordedProvider` is not a stub
+"so it compiles" but a full implementation of the same interface as the production
+provider.
 """
 
 import uuid
@@ -89,7 +89,7 @@ def _interview(db, org, user, provider) -> AiSession:
     return intake.start(db, org=org, user=user, locale="ru", provider=provider)
 
 
-# --- интервью ----------------------------------------------------------------
+# --- the interview ------------------------------------------------------------
 
 
 def test_the_interview_asks_one_question_at_a_time(db, org, user):
@@ -106,7 +106,7 @@ def test_the_interview_asks_one_question_at_a_time(db, org, user):
 
 
 def test_the_language_of_the_session_goes_into_the_prompt(db, org, user):
-    """Язык передаётся явным параметром, а не угадывается по тексту ответов."""
+    """The language is passed as an explicit parameter rather than guessed from the answers' text."""
     provider = RecordedProvider([QUESTION])
 
     intake.start(db, org=org, user=user, locale="az", provider=provider)
@@ -117,7 +117,7 @@ def test_the_language_of_the_session_goes_into_the_prompt(db, org, user):
 
 
 def test_the_interview_stops_at_the_ceiling(db, org, user, monkeypatch):
-    """Жёсткий потолок вопросов: без него модель уточняет бесконечно."""
+    """A hard ceiling on questions: without it the model clarifies endlessly."""
     from app.config import get_settings
 
     monkeypatch.setattr(get_settings(), "ai_max_questions", 2, raising=False)
@@ -125,8 +125,8 @@ def test_the_interview_stops_at_the_ceiling(db, org, user, monkeypatch):
     session = _interview(db, org, user, provider)
 
     assert intake.answer(db, session, "первый ответ", provider) is not None
-    # Второй ответ упирается в потолок: следующего вопроса нет, пора к
-    # конспекту.
+    # The second answer hits the ceiling: there is no next question, it is time for the
+    # summary.
     assert intake.answer(db, session, "второй ответ", provider) is None
     assert len(session.transcript) == 2
 
@@ -140,7 +140,7 @@ def test_tokens_are_counted_per_session(db, org, user):
     assert session.tokens_used == 84
 
 
-# --- ворота ------------------------------------------------------------------
+# --- the gates ----------------------------------------------------------------
 
 
 def test_the_summary_is_a_gate_and_is_editable(db, org, user):
@@ -153,8 +153,8 @@ def test_the_summary_is_a_gate_and_is_editable(db, org, user):
     assert session.status == "summary"
 
     edited = intake.edit_summary(db, session, ["Сайт-визитка к июню", "  ", "Домен уже куплен"])
-    # Пустые тезисы отбрасываются: правка на то и правка, что тезис удаляют
-    # стиранием текста, а не отдельной кнопкой.
+    # Empty summary points are discarded: an edit is an edit precisely because a point
+    # is deleted by erasing its text rather than through a separate button.
     assert edited == ["Сайт-визитка к июню", "Домен уже куплен"]
 
 
@@ -167,17 +167,17 @@ def test_a_valid_draft_is_accepted(db, org, user):
 
     assert session.status == "draft"
     assert [category["name"] for category in draft["categories"]] == ["Дизайн", "Разработка"]
-    # В проект при этом не записано ничего: черновик живёт в сессии.
+    # Nothing has been written into the project meanwhile: the draft lives in the session.
     assert session.project_id is None
 
 
 def test_a_broken_draft_is_retried_and_then_refused_without_killing_the_session(
     db, org, user, monkeypatch
 ):
-    """Битая схема отбивается и не роняет сессию.
+    """A broken schema is rejected and does not bring the session down.
 
-    Переписка и конспект остаются на месте, статус не меняется — сессия
-    продолжается с того же места, и повторить можно тем же запросом.
+    The conversation and the summary stay in place and the status does not change — the
+    session continues from the same place, and the same request can be repeated.
     """
     from app.config import get_settings
 
@@ -190,7 +190,7 @@ def test_a_broken_draft_is_retried_and_then_refused_without_killing_the_session(
         intake.make_draft(db, session, provider)
 
     assert error.value.code == "llm_schema_mismatch"
-    # Три попытки: первая плюс два повтора.
+    # Three attempts: the first plus two retries.
     assert len(provider.calls) == 5
     assert session.status == "summary"
     assert session.summary == SUMMARY["theses"]
@@ -208,9 +208,9 @@ def test_a_retry_succeeds_after_one_broken_answer(db, org, user):
 
 
 def test_an_unreachable_model_is_not_retried(db, org, user):
-    """Повтор только на битой схеме.
+    """A retry only on a broken schema.
 
-    Недоступная сеть от повтора не починится, а расход токенов утроится.
+    An unreachable network will not be fixed by a retry, while the token spend triples.
     """
     provider = RecordedProvider(
         [QUESTION, SUMMARY, LlmError("llm_unreachable", "сеть недоступна")]
@@ -234,11 +234,11 @@ def test_a_draft_edited_by_hand_is_validated_the_same_way(db, org, user):
     with pytest.raises(LlmError):
         intake.edit_draft(db, session, BROKEN_DRAFT)
 
-    # Прежний черновик уцелел: отвергнутая правка ничего не стёрла.
+    # The previous draft survived: the rejected edit erased nothing.
     assert len(session.draft["categories"]) == 2
 
 
-# --- применение --------------------------------------------------------------
+# --- application ---------------------------------------------------------------
 
 
 def test_applying_writes_the_project_as_one_batch(db, org, user):
@@ -253,8 +253,8 @@ def test_applying_writes_the_project_as_one_batch(db, org, user):
     tasks = db.scalars(select(Task).where(Task.project_id == project.id)).all()
     assert sorted(category.name for category in categories) == ["Дизайн", "Разработка"]
     assert sorted(task.name for task in tasks) == ["Вёрстка", "Логотип"]
-    # Каждая задача помнит, какая сессия её принесла: в истории остаётся
-    # «создана AI-сессией».
+    # Every task remembers which session brought it: "created by an AI session" stays in
+    # the history.
     assert {task.created_by_ai_session_id for task in tasks} == {session.id}
     assert session.applied_batch_id == batch_id
     assert session.status == "applied"
@@ -289,7 +289,7 @@ def test_applying_twice_is_refused(db, org, user):
 
 
 def test_nothing_can_be_applied_before_the_draft(db, org, user):
-    """Ворота нельзя обойти: применить нечего, пока черновика нет."""
+    """The gates cannot be bypassed: there is nothing to apply while there is no draft."""
     provider = RecordedProvider([QUESTION])
     session = _interview(db, org, user, provider)
 
@@ -299,7 +299,7 @@ def test_nothing_can_be_applied_before_the_draft(db, org, user):
     assert error.value.code == "wrong_step"
 
 
-# --- разбить задачу ----------------------------------------------------------
+# --- splitting a task ----------------------------------------------------------
 
 
 def test_split_proposes_but_does_not_write(db, org, user):
@@ -325,19 +325,19 @@ def test_split_proposes_but_does_not_write(db, org, user):
     parts = intake.propose_split(db, task, split_provider, locale="ru")
 
     assert [part["name"] for part in parts] == ["Шапка", "Главная", "Внутренние страницы"]
-    # Предложение — это предложение: в проекте ничего не изменилось.
+    # A suggestion is a suggestion: nothing in the project has changed.
     assert len(db.scalars(select(Task).where(Task.project_id == project.id)).all()) == before
 
     batch_id = intake.apply_split(db, project, task, parts, actor=user)
     after = db.scalars(select(Task).where(Task.project_id == project.id)).all()
     assert len(after) == before + 3
-    # Исходная задача на месте: её судьбу решает человек, а молчаливое удаление
-    # унесло бы её историю и назначения.
+    # The original task is in place: a person decides its fate, and a silent deletion
+    # would carry away its history and assignments.
     assert task in after
     assert batch_id is not None
 
 
-# --- ключ --------------------------------------------------------------------
+# --- the key -------------------------------------------------------------------
 
 
 def test_the_key_is_stored_encrypted_and_never_returned(authed, db, org):
@@ -358,7 +358,7 @@ def test_the_key_is_stored_encrypted_and_never_returned(authed, db, org):
     assert "sk-secret-value" not in row.encrypted_key
     assert decrypt(row.encrypted_key) == "sk-secret-value"
 
-    # Наружу не отдаётся никогда — только признак «ключ настроен».
+    # It is never handed outward — only the flag "a key is configured".
     read = authed.get("/api/ai/credential").json()
     assert read == {
         "provider": "openai",
@@ -394,10 +394,10 @@ def test_the_first_connection_needs_a_key(authed):
 
 
 def test_without_a_key_the_ai_routes_say_so_plainly(authed):
-    """Нет ключа — кнопки AI неактивны со ссылкой в настройки.
+    """No key means the AI buttons are inactive with a link into settings.
 
-    Отдельный код, а не общая ошибка: это не поломка, а ненастроенная
-    установка.
+    A separate code rather than a generic error: this is not a breakage but an
+    unconfigured installation.
     """
     response = authed.post("/api/ai/sessions", json={})
 
@@ -422,22 +422,22 @@ def test_only_the_owner_sees_and_sets_the_connection(authed, db):
 
 
 def test_topics_are_read_from_the_config_file():
-    """Список обязательных тем лежит файлом рядом с приложением, а не в базе."""
+    """The list of mandatory topics is a file next to the application rather than a table in the database."""
     keys = {topic["key"] for topic in intake.topics()}
 
     assert {"goal", "scope", "deadline", "out_of_scope"} <= keys
 
 
-# --- маршруты ----------------------------------------------------------------
+# --- the routes ----------------------------------------------------------------
 
 
 def test_the_session_walks_the_whole_way_over_http(authed, db, org, monkeypatch):
-    """Сквозь HTTP: интервью → конспект → черновик → применение."""
+    """Through HTTP: interview -> summary -> draft -> application."""
     import app.api.ai_routes as routes
     from app.config import get_settings
 
-    # Один вопрос вместо двенадцати: проверяется дорога целиком, а не глубина
-    # интервью — её проверяет отдельный тест про потолок.
+    # One question instead of twelve: what is checked is the whole road rather than the
+    # interview's depth — that is checked by a separate test about the ceiling.
     monkeypatch.setattr(get_settings(), "ai_max_questions", 1, raising=False)
     provider = RecordedProvider([QUESTION, SUMMARY, DRAFT])
     monkeypatch.setattr(routes, "provider_for", lambda db, org: provider)
@@ -459,7 +459,7 @@ def test_the_session_walks_the_whole_way_over_http(authed, db, org, monkeypatch)
 
     state = authed.get(f"/api/projects/{project_id}").json()
     assert sorted(category["name"] for category in state["categories"]) == ["Дизайн", "Разработка"]
-    # Пачка видна как одно действие: откатывается она целиком, а не по одной операции.
+    # The batch is visible as one action: it rolls back as a whole rather than operation by operation.
     assert state["undoable"]["batch_id"] == applied.json()["batch_id"]
 
 
@@ -478,7 +478,7 @@ def test_a_broken_answer_over_http_keeps_the_session_alive(authed, db, org, monk
 
     assert refused.status_code == 502
     assert refused.json()["detail"] == "llm_schema_mismatch"
-    # Сессия жива и стоит на прежнем шаге: переписка и конспект на месте.
+    # The session is alive and stands on the previous step: the conversation and the summary are in place.
     alive = authed.get(f"/api/ai/sessions/{session_id}").json()
     assert alive["status"] == "summary"
     assert alive["summary"] == SUMMARY["theses"]

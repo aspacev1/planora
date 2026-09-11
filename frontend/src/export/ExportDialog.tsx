@@ -20,20 +20,20 @@ import type { Orientation, Period, Zoom } from "./pageBudget";
 import "./export.css";
 
 /**
- * Из чего окно узнаёт, что в проекте есть, а чего нет.
+ * How the dialog learns what the project has and does not have.
  *
- * Считает сервер (`GET /export/facts`), а не браузер: границы плана и
- * «сегодня» в часовом поясе проекта нужны обеим сторонам, и посчитанные
- * порознь они разошлись бы ровно там, где это заметнее всего — в числе
- * страниц на кнопке масштаба против числа страниц в файле.
+ * Computed by the server (`GET /export/facts`) rather than by the browser: the plan's bounds and
+ * "today" in the project's time zone are needed by both sides, and computed separately they would
+ * diverge exactly where it is most noticeable — in the number of pages on the scale button against
+ * the number of pages in the file.
  */
 export type ExportFacts = {
   projectName: string;
-  /** Первая и последняя дата плана — по ним считается число страниц ленты. */
+  /** The plan's first and last date — the number of strip pages is computed from them. */
   start: string;
   end: string;
   today: string;
-  /** Календарный ли план. У относительного нет «сегодня», и окон от него тоже. */
+  /** Whether the plan is a calendar one. A relative one has no "today", and no windows from it either. */
   dated: boolean;
   tasks: number;
   categories: number;
@@ -42,21 +42,21 @@ export type ExportFacts = {
   proposalLines: number;
   scorecardMetrics: number;
   historyEvents: number;
-  /** Клиенту и гостю внутренние разделы не предлагаются вовсе. */
+  /** A client and a guest are not offered the internal sections at all. */
   internalAllowed: boolean;
 };
 
 type Props = {
-  /** Пока не пришли — окно уже на экране, но список разделов ещё пуст. */
+  /** Not arrived yet — the dialog is already on screen, but the list of sections is still empty. */
   facts: ExportFacts | undefined;
   onClose: () => void;
   download: (options: ExportOptions) => Promise<DownloadedFile>;
 };
 
-/** Раздел и то, сколько в нём содержимого. Пустой — недоступен с объяснением. */
+/** A section and how much content it holds. An empty one is unavailable, with an explanation. */
 type SectionRow = { section: ExportSection; count: number | null; internal?: boolean };
 
-/** Заглушка на время загрузки: даты сегодняшние, счётчики нулевые. */
+/** A stub for the loading time: the dates are today's, the counters are zero. */
 const PENDING: ExportFacts = {
   projectName: "",
   start: new Date().toISOString().slice(0, 10),
@@ -85,9 +85,9 @@ const DEFAULT_SECTIONS: ExportSection[] = [
 export function ExportDialog({ facts: loaded, onClose, download }: Props) {
   const { t, locale } = useLocale();
 
-  // Пока факты в пути, окно уже открыто и его каркас виден. Ждать их, не
-  // показывая ничего, значило бы задержку между нажатием и появлением окна —
-  // то есть кнопку, которая «не сработала».
+  // While the facts are in transit the dialog is already open and its frame is visible. Waiting for
+  // them while showing nothing would mean a delay between the press and the dialog appearing — that
+  // is, a button that "did not work".
   const facts: ExportFacts = loaded ?? PENDING;
   const pending = loaded === undefined;
   const toast = useToast();
@@ -102,8 +102,8 @@ export function ExportDialog({ facts: loaded, onClose, download }: Props) {
     [period, facts.start, facts.end, facts.today],
   );
   const options = useMemo(() => zoomOptions(days, orientation), [days, orientation]);
-  // Масштаб не хранится, пока человек его не выбрал: иначе выбранный на одном
-  // периоде «день» остался бы выбранным на другом, где он недоступен.
+  // The scale is not stored until the person has chosen it: otherwise a "day" chosen for one period
+  // would stay chosen for another, where it is unavailable.
   const [picked, setPicked] = useState<Zoom | null>(null);
   const zoom =
     picked !== null && options.find((o) => o.zoom === picked)?.allowed
@@ -128,10 +128,9 @@ export function ExportDialog({ facts: loaded, onClose, download }: Props) {
 
   const [chosen, setChosen] = useState<Set<ExportSection>>(new Set());
 
-  // Набор по умолчанию выбирается один раз — когда стало известно, что в
-  // проекте есть. Пересобирать его на каждый приход фактов нельзя: React
-  // Query обновляет их в фоне, и снятая человеком галочка возвращалась бы
-  // сама собой.
+  // The default set is chosen once — when it became known what the project has. It must not be
+  // rebuilt on every arrival of the facts: React Query refreshes them in the background, and a
+  // checkbox the person unticked would come back by itself.
   const seeded = useRef(false);
   useEffect(() => {
     if (loaded === undefined || seeded.current) return;
@@ -144,8 +143,8 @@ export function ExportDialog({ facts: loaded, onClose, download }: Props) {
         }),
       ),
     );
-    // rows выводится из loaded: пересчитывать эффект по нему значило бы
-    // перезапускать его на каждый рендер.
+    // rows is derived from loaded: recomputing the effect by it would mean restarting it on every
+    // render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
 
@@ -256,8 +255,8 @@ export function ExportDialog({ facts: loaded, onClose, download }: Props) {
                 <legend className="export__label">{t("export.label.period")}</legend>
                 <div className="export__segments">
                   {PERIODS.map((value) => {
-                    // У плана без дат «сегодня» на оси не существует, и окна
-                    // от него — тоже. Кнопка остаётся, но с объяснением.
+                    // A plan without dates has no "today" on its axis, and no windows from it
+                    // either. The button stays, but with an explanation.
                     const undated = !facts.dated && DATED_PERIODS.includes(value);
                     return (
                       <button

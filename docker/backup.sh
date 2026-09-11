@@ -1,13 +1,14 @@
 #!/bin/sh
-# Ежесуточный дамп базы из sidecar-контейнера backup (docker-compose.yml).
+# Nightly database dump from the backup sidecar container (docker-compose.yml).
 #
-# Дамп в формате -Fc (custom): он сжат и восстанавливается pg_restore как
-# целиком, так и по частям — plain-SQL этого не умеет. Пишется сначала во
-# временный файл и лишь потом переименовывается: восстановление никогда не
-# должно подхватить дамп, оборванный на середине записи.
+# The dump uses the -Fc (custom) format: it is compressed and pg_restore can
+# restore it either whole or in parts — plain SQL cannot do that. It is written
+# to a temporary file first and only then renamed: a restore must never pick up
+# a dump that was cut off mid-write.
 #
-# Хранение ограничено BACKUP_KEEP_DAYS: без предела каталог тихо растёт до
-# заполнения диска, и первым об этом узнаёт не бэкап, а Postgres по соседству.
+# Retention is capped by BACKUP_KEEP_DAYS: without a limit the directory grows
+# quietly until the disk fills up, and the first to notice is not the backup
+# but Postgres next door.
 set -eu
 
 : "${BACKUP_INTERVAL_SECONDS:=86400}"
@@ -20,8 +21,9 @@ while true; do
     mv "${target}.part" "$target"
     echo "backup: снят $target"
   else
-    # Неудачный дамп — не повод молча ждать сутки: сообщение уходит в журнал
-    # контейнера, обрывок удаляется, следующая попытка по расписанию.
+    # A failed dump is no reason to wait another day in silence: the message
+    # goes to the container log, the fragment is removed, and the next attempt
+    # happens on schedule.
     echo "backup: pg_dump не удался, дампа за $stamp нет" >&2
     rm -f "${target}.part"
   fi

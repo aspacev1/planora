@@ -12,7 +12,7 @@ import { inviteQueryKey, previewInvitation } from "../api/invitations";
 import { Field } from "../components/Field";
 import { useLocale } from "../i18n/LocaleProvider";
 
-/** Столько же требует сервер: `password: str = Field(min_length=8)`. */
+/** The server demands the same: `password: str = Field(min_length=8)`. */
 export const MIN_PASSWORD_LENGTH = 8;
 
 export function Register() {
@@ -21,11 +21,10 @@ export function Register() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [params] = useSearchParams();
-  // Только из строки запроса, в отличие от экрана входа: приглашение здесь
-  // подставляет адрес и запирает поле, а это слишком сильное действие, чтобы
-  // делать его по памяти. Человек, открывший чужую ссылку и передумавший,
-  // должен получить на /register пустую форму, а не заблокированный чужой
-  // адрес.
+  // Only from the query string, unlike the sign-in screen: an invitation here fills in
+  // the address and locks the field, and that is too strong an action to do from memory.
+  // A person who opened somebody else's link and changed their mind must get an empty
+  // form at /register rather than a locked address that is not theirs.
   const inviteToken = params.get("invite");
 
   const [name, setName] = useState("");
@@ -34,9 +33,9 @@ export function Register() {
   const [password, setPassword] = useState("");
   const [localErrorKey, setLocalErrorKey] = useState<string | null>(null);
 
-  // Приглашение спрашивается и здесь, а не только на экране приглашения:
-  // адрес, на который оно выписано, подставляется в форму и не редактируется,
-  // а взять его больше неоткуда.
+  // The invitation is asked for here too, not only on the invitation screen: the address
+  // it was issued to is filled into the form and is not editable, and there is nowhere
+  // else to take it from.
   const invitation = useQuery({
     queryKey: inviteQueryKey(inviteToken ?? ""),
     queryFn: () => previewInvitation(inviteToken as string),
@@ -44,39 +43,39 @@ export function Register() {
     retry: false,
   });
   const boundEmail = invitation.data?.email ?? null;
-  // Пока приглашение не пришло, отправлять форму нечем: адрес в ней ещё пуст,
-  // и отправка ушла бы с пустым полем, которое человек не заполнял и заполнить
-  // не мог. Ветка касается только прихода по ссылке — без токена запрос
-  // выключен и ждать нечего.
+  // Until the invitation arrives there is nothing to submit the form with: the address in
+  // it is still empty, and the submission would go with an empty field the person neither
+  // filled in nor could fill in. The branch concerns only arrivals by link — without a
+  // token the request is disabled and there is nothing to wait for.
   const waitingForInvitation = inviteToken !== null && invitation.isPending;
 
   const mutation = useMutation({
     mutationFn: registerRequest,
     onSuccess: (user: User) => {
-      // Ответ регистрации — тот же профиль, что отдаёт /api/auth/me. Кладём
-      // его сразу: иначе следующий экран сходит за ним второй раз и на этот
-      // поход человек смотрит на индикатор загрузки без причины.
+      // The registration's response is the same profile that /api/auth/me hands out. We
+      // put it in straight away: otherwise the next screen goes for it a second time, and
+      // the person watches a loading indicator for no reason.
       queryClient.setQueryData(ME_QUERY_KEY, user);
       adoptProfileLocale(user.locale);
-      // Приглашение отработало: сервер завёл членство прямо в регистрации.
-      // Держать его дальше значило бы уводить человека на экран уже принятого
-      // приглашения при следующем же входе.
+      // The invitation has done its job: the server created the membership right in the
+      // registration. Holding on to it any longer would mean taking the person to the
+      // screen of an already accepted invitation on their very next sign-in.
       if (inviteToken !== null) forgetInvite();
-      // Письмо с подтверждением сервер отправляет сам, следом за ответом.
-      // Полоска в раме приложения прочитает эту отметку и скажет, на какой
-      // адрес ушло письмо, — вместо кнопки, которая на первое же нажатие
-      // ответила бы «слишком часто».
+      // The confirmation email is sent by the server itself, right after the response. The
+      // strip in the application's frame will read this mark and say which address the
+      // email went to — instead of a button that would answer the very first press with
+      // "too often".
       noteVerificationSent(user.email);
-      // Тот же возврат, что и на входе: человек мог прийти по ссылке на проект
-      // и завести аккаунт прямо здесь.
+      // The same return as on sign-in: a person may have come by a link to a project and
+      // created an account right here.
       navigate(afterAuthPath(location.state));
     },
   });
 
   function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    // Сервер проверит длину тоже, но человеку незачем ждать ответа ради
-    // очевидного.
+    // The server will check the length too, but there is no reason for a person to wait
+    // for an answer for the sake of something obvious.
     if (password.length < MIN_PASSWORD_LENGTH) {
       setLocalErrorKey("auth.error.password_too_short");
       return;
@@ -86,8 +85,8 @@ export function Register() {
       name,
       email: boundEmail ?? email,
       password,
-      // Название компании — только у свободной регистрации: по приглашению
-      // организация уже есть, и заводить вторую было бы не тем полем.
+      // The company name is only for free registration: with an invitation the organization
+      // already exists, and creating a second one would be the wrong field.
       ...(inviteToken === null ? { company_name: companyName } : {}),
       ...(inviteToken === null ? {} : { invite_token: inviteToken }),
     });
@@ -96,8 +95,8 @@ export function Register() {
   const shownErrorKey =
     localErrorKey ??
     (mutation.error ? errorKey(mutation.error) : null) ??
-    // Мёртвая ссылка объясняется до отправки формы, а не после: заводить
-    // аккаунт, чтобы узнать, что приглашение просрочено, незачем.
+    // A dead link is explained before the form is submitted rather than after: there is no
+    // point creating an account to learn that the invitation has expired.
     (invitation.error ? errorKey(invitation.error) : null);
 
   return (
@@ -113,8 +112,8 @@ export function Register() {
         </p>
       )}
 
-      {/* noValidate: свою проверку мы переводим сами, а встроенные сообщения
-          браузера приходят на языке браузера, а не интерфейса. */}
+      {/* noValidate: we translate our own validation ourselves, while the browser's built-in
+          messages arrive in the browser's language rather than the interface's. */}
       <form onSubmit={onSubmit} noValidate>
         <Field
           id="name"
@@ -124,9 +123,9 @@ export function Register() {
           autoComplete="name"
           required
         />
-        {/* Название компании только у свободной регистрации: по приглашению
-            организация уже есть, и спрашивать имя для той, что человек не
-            заводит, — вопрос не по делу. */}
+        {/* The company name is only for free registration: with an invitation the
+            organization already exists, and asking for the name of one the person is not
+            creating is beside the point. */}
         {inviteToken === null && (
           <Field
             id="company_name"
@@ -145,8 +144,8 @@ export function Register() {
           onChange={setEmail}
           autoComplete="email"
           required
-          // Адрес приглашения не редактируется: приглашение привязано к нему,
-          // и правка превратила бы отправку формы в заведомый отказ.
+          // The invitation's address is not editable: the invitation is tied to it, and an
+          // edit would turn the submission into a certain refusal.
           readOnly={boundEmail !== null}
         />
         <Field
@@ -165,8 +164,8 @@ export function Register() {
           </p>
         )}
 
-        {/* Кнопка выключена на время запроса: двойной клик иначе создаёт две
-            попытки регистрации на один адрес. */}
+        {/* The button is disabled for the duration of the request: a double click otherwise
+            creates two registration attempts for one address. */}
         <button type="submit" disabled={mutation.isPending || waitingForInvitation}>
           {t("auth.register.submit")}
         </button>
@@ -174,11 +173,11 @@ export function Register() {
 
       <p className="muted">
         {t("auth.register.have_account")}{" "}
-        {/* Токен едет и на вход — тем же правилом, по которому экран входа
-            везёт его на регистрацию. Без этого самый частый путь приглашённого
-            обрывался здесь: приглашения шлют на рабочие адреса, аккаунт на них
-            обычно уже есть, регистрация отвечает «адрес занят», и человек шёл
-            по этой самой ссылке — в свою прежнюю организацию. */}
+        {/* The token travels to the sign-in too — by the same rule the sign-in screen carries
+            it to registration. Without this the most frequent path of an invitee broke off
+            here: invitations are sent to work addresses, an account usually already exists on
+            them, registration answers "address taken", and the person was going by this very
+            link — into their former organization. */}
         <Link to={withInvite("/login", inviteToken)} state={location.state}>
           {t("auth.register.link_login")}
         </Link>

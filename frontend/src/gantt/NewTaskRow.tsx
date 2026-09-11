@@ -6,18 +6,17 @@ import type { ColumnLayout } from "./columns";
 import type { Scale } from "./timescale";
 
 /**
- * Заведение задачи — строкой в ленте, а не окном с девятью полями.
+ * Creating a task — as a row in the strip rather than a dialog with nine fields.
  *
- * Задачи заводят пачками: план пишут списком, по строке на дело, и окно между
- * строками означало открыть, заполнить, закрыть — и так двадцать раз подряд.
- * Здесь у новой задачи спрашивается только имя: остальное у неё уже есть
- * (день — сегодняшний, срок — один день), а поправить это можно в карточке,
- * до которой один щелчок по строке.
+ * Tasks are created in batches: a plan is written as a list, a row per item, and a dialog
+ * between rows meant opening, filling in, closing — and so twenty times in a row. Here a new
+ * task is only asked for its name: it already has everything else (the day is today, the
+ * duration one day), and that can be corrected in the card, one click away on the row.
  *
- * Enter не закрывает строку, а отправляет написанное и оставляет поле пустым и
- * в фокусе: следующую задачу пишут сразу, не касаясь мыши. Пустой Enter значит
- * «больше не нужно» и строку закрывает — иначе выходом из режима была бы
- * единственная клавиша Esc, о которой никто не догадывается.
+ * Enter does not close the row but sends what was written and leaves the field empty and
+ * focused: the next task is written straight away without touching the mouse. An empty Enter
+ * means "no more needed" and closes the row — otherwise the only way out of the mode would be
+ * the Esc key alone, which nobody guesses at.
  */
 
 export function NewTaskRow({
@@ -30,15 +29,15 @@ export function NewTaskRow({
 }: {
   layout: ColumnLayout;
   scale: Scale;
-  /** Имя поля при чтении с экрана: «Новая задача в „Дизайн“». */
+  /** The field's name on a screen reader: "New task in “Design”". */
   label: string;
   placeholder: string;
   /**
-   * Отправить написанное. Строка при этом остаётся открытой.
+   * Send what was written. The row stays open at that.
    *
-   * Номер, на который ляжет задача, строка не считает: «а», «б», «в» подряд
-   * обязаны лечь в набранном порядке, но сколько из них сервер уже принял и
-   * подвинул соседей, знает лента, а не поле (см. `insertPosition` в Gantt).
+   * The row does not compute the number the task will land at: "a", "b", "c" in a row must
+   * land in the typed order, but how many of them the server has already accepted and moved
+   * the neighbours for is known by the strip, not by the field (see `insertPosition` in Gantt).
    */
   onCreate: (name: string) => void;
   onClose: () => void;
@@ -46,13 +45,13 @@ export function NewTaskRow({
   const [name, setName] = useState("");
   const input = useRef<HTMLInputElement>(null);
 
-  // Фокус — сразу: «плюс» нажимают ради того, чтобы писать, и щелчок по полю
-  // после этого был бы вторым нажатием ради того же самого.
+  // The focus goes in at once: the "plus" is pressed in order to write, and a click on the
+  // field after that would be a second press for the same thing.
   useEffect(() => {
     input.current?.focus();
   }, []);
 
-  /** Отправлено или нет: пустое поле — не задача, а середина набора. */
+  /** Sent or not: an empty field is not a task but the middle of typing. */
   const submit = (): boolean => {
     const trimmed = name.trim();
     if (trimmed === "") return false;
@@ -77,16 +76,16 @@ export function NewTaskRow({
             if (!submit()) onClose();
           }
           if (event.key === "Escape") {
-            // Передумать посреди набора — обычное дело. Строка закрывается
-            // размонтированием поля, и `onBlur` до него не доходит: набранное
-            // пропадает, как и обещано.
+            // Changing your mind mid-typing is an ordinary thing. The row is closed by
+            // unmounting the field, and `onBlur` does not reach it: what was typed disappears,
+            // as promised.
             event.preventDefault();
             onClose();
           }
         }}
-        // Уход фокуса сохраняет — так же, как ячейка даты в этой же таблице
-        // (см. EditableCell). Набранное имя, пропавшее от щелчка мимо поля,
-        // человек считал бы потерянной задачей, а не отменённым вводом.
+        // Blur saves — the same as a date cell in this very table (see EditableCell). A typed
+        // name that vanished from a click outside the field would be counted by a person as a
+        // lost task rather than as a cancelled input.
         onBlur={() => {
           submit();
           onClose();
@@ -97,14 +96,14 @@ export function NewTaskRow({
 }
 
 /**
- * Строка задачи, которую уже отправили, а сервер ещё не ответил.
+ * A task row that has been sent while the server has not answered yet.
  *
- * Оптимистичной задачи здесь нет намеренно: идентификатор и дату окончания
- * назначает сервер — первый неоткуда взять, вторая считается по рабочему
- * календарю. Придуманная строка была бы кнопкой, за которой ничего не стоит:
- * её можно открыть, потянуть за грань и связать с соседкой, а операции с
- * несуществующим идентификатором сервер отобьёт. Поэтому не догадка, а
- * ожидание: имя уже видно, полоски ещё нет.
+ * There is deliberately no optimistic task here: the id and the end date are assigned by the
+ * server — the first has nowhere to come from, the second is computed by the working
+ * calendar. An invented row would be a button with nothing behind it: it could be opened,
+ * dragged by an edge and linked to a neighbour, while the server would reject operations with
+ * a non-existent id. So not a guess but a wait: the name is already visible, the bar is not
+ * there yet.
  */
 export function PendingRow({
   layout,
@@ -115,7 +114,7 @@ export function PendingRow({
   layout: ColumnLayout;
   scale: Scale;
   name: string;
-  /** «Создаётся…» — подсказка указателю; строка помечена и `aria-busy`. */
+  /** "Creating…" — a hint for the pointer; the row is also marked `aria-busy`. */
   title: string;
 }) {
   return (
@@ -128,10 +127,10 @@ export function PendingRow({
 }
 
 /**
- * Строка ленты, у которой занята одна колонка — название.
+ * A strip row with one column occupied — the name.
  *
- * Остальные пусты, а не заполнены прочерками: прочерк означает «значения нет»,
- * а у этих строк значения ещё не назначены — они появятся вместе с задачей.
+ * The rest are empty rather than filled with dashes: a dash means "there is no value", while
+ * these rows' values are not assigned yet — they will appear together with the task.
  */
 function NameRow({
   className,
@@ -155,8 +154,8 @@ function NameRow({
           </Cell>
         ))}
       </div>
-      {/* Полоса шкалы пустая, но своей ширины: без неё строка обрывалась бы по
-          краю таблицы, и лента под черновиком выглядела бы разорванной. */}
+      {/* The scale's band is empty but of its own width: without it the row would break off at
+          the table's edge, and the strip under the draft would look torn. */}
       <div className="gantt__lane" style={{ width: scale.width }} />
     </div>
   );

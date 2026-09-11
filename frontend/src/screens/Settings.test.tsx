@@ -8,11 +8,10 @@ import { server } from "../test/server";
 import { ORG, USER, renderApp, sessionHandlers } from "../test/utils";
 
 /**
- * Экраны настроек уровней 2–4.
+ * The level 2–4 settings screens.
  *
- * Проверяется то, что видно человеку: поле уходит на сервер само, занятый слаг
- * подсказывает свободный, а `null` в переопределении означает «наследовать», а
- * не «пусто».
+ * What is checked is what a person sees: a field goes to the server on its own, a taken slug
+ * suggests a free one, and a `null` in an override means "inherit" rather than "empty".
  */
 
 type Patch = Record<string, unknown>;
@@ -20,17 +19,17 @@ type Patch = Record<string, unknown>;
 function orgFixtures(role = "owner", settings: Patch = {}) {
   const patches: Patch[] = [];
   let org = { ...ORG, role, settings: { ...ORG.settings, ...settings } };
-  // Без sessionHandlers(): их ставит beforeEach, а внутри одного вызова
-  // `server.use` предпочтение получает обработчик, названный раньше, — и
-  // общий ответ про организацию перебил бы этот.
+  // Without sessionHandlers(): those are set by beforeEach, and within one `server.use` call
+  // the handler named earlier gets preference — so the shared answer about the organization
+  // would override this one.
   server.use(
     http.get("/api/org", () => HttpResponse.json(org)),
-    // Блок подключения LLM живёт на этом же экране: без ответа про ключ он
-    // просто не рисуется, но запрос всё равно уходит.
+    // The LLM connection block lives on this same screen: without an answer about the key it
+    // is simply not drawn, but the request goes out anyway.
     http.get("/api/ai/credential", () =>
       HttpResponse.json({ provider: "openai", base_url: "", model: "", configured: false }),
     ),
-    // Блок подключения Jira — тем же правилом, что и LLM выше.
+    // The Jira connection block — by the same rule as the LLM above.
     http.get("/api/jira/credential", () =>
       HttpResponse.json({ base_url: "", email: "", configured: false }),
     ),
@@ -74,7 +73,7 @@ describe("настройки организации", () => {
     const patches = orgFixtures();
     renderApp({ route: "/settings/organization" });
 
-    // Ноль — это «объяснять каждый сдвиг»: пустое поле такого не просило.
+    // Zero means "explain every shift": an empty field asked for no such thing.
     await userEvent.clear(await screen.findByLabelText("Порог сдвига, дней"));
     await userEvent.tab();
 
@@ -88,21 +87,21 @@ describe("настройки организации", () => {
     const days = await screen.findByRole("group", { name: "Рабочие дни" });
     await userEvent.click(within(days).getByLabelText("сб"));
 
-    // Пн–пт плюс суббота.
+    // Mon–Fri plus Saturday.
     await waitFor(() => expect(patches).toEqual([{ working_days: 0b111111 }]));
   });
 
   it("последний рабочий день недели снять нельзя", async () => {
-    // Организация с одним рабочим днём: следующий щелчок оставил бы неделю
-    // вовсе без работы.
+    // An organization with one working day: the next click would leave the week with no work
+    // at all.
     const patches = orgFixtures("owner", { working_days: 0b1 });
     renderApp({ route: "/settings/organization" });
 
     const days = await screen.findByRole("group", { name: "Рабочие дни" });
     await userEvent.click(within(days).getByLabelText("пн"));
 
-    // Маска 0 не уходит на сервер: вместо отказа «проверьте форму», где ни одно
-    // поле не названо, человек читает, чего от него хотят.
+    // A mask of 0 does not go to the server: instead of a "check the form" refusal, where not
+    // a single field is named, the person reads what is wanted of them.
     expect(within(days).getByRole("alert")).toHaveTextContent(/хотя бы один день/i);
     expect(patches).toEqual([]);
     expect(within(days).getByLabelText("пн")).toBeChecked();
@@ -168,8 +167,8 @@ describe("настройки организации", () => {
     await userEvent.type(zone, "Europe/Berlin");
     await userEvent.tab();
 
-    // Кнопки «Сохранить» здесь нет, и молчание после потери фокуса
-    // неотличимо от «ничего не отправилось».
+    // There is no "Save" button here, and silence after blur is indistinguishable from
+    // "nothing was sent".
     expect(await screen.findByText("Сохранено")).toBeInTheDocument();
   });
 
@@ -186,10 +185,10 @@ describe("настройки организации", () => {
     await userEvent.tab();
 
     const refusal = await screen.findByText("Для этого у вас нет прав");
-    // Отказ читается у того поля, о котором он: общий баннер вверху страницы
-    // не говорит, какое из десяти полей отвергнуто.
+    // The refusal is read by the field it is about: a shared banner at the top of the page
+    // does not say which of the ten fields was rejected.
     expect(refusal.closest(".field")).toBe(zone.closest(".field"));
-    // И отвергнутое значение в поле не остаётся: там снова то, что на сервере.
+    // And the rejected value does not stay in the field: what is there again is what is on the server.
     await waitFor(() => expect(zone).toHaveValue("Asia/Baku"));
   });
 
@@ -231,8 +230,8 @@ describe("настройки организации", () => {
     renderApp({ route: "/settings/organization" });
 
     const tokenField = await screen.findByLabelText("API-токен");
-    // Форма Jira, а не форма LLM: у обеих одинаковая подпись кнопки
-    // «Сохранить подключение», и без сужения запрос находит обе разом.
+    // The Jira form, not the LLM form: both have the same "Save connection" button caption,
+    // and without narrowing the query finds both at once.
     const jiraForm = tokenField.closest("form") as HTMLElement;
 
     await userEvent.type(within(jiraForm).getByLabelText("Адрес сайта (base URL)"), "https://acme.atlassian.net");
@@ -247,7 +246,7 @@ describe("настройки организации", () => {
         api_token: "secret-token",
       }),
     );
-    // Токен наружу не отдаётся: поле снова пустое, «Токен задан» — рядом.
+    // The token is not handed out: the field is empty again, "Token is set" is next to it.
     await waitFor(() => expect(screen.getByLabelText("API-токен")).toHaveValue(""));
     expect(await screen.findByText(/Токен задан/)).toBeInTheDocument();
 
@@ -276,8 +275,8 @@ describe("настройки проекта", () => {
     };
     server.use(
       http.get("/api/projects/p1", () => HttpResponse.json(state)),
-      // Панель публичной ссылки живёт на этом же экране. Сервер и тут отвечает
-      // объектом: «не опубликован» — это url: null, а не пустой ответ.
+      // The public link panel lives on this same screen. Here too the server answers with an
+      // object: "not published" is url: null, not an empty response.
       http.get("/api/projects/p1/share", () =>
         HttpResponse.json({ allowed: true, url: null, comments_enabled: false, created_at: null }),
       ),
@@ -295,7 +294,7 @@ describe("настройки проекта", () => {
     projectSettingsFixtures();
     renderApp({ route: "/projects/p1/settings" });
 
-    // Порог наследуется: галочка стоит, своего поля нет вовсе.
+    // The threshold is inherited: the checkbox is ticked, there is no own field at all.
     const inherit = await screen.findByLabelText(/Наследовать от организации \(2\)/);
     expect(inherit).toBeChecked();
     expect(screen.queryByLabelText("Порог сдвига, дней")).toBeNull();
@@ -325,13 +324,13 @@ describe("настройки проекта", () => {
     const patches = projectSettingsFixtures({ shift_threshold_days: 7 });
     renderApp({ route: "/projects/p1/settings" });
 
-    // Поле порога на этом экране — единственное числовое; своей подписи у него
-    // нет, она стоит над переключателем «наследовать».
+    // The threshold field is the only numeric one on this screen; it has no caption of its
+    // own, that stands above the "inherit" toggle.
     await userEvent.clear(await screen.findByRole("spinbutton"));
     await userEvent.tab();
 
-    // Ни нуля, ни NaN: пока числа в поле нет, отправлять нечего — прежнее
-    // переопределение остаётся в силе.
+    // Neither a zero nor a NaN: while there is no number in the field there is nothing to
+    // send — the previous override stays in force.
     expect(patches).toEqual([]);
   });
 
@@ -348,7 +347,7 @@ describe("настройки проекта", () => {
     projectSettingsFixtures();
     renderApp({ route: "/projects/p1/settings" });
 
-    await screen.findByLabelText("Целевая дата"); // экран точно дорисован
+    await screen.findByLabelText("Целевая дата"); // the screen is definitely drawn
     expect(screen.queryByText("Синхронизировать сейчас")).toBeNull();
   });
 
@@ -430,10 +429,10 @@ describe("настройки проекта", () => {
 });
 
 /**
- * Профиль, отвечающий на правки, и список ушедших на сервер полей.
+ * A profile that answers edits, and a list of the fields that went to the server.
  *
- * Ставится после `sessionHandlers()` из `beforeEach` и потому перебивает их
- * общий ответ про профиль: msw предпочитает обработчик, названный позже.
+ * Set after `sessionHandlers()` from `beforeEach` and therefore overriding their shared
+ * answer about the profile: msw prefers the handler named later.
  */
 function profileFixtures(overrides: Partial<typeof USER> = {}) {
   const patches: Patch[] = [];
@@ -459,8 +458,8 @@ describe("профиль", () => {
     renderApp({ route: "/settings/profile" });
 
     await screen.findByRole("heading", { name: "Профиль" });
-    // Ровно один переключатель на окно — тот, что стоит в боковой колонке над
-    // «Настройками». Второй здесь означал бы две копии одного выбора рядом.
+    // Exactly one switcher per window — the one that stands in the sidebar above "Settings".
+    // A second one here would mean two copies of one choice side by side.
     const chooser = screen.getByRole("group", { name: "Язык интерфейса" });
     expect(chooser.closest(".sidebar")).not.toBeNull();
   });
@@ -513,8 +512,8 @@ describe("профиль", () => {
   });
 
   it("«по часам браузера» — это null, а не пустая строка", async () => {
-    // Пустая строка не имя пояса, и сервер отказал бы: `null` здесь означает
-    // «пояс не выбран», то есть возврат к часам машины.
+    // An empty string is not a zone name, and the server would refuse: `null` here means "no
+    // zone is chosen", that is, a return to the machine's clock.
     const patches = profileFixtures({ timezone: "Europe/Moscow" });
     renderApp({ route: "/settings/profile" });
 

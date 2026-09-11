@@ -1,12 +1,14 @@
 """proposal notes and category description
 
-Два поля, которых не хватило смете по макету: примечания предложения целиком
-(«оценки по текущему объёму», «ставки без стоимости лицензий») и строка
-описания раздела, стоящая на его строке в таблице рядом со сводкой работ.
+Two fields the budget was missing per the mockup: the proposal's notes as a whole
+("estimates for the current scope", "rates exclude licence costs") and a
+description line for a section, standing on its row in the table next to the
+summary of its works.
 
-Отдельной ревизией, а не правкой d7e2b41c8f60: та уже накатана — дописывать
-применённую миграцию значит оставить установку без новых колонок навсегда,
-потому что alembic считает её ревизию пройденной и второй раз не выполняет.
+As a separate revision rather than an edit to d7e2b41c8f60: that one is already
+applied — amending an applied migration means leaving an installation without the
+new columns forever, because alembic considers its revision passed and does not run
+it a second time.
 
 Revision ID: b8d1e5f30a72
 Revises: d7e2b41c8f60
@@ -27,8 +29,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # server_default закрывает уже существующие строки: колонка NOT NULL без
-    # значения по умолчанию не добавляется к непустой таблице вовсе.
+    # The server_default covers the rows that already exist: a NOT NULL column with
+    # no default is not added to a non-empty table at all.
     op.add_column(
         'proposals',
         sa.Column('notes', sa.Text(), server_default=sa.text("''"), nullable=False),

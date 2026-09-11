@@ -1,9 +1,9 @@
 class JiraError(Exception):
-    """Jira не ответила, ответила отказом или не тем, чего ждали.
+    """Jira did not answer, answered with a refusal, or answered unexpectedly.
 
-    Машинный `code` — то же самое разделение, что у LlmError: человеку
-    отдаётся код, переведённый по словарю на клиенте, а `message` остаётся
-    журналу разработчика.
+    The machine-readable `code` is the same separation as in LlmError: the
+    human gets a code translated through a dictionary on the client, while
+    `message` stays for the developer's log.
     """
 
     def __init__(self, code: str, message: str):

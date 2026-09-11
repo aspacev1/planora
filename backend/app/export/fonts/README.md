@@ -1,27 +1,28 @@
-# Шрифты выгрузки
+# Export fonts
 
-Три начертания Inter — то же семейство, которым набран интерфейс
-(`@fontsource-variable/inter` во фронтенде). Документ обязан читаться
-продолжением экрана, а не соседним продуктом.
+Three Inter weights — the same family the interface is set in
+(`@fontsource-variable/inter` in the frontend). A document must read as a
+continuation of the screen rather than as a neighbouring product.
 
-## Почему они лежат файлами в репозитории
+## Why they lie in the repository as files
 
-Встроенные в ReportLab шрифты — Latin-1. В них нет ни кириллицы, ни `ə`, `ğ`,
-`ş`, `ı` — то есть они не годятся ни для одного из трёх языков продукта, кроме
-английского. Шрифт приходится встраивать, а встроить можно только статический
-TTF: variable-шрифты и woff2 ReportLab не читает.
+ReportLab's built-in fonts are Latin-1. They have neither Cyrillic nor `ə`, `ğ`,
+`ş`, `ı` — that is, they are no use for any of the product's three languages
+except English. The font has to be embedded, and only a static TTF can be
+embedded: ReportLab does not read variable fonts or woff2.
 
-Скачивать их при сборке нельзя: выгрузка обязана работать в закрытом контуре
-самостоятельного развёртывания, где до Google Fonts и npm доступа нет.
+Downloading them at build time will not do: the export must work in the closed
+network of a self-hosted deployment, where there is no access to Google Fonts
+or npm.
 
-## Откуда они взяты
+## Where they came from
 
-Ни Google Fonts, ни `@fontsource/inter` статических TTF не отдают: первый под
-устаревшим `User-Agent` возвращает EOT, второй — только woff2-подмножества по
-письменностям, которые пришлось бы сшивать.
+Neither Google Fonts nor `@fontsource/inter` hands out static TTFs: the first
+returns EOT under a legacy `User-Agent`, the second only woff2 subsets by
+script, which would have to be stitched together.
 
-Рабочий путь — полный набор знаков из npm-пакета `inter-ui` с разовой
-конвертацией:
+The working path is the full character set from the `inter-ui` npm package with
+a one-off conversion:
 
 ```sh
 npm pack inter-ui
@@ -30,21 +31,21 @@ python -c "
 from fontTools.ttLib import TTFont
 for n in ('Regular', 'SemiBold', 'Bold'):
     f = TTFont(f'package/web/Inter-{n}.woff2')
-    f.flavor = None                      # woff2 -> обычный sfnt
+    f.flavor = None                      # woff2 -> plain sfnt
     f.save(f'Inter-{n}.ttf')
 "
 ```
 
-`fontTools` нужен только для этой конвертации и в зависимости продукта не
-входит: она разовая, её результат лежит здесь.
+`fontTools` is needed only for this conversion and is not among the product's
+dependencies: it is a one-off, and its result lies here.
 
-## Лицензия
+## Licence
 
-SIL Open Font License 1.1, полный текст — `OFL.txt`. Встраивание в документы
-она разрешает.
+SIL Open Font License 1.1, full text in `OFL.txt`. It permits embedding in
+documents.
 
-## Покрытие
+## Coverage
 
-Проверено на всех трёх начертаниях: кириллица, `ə ğ ş ı İ ç ö ü`, `№`, `◆`.
-Тест `tests/test_export_api.py` держит это обещание — он ищет эти знаки в
-таблице соответствия шрифта, а не глазами в готовом файле.
+Checked on all three weights: Cyrillic, `ə ğ ş ı İ ç ö ü`, `№`, `◆`. The
+`tests/test_export_api.py` test holds this promise — it looks for these
+characters in the font's cmap table rather than by eye in a finished file.

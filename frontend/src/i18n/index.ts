@@ -5,16 +5,15 @@ import ru from "./ru.json";
 export const SUPPORTED_LOCALES = ["az", "en", "ru"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
-/** Азербайджанский — язык по умолчанию и последняя опора при отсутствии ключа. */
+/** Azerbaijani is the default language and the last resort when a key is missing. */
 export const DEFAULT_LOCALE: Locale = "az";
 
 export type Params = Record<string, string | number>;
 
 const DICTIONARIES: Record<Locale, unknown> = { az, en, ru };
 
-// Правила выбора формы берутся у платформы, а не пишутся руками: русский
-// различает три формы, и «если 1 то день иначе дней» ошибается на 2, 3, 4,
-// 22 и далее.
+// The form-selection rules are taken from the platform rather than written by hand: Russian
+// distinguishes three forms, and "if 1 then день else дней" is wrong for 2, 3, 4, 22 and onwards.
 const PLURAL_RULES: Record<Locale, Intl.PluralRules> = {
   az: new Intl.PluralRules("az"),
   en: new Intl.PluralRules("en"),
@@ -29,10 +28,9 @@ function isPluralEntry(value: object): boolean {
 }
 
 /**
- * Разворачивает вложенный словарь в плоский набор ключей. Запись со
- * множественным числом — один ключ, а не набор: у языков разное число форм,
- * и сравнивать словари по формам значило бы требовать от азербайджанского
- * русского `few`.
+ * Flattens a nested dictionary into a flat set of keys. A plural entry is one key rather than a set:
+ * languages have different numbers of forms, and comparing dictionaries by form would mean demanding
+ * Russian's `few` of Azerbaijani.
  */
 export function flattenKeys(dictionary: object, prefix = ""): Record<string, unknown> {
   const flat: Record<string, unknown> = {};
@@ -74,12 +72,11 @@ function interpolate(template: string, params?: Params): string {
 }
 
 /**
- * Переводит машинный ключ в текст на языке читателя.
+ * Translates a machine key into text in the reader's language.
  *
- * Отсутствующий ключ не показывает пустоту: он падает на азербайджанский и
- * пишет предупреждение в консоль, а если его нет и там — возвращает сам ключ,
- * потому что видимый `auth.error.email_taken` чинится, а невидимая пустая
- * строка живёт в интерфейсе годами.
+ * A missing key does not show emptiness: it falls back to Azerbaijani and writes a warning to the
+ * console, and if it is not there either, returns the key itself — because a visible
+ * `auth.error.email_taken` gets fixed while an invisible empty string lives in an interface for years.
  */
 export function translate(locale: Locale, key: string, params?: Params): string {
   const own = pick(lookup(DICTIONARIES[locale], key), locale, params);

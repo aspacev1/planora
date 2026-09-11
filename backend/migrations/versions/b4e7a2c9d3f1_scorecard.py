@@ -1,28 +1,29 @@
 """scorecard
 
-Скоркард проекта: недельная панель здоровья. Три таблицы и две метки времени
-на задаче.
+A project's scorecard: a weekly health panel. Three tables and two timestamps on
+the task.
 
-tasks.done_at / tasks.in_progress_since — когда задача стала «сделано» и когда
-взята в работу. Ставятся и чистятся слоем мутаций при переходе статуса;
-скоркарду нужны «закрыто на этой неделе» и «висит в работе N дней», а журнал
-ревизий отвечает на эти вопросы только полным проходом по записям задачи.
-Заполняются по журналу, где это возможно: для задач, стоящих в done или
-in_progress сейчас, берётся последняя ревизия, приведшая их в этот статус
-(set_status либо set_progress со связкой статуса). Задачам, чей статус
-выставлен при создании и в журнале не менялся, метки не достаются — это
-принятая неполнота бэкфилла, дальше их ведёт слой мутаций.
+tasks.done_at / tasks.in_progress_since — when a task became "done" and when it was
+taken up. They are set and cleared by the mutation layer on a status transition;
+the scorecard needs "closed this week" and "hanging in progress for N days", while
+the revision journal answers those questions only by a full walk over a task's
+entries. They are backfilled from the journal where possible: for tasks currently
+standing in done or in_progress, the latest revision that brought them into that
+status is used (set_status, or set_progress with the status coupling). Tasks whose
+status was set at creation and never changed in the journal get no timestamps —
+that is an accepted incompleteness of the backfill, and from there on the mutation
+layer drives them.
 
-scorecard_metrics — конфиг метрики на проект (владелец, цель, включённость);
-заводится лениво первым открытием скоркарда, настроек уровня организации нет.
-scorecard_snapshots — недельные снимки значений и статусов; прошлые недели
-неизменяемы, строка текущей недели перезаписывается и служит кэшем живого
-расчёта. Цель и направление копируются в снимок: правка цели сегодня не должна
-перекрашивать прошлые недели.
-scorecard_alerts — события панели «Требует внимания»: риск-метрики текущей
-недели и следы сработавшего правила «красная 2 недели подряд». Закрытые
-события помечаются resolved_at, а не удаляются: по ним подавляется повтор
-правила внутри одной серии.
+scorecard_metrics — a metric's config per project (owner, target, enabled state);
+created lazily by the first opening of the scorecard, with no organization-level
+settings. scorecard_snapshots — weekly snapshots of values and statuses; past weeks
+are immutable, and the current week's row is overwritten and serves as the cache of
+the live computation. The target and the direction are copied into the snapshot:
+editing a target today must not repaint past weeks.
+scorecard_alerts — the events of the "Needs attention" panel: the current week's
+risk metrics and the traces of the "red two weeks running" rule having fired.
+Closed events are marked resolved_at rather than deleted: they are what suppresses
+a repeat of the rule within one streak.
 
 Revision ID: b4e7a2c9d3f1
 Revises: f1a4c8d7b6e2
@@ -44,9 +45,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def _backfill_stamp(column: str, status: str) -> str:
-    # Последняя ревизия, приведшая задачу в статус: set_status пишет статус в
-    # `to`, set_progress — в `status_to` (связка «прогресс дотянут — сделано»).
-    # DISTINCT ON с сортировкой по убыванию даты — свежайшая запись на задачу.
+    # The latest revision that brought a task into a status: set_status writes the
+    # status into `to`, set_progress into `status_to` (the "progress carried through
+    # — done" coupling). DISTINCT ON with a descending date sort gives the freshest
+    # entry per task.
     return f"""
         UPDATE tasks SET {column} = latest.at
         FROM (

@@ -3,7 +3,7 @@ import type { Criticality } from "./projects";
 
 export const AI_CREDENTIAL_QUERY_KEY = ["ai", "credential"] as const;
 
-/** Подключение LLM. Ключа здесь нет и быть не может — только признак. */
+/** The LLM connection. There is and can be no key here — only a flag. */
 export type LlmCredential = {
   provider: string;
   base_url: string;
@@ -64,7 +64,7 @@ export function answerQuestion(sessionId: string, text: string): Promise<AiSessi
   });
 }
 
-/** Ворота 1: «вот что я понял про проект». */
+/** Gate 1: "here is what I understood about the project". */
 export function buildSummary(sessionId: string): Promise<AiSession> {
   return request<AiSession>(`/api/ai/sessions/${sessionId}/summary`, { method: "POST" });
 }
@@ -76,7 +76,7 @@ export function editSummary(sessionId: string, theses: string[]): Promise<AiSess
   });
 }
 
-/** Ворота 2, главные: черновик. В проект не записано ничего. */
+/** Gate 2, the main one: the draft. Nothing has been written into the project. */
 export function buildDraft(sessionId: string): Promise<AiSession> {
   return request<AiSession>(`/api/ai/sessions/${sessionId}/draft`, { method: "POST" });
 }

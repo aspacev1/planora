@@ -3,37 +3,37 @@ import { daysBetween } from "../gantt/timescale";
 import { baselineOf, isBeyondPlan } from "./baseline";
 
 /**
- * Чем текущий план отличается от согласованного.
+ * How the current plan differs from the approved one.
  *
- * Сравниваются состояния, а не перечисляются действия: задача, уехавшая на три
- * дня и вернувшаяся обратно, изменением не является — журнал истории про неё
- * помнит, а план с ней сходится. Поэтому источник здесь тот же, что у бейджа
- * отклонения на полоске, — базовый план на самой задаче, а не лента ревизий.
+ * States are compared rather than actions enumerated: a task that travelled three days and
+ * came back is not a change — the history journal remembers it, while the plan agrees with it.
+ * So the source here is the same as the deviation badge's on a bar — the baseline plan on the
+ * task itself, not the revision feed.
  *
- * Ничего не запрашивается: базовые значения приходят вместе с состоянием
- * проекта, и весь список считается из того, что уже на экране.
+ * Nothing is requested: the baseline values arrive with the project's state, and the whole
+ * list is computed from what is already on screen.
  */
 
-/** Одно расхождение с согласованным планом. */
+/** One divergence from the approved plan. */
 export type PlanChange =
   | {
       kind: "shift";
       task: Task;
-      /** Начало по согласованному плану и начало сейчас. */
+      /** The start by the approved plan and the start now. */
       from: string;
       to: string;
-      /** Знак сохранён: минус — задачу приблизили. */
+      /** The sign is preserved: a minus means the task was brought closer. */
       days: number;
-      /** Длительность, если её меняли тем же движением. `null` — не меняли. */
+      /** The duration, if it was changed in the same motion. `null` — it was not. */
       stretch: { from: number; to: number } | null;
     }
   | { kind: "duration"; task: Task; from: number; to: number; days: number }
   | { kind: "added"; task: Task }
   /**
-   * Задача из снимка версии, которой больше нет.
+   * A task from a version's snapshot that no longer exists.
    *
-   * Своей задачи у неё не осталось — только имя из снимка: удалённое состояние
-   * проекта не хранит, и по нему такое расхождение не вычислить вовсе.
+   * It has no task of its own left — only a name from the snapshot: the project's state does
+   * not keep the deleted, and such a divergence cannot be computed from it at all.
    */
   | { kind: "removed"; taskId: string; name: string };
 
@@ -42,23 +42,23 @@ export type PlanChanges = {
   durations: Extract<PlanChange, { kind: "duration" }>[];
   added: Extract<PlanChange, { kind: "added" }>[];
   /**
-   * Сколько задач разошлось с планом.
+   * How many tasks have diverged from the plan.
    *
-   * Считаются задачи, а не расхождения: число, растущее от того, сколько раз
-   * задачу трогали, говорило бы о суете, а не о плане.
+   * Tasks are counted, not divergences: a number growing with how many times a task was
+   * touched would speak of fuss rather than of the plan.
    *
-   * Поэтому группы делят задачи, а не пересекаются: задача, которую подвинули
-   * и растянули одним движением, стоит в «сдвигах», а растяжение названо в её
-   * же строке. Иначе сумма групп разошлась бы с этим числом, и человек,
-   * складывающий подписи тегов, получал бы не то, что написано на чипе.
+   * So the groups divide the tasks rather than overlapping: a task that was moved and
+   * stretched in one motion stands in "shifts", while the stretch is named in its own line.
+   * Otherwise the sum of the groups would diverge from this number, and a person adding up the
+   * tags' captions would get something other than what is written on the chip.
    *
-   * Удалённые сюда не входят: их знает только снимок версии, а он грузится
-   * отдельно и лишь при открытии окна (см. removedTasks).
+   * The deleted are not included here: only a version's snapshot knows them, and it is loaded
+   * separately and only when the panel is opened (see removedTasks).
    */
   taskCount: number;
 };
 
-/** Пусто — план сошёлся с согласованным либо согласовывать ещё нечего. */
+/** Empty — the plan agrees with the approved one, or there is nothing to approve yet. */
 const NOTHING: PlanChanges = { shifts: [], durations: [], added: [], taskCount: 0 };
 
 export function planChanges(state: ProjectState): PlanChanges {
@@ -79,9 +79,8 @@ export function planChanges(state: ProjectState): PlanChanges {
     const stretch = task.duration_days - baseline.duration;
     if (shift === 0 && stretch === 0) continue;
 
-    // Уехавшее начало старше растянутого срока: «когда начнём» — первое, что
-    // спрашивают у плана, и задача, у которой поехало и то и другое, читается
-    // прежде всего как перенесённая.
+    // A moved start outranks a stretched duration: "when do we start" is the first thing asked
+    // of a plan, and a task where both have travelled reads above all as a moved one.
     if (shift !== 0) {
       changes.shifts.push({
         kind: "shift",
@@ -109,17 +108,16 @@ export function planChanges(state: ProjectState): PlanChanges {
 }
 
 /**
- * Задачи, которые были в согласованном плане и исчезли.
+ * The tasks that were in the approved plan and have disappeared.
  *
- * Считаются по снимку версии, а не по состоянию: удалённой задачи в состоянии
- * нет по определению, и её исчезновение — единственное расхождение с планом,
- * которое из одного состояния не видно вовсе. Снимок хранит имя как раз для
- * такого случая.
+ * Computed from a version's snapshot rather than from the state: a deleted task is not in the
+ * state by definition, and its disappearance is the only divergence from the plan that cannot
+ * be seen from a state at all. The snapshot keeps the name for exactly this case.
  *
- * Снимок берётся последней версии — той, с которой план и сравнивают. Список
- * версий приходит новыми вперёд (см. plans.plan_versions), поэтому нужная —
- * первая; порядок здесь всё же не предполагается, а проверяется номером:
- * ответ сервера — данные, а не обещание.
+ * The snapshot taken is the latest version's — the one the plan is compared with. The list of
+ * versions arrives newest first (see plans.plan_versions), so the one needed is the first; the
+ * order is still not assumed here but checked by number: the server's answer is data, not a
+ * promise.
  */
 export function removedTasks(
   state: ProjectState,

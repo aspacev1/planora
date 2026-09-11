@@ -1,9 +1,10 @@
-"""Приглашения в организацию: выпуск, отзыв, повторный выпуск и приём.
+"""Invitations into an organization: issuing, revoking, reissuing and accepting.
 
-Модуль ничего не знает про HTTP: он поднимает `InvitationError` с машинным
-кодом, а превращать код в статус ответа — дело маршрута. Ровно так же устроены
-мутации, и по той же причине: то же самое понадобится приёму приглашения при
-регистрации, где HTTP-слой другой.
+The module knows nothing about HTTP: it raises `InvitationError` with a machine
+code, and turning a code into a response status is the route's business.
+Mutations are arranged in exactly the same way, and for the same reason: the same
+thing will be needed by accepting an invitation at registration, where the HTTP
+layer is different.
 """
 
 import uuid
@@ -18,17 +19,19 @@ from app.models import Invitation, Membership, Project, ProjectAccess, Role, Use
 from app.security import hash_token, new_token
 from app.text import normalize_email
 
-# Окно потолка приглашений. Час зашит, а не настраивается: настройкой задаётся
-# сам потолок (`INVITE_RATE_LIMIT`), и второе число рядом с ним превращает
-# понятное «столько-то в час» в задачу на умножение.
+# The window of the invitation ceiling. The hour is hard-coded rather than
+# configurable: the setting names the ceiling itself (`INVITE_RATE_LIMIT`), and a
+# second number next to it turns a clear "so many per hour" into a multiplication
+# problem.
 RATE_LIMIT_WINDOW = timedelta(hours=1)
 
 
 class InvitationError(Exception):
-    """Отказ домена приглашений, названный машинным кодом.
+    """A refusal from the invitation domain, named by a machine code.
 
-    Текста на человеческом языке здесь нет сознательно: язык читателя решается
-    в браузере, и один и тот же отказ обязан читаться на трёх языках.
+    There is deliberately no human-language text here: the reader's language is
+    decided in the browser, and one and the same refusal must read in three
+    languages.
     """
 
     def __init__(self, code: str) -> None:
@@ -44,12 +47,12 @@ class Status(StrEnum):
 
 
 def status_of(invitation: Invitation, now: datetime) -> Status:
-    """Состояние приглашения на заданный момент.
+    """An invitation's state at a given moment.
 
-    Порядок проверок не случаен: принятое приглашение остаётся принятым и
-    после истечения срока, и человек, открывший свою же старую ссылку, должен
-    прочитать «вы уже в организации», а не «срок истёк» — по первому он пойдёт
-    просить новую ссылку вместо того, чтобы просто войти.
+    The order of the checks is not accidental: an accepted invitation stays
+    accepted after it expires too, and a person opening their own old link must
+    read "you are already in the organization" rather than "it has expired" — on
+    the latter they would go and ask for a new link instead of simply signing in.
     """
     if invitation.accepted_at is not None:
         return Status.ACCEPTED
@@ -61,21 +64,21 @@ def status_of(invitation: Invitation, now: datetime) -> Status:
 
 
 def _unavailable(state: Status) -> InvitationError:
-    """Отказ, который называет причину, а не «ссылка недействительна».
+    """A refusal that names the reason rather than "the link is invalid".
 
-    Три состояния — три разных кода: по «просрочено» человек просит новую
-    ссылку, по «принято» — просто входит, по «отозвано» — идёт к тому, кто
-    звал. Одно общее сообщение не даёт выбрать ни одно из трёх действий.
+    Three states, three different codes: on "expired" a person asks for a new
+    link, on "accepted" they simply sign in, on "revoked" they go to whoever
+    invited them. One generic message lets them choose none of the three actions.
     """
     return InvitationError(f"invite_{state.value}")
 
 
-#: Роли, которые приглашением не выдаются. Владелец распоряжается организацией
-#: целиком — удаляет проекты, переутверждает планы, зовёт кого угодно, — а
-#: приглашение без адреса вдобавок достаётся предъявителю: владельцем
-#: становился любой, кто открыл переславшуюся ссылку. Владельца назначает
-#: владелец, действующему участнику и отдельным действием — тем самым
-#: `PATCH /api/org/members/{user_id}`, где адресат назван поимённо.
+#: The roles an invitation does not hand out. An owner governs the whole
+#: organization — deletes projects, re-approves plans, invites anyone — and an
+#: invitation with no address additionally goes to whoever presents it: the owner
+#: would become anyone who opened a forwarded link. An owner is appointed by an
+#: owner, over an existing member and as a separate action — the very
+#: `PATCH /api/org/members/{user_id}`, where the recipient is named individually.
 NOT_INVITABLE: frozenset[Role] = frozenset({Role.OWNER})
 
 
@@ -92,15 +95,15 @@ def _parse_role(raw: str) -> Role:
 def _checked_project_ids(
     db: DbSession, *, org_id: uuid.UUID, project_ids: list[uuid.UUID]
 ) -> list[str]:
-    """Проекты, к которым приглашение сразу даёт доступ.
+    """The projects an invitation grants access to right away.
 
-    Доступна любой приглашаемой роли, не только `client`: отмеченные проекты
-    сужают членство целиком (см. Membership.project_scoped в app.models) — то
-    есть позволяют позвать редактора или наблюдателя в конкретные проекты
-    вместо всей организации сразу. Пустой список ничего не сужает: роль
-    остаётся при своём — `client` по-прежнему не видит ни одного проекта, пока
-    её не позовут поимённо, а `editor`/`viewer` видят всю организацию, как и
-    без этой возможности.
+    Available to any invitable role, not only `client`: the selected projects
+    narrow the membership as a whole (see Membership.project_scoped in app.models)
+    — that is, they make it possible to invite an editor or a viewer into
+    particular projects rather than into the whole organization at once. An empty
+    list narrows nothing: the role keeps its own behaviour — a `client` still sees
+    no project until invited individually, while an `editor`/`viewer` see the whole
+    organization, just as without this capability.
     """
     if not project_ids:
         return []
@@ -111,20 +114,20 @@ def _checked_project_ids(
         ).all()
     )
     if len(found) != len(set(project_ids)):
-        # Чужой проект неотличим от несуществующего — тем же принципом, что и
-        # в маршрутах проекта.
+        # Someone else's project is indistinguishable from a nonexistent one — by
+        # the same principle as in the project routes.
         raise InvitationError("project_not_found")
     return [str(project_id) for project_id in project_ids]
 
 
 def issued_within_window(db: DbSession, *, org_id: uuid.UUID, now: datetime) -> int:
-    """Сколько приглашений организация выпустила за последний час.
+    """How many invitations the organization has issued in the last hour.
 
-    Считаются два события, каждое из которых может отправить письмо: создание
-    записи и отправка письма по уже существующей. Выпуск ссылки для
-    копирования в потолок не идёт — письма при нём не уходит, а потолок стоит
-    ровно против того, чтобы установка превратилась в бесплатный рассыльщик с
-    чужого домена.
+    Two events are counted, each of which may send a message: creating a row and
+    sending a message for an existing one. Issuing a link to copy does not count
+    towards the ceiling — no message goes out with it, and the ceiling stands
+    precisely against the installation turning into a free mailer from someone
+    else's domain.
     """
     since = now - RATE_LIMIT_WINDOW
     return db.scalar(
@@ -148,13 +151,14 @@ def _expiry(now: datetime) -> datetime:
 
 
 def _is_member(db: DbSession, *, org_id: uuid.UUID, email: str) -> bool:
-    """Состоит ли обладатель этого адреса в организации уже сейчас.
+    """Whether the holder of this address is already in the organization.
 
-    Спрашивается до выпуска, а не после приёма: приглашение действующему
-    участнику ничего не меняет — `accept` роли не трогает, — но выглядит как
-    действие. Зовущий, промахнувшийся строкой в списке адресов, увидел бы
-    «приглашение отправлено» и стал бы ждать, пока человек «войдёт», хотя тот
-    внутри со вчера. Отказ называет это словами.
+    It is asked before issuing rather than after accepting: an invitation to an
+    existing member changes nothing — `accept` does not touch the role — but looks
+    like an action. An inviter who picked the wrong line in a list of addresses
+    would see "the invitation was sent" and would start waiting for the person to
+    "come in", while they have been inside since yesterday. The refusal puts that
+    into words.
     """
     return (
         db.scalar(
@@ -187,14 +191,15 @@ def create(
     project_ids: list[uuid.UUID],
     now: datetime,
 ) -> list[tuple[Invitation, str]]:
-    """Выпускает приглашения и возвращает их вместе с открытыми токенами.
+    """Issues invitations and returns them together with the plain tokens.
 
-    Открытый токен возвращается только отсюда и больше нигде: в базе лежит
-    хеш, и восстановить ссылку позже невозможно — её показывают один раз.
+    The plain token is returned only from here and nowhere else: the database
+    holds a hash, and restoring the link later is impossible — it is shown once.
 
-    Пустой список адресов — не ошибка, а второй способ доставки: одно
-    приглашение без адреса, ссылку от которого зовущий отправит как ему
-    удобно. Такое приглашение достаётся предъявителю, и это осознанный размен.
+    An empty list of addresses is not an error but a second means of delivery: one
+    invitation with no address, whose link the inviter will send however they find
+    convenient. Such an invitation goes to whoever presents it, and that is a
+    deliberate trade-off.
     """
     parsed_role = _parse_role(role)
     stored_projects = _checked_project_ids(db, org_id=org_id, project_ids=project_ids)
@@ -204,12 +209,12 @@ def create(
         address = normalize_email(raw)
         if not address:
             raise InvitationError("invalid_email")
-        # Отказ на весь список, а не пропуск одного адреса: список набирают
-        # вставкой из письма, и «пятерых позвали, шестого молча не стали»
-        # обнаружилось бы через неделю по отсутствию человека. Проверка идёт
-        # до создания записей — иначе часть приглашений уже существовала бы к
-        # моменту отказа, и повторная отправка исправленного списка выпустила
-        # бы их второй раз.
+        # A refusal for the whole list rather than skipping one address: the list
+        # is assembled by pasting from an email, and "five were invited and the
+        # sixth silently was not" would surface a week later through the person's
+        # absence. The check runs before the rows are created — otherwise some
+        # invitations would already exist by the time of the refusal, and resending
+        # the corrected list would issue them a second time.
         if _is_member(db, org_id=org_id, email=address):
             raise InvitationError("already_member")
         if address not in normalized:
@@ -220,10 +225,9 @@ def create(
 
     issued: list[tuple[Invitation, str]] = []
     for address in recipients:
-        # Живое приглашение на тот же адрес переиздаётся, а не дублируется:
-        # два действующих токена на один адрес означают, что отозвать «то
-        # самое письмо» уже нельзя — ровно то, ради чего повторная отправка
-        # убивает прежний токен.
+        # A live invitation to the same address is reissued rather than duplicated:
+        # two valid tokens for one address mean that "that particular email" can no
+        # longer be revoked — exactly what resending kills the previous token for.
         existing = (
             None if address is None else _pending_for(db, org_id=org_id, email=address, now=now)
         )
@@ -241,11 +245,11 @@ def create(
             project_ids=stored_projects,
             token_hash=hashed,
             invited_by=inviter_id,
-            # Момент задаётся явно, а не берётся у базы: по нему считается срок
-            # жизни ссылки и часовой потолок, и три разных представления о
-            # «сейчас» в одной записи однажды разъедутся — сначала в тестах,
-            # потом на установке, где сервер приложения и сервер базы стоят в
-            # разных часовых поясах.
+            # The moment is set explicitly rather than taken from the database: the
+            # link's lifetime and the hourly ceiling are counted from it, and three
+            # different notions of "now" in one row will one day diverge — first in
+            # the tests, then on an installation where the application server and
+            # the database server sit in different timezones.
             created_at=now,
             expires_at=_expiry(now),
         )
@@ -257,12 +261,12 @@ def create(
 
 
 def reissue(db: DbSession, invitation: Invitation, *, now: datetime) -> str:
-    """Выпускает новую ссылку взамен прежней и возвращает открытый токен.
+    """Issues a new link in place of the previous one and returns the plain token.
 
-    Прежний токен умирает в тот же момент: без этого отозвать уже отправленное
-    письмо становится невозможно — старая ссылка продолжала бы работать рядом
-    с новой. Срок жизни отсчитывается заново: ссылка, выпущенная сегодня,
-    должна жить столько же, сколько любая другая выпущенная сегодня.
+    The previous token dies at that same moment: without this, revoking an
+    already sent message becomes impossible — the old link would keep working
+    alongside the new one. The lifetime is counted anew: a link issued today must
+    live as long as any other issued today.
     """
     state = status_of(invitation, now)
     if state in (Status.ACCEPTED, Status.REVOKED):
@@ -276,12 +280,13 @@ def reissue(db: DbSession, invitation: Invitation, *, now: datetime) -> str:
 
 
 def revoke(db: DbSession, invitation: Invitation, *, now: datetime) -> None:
-    """Убивает неиспользованное приглашение. Ссылка перестаёт работать сразу.
+    """Kills an unused invitation. The link stops working immediately.
 
-    Принятое приглашение не отзывается: членство уже создано, и снять его —
-    другое действие над другой сущностью. Повторный отзыв — не ошибка: он
-    ничего не меняет, а требовать от интерфейса угадывать состояние кнопки
-    ради 409 значит ломать её на любой гонке двух вкладок.
+    An accepted invitation is not revoked: the membership has already been
+    created, and removing it is a different action on a different entity. A
+    repeated revocation is not an error: it changes nothing, and requiring the
+    interface to guess the button's state for the sake of a 409 means breaking it
+    on any race between two tabs.
     """
     state = status_of(invitation, now)
     if state is Status.ACCEPTED:
@@ -293,34 +298,35 @@ def revoke(db: DbSession, invitation: Invitation, *, now: datetime) -> None:
 
 
 def by_token(db: DbSession, raw_token: str) -> Invitation | None:
-    """Приглашение по открытому токену. В базе лежит хеш — ищем по нему."""
+    """An invitation by plain token. The database holds a hash — we look it up by that."""
     if not raw_token:
         return None
     return db.scalar(select(Invitation).where(Invitation.token_hash == hash_token(raw_token)))
 
 
 def check_recipient(invitation: Invitation, email: str) -> None:
-    """Тот ли это адрес, которому приглашение адресовано.
+    """Whether this is the address the invitation is addressed to.
 
-    Приглашение без адреса достаётся предъявителю — проверять нечего. С
-    адресом — привязано к нему намертво: иначе пересланная ссылка пускает в
-    организацию кого угодно, а именно этого приглашение с адресом и не должно
-    допускать.
+    An invitation with no address goes to whoever presents it — there is nothing
+    to check. One with an address is bound to it for good: otherwise a forwarded
+    link lets anyone at all into the organization, and that is exactly what an
+    invitation with an address must not allow.
     """
     if invitation.email is not None and invitation.email != normalize_email(email):
         raise InvitationError("invite_wrong_email")
 
 
 def accept(db: DbSession, invitation: Invitation, *, user: User, now: datetime) -> Membership:
-    """Принимает приглашение: членство, доступы к проектам, отметка о приёме.
+    """Accepts an invitation: the membership, project access, the accepted mark.
 
-    Роль существующего членства не трогается. Приглашение — это способ позвать
-    человека, а не способ переписать роль тому, кто уже внутри: иначе
-    приглашение, выписанное на свой же адрес и принятое по невнимательности,
-    разжаловало бы последнего владельца организации, и починить это стало бы
-    некому. По той же причине не трогается и сужение (project_scoped)
-    существующего членства: приглашение с отмеченными проектами, принятое тем,
-    кто уже видел всю организацию, не должно молча урезать его до этого списка.
+    An existing membership's role is left alone. An invitation is a way of
+    inviting a person, not a way of rewriting the role of someone already inside:
+    otherwise an invitation written to one's own address and accepted carelessly
+    would demote the organization's last owner, and there would be nobody left to
+    fix it. For the same reason the narrowing (project_scoped) of an existing
+    membership is left alone too: an invitation with selected projects, accepted by
+    someone who already saw the whole organization, must not silently trim them
+    down to that list.
     """
     state = status_of(invitation, now)
     if state is not Status.PENDING:
@@ -337,9 +343,9 @@ def accept(db: DbSession, invitation: Invitation, *, user: User, now: datetime) 
             org_id=invitation.org_id,
             user_id=user.id,
             role=invitation.role,
-            # Отмеченные в приглашении проекты сужают новое членство целиком,
-            # какой бы ни была роль: пустой список ничего не сужает — роль
-            # остаётся при своём поведении по умолчанию (см. _checked_project_ids).
+            # The projects selected in the invitation narrow the new membership as
+            # a whole, whatever the role: an empty list narrows nothing — the role
+            # keeps its default behaviour (see _checked_project_ids).
             project_scoped=bool(invitation.project_ids),
         )
         db.add(membership)
@@ -353,12 +359,12 @@ def accept(db: DbSession, invitation: Invitation, *, user: User, now: datetime) 
 
 
 def grant_project_access(db: DbSession, *, user_id: uuid.UUID, project_ids: list) -> None:
-    """Выдаёт поимённый доступ к проектам, пропуская уже выданный.
+    """Grants individual access to the projects, skipping what is already granted.
 
-    Проекты сверяются с базой ещё раз, а не берутся из приглашения на веру:
-    между выпуском ссылки и её приёмом проходят дни, и проект за это время
-    могли удалить. Ссылка на исчезнувший проект — не повод отказать человеку
-    во входе в организацию.
+    The projects are checked against the database once more rather than taken from
+    the invitation on trust: days pass between issuing a link and accepting it, and
+    a project may have been deleted in that time. A reference to a vanished project
+    is no reason to refuse a person entry into the organization.
     """
     wanted = {uuid.UUID(str(project_id)) for project_id in project_ids}
     if not wanted:

@@ -10,47 +10,52 @@ class Action(StrEnum):
     ORG_ADMIN = "org_admin"
     COMMENT = "comment"
     READ_INTERNAL_NOTE = "read_internal_note"
-    # Утверждение и переутверждение — разные права, а не одно: первое доступно
-    # редактору, второе спецификация оставляет владельцу. Переутверждение
-    # стирает базовый план, от которого считаются все объяснённые сдвиги, —
-    # то есть обнуляет накопленную летопись отставания, и это решение уровня
-    # владельца, а не рядовая правка сроков.
+    # Approval and re-approval are different permissions rather than one: the
+    # first is available to an editor, the second the specification leaves to the
+    # owner. Re-approval erases the baseline plan that every explained shift is
+    # counted from — that is, it resets the accumulated chronicle of delay, and
+    # that is an owner-level decision, not a routine edit of dates.
     PLAN_APPROVE = "plan_approve"
     PLAN_REAPPROVE = "plan_reapprove"
-    # Удаление проекта — отдельное право, а не часть PROJECT_ADMIN: настройки
-    # правит и редактор, но удаление уносит с собой журнал ревизий — то есть
-    # и всякую возможность отмены. Решение такого веса, как и переутверждение
-    # плана, спецификация оставляет владельцу.
+    # Deleting a project is a separate permission rather than part of
+    # PROJECT_ADMIN: an editor edits the settings too, but a deletion carries the
+    # revision journal away with it — that is, every possibility of an undo. A
+    # decision of that weight, like re-approving a plan, the specification leaves
+    # to the owner.
     PROJECT_DELETE = "project_delete"
-    # Выгрузка проекта файлом. Отдельное право, хотя сегодня его имеет каждый,
-    # кто вправе проект читать: снимок плана, унесённый файлом, живёт дальше
-    # своей жизнью и отзыву не подлежит — в отличие от публичной ссылки,
-    # которую можно закрыть. Названное право даёт установке, которой это
-    # важно, один рычаг вместо разбирательства по маршрутам.
+    # Exporting a project as a file. A separate permission, even though today
+    # everyone entitled to read the project has it: a snapshot of the plan carried
+    # away as a file goes on living a life of its own and cannot be revoked —
+    # unlike a public link, which can be closed. Naming the permission gives an
+    # installation that cares about this one lever instead of an inquiry across
+    # the routes.
     #
-    # Разница в содержимом файла правом не выражается: её решают уже
-    # существующие READ_INTERNAL_NOTE и правило показа исполнителей, ровно те
-    # же, что действуют на публичной странице.
+    # The difference in the file's contents is not expressed by a permission: it
+    # is decided by the already existing READ_INTERNAL_NOTE and the rule for
+    # showing assignees, exactly the ones that apply on the public page.
     PROJECT_EXPORT = "project_export"
-    # Предложение — внутренняя кухня сделки: ставки, себестоимость, риски и
-    # разговор команды о клиенте. Клиент и гость по ссылке его не читают —
-    # тем же правилом, каким выгрузка уже вырезает смету из клиентского
-    # экземпляра (см. export/document.py, INTERNAL_SECTIONS). Клиенту
-    # предназначен документ, собранный из клиентских полей, а не экран, — и
-    # получает он его от исполнителя письмом, а не скачивает сам: пока
-    # предложение правится, его черновик — внутренняя работа.
+    # The proposal is the deal's internal kitchen: rates, cost, risks and the
+    # team's conversation about the client. A client and a link-holding guest do
+    # not read it — by the same rule with which the export already cuts the budget
+    # out of the client copy (see export/document.py, INTERNAL_SECTIONS). What is
+    # meant for the client is a document assembled from client-facing fields, not
+    # a screen — and they receive it from the contractor by email rather than
+    # downloading it themselves: while the proposal is being edited, its draft is
+    # internal work.
     #
-    # Отдельное право, а не PROJECT_READ: план клиенту читать как раз
-    # положено, и разница между планом и сметой должна быть названа.
+    # A separate permission rather than PROJECT_READ: reading the plan is exactly
+    # what a client is entitled to, and the difference between the plan and the
+    # budget has to be named.
     PROPOSAL_READ = "proposal_read"
-    # Оценка людей на скоркарде — сигнал «в темпе / отстаёт / сорвал молча»
-    # с причиной. Цифры темпа видит вся команда, а вывод о человеке — только
-    # тот, кто за команду отвечает: владелец. Отдельное право, а не
-    # PROJECT_ADMIN: редактор правит план, но не судит коллег.
+    # Rating people on the scorecard — the "on pace / falling behind / missed it
+    # silently" signal with a reason. The pace figures are seen by the whole team,
+    # while a judgement about a person is seen only by whoever answers for the
+    # team: the owner. A separate permission rather than PROJECT_ADMIN: an editor
+    # edits the plan but does not judge colleagues.
     TEAM_ASSESSMENT_READ = "team_assessment_read"
-    # Темп команды по людям — сделано/по плану за неделю у каждого. Цифры
-    # работы видит вся команда, включая наблюдателя; клиент и гость по ссылке
-    # смотрят план, а не на то, кто из исполнителей как справляется.
+    # The team's pace by person — done/planned per week for each. The work figures
+    # are seen by the whole team, the viewer included; a client and a link-holding
+    # guest look at the plan, not at how each contributor is coping.
     TEAM_PACE_READ = "team_pace_read"
 
 
@@ -79,31 +84,31 @@ _MATRIX: dict[Role | None, frozenset[Action]] = {
             Action.TEAM_PACE_READ,
         }
     ),
-    # Клиент и гость по ссылке выгружают клиентский экземпляр: тот же урез,
-    # что уже действует на публичной странице. Отказать им было бы странно —
-    # то же самое они видят на экране и могут снять снимком экрана.
+    # A client and a link-holding guest export the client copy: the same trimming
+    # that already applies on the public page. Refusing them would be odd — they
+    # see the same thing on screen and can capture it with a screenshot.
     Role.CLIENT: frozenset(
         {Action.PROJECT_READ, Action.COMMENT, Action.PROJECT_EXPORT}
     ),
     None: frozenset({Action.PROJECT_READ, Action.COMMENT, Action.PROJECT_EXPORT}),
 }
 
-# Роли, которые видят только те проекты, куда их позвали явно, — независимо от
-# того, сужено ли конкретное членство (см. needs_project_grant).
+# The roles that see only the projects they were explicitly invited to —
+# regardless of whether a particular membership is narrowed (see needs_project_grant).
 _NEEDS_GRANT: frozenset[Role | None] = frozenset({Role.CLIENT, None})
 
 
-# Значение роли, которого нет в Role. Не None: None — это гость по ссылке, у
-# которого права есть. Незнакомая роль не должна получать вообще ничего.
+# A role value absent from Role. Not None: None is a link-holding guest, who does
+# have permissions. An unknown role must get nothing at all.
 UNKNOWN_ROLE = "__unknown__"
 
 
 def parse_role(raw: str | None) -> Role | str | None:
-    """Роль из записи членства в вид, понятный can().
+    """A role from a membership row, in the form can() understands.
 
-    Role(raw) на испорченном значении поднимает ValueError — то есть пятисотку
-    ещё до того, как спросят can(), и запертая по умолчанию матрица прав
-    оказывается недостижимой. Незнакомое значение — это отказ, а не авария.
+    Role(raw) on a corrupted value raises ValueError — that is, a 500 before can()
+    is even asked, and the permission matrix, locked by default, turns out to be
+    unreachable. An unknown value is a refusal, not a crash.
     """
     if raw is None:
         return None
@@ -114,24 +119,25 @@ def parse_role(raw: str | None) -> Role | str | None:
 
 
 def needs_project_grant(role: Role | str | None, *, scoped: bool = False) -> bool:
-    """Видит ли эта роль (или это конкретное членство) только те проекты,
-    куда её позвали поимённо.
+    """Whether this role (or this particular membership) sees only the projects it
+    was individually invited to.
 
-    `scoped` — не свойство роли, а свойство членства (Membership.project_scoped):
-    приглашающий вправе сузить и редактора, и наблюдателя до конкретных
-    проектов, не трогая саму роль и её матрицу прав. `client` и гость по
-    ссылке сужены всегда, независимо от значения `scoped`, — их и спрашивать
-    не о чем, отсюда `or`, а не замена.
+    `scoped` is not a property of the role but of the membership
+    (Membership.project_scoped): an inviter may narrow both an editor and a viewer
+    down to particular projects without touching the role itself or its permission
+    matrix. `client` and a link-holding guest are always narrowed, regardless of
+    the value of `scoped` — there is nothing to ask them about, hence `or` rather
+    than a replacement.
 
-    Владелец не сужается никогда, даже если на его записи членства зачем-то
-    стоит `project_scoped=True` (например, редактора с сужением повысили): он
-    один распоряжается организацией целиком, и запертый в горстке проектов
-    владелец — это организация без администратора.
+    An owner is never narrowed, even if their membership row somehow carries
+    `project_scoped=True` (for instance, a narrowed editor was promoted): they
+    alone govern the whole organization, and an owner locked inside a handful of
+    projects is an organization without an administrator.
 
-    Спрашивается снаружи — списком проектов и загрузкой одного проекта: им
-    нужно знать не только «можно ли», но и «по какому правилу отбирать».
-    Знание о том, какие роли устроены так, остаётся здесь, в единственном
-    месте, где решается доступ.
+    It is asked from outside — by the project list and by loading a single
+    project: they need to know not only "is this allowed" but also "by which rule
+    to select". The knowledge of which roles work this way stays here, in the one
+    place where access is decided.
     """
     if role is Role.OWNER:
         return False
@@ -143,8 +149,8 @@ def can(
 ) -> bool:
     if needs_project_grant(role, scoped=scoped) and not project_granted:
         return False
-    # .get с пустым множеством по умолчанию: незнакомая роль не находит себя в
-    # матрице и не может ничего — матрица заперта по умолчанию.
+    # .get with an empty set as the default: an unknown role does not find itself
+    # in the matrix and can do nothing — the matrix is locked by default.
     return action in _MATRIX.get(role, frozenset())
 
 
@@ -155,18 +161,18 @@ def require(
         raise PermissionError(f"{role or 'guest'} не может выполнить {action}")
 
 
-# Поля журнала, показывать которые вправе не каждый. Сегодня оно ровно одно —
-# спецификация обещает, что сложной видимости по полям не будет.
+# Journal fields that not everyone is entitled to see. Today there is exactly one
+# — the specification promises there will be no complex per-field visibility.
 _NOTE_FIELD = "internal_note"
 
 
 def _carries_note(payload: dict) -> bool:
-    """Есть ли заметка где-нибудь в записи, включая вложенные словари и списки."""
+    """Whether there is a note anywhere in the entry, nested dicts and lists included."""
     return any(key == _NOTE_FIELD or _nested_note(value) for key, value in payload.items())
 
 
 def _nested_note(value: object) -> bool:
-    """Заметка внутри значения — словаря или списка словарей."""
+    """A note inside a value — a dict or a list of dicts."""
     if isinstance(value, dict):
         return _carries_note(value)
     if isinstance(value, list):
@@ -175,17 +181,18 @@ def _nested_note(value: object) -> bool:
 
 
 def _without_note(payload: dict) -> dict:
-    """Копия записи без заметки — на любой глубине вложенности.
+    """A copy of the entry without the note — at any depth of nesting.
 
-    Плоской проверки «есть ли такой ключ в корне» не хватает: set_task_fields
-    кладёт заметку не в корень, а внутрь from и to, и на нём такая проверка
-    молча не срабатывает — заметка уезжает в ответ. Обход по вложенным
-    словарям делает правило нечувствительным к форме записи, а значит и к
-    форме операций, которых ещё нет.
+    A flat "is there such a key at the root" check is not enough: set_task_fields
+    puts the note not at the root but inside from and to, and on it such a check
+    silently fails — the note rides out in the answer. A walk over nested dicts
+    makes the rule insensitive to the shape of an entry, and therefore to the
+    shape of operations that do not exist yet.
 
-    Списки обходятся наравне со словарями, и это не запас на будущее: снимок
-    удалённой категории несёт свои задачи именно списком, и заметка каждой из
-    них лежит на два уровня вглубь — в словаре внутри списка внутри записи.
+    Lists are walked alongside dicts, and that is not provision for the future:
+    the snapshot of a deleted category carries its tasks as a list specifically,
+    and each of their notes sits two levels deep — in a dict inside a list inside
+    the entry.
     """
     return {
         key: _prune_note(value)
@@ -195,7 +202,7 @@ def _without_note(payload: dict) -> dict:
 
 
 def _prune_note(value):
-    """Значение без заметки: словарь — по ключам, список — поэлементно."""
+    """A value without the note: a dict by key, a list element by element."""
     if isinstance(value, dict):
         return _without_note(value)
     if isinstance(value, list):
@@ -204,16 +211,18 @@ def _prune_note(value):
 
 
 def visible_op(payload: dict, role: Role | None, *, project_granted: bool = False) -> dict:
-    """Запись журнала в том виде, в каком её вправе увидеть эта роль.
+    """A journal entry in the form this role is entitled to see it.
 
-    Решение о видимости живёт здесь, а не в маршруте: то же самое понадобится
-    истории изменений на карточке задачи, и её автор не должен заново
-    выяснять, какие операции несут заметку. create_task кладёт internal_note
-    в op наравне с остальными полями, delete_task — в inverse (снимок для
-    отмены), set_task_fields — внутрь обеих границ.
+    The visibility decision lives here rather than in the route: the same thing
+    will be needed by the change history on a task card, and its author must not
+    have to work out anew which operations carry a note. create_task puts
+    internal_note into op alongside the other fields, delete_task puts it into
+    inverse (the snapshot for undoing), and set_task_fields puts it inside both
+    sides.
 
-    Возвращает новый словарь: revision.op / revision.inverse на самой записи
-    не трогаются, иначе будущая отмена восстановила бы задачу без заметки.
+    Returns a new dict: revision.op / revision.inverse on the entry itself are
+    left untouched, otherwise a future undo would restore the task without its
+    note.
     """
     if not _carries_note(payload):
         return payload

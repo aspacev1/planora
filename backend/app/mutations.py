@@ -31,12 +31,12 @@ from app.settings_resolution import project_calendar, resolve_shift_threshold
 
 
 class MutationError(Exception):
-    """Отказ применить операцию.
+    """A refusal to apply an operation.
 
-    Несёт стабильный машинный код для ответа и человеческий текст — для
-    журнала. Текст в тело ответа не попадает: язык интерфейса по умолчанию
-    азербайджанский, словарей сообщений сервер сознательно не держит (их
-    составляет клиент), поэтому проза в `detail` непереводима.
+    It carries a stable machine code for the answer and human text for the log. The
+    text does not reach the response body: the interface's default language is
+    Azerbaijani, the server deliberately keeps no message dictionaries (the client
+    composes them), so prose in `detail` is untranslatable.
     """
 
     def __init__(self, code: str, message: str):
@@ -45,40 +45,42 @@ class MutationError(Exception):
 
 
 class NotFoundInProject(MutationError):
-    """Названная сущность не существует или принадлежит другому проекту.
+    """The named entity does not exist or belongs to another project.
 
-    Отдельный класс от InvalidOperation: обращение к задаче чужой
-    организации — это не ошибка формата запроса, и маршрут отвечает на него
-    404, а не 422.
+    A separate class from InvalidOperation: reaching for a task of another
+    organization is not a request-format error, and the route answers it with a 404
+    rather than a 422.
     """
 
 
 class InvalidOperation(MutationError):
-    """Операция составлена так, что применить её нельзя."""
+    """The operation is composed in a way that makes it impossible to apply."""
 
 
 class UndoConflict(MutationError):
-    """Отменить просят не ту ревизию, что лежит наверху журнала.
+    """The revision asked to be undone is not the one at the top of the journal.
 
-    Клиент называет номер той ревизии, отмену которой он предлагает человеку:
-    кнопка «Отменить» в тосте появляется после конкретного переноса и обещает
-    вернуть именно его. Между показом кнопки и нажатием проходят секунды, и за
-    эти секунды сосед по проекту успевает применить своё изменение — верх
-    журнала уезжает, а безномерная отмена сняла бы чужую правку молча.
+    The client names the number of the revision whose undo it is offering a person:
+    the "Undo" button in a toast appears after a particular move and promises to
+    bring back exactly that one. Seconds pass between showing the button and
+    pressing it, and in those seconds a colleague on the project applies a change of
+    their own — the head of the journal moves on, and a numberless undo would remove
+    someone else's edit silently.
 
-    Отдельный класс, потому что это не ошибка составления запроса: он верен, и
-    повторённый после перечитывания состояния — пройдёт.
+    A separate class, because this is not an error of composing the request: it is
+    correct, and repeated after the state has been re-read it will pass.
     """
 
 
 class ReasonRequired(MutationError):
-    """Правка уводит задачу от базового плана дальше порога, а причина не названа.
+    """The edit takes the task further from the baseline plan than the threshold, and no reason was named.
 
-    Отдельный класс, потому что это не ошибка составления операции: операция
-    верна, и стоит человеку объяснить сдвиг — та же самая операция пройдёт.
-    Числа отклонения и порога несёт с собой: интерфейс считает их и сам, но
-    последнее слово о них — за сервером, и расхождение должно быть видно, а не
-    молча разрешаться в пользу клиента.
+    A separate class, because this is not an error of composing the operation: the
+    operation is correct, and the moment the person explains the shift the very same
+    operation will pass. It carries the deviation and threshold figures with it: the
+    interface computes them itself too, but the last word on them belongs to the
+    server, and a divergence must be visible rather than silently resolved in the
+    client's favour.
     """
 
     def __init__(self, deviation_days: int, threshold_days: int):
@@ -90,15 +92,15 @@ class ReasonRequired(MutationError):
         self.threshold_days = threshold_days
 
 
-# --- внутреннее представление ------------------------------------------------
+# --- the internal representation ---------------------------------------------
 #
-# Эти модели описывают операцию так, как её видит домен и как она лежит в
-# журнале ревизий. У создающих операций есть поля восстановления — category_id,
-# task_id, position, — потому что отмена удаления обязана вернуть строку под
-# её прежним идентификатором и на прежнее место. По проводу такие поля
-# принимать нельзя: они отдают клиенту назначение идентификаторов и позволяют
-# положить строку на произвольный индекс. Публичный контракт — ниже,
-# отдельными моделями; to_internal() переводит одно в другое.
+# These models describe an operation as the domain sees it and as it lies in the
+# revision journal. Creating operations have restore fields — category_id,
+# task_id, position — because undoing a deletion must bring a row back under its
+# previous identifier and to its previous place. Such fields must not be accepted
+# over the wire: they hand the assignment of identifiers to the client and allow a
+# row to be placed at an arbitrary index. The public contract is below, as
+# separate models; to_internal() translates one into the other.
 
 
 class CreateCategory(BaseModel):
@@ -107,13 +109,12 @@ class CreateCategory(BaseModel):
     color: str
     category_id: uuid.UUID | None = None
     position: int | None = None
-    # Задачи, которые лежали в категории на момент её удаления. Поле
-    # восстановления, зеркальное каскаду: delete_category уносит содержимое
-    # категории вместе с ней, и обратная операция обязана вернуть не пустую
-    # строку заголовка, а весь этап целиком — со связями, назначениями и
-    # разговором каждой задачи (см. CreateTask ниже). По проводу, как и
-    # остальные поля восстановления, не принимается: его нет в публичной
-    # модели.
+    # The tasks that lay in the category at the moment it was deleted. A restore
+    # field, mirroring the cascade: delete_category carries the category's contents
+    # away with it, and the inverse operation must bring back not an empty heading
+    # row but the whole stage — with the dependencies, assignments and conversation
+    # of every task (see CreateTask below). Like the other restore fields, it is not
+    # accepted over the wire: it is absent from the public model.
     tasks: list["CreateTask"] = Field(default_factory=list)
 
 
@@ -133,38 +134,40 @@ class CreateTask(BaseModel):
     baseline_duration: int | None = None
     task_id: uuid.UUID | None = None
     position: int | None = None
-    # Поля восстановления удалённой задачи. Удаление уносит каскадом связи,
-    # назначения и комментарии; без их снимка в inverse отмена возвращала бы
-    # голую строку задачи, а разговор с клиентом и стрелки на диаграмме
-    # пропадали бы безвозвратно. По проводу, как и остальные поля
-    # восстановления, не принимаются — их нет в публичной модели.
+    # The restore fields of a deleted task. A deletion carries away the
+    # dependencies, assignments and comments by cascade; without their snapshot in
+    # inverse, an undo would bring back a bare task row while the conversation with
+    # the client and the arrows on the chart would be lost for good. Like the other
+    # restore fields, they are not accepted over the wire — they are absent from the
+    # public model.
     assignees: list[uuid.UUID] = Field(default_factory=list)
     dependencies: list[dict] = Field(default_factory=list)
     comments: list[dict] = Field(default_factory=list)
 
 
-# CreateCategory ссылается на CreateTask раньше, чем тот объявлен: категория со
-# своими задачами — это одна операция, и разорвать пару, переставив классы
-# местами, нельзя (тогда на CreateCategory сослался бы CreateTask). Ссылка
-# разрешается здесь, сразу после объявления второго из них.
+# CreateCategory refers to CreateTask before the latter is declared: a category
+# with its tasks is one operation, and the pair cannot be broken by swapping the
+# classes around (CreateTask would then refer to CreateCategory). The reference is
+# resolved here, right after the second of them is declared.
 CreateCategory.model_rebuild()
 
 
-# --- поле восстановления автопереноса ------------------------------------------
+# --- the automatic-shift restore field ----------------------------------------
 #
-# Операции, меняющие сроки, при включённом автопереносе двигают не только свою
-# задачу, но и её последователей (см. app/cascade.py). Отмена обязана вернуть
-# всех, а не одну, и вернуть точно — поэтому прямая операция записывает в
-# журнал карту сдвинутых, а обратная получает её обратно этим полем и
-# раскладывает даты дословно, ничего не пересчитывая.
+# With automatic shifting on, operations that change dates move not only their own
+# task but its successors as well (see app/cascade.py). An undo must bring all of
+# them back, not one, and bring them back exactly — so the forward operation writes
+# a map of what was shifted into the journal, and the inverse gets it back through
+# this field and lays the dates out verbatim, computing nothing.
 #
-# Тот же приём, что у SetProgress.status: связка отрабатывает в прямой
-# операции, а обратная берёт готовое. Пересчитать автоперенос при отмене
-# нельзя в принципе — «подвинуть на самое раннее» необратимо: перенос вперёд
-# помнит, откуда пришёл, а вычисление этого не помнит.
+# The same technique as SetProgress.status: the coupling runs in the forward
+# operation while the inverse takes the finished result. Recomputing the automatic
+# shift on an undo is impossible in principle — "move to the earliest possible" is
+# irreversible: a forward move remembers where it came from, a computation of it
+# does not.
 #
-# По проводу поле не принимается: клиент, приславший карту дат, разложил бы
-# план в обход всякой проверки.
+# The field is not accepted over the wire: a client that sent a date map would lay
+# the plan out around every check.
 
 class MoveTask(BaseModel):
     type: Literal["move_task"] = "move_task"
@@ -181,17 +184,17 @@ class SetDuration(BaseModel):
 
 
 class ResizeTask(BaseModel):
-    """Старт и длительность разом — левая грань полоски.
+    """The start and the duration at once — the left edge of a bar.
 
-    Отдельная операция, а не пара move_task + set_duration, по той же причине,
-    по которой set_task_fields сохраняет три поля разом: левую грань тянут
-    одним движением, конец задачи при этом стоит на месте, и в истории это
-    обязано читаться как одно изменение. Пара операций дала бы две записи, две
-    отмены и промежуточное состояние, которого человек не создавал, — задачу,
-    уже сдвинутую, но ещё не укороченную.
+    A separate operation rather than a move_task + set_duration pair, for the same
+    reason set_task_fields saves three fields at once: the left edge is dragged with
+    one movement, the task's end stays where it is, and in the history this must
+    read as one change. A pair of operations would give two entries, two undos and
+    an intermediate state a person never created — a task already moved but not yet
+    shortened.
 
-    Правая грань этой операции не требует: там меняется одна длительность, и
-    для неё уже есть set_duration.
+    The right edge does not require this operation: there only the duration
+    changes, and set_duration already exists for it.
     """
 
     type: Literal["resize_task"] = "resize_task"
@@ -202,34 +205,35 @@ class ResizeTask(BaseModel):
 
 
 class SetMilestone(BaseModel):
-    """Задача становится вехой или перестаёт ею быть.
+    """A task becomes a milestone or stops being one.
 
-    Отдельная операция, а не поле set_task_fields: превращение отрезка в точку
-    схлопывает длительность, то есть меняет сроки, — и в истории это обязано
-    читаться как изменение сроков, а не как правка текста.
+    A separate operation rather than a field of set_task_fields: turning a segment
+    into a point collapses the duration, that is, changes dates — and in the history
+    this must read as a change of dates rather than as an edit of text.
     """
 
     type: Literal["set_milestone"] = "set_milestone"
     task_id: uuid.UUID
     milestone: bool
-    # Поле восстановления — зеркально set_progress.status: веха схлопывает
-    # длительность в один день, и отмена обязана вернуть ту, что стояла до
-    # операции, а не выдуманную единицу. По проводу не принимается: длительность
-    # с провода назначает set_duration.
+    # A restore field — mirroring set_progress.status: a milestone collapses the
+    # duration into one day, and an undo must bring back the one that stood before
+    # the operation rather than an invented single day. It is not accepted over the
+    # wire: a duration from the wire is assigned by set_duration.
     duration_days: int | None = None
 
 
 class MoveCategory(BaseModel):
-    """Сдвиг всей категории на N календарных дней.
+    """A shift of a whole category by N calendar days.
 
-    Одна операция, а не пачка move_task по числу задач, по той же причине, по
-    которой set_task_fields сохраняет три поля разом: человек сделал одно
-    движение — сводную полосу категории потащили вправо, — и история обязана
-    показать одну запись, а отмена вернуть всё одним нажатием.
+    One operation rather than a batch of move_tasks numbering as many as there are
+    tasks, for the same reason set_task_fields saves three fields at once: the
+    person made one movement — the category's summary bar was dragged to the right —
+    and the history must show one entry while an undo brings everything back with
+    one press.
 
-    Дни, а не целевая дата: у категории нет своих границ (сводная полоса
-    рисуется по крайним датам её задач), и «перенести категорию на 3 марта»
-    значило бы придумать ей начало, которого в модели нет.
+    Days rather than a target date: a category has no bounds of its own (the summary
+    bar is drawn from the extreme dates of its tasks), and "move the category to 3
+    March" would mean inventing a beginning for it that does not exist in the model.
     """
 
     type: Literal["move_category"] = "move_category"
@@ -249,11 +253,11 @@ class DeleteCategory(BaseModel):
 
 
 class SetTaskFields(BaseModel):
-    """Три текстовых поля разом.
+    """Three text fields at once.
 
-    Карточка задачи сохраняет их одним действием; разбить это на три ревизии
-    значило бы засорять историю тремя записями там, где человек сделал одно
-    изменение.
+    The task card saves them with one action; splitting that into three revisions
+    would mean littering the history with three entries where a person made one
+    change.
     """
 
     type: Literal["set_task_fields"] = "set_task_fields"
@@ -270,11 +274,11 @@ class SetCriticality(BaseModel):
 
 
 class SetRisk(BaseModel):
-    """Флаг риска и причина одной операцией.
+    """The risk flag and the reason in one operation.
 
-    Карточка меняет их одним жестом («есть риск — жду доступ»), и две записи
-    в истории о нём — тот же довод, что у SetTaskFields. Обе границы в
-    журнале словарём (см. _MAPPED_BOUNDS).
+    The card changes them with one gesture ("there is a risk — waiting for access"),
+    and two entries in the history about it is the same argument as with
+    SetTaskFields. Both bounds go into the journal as a dict (see _MAPPED_BOUNDS).
     """
 
     type: Literal["set_risk"] = "set_risk"
@@ -283,26 +287,26 @@ class SetRisk(BaseModel):
     note: str = ""
 
 
-# --- связка прогресса и статуса ----------------------------------------------
+# --- the coupling of progress and status --------------------------------------
 #
-# Правило ровно из трёх пунктов, и только из них:
-#   set_progress до 100        → статус становится 'done';
-#   set_progress ниже 100 из
-#   статуса 'done'             → статус становится 'in_progress';
-#   set_status в 'done'        → прогресс становится 100.
-# Уход из 'done' в другой статус прогресс не трогает, даже когда тот стоит на
-# 100: выдуманное «почти готово» (99?) было бы значением, которого человек не
-# вводил, а честного кандидата у системы нет.
+# The rule has exactly three clauses and no more:
+#   set_progress to 100         -> the status becomes 'done';
+#   set_progress below 100 from
+#   the status 'done'           -> the status becomes 'in_progress';
+#   set_status to 'done'        -> the progress becomes 100.
+# Leaving 'done' for another status does not touch the progress, even when it
+# stands at 100: an invented "almost ready" (99?) would be a value the person never
+# entered, and the system has no honest candidate.
 
 
 class SetProgress(BaseModel):
     type: Literal["set_progress"] = "set_progress"
     task_id: uuid.UUID
     progress_pct: int
-    # Поле восстановления: отмена обязана вернуть статус, который стоял до
-    # операции, а не тот, который выведет связка (из 'blocked' связка не
-    # угадала бы никогда). По проводу не принимается — статусом с провода
-    # управляет set_status.
+    # A restore field: an undo must bring back the status that stood before the
+    # operation rather than the one the coupling would derive (from 'blocked' the
+    # coupling would never guess it). It is not accepted over the wire — a status
+    # from the wire is governed by set_status.
     status: str | None = None
 
 
@@ -310,8 +314,8 @@ class SetStatus(BaseModel):
     type: Literal["set_status"] = "set_status"
     task_id: uuid.UUID
     status: str
-    # Поле восстановления — зеркально set_progress.status: отмена ухода в
-    # 'done' обязана вернуть прежний прогресс, а не оставить 100.
+    # A restore field — mirroring set_progress.status: undoing a move into 'done'
+    # must bring the previous progress back rather than leave 100.
     progress_pct: int | None = None
 
 
@@ -335,13 +339,13 @@ class ReorderTask(BaseModel):
 
 
 class ReorderCategory(BaseModel):
-    """Категория встаёт на другое место в списке этапов.
+    """A category takes another place in the list of stages.
 
-    Отдельная операция от reorder_task, а не общая «переставить строку»:
-    у задачи место описывается парой (категория, номер) — её и переносят из
-    одного этапа в другой, — а у категории родителя нет вовсе, и номер один.
-    Общая операция несла бы у половины вызовов пустой category_id, то есть
-    описывала бы не то, что произошло.
+    A separate operation from reorder_task rather than a shared "move a row": a
+    task's place is described by a pair (category, number) — and it is moved from
+    one stage into another — while a category has no parent at all and only a
+    number. A shared operation would carry an empty category_id on half of its calls,
+    that is, would describe something other than what happened.
     """
 
     type: Literal["reorder_category"] = "reorder_category"
@@ -353,8 +357,8 @@ class AddDependency(BaseModel):
     type: Literal["add_dependency"] = "add_dependency"
     from_task_id: uuid.UUID
     to_task_id: uuid.UUID
-    # Новая связь двигает последователя ровно так же, как перенос
-    # предшественника: она и означает «эта работа ждёт ту».
+    # A new dependency moves the successor exactly as moving the predecessor does:
+    # it is what "this work waits on that one" means.
     cascade: dict[uuid.UUID, date] | None = None
 
 
@@ -362,9 +366,9 @@ class RemoveDependency(BaseModel):
     type: Literal["remove_dependency"] = "remove_dependency"
     from_task_id: uuid.UUID
     to_task_id: uuid.UUID
-    # Обратная к add_dependency: снятая связь возвращает последователей туда,
-    # откуда их подвинуло её появление. Сама по себе снятая связь не двигает
-    # ничего — автоперенос назад не тянет (см. app/cascade.py).
+    # The inverse of add_dependency: a removed dependency returns the successors to
+    # where its appearance moved them from. A removed dependency by itself moves
+    # nothing — the automatic shift does not pull backwards (see app/cascade.py).
     cascade: dict[uuid.UUID, date] | None = None
 
 
@@ -381,11 +385,11 @@ class UnassignUser(BaseModel):
 
 
 class ApplyPositions(BaseModel):
-    """Внутренняя операция: расставить позиции по готовой карте.
+    """An internal operation: lay positions out from a ready map.
 
-    Существует только как обратная к reorder_task. По проводу не принимается —
-    в публичном реестре её нет: иначе клиент прислал бы произвольную карту и
-    расставил строки в обход всякой проверки порядка.
+    It exists only as the inverse of reorder_task. It is not accepted over the wire
+    — it is absent from the public registry: otherwise a client would send an
+    arbitrary map and lay the rows out around every check of the ordering.
     """
 
     type: Literal["apply_positions"] = "apply_positions"
@@ -394,11 +398,11 @@ class ApplyPositions(BaseModel):
 
 
 class ApplyCategoryPositions(BaseModel):
-    """Внутренняя операция: расставить порядок категорий по готовой карте.
+    """An internal operation: lay the category order out from a ready map.
 
-    Существует только как обратная к reorder_category — по той же причине, по
-    которой существует apply_positions, и с тем же запретом на провод: карта,
-    присланная клиентом, расставила бы этапы в обход всякой проверки порядка.
+    It exists only as the inverse of reorder_category — for the same reason
+    apply_positions exists, and with the same ban on the wire: a map sent by a
+    client would lay the stages out around every check of the ordering.
     """
 
     type: Literal["apply_category_positions"] = "apply_category_positions"
@@ -461,28 +465,29 @@ _MODELS = {
 }
 
 
-# --- контракт по проводу -----------------------------------------------------
+# --- the contract over the wire ----------------------------------------------
 #
-# Границы длин повторяют ширину колонок: без них строка длиннее varchar
-# приезжает в базу и возвращается пятисоткой на ошибке усечения, а не честным
-# отказом клиенту. extra="forbid" выбран сознательно вместо тихого
-# игнорирования: клиент, приславший task_id в расчёте, что сервер его учтёт,
-# должен узнать об этом сразу, а не гадать потом, почему строка оказалась не
-# там.
+# The length bounds repeat the width of the columns: without them a string longer
+# than the varchar reaches the database and comes back as a 500 on a truncation
+# error rather than as an honest refusal to the client. extra="forbid" was chosen
+# deliberately over silent ignoring: a client that sent a task_id expecting the
+# server to honour it must learn about that right away rather than wonder later why
+# the row ended up somewhere else.
 #
-# Позиция задачи — исключение, и осознанное: место строки в списке выбирает
-# человек, а не сервер. Он и так выбирает его перетаскиванием (reorder_task
-# принимает позицию по проводу с самого начала), а «плюс» на границе строк
-# заводит задачу сразу там, куда указали. Без этого поля вставка посередине
-# была бы парой операций — создать в конце и переставить, — то есть двумя
-# записями в истории и двумя нажатиями «Отменить» на одно действие человека.
-# Назначение идентификаторов за сервером остаётся: task_id по проводу
-# по-прежнему не принимается.
+# A task's position is the exception, and a deliberate one: a row's place in a list
+# is chosen by a person, not by the server. They choose it by dragging anyway
+# (reorder_task has accepted a position over the wire from the start), and the
+# "plus" on a row boundary creates a task right where it was pointed. Without this
+# field, inserting in the middle would be a pair of operations — create at the end
+# and move — that is, two entries in the history and two presses of "Undo" for one
+# action by a person. The assignment of identifiers stays with the server: task_id
+# is still not accepted over the wire.
 
-#: Дальний край дат, которые принимает провод. Не date.max: календарь ищет
-#: рабочие дни на годы вперёд от старта (перенос конца за праздники), и дата
-#: у самого края опрокидывала бы арифметику дат за пределы поддерживаемого.
-#: 2200 год — заведомо дальше любого реального плана и заведомо ближе края.
+#: The far edge of the dates the wire accepts. Not date.max: the calendar searches
+#: for working days years ahead of the start (moving the end past holidays), and a
+#: date at the very edge would tip the date arithmetic beyond what is supported.
+#: The year 2200 is knowingly further than any real plan and knowingly nearer than
+#: the edge.
 MAX_WIRE_DATE = date(2200, 12, 31)
 
 
@@ -492,10 +497,10 @@ class _Wire(BaseModel):
     @field_validator("description", "internal_note", mode="after", check_fields=False)
     @classmethod
     def _within_max_text_len(cls, value: str) -> str:
-        # Потолок читается в момент вызова, а не запекается в Field при
-        # импорте модуля: MAX_TEXT_LEN — настройка установки, и заданное в
-        # .env значение обязано действовать, а не значение, случившееся при
-        # первом импорте (в тестах это ещё и делало monkeypatch бессильным).
+        # The ceiling is read at call time rather than baked into a Field at module
+        # import: MAX_TEXT_LEN is an installation setting, and the value set in .env
+        # must be the one in force rather than whichever happened to be there at
+        # the first import (in tests that also rendered monkeypatch powerless).
         limit = get_settings().max_text_len
         if len(value) > limit:
             raise ValueError(f"длиннее потолка в {limit} символов")
@@ -514,9 +519,9 @@ class PublicCreateTask(_Wire):
     name: str = Field(min_length=1, max_length=300)
     start_date: date = Field(le=MAX_WIRE_DATE)
     duration_days: int = Field(ge=1)
-    #: Место строки в списке категории. Не прислана — задача встаёт в конец,
-    #: как и раньше; названная — на этот номер, а занявшие его строки едут
-    #: вниз (см. _create_task).
+    #: The row's place in the category's list. Not sent — the task goes to the end,
+    #: as before; named — to that number, and the rows that held it move down (see
+    #: _create_task).
     position: int | None = Field(default=None, ge=0)
     description: str = ""
     internal_note: str = ""
@@ -534,10 +539,10 @@ class PublicMoveTask(_Wire):
     start_date: date = Field(le=MAX_WIRE_DATE)
 
 
-#: Дальний край сдвига категории. Десять лет в обе стороны — заведомо больше
-#: любого настоящего переноса и заведомо меньше того, чем можно опрокинуть
-#: арифметику дат. Настоящую границу всё равно держит MAX_WIRE_DATE: сдвиг,
-#: уводящий задачу за неё, отбивается при применении.
+#: The far edge of a category shift. Ten years in each direction is knowingly more
+#: than any real move and knowingly less than what could tip the date arithmetic.
+#: The real boundary is held by MAX_WIRE_DATE anyway: a shift taking a task past it
+#: is rejected on application.
 MAX_WIRE_SHIFT_DAYS = 3650
 
 
@@ -658,8 +663,8 @@ class PublicUnassignUser(_Wire):
     user_id: uuid.UUID
 
 
-# ApplyPositions и ApplyCategoryPositions публичного зеркала не имеют и иметь
-# не должны: обе внутренние.
+# ApplyPositions and ApplyCategoryPositions have no public mirror and must not have
+# one: both are internal.
 
 
 PublicOp = Annotated[
@@ -690,10 +695,10 @@ PublicOp = Annotated[
 
 
 def to_internal(op) -> Op:
-    """Операция с провода → внутреннее представление.
+    """An operation from the wire -> the internal representation.
 
-    Поля восстановления не переносятся просто потому, что их нет в публичной
-    модели: назначение идентификаторов и позиций остаётся за сервером.
+    The restore fields are not carried over simply because they are absent from the
+    public model: the assignment of identifiers and positions stays with the server.
     """
     return _MODELS[op.type].model_validate(op.model_dump())
 
@@ -720,23 +725,23 @@ def _require_category(db: DbSession, project: Project, category_id: uuid.UUID) -
 
 
 def _make_room(db: DbSession, category_id: uuid.UUID, position: int) -> None:
-    """Освобождает названный слот в категории, сдвигая занявшие его строки вниз.
+    """Frees the named slot in a category, moving the rows that held it down.
 
-    Нужно двум путям сразу. Первый — вставка строки посередине: «плюс» на
-    границе строк заводит задачу там, куда указали, а сосед, стоявший на этом
-    номере, вместе со всеми, кто ниже, съезжает на единицу. Второй — отмена
-    удаления: задача возвращается на свой прежний номер, а он с тех пор мог
-    достаться другой строке (перестановка перенумеровывает список подряд и
-    закрывает дыру от удалённой). Без этого сдвига отмена падала бы нарушением
-    уникальности (category_id, position) — то есть пятисоткой вместо возврата
-    задачи.
+    Two paths need this at once. The first is inserting a row in the middle: the
+    "plus" on a row boundary creates a task where it was pointed, and the neighbour
+    that stood at that number, along with everyone below, slides down by one. The
+    second is undoing a deletion: a task comes back to its previous number, and that
+    number may have gone to another row since (a reorder renumbers the list
+    consecutively and closes the hole left by the deleted one). Without this shift
+    an undo would fail on the uniqueness of (category_id, position) — that is, with
+    a 500 instead of the task coming back.
 
-    Свободный слот не трогается вовсе: сдвигать соседей ради номера, который и
-    так ничей, значило бы менять порядок там, где его никто не менял.
+    A free slot is not touched at all: moving neighbours for the sake of a number
+    that is nobody's anyway would mean changing the order where nobody changed it.
 
-    Сдвиг на единицу порядок сохраняет и уникальности не нарушает: отображение
-    монотонное, а промежуточные состояния держит отложенная проверка
-    ограничения (DEFERRABLE INITIALLY DEFERRED, см. models.Task).
+    A shift by one preserves the order and violates no uniqueness: the mapping is
+    monotone, and the intermediate states are held by the deferred check of the
+    constraint (DEFERRABLE INITIALLY DEFERRED, see models.Task).
     """
     occupied = db.scalar(
         select(func.count())
@@ -745,9 +750,9 @@ def _make_room(db: DbSession, category_id: uuid.UUID, position: int) -> None:
     )
     if not occupied:
         return
-    # Строки грузятся объектами, а не сдвигаются одним UPDATE: те же задачи уже
-    # могут лежать в сессии, и массовое обновление мимо ORM оставило бы их с
-    # прежними номерами до конца запроса.
+    # The rows are loaded as objects rather than shifted with one UPDATE: those same
+    # tasks may already be in the session, and a bulk update around the ORM would
+    # leave them with their previous numbers until the end of the request.
     for row in db.scalars(
         select(Task).where(Task.category_id == category_id, Task.position >= position)
     ).all():
@@ -758,11 +763,11 @@ def _make_room(db: DbSession, category_id: uuid.UUID, position: int) -> None:
 def _find_dependency(
     db: DbSession, project: Project, from_task_id: uuid.UUID, to_task_id: uuid.UUID
 ) -> Dependency | None:
-    """Связь по обоим концам, ограниченная этим проектом.
+    """A dependency by both ends, restricted to this project.
 
-    project_id в условии избыточен, пока обе задачи уже проверены
-    _require_task, — но он же делает запрос верным сам по себе, без опоры на
-    то, что вызывающий не забыл проверку.
+    The project_id in the condition is redundant as long as both tasks have already
+    been checked by _require_task — but it is also what makes the query correct on
+    its own, without relying on the caller not having forgotten the check.
     """
     return db.scalar(
         select(Dependency).where(
@@ -783,16 +788,16 @@ def _find_assignment(
     )
 
 
-# Поля, которые карточка задачи сохраняет одним действием.
+# The fields the task card saves with one action.
 _TASK_FIELDS = ("name", "description", "internal_note")
 
 
 def _snapshot_task_links(db: DbSession, task: Task) -> dict:
-    """Связи, назначения и комментарии задачи — в форме для журнала.
+    """A task's dependencies, assignments and comments — in the form for the journal.
 
-    Снимается перед удалением: каскад унесёт эти строки вместе с задачей, и
-    другого источника для их восстановления не существует — журнал ревизий
-    хранит операции над задачами, а не над их окружением.
+    Taken before a deletion: the cascade will carry these rows away together with
+    the task, and there is no other source for restoring them — the revision journal
+    stores operations on tasks, not on their environment.
     """
     assignees = [
         str(row.user_id)
@@ -831,15 +836,16 @@ def _snapshot_task_links(db: DbSession, task: Task) -> dict:
 
 
 def _stamp_status_change(task: Task, previous_status: str) -> None:
-    """Метки времени статуса: done_at и in_progress_since.
+    """The status timestamps: done_at and in_progress_since.
 
-    Ставятся на входе в статус, чистятся на выходе — колонка хранит последнюю
-    границу, а не историю (летопись переходов остаётся за журналом ревизий).
-    Здесь, а не в ветках set_status/set_progress по отдельности: статус меняют
-    две операции плюс создание задачи, и три копии этого правила разошлись бы
-    первой же правкой. Отмена проходит тем же путём и ставит текущее время,
-    а не прежнее, — «когда задача снова стала сделанной» и есть ответ на
-    вопрос, который эти метки обслуживают (см. app.scorecard).
+    Set on entering a status, cleared on leaving it — the column stores the last
+    boundary rather than a history (the chronicle of transitions stays with the
+    revision journal). Here rather than in the set_status/set_progress branches
+    separately: the status is changed by two operations plus the creation of a task,
+    and three copies of this rule would diverge on the first edit. An undo takes the
+    same path and sets the current time rather than the previous one — "when the
+    task became done again" is precisely the answer to the question these
+    timestamps serve (see app.scorecard).
     """
     if task.status == previous_status:
         return
@@ -855,25 +861,25 @@ def _stamp_status_change(task: Task, previous_status: str) -> None:
 
 
 def _add_task(db: DbSession, project: Project, op: CreateTask) -> Task:
-    """Строка задачи — со всеми проверками и выбором места в списке.
+    """A task row — with every check and the choice of a place in the list.
 
-    Отдельно от ветки `create_task` в `_apply`, потому что задачу создают
-    двое: сама операция и восстановление категории вместе с её содержимым
-    (см. CreateCategory.tasks). Второй набор этих проверок разошёлся бы с
-    первым на первой же правке — и разошёлся бы молча, ведь ошибиться здесь
-    можно только в пользу базы: строку, которую отвергнет CHECK, вернёт
-    пятисотка вместо честного кода отказа.
+    Separate from the `create_task` branch in `_apply`, because two things create a
+    task: the operation itself and restoring a category together with its contents
+    (see CreateCategory.tasks). A second set of these checks would diverge from the
+    first on the very first edit — and would diverge silently, since the only way to
+    err here is in the database's favour: a row a CHECK will reject comes back as a
+    500 instead of an honest refusal code.
 
-    Окружение задачи — связи, назначения, разговор — здесь не восстанавливается:
-    у категории это делается отдельным проходом, когда созданы уже все её
-    строки (см. _restore_task_links).
+    A task's environment — dependencies, assignments, the conversation — is not
+    restored here: for a category that is done in a separate pass, once all of its
+    rows have been created (see _restore_task_links).
     """
     if op.duration_days < 1:
         raise InvalidOperation("duration_too_short", "длительность должна быть не меньше одного дня")
-    # Та же проверка, что у set_criticality/set_progress: внутренняя
-    # модель приходит не только с провода (где границы держит публичная),
-    # но и из журнала — и не должна уметь положить строку, которую CHECK
-    # в базе всё равно отвергнет пятисоткой.
+    # The same check as in set_criticality/set_progress: the internal model arrives
+    # not only from the wire (where the public one holds the bounds) but also from
+    # the journal — and must not be able to store a row the CHECK in the database
+    # would reject with a 500 anyway.
     if op.criticality not in CRITICALITY_LEVELS:
         raise InvalidOperation("unknown_criticality", f"неизвестный уровень: {op.criticality}")
     if not 0 <= op.progress_pct <= 100:
@@ -883,18 +889,18 @@ def _add_task(db: DbSession, project: Project, op: CreateTask) -> Task:
     if op.status not in TASK_STATUSES:
         raise InvalidOperation("unknown_status", f"неизвестный статус: {op.status}")
     if op.milestone and op.duration_days != 1:
-        # То же ограничение, что держит база: веха — точка на шкале.
-        # Проверка здесь, а не только в CHECK, чтобы отказ был честным
-        # кодом операции, а не пятисоткой на нарушении ограничения.
+        # The same constraint the database holds: a milestone is a point on the
+        # scale. The check is here rather than only in the CHECK so that the refusal
+        # is an honest operation code rather than a 500 on a constraint violation.
         raise InvalidOperation(
             "milestone_has_duration", "у вехи длительность ровно один день"
         )
-    # Внешний ключ гарантирует лишь, что категория где-то существует —
-    # не то, что она принадлежит этому проекту. Без явной проверки задача
-    # может незаметно оказаться под категорией чужого проекта.
+    # A foreign key guarantees only that the category exists somewhere — not that it
+    # belongs to this project. Without an explicit check a task can quietly end up
+    # under a category of another project.
     _require_category(db, project, op.category_id)
-    # Потолок из настроек (MAX_TASKS_PER_PROJECT): проверяется здесь, а не
-    # в маршруте, потому что это правило домена, а не формы запроса.
+    # The ceiling from the settings (MAX_TASKS_PER_PROJECT): checked here rather
+    # than in the route, because this is a rule of the domain, not of the request's shape.
     limit = get_settings().max_tasks_per_project
     existing = db.scalar(
         select(func.count()).select_from(Task).where(Task.project_id == project.id)
@@ -903,13 +909,13 @@ def _add_task(db: DbSession, project: Project, op: CreateTask) -> Task:
         raise InvalidOperation(
             "task_limit_reached", f"в проекте уже {existing} задач при потолке {limit}"
         )
-    # Тот же принцип, что и для категорий: наибольшая занятая позиция + 1,
-    # а не COUNT(*) — иначе номер, освободившийся после удаления,
-    # достаётся следующей же созданной задаче ещё раз. Считается внутри
-    # категории: позиция и есть номер строки в её списке — раньше номер
-    # брался по всему проекту, и у категорий были дырявые, зависящие от
-    # порядка создания нумерации, которые уникальным ограничением
-    # (category_id, position) не удержать.
+    # The same principle as for categories: the greatest taken position + 1 rather
+    # than COUNT(*) — otherwise the number freed by a deletion goes to the very next
+    # task created, a second time. It is computed within the category: the position
+    # is the row's number in its list — the number used to be taken across the whole
+    # project, and categories ended up with holey numberings that depended on the
+    # order of creation and that the unique constraint (category_id, position) cannot
+    # hold.
     if op.position is None:
         position = db.scalar(
             select(func.coalesce(func.max(Task.position), -1) + 1).where(
@@ -936,9 +942,9 @@ def _add_task(db: DbSession, project: Project, op: CreateTask) -> Task:
         baseline_start=op.baseline_start,
         baseline_duration=op.baseline_duration,
     )
-    # Задача, рождённая сразу в done или in_progress (перенос из сметы,
-    # восстановление из журнала), получает метку входа в статус здесь: другого
-    # перехода у неё не будет.
+    # A task born straight into done or in_progress (a carry-across from a budget, a
+    # restore from the journal) gets its status-entry timestamp here: it will have
+    # no other transition.
     _stamp_status_change(task, TaskStatus.PLANNED.value)
     db.add(task)
     db.flush()
@@ -946,12 +952,12 @@ def _add_task(db: DbSession, project: Project, op: CreateTask) -> Task:
 
 
 def _task_payload(task: Task) -> dict:
-    """Задача в том виде, в каком она ложится в журнал, — полями create_task.
+    """A task in the form it lands in the journal — as create_task's fields.
 
-    Одна форма на три места: запись о создании, снимок для отмены удаления и
-    снимок задачи внутри удалённой категории. Три списка одних и тех же полей
-    разошлись бы на первом же добавленном — и отмена возвращала бы задачу без
-    него.
+    One shape for three places: the creation entry, the snapshot for undoing a
+    deletion, and the snapshot of a task inside a deleted category. Three lists of
+    the same fields would diverge on the very first one added — and an undo would
+    bring the task back without it.
     """
     return {
         "type": "create_task",
@@ -973,23 +979,23 @@ def _task_payload(task: Task) -> dict:
 
 
 def _task_snapshot(db: DbSession, task: Task) -> dict:
-    """Задача целиком — со связями, назначениями и разговором.
+    """The whole task — with its dependencies, assignments and conversation.
 
-    Снимается перед удалением: каскад уносит окружение вместе со строкой, и
-    отмена без него вернула бы голое имя.
+    Taken before a deletion: the cascade carries the environment away along with the
+    row, and an undo without it would bring back a bare name.
     """
     return _task_payload(task) | _snapshot_task_links(db, task)
 
 
 def _restore_task_links(db: DbSession, project: Project, task: Task, op: CreateTask) -> None:
-    """Возвращает восстановленной задаче то, что унёс каскад удаления.
+    """Returns to a restored task what the deletion cascade carried away.
 
-    Мир с момента удаления мог уйти вперёд, поэтому каждая строка
-    восстанавливается по возможности, а не по требованию: связь со второй
-    задачей, которой больше нет, назначение на пользователя, чей аккаунт
-    удалён, — молча пропускаются. Пропуск — это ровно то, что каскад сделал бы
-    с такой строкой сам; отказ всей отмены из-за неё оставил бы человека
-    вовсе без задачи.
+    The world may have moved on since the deletion, so every row is restored where
+    possible rather than where required: a dependency on a second task that no
+    longer exists, an assignment to a user whose account has been deleted — are
+    silently skipped. Skipping is exactly what the cascade would have done with such
+    a row itself; refusing the whole undo because of it would leave the person with
+    no task at all.
     """
     if op.assignees:
         existing_users = set(db.scalars(select(User.id).where(User.id.in_(op.assignees))))
@@ -1010,8 +1016,9 @@ def _restore_task_links(db: DbSession, project: Project, task: Task, op: CreateT
     for row in op.comments:
         author_id = uuid.UUID(row["author_user_id"]) if row.get("author_user_id") else None
         if author_id is not None and db.get(User, author_id) is None:
-            # Ограничение «ровно один автор» не даст переподписать реплику
-            # гостевым именем, а реплика без автора запрещена — пропуск.
+            # The "exactly one author" constraint will not let a remark be
+            # re-signed with a guest name, and a remark with no author is
+            # forbidden — so it is skipped.
             continue
         db.add(
             Comment(
@@ -1034,16 +1041,16 @@ def _cascade(
     seeds: set[uuid.UUID],
     given: dict[uuid.UUID, date] | None,
 ) -> tuple[dict, dict]:
-    """Автоперенос по связям — и две карты дат для журнала.
+    """Automatic shifting along dependencies — and two date maps for the journal.
 
-    Возвращает пару «в прямую операцию, в обратную»: куда последователи встали
-    и откуда пришли. Обе уже приведены к виду, в каком лежат в журнале, —
-    строки, а не объекты.
+    It returns a pair of "for the forward operation, for the inverse one": where
+    the successors ended up and where they came from. Both are already reduced to
+    the form they lie in inside the journal — strings, not objects.
 
-    `given` — карта из журнала: значит, идёт отмена, и раскладывать даты надо
-    дословно. Пересчитывать автоперенос здесь нельзя в принципе: «подвинуть на
-    самое раннее» необратимо — перенос вперёд помнит, откуда пришёл, а
-    вычисление этого не помнит.
+    `given` is a map from the journal: that means an undo is under way and the
+    dates must be laid out verbatim. Recomputing the automatic shift here is
+    impossible in principle: "move to the earliest possible" is irreversible — a
+    forward move remembers where it came from, a computation of it does not.
     """
     if given is not None:
         was = apply_dates(db, project, given)
@@ -1055,9 +1062,9 @@ def _cascade(
     org = db.get(Organization, project.org_id)
     cal = project_calendar(project, org)
     was = push_successors(db, project, cal, seeds)
-    # Прямая операция несёт новые даты, обратная — прежние. Новые берутся у
-    # самих задач, а не пересчитываются вторым проходом: их только что и
-    # расставил перенос.
+    # The forward operation carries the new dates, the inverse one the previous
+    # ones. The new ones are taken from the tasks themselves rather than recomputed
+    # in a second pass: the shift has only just laid them out.
     moved = {
         task.id: task.start_date
         for task in db.scalars(select(Task).where(Task.id.in_(was))).all()
@@ -1066,36 +1073,36 @@ def _cascade(
 
 
 def _dates_out(dates: dict[uuid.UUID, date]) -> dict[str, str]:
-    """Карта дат в том виде, в каком она лежит в журнале."""
+    """A date map in the form it lies in inside the journal."""
     return {str(task_id): moment.isoformat() for task_id, moment in dates.items()}
 
 
 def _with_cascade(payload: dict, cascade: dict) -> dict:
-    """Карта сдвинутых — в запись журнала, и только если кого-то сдвинуло.
+    """The map of what was shifted — into the journal entry, and only if anything was shifted.
 
-    Пустое поле не пишется: запись `"cascade": {}` у каждой второй операции
-    засоряла бы журнал следом того, чего не происходило.
+    An empty field is not written: a `"cascade": {}` on every other operation would
+    litter the journal with a trace of something that did not happen.
     """
     return payload | {"cascade": cascade} if cascade else payload
 
 
 def _swap(payload: dict) -> dict:
-    """Обратная операция отличается от прямой только местами from и to.
+    """The inverse operation differs from the forward one only in swapping from and to.
 
-    Один помощник вместо ветки инверсии в каждой операции: пара границ —
-    это уже полное описание и прямого действия, и обратного.
+    One helper instead of an inversion branch in every operation: a pair of bounds
+    is already a complete description both of the forward action and of the reverse.
     """
     return {**payload, "from": payload["to"], "to": payload["from"]}
 
 
 def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
-    """Применяет операцию и возвращает пару (что записать в op, что записать в inverse)."""
+    """Applies the operation and returns the pair (what to write into op, what to write into inverse)."""
 
     if isinstance(op, CreateCategory):
-        # max(position) + 1, а не COUNT(*): удаление пробивает дыру в
-        # нумерации, и COUNT(*) после удаления вновь выдаёт уже занятый
-        # номер. coalesce(..., -1) даёт 0 для пустой коллекции без отдельной
-        # ветки.
+        # max(position) + 1 rather than COUNT(*): a deletion punches a hole in the
+        # numbering, and COUNT(*) after a deletion hands out an already taken number
+        # again. coalesce(..., -1) yields 0 for an empty collection without a
+        # separate branch.
         position = (
             op.position
             if op.position is not None
@@ -1118,10 +1125,11 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             "type": "create_category", "category_id": str(category.id), "name": op.name,
             "color": op.color, "position": category.position,
         }
-        # Задачи из снимка (отмена каскадного удаления) создаются все до
-        # единой, и только потом каждой возвращается её окружение: задачи
-        # одной категории ссылаются друг на друга, и связь к соседу, которого
-        # ещё не создали, была бы молча пропущена — см. _restore_task_links.
+        # The tasks from the snapshot (undoing a cascading deletion) are created
+        # every last one first, and only then is each one's environment restored:
+        # tasks of one category refer to each other, and a dependency on a
+        # neighbour that has not been created yet would be silently skipped — see
+        # _restore_task_links.
         if op.tasks:
             restored = [_add_task(db, project, task_op) for task_op in op.tasks]
             for task, task_op in zip(restored, op.tasks):
@@ -1158,14 +1166,14 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             raise InvalidOperation("duration_too_short", "длительность должна быть не меньше одного дня")
         task = _require_task(db, project, op.task_id)
         if task.milestone:
-            # У вехи нет граней, которые можно тянуть: она точка. Причина та
-            # же, что у set_duration, — признак ставил человек, и снимать его
-            # тоже ему.
+            # A milestone has no edges to drag: it is a point. The reason is the
+            # same as for set_duration — the flag was set by a person, and clearing
+            # it is theirs to do as well.
             raise InvalidOperation(
                 "task_is_milestone", "у вехи длительность не меняется: сначала снимите признак"
             )
-        # Обе границы — парой словарей, как у set_task_fields: операция меняет
-        # два поля разом, и читаться она обязана как одно изменение.
+        # Both bounds as a pair of dicts, as with set_task_fields: the operation
+        # changes two fields at once and must read as one change.
         forward = {
             "type": "resize_task",
             "task_id": str(task.id),
@@ -1186,11 +1194,11 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
     if isinstance(op, MoveCategory):
         if op.days == 0:
-            # Ноль дней — не изменение, а запись в истории обещала бы, что
-            # что-то произошло. У move_task такого отбоя нет намеренно: там
-            # ноль означает «вернули на прежнюю дату», и это всё-таки жест по
-            # одной задаче. Здесь же нулём сдвигается вся категория — то есть
-            # не сдвигается ничего.
+            # Zero days is not a change, while an entry in the history would promise
+            # that something happened. move_task deliberately has no such rejection:
+            # there zero means "put it back on the previous date", and it is still a
+            # gesture on a single task. Here zero shifts a whole category — that is,
+            # shifts nothing.
             raise InvalidOperation("empty_shift", "сдвиг на ноль дней ничего не меняет")
         category = _require_category(db, project, op.category_id)
         tasks = db.scalars(
@@ -1202,17 +1210,18 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         for task in tasks:
             moved = task.start_date + shift
             if moved > MAX_WIRE_DATE or moved < date.min + timedelta(days=1):
-                # Тот же дальний край, что и у дат с провода: сдвиг не должен
-                # уметь положить в базу дату, которую провод не принял бы.
+                # The same far edge as for dates from the wire: a shift must not be
+                # able to store a date in the database that the wire would not have
+                # accepted.
                 raise InvalidOperation(
                     "date_out_of_range", f"сдвиг уводит «{task.name}» за границу дат"
                 )
             task.start_date = moved
         db.flush()
-        # Последователи вне категории — тоже последователи: этап уехал, и
-        # работа, ждущая его задач, обязана уехать с ним. Задачи самой
-        # категории при этом уже подвинуты, и автоперенос их не трогает — они
-        # и есть исходные точки обхода.
+        # Successors outside the category are successors too: the stage moved, and
+        # the work waiting on its tasks must move with it. The category's own tasks
+        # have already been moved by then, and the automatic shift does not touch
+        # them — they are the walk's starting points.
         pushed, back = _cascade(db, project, {task.id for task in tasks}, op.cascade)
         return (
             _with_cascade(
@@ -1220,9 +1229,9 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
                     "type": "move_category",
                     "category_id": str(category.id),
                     "days": op.days,
-                    # Задачи названы поимённо, а не только числом дней: история
-                    # обязана показать, что именно уехало, а карточка отмены —
-                    # сказать, сколько строк вернётся.
+                    # The tasks are named individually rather than only by a number
+                    # of days: the history must show what exactly moved, and the
+                    # undo card must say how many rows will come back.
                     "task_ids": [str(task.id) for task in tasks],
                 },
                 pushed,
@@ -1250,14 +1259,13 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         inverse = _swap(forward)
         task.milestone = op.milestone
         if op.duration_days is not None:
-            # Поле восстановления: журнал диктует точную длительность, и
-            # схлопывание не пересчитывается — оно уже отработало в прямой
-            # операции.
+            # A restore field: the journal dictates the exact duration, and the
+            # collapse is not recomputed — it already ran in the forward operation.
             task.duration_days = op.duration_days
         elif op.milestone:
-            # Веха — точка на шкале: длительность схлопывается в день. Это и
-            # есть то, что отмена обязана уметь вернуть, поэтому обе границы
-            # уходят в журнал ниже.
+            # A milestone is a point on the scale: the duration collapses into a
+            # day. That is exactly what an undo must be able to bring back, so both
+            # bounds go into the journal below.
             task.duration_days = 1
         db.flush()
         if task.duration_days != previous_duration:
@@ -1270,9 +1278,9 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             raise InvalidOperation("duration_too_short", "длительность должна быть не меньше одного дня")
         task = _require_task(db, project, op.task_id)
         if task.milestone and op.duration_days != 1:
-            # Веха длительности не имеет. Молча превратить её обратно в отрезок
-            # эта операция не вправе: признак вехи ставил человек, и снимать
-            # его — тоже его решение (set_milestone).
+            # A milestone has no duration. This operation is not entitled to turn it
+            # silently back into a segment: the milestone flag was set by a person,
+            # and clearing it is their decision too (set_milestone).
             raise InvalidOperation(
                 "task_is_milestone", "у вехи длительность не меняется: сначала снимите признак"
             )
@@ -1360,25 +1368,25 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         }
         inverse = _swap(forward)
         if op.status is not None:
-            # Поле восстановления: статус ложится как продиктовано журналом,
-            # связка не пересчитывается — она уже отработала в прямой операции.
+            # A restore field: the status is stored as the journal dictates and the
+            # coupling is not recomputed — it already ran in the forward operation.
             task.status = op.status
         elif op.progress_pct >= 100:
-            # Связка (см. комментарий у модели): дотянутый до конца прогресс —
-            # это и есть «сделано».
+            # The coupling (see the comment at the model): progress carried through
+            # to the end is exactly what "done" means.
             task.status = TaskStatus.DONE.value
         elif task.status == TaskStatus.DONE:
-            # Прогресс отступил от 100 у сделанной задачи — она снова в работе.
-            # Прочие статусы ('planned', 'blocked') не трогаются: движение
-            # прогресса о них ничего не говорит.
+            # Progress has retreated from 100 on a done task — it is back in
+            # progress. The other statuses ('planned', 'blocked') are left alone: a
+            # movement of progress says nothing about them.
             task.status = TaskStatus.IN_PROGRESS.value
         task.progress_pct = op.progress_pct
         _stamp_status_change(task, previous_status)
         db.flush()
         if task.status != previous_status:
-            # Обе границы статуса — в журнал: отмена обязана вернуть прежний
-            # статус дословно, а не выводить его связкой заново (из 'blocked'
-            # связка не угадала бы никогда).
+            # Both status bounds go into the journal: an undo must bring the
+            # previous status back verbatim rather than derive it through the
+            # coupling anew (from 'blocked' the coupling would never guess it).
             forward |= {"status_from": previous_status, "status_to": task.status}
             inverse |= {"status_from": task.status, "status_to": previous_status}
         return forward, inverse
@@ -1402,12 +1410,12 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         previous_status = task.status
         task.status = op.status
         if op.progress_pct is not None:
-            # Поле восстановления — как status у set_progress: журнал диктует
-            # точное значение, связка не пересчитывается.
+            # A restore field — like status in set_progress: the journal dictates
+            # the exact value and the coupling is not recomputed.
             task.progress_pct = op.progress_pct
         elif op.status == TaskStatus.DONE:
-            # Связка (см. комментарий у модели): «сделано» — это весь объём.
-            # Обратного правила нет: уход из 'done' прогресс не трогает.
+            # The coupling (see the comment at the model): "done" is the whole
+            # scope. There is no reverse rule: leaving 'done' does not touch progress.
             task.progress_pct = 100
         _stamp_status_change(task, previous_status)
         db.flush()
@@ -1442,9 +1450,10 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
     if isinstance(op, AssignUser):
         task = _require_task(db, project, op.task_id)
-        # Без этой проверки задачу можно повесить на постороннего, и сам факт
-        # его существования утёк бы наружу: попадание в ответ проекта — это
-        # уже наблюдаемое различие между «такого адреса нет» и «есть».
+        # Without this check a task could be pinned on an outsider, and the very
+        # fact of their existence would leak outward: appearing in a project's
+        # answer is already an observable difference between "there is no such
+        # address" and "there is".
         member = db.scalar(
             select(Membership.id).where(
                 Membership.org_id == project.org_id, Membership.user_id == op.user_id
@@ -1460,8 +1469,9 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         return {"type": "assign_user", **pair}, {"type": "unassign_user", **pair}
 
     if isinstance(op, UnassignUser):
-        # Проверки членства здесь нет намеренно: снять назначение с того, кто
-        # уже покинул организацию, — законное действие, а не отказ.
+        # There is deliberately no membership check here: clearing an assignment
+        # from someone who has already left the organization is a lawful action
+        # rather than a refusal.
         task = _require_task(db, project, op.task_id)
         assignment = _find_assignment(db, task.id, op.user_id)
         if assignment is None:
@@ -1472,20 +1482,21 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         return {"type": "unassign_user", **pair}, {"type": "assign_user", **pair}
 
     if isinstance(op, AddDependency):
-        # Связи по спеку — стрелки на картинке, а не правило расчёта: даты по
-        # ним не пересчитываются. Но мусор в них допускать нельзя.
+        # Per the specification, dependencies are arrows in a picture rather than a
+        # rule of computation: dates are not recomputed from them. But garbage must
+        # not be allowed into them.
         if op.from_task_id == op.to_task_id:
             raise InvalidOperation("self_dependency", "задача не может зависеть от себя")
-        # Обе стороны через _require_task: связь с задачей чужого проекта
-        # отсекается тем же механизмом, что и всё остальное.
+        # Both sides through _require_task: a dependency on a task from another
+        # project is cut off by the same mechanism as everything else.
         _require_task(db, project, op.from_task_id)
         _require_task(db, project, op.to_task_id)
         if _find_dependency(db, project, op.from_task_id, op.to_task_id) is not None:
             raise InvalidOperation("dependency_exists", "такая связь уже есть")
-        # Цикл — тоже мусор, даже для «просто стрелок»: диаграмма рисует их
-        # рёбрами, и кольцо A→B→A читается как план, который никогда не
-        # начнётся. Проверка обходом от to к from по существующим рёбрам:
-        # если из to достижима from, новое ребро замыкает кольцо.
+        # A cycle is garbage too, even for "just arrows": the chart draws them as
+        # edges, and a ring A->B->A reads as a plan that will never begin. The check
+        # is a walk from to towards from over the existing edges: if from is
+        # reachable from to, the new edge closes a ring.
         edges: dict[uuid.UUID, list[uuid.UUID]] = {}
         for row in db.scalars(
             select(Dependency).where(Dependency.project_id == project.id)
@@ -1510,10 +1521,10 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         )
         db.flush()
         ends = {"from_task_id": str(op.from_task_id), "to_task_id": str(op.to_task_id)}
-        # Новая связь двигает последователя ровно так же, как перенос
-        # предшественника: она и означает «эта работа ждёт ту». Исходная точка
-        # обхода — предшественник: сам он не двигается, а вот всё, что от него
-        # теперь зависит, обязано встать после него.
+        # A new dependency moves the successor exactly as moving the predecessor
+        # does: it is what "this work waits on that one" means. The walk's starting
+        # point is the predecessor: it does not move itself, but everything that now
+        # depends on it must stand after it.
         moved, back = _cascade(db, project, {op.from_task_id}, op.cascade)
         return (
             _with_cascade({"type": "add_dependency", **ends}, moved),
@@ -1529,10 +1540,10 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         db.delete(dependency)
         db.flush()
         ends = {"from_task_id": str(op.from_task_id), "to_task_id": str(op.to_task_id)}
-        # Снятие связи само по себе не двигает ничего: автоперенос назад не
-        # тянет (см. app/cascade.py). Карта дат сюда приходит только как поле
-        # восстановления — когда эта операция обратна add_dependency и обязана
-        # вернуть последователей туда, откуда их подвинула новая связь.
+        # Removing a dependency moves nothing by itself: the automatic shift does
+        # not pull backwards (see app/cascade.py). A date map arrives here only as a
+        # restore field — when this operation is the inverse of add_dependency and
+        # must return the successors to where the new dependency moved them from.
         moved, back = _cascade(db, project, set(), op.cascade)
         return (
             _with_cascade({"type": "remove_dependency", **ends}, moved),
@@ -1545,9 +1556,8 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         task = _require_task(db, project, op.task_id)
         _require_category(db, project, op.category_id)
 
-        # Снимок по всему проекту, а не по одной категории: перенос между
-        # категориями меняет обе, и половинчатая карта отменялась бы
-        # наполовину.
+        # A snapshot over the whole project rather than over one category: a move
+        # between categories changes both, and a half map would be undone by halves.
         rows = db.scalars(
             select(Task).where(Task.project_id == project.id).order_by(Task.position, Task.id)
         ).all()
@@ -1557,8 +1567,8 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         siblings = [
             row for row in rows if row.category_id == op.category_id and row.id != task.id
         ]
-        # Позиция за концом списка — не отказ: перетаскивание в самый низ
-        # присылает индекс, равный длине, и это нормальный жест.
+        # A position past the end of the list is not a refusal: dragging to the very
+        # bottom sends an index equal to the length, and that is a normal gesture.
         index = min(op.position, len(siblings))
         ordered = siblings[:index] + [task] + siblings[index:]
 
@@ -1567,11 +1577,12 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             row.position = slot
         db.flush()
 
-        # В журнал идёт дифф, а не снимок всего проекта: перестановка задевает
-        # одну-две категории, а снимок на тысячу задач писал бы килобайты в
-        # jsonb на каждое перетаскивание — и ровно столько же тащил бы в
-        # ответе мутации и в истории. Отмене нужны только строки, чьи позиция
-        # или категория изменились: остальные и так стоят как стояли.
+        # A diff goes into the journal rather than a snapshot of the whole project:
+        # a reorder touches one or two categories, while a snapshot of a thousand
+        # tasks would write kilobytes into jsonb on every drag — and would drag
+        # exactly as much into the mutation's answer and into the history. An undo
+        # needs only the rows whose position or category changed: the rest stand
+        # where they stood.
         changed = [
             row
             for row in rows
@@ -1598,11 +1609,10 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             raise InvalidOperation("negative_position", "позиция не может быть отрицательной")
         category = _require_category(db, project, op.category_id)
 
-        # Порядок читается тем же ключом, каким его читает лента: позиция, а
-        # при равенстве — идентификатор. Равенство встречается по-настоящему:
-        # категории создаются с max(position) + 1, но отмена удаления
-        # возвращает этап на его прежний номер, который с тех пор мог достаться
-        # соседу.
+        # The order is read by the same key the chart reads it by: the position,
+        # and on a tie the identifier. Ties do happen for real: categories are
+        # created with max(position) + 1, but undoing a deletion returns a stage to
+        # its previous number, which may have gone to a neighbour since.
         rows = db.scalars(
             select(Category)
             .where(Category.project_id == project.id)
@@ -1611,16 +1621,17 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         before_pos = {str(row.id): row.position for row in rows}
 
         others = [row for row in rows if row.id != category.id]
-        # Позиция за концом списка — не отказ: бросок в самый низ присылает
-        # индекс, равный длине.
+        # A position past the end of the list is not a refusal: a throw to the very
+        # bottom sends an index equal to the length.
         index = min(op.position, len(others))
         ordered = others[:index] + [category] + others[index:]
         for slot, row in enumerate(ordered):
             row.position = slot
         db.flush()
 
-        # В журнал идёт дифф, а не снимок: перестановка задевает отрезок между
-        # старым и новым местом, а не весь список (см. reorder_task выше).
+        # A diff goes into the journal rather than a snapshot: a reorder touches the
+        # stretch between the old and the new place, not the whole list (see
+        # reorder_task above).
         changed = [row for row in rows if before_pos[str(row.id)] != row.position]
         forward = {
             "type": "reorder_category",
@@ -1641,8 +1652,9 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             before_categories[str(row.id)] = row.position
             row.position = position
         db.flush()
-        # Ключи приводятся к строкам: в модели они uuid.UUID, а json.dumps на
-        # пути в jsonb на таком ключе падает — запись журнала не легла бы вовсе.
+        # The keys are converted to strings: in the model they are uuid.UUID, and
+        # json.dumps on the way into jsonb fails on such a key — the journal entry
+        # would not be stored at all.
         forward = {
             "type": "apply_category_positions",
             "positions": {str(key): value for key, value in op.positions.items()},
@@ -1655,28 +1667,27 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         before_cat: dict[str, str] = {}
         for raw_id, position in op.positions.items():
             row = _require_task(db, project, raw_id)
-            # Обе карты пишутся одной рукой и обязаны совпадать по ключам, но
-            # запись журнала — данные, а не код: рассинхрон должен быть
-            # отказом с кодом, а не KeyError, который наружу выйдет
-            # пятисоткой.
+            # Both maps are written by one hand and must agree on their keys, but a
+            # journal entry is data, not code: a desync must be a coded refusal
+            # rather than a KeyError, which would go outward as a 500.
             target_category = op.categories.get(raw_id)
             if target_category is None:
                 raise InvalidOperation(
                     "positions_categories_mismatch",
                     f"в карте категорий нет задачи {raw_id}",
                 )
-            # Категорию с тех пор могли удалить: вставка в неё упала бы по
-            # внешнему ключу — тоже пятисоткой, хотя это обычный отказ
-            # «категории больше нет».
+            # The category may have been deleted since: an insert into it would fail
+            # on a foreign key — a 500 as well, even though this is an ordinary
+            # "the category is gone" refusal.
             _require_category(db, project, target_category)
             before_pos[str(row.id)] = row.position
             before_cat[str(row.id)] = str(row.category_id)
             row.position = position
             row.category_id = target_category
         db.flush()
-        # Ключи приводятся к строкам: в модели они uuid.UUID, а json.dumps
-        # на пути в jsonb на таком ключе падает — запись журнала не легла бы
-        # вовсе.
+        # The keys are converted to strings: in the model they are uuid.UUID, and
+        # json.dumps on the way into jsonb fails on such a key — the journal entry
+        # would not be stored at all.
         forward = {
             "type": "apply_positions",
             "positions": {str(key): value for key, value in op.positions.items()},
@@ -1691,17 +1702,18 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
     if isinstance(op, DeleteCategory):
         category = _require_category(db, project, op.category_id)
-        # Категория уходит вместе со своим содержимым: этап отменили целиком —
-        # и разбирать его по строке, чтобы избавиться от заголовка, значит
-        # столько удалений, сколько в нём задач, и столько же записей в
-        # истории на одно решение человека.
+        # A category goes away together with its contents: the stage was cancelled
+        # as a whole — and taking it apart row by row to get rid of the heading
+        # means as many deletions as it has tasks, and as many history entries, for
+        # one decision by a person.
         #
-        # Прежде непустую категорию удалять запрещалось (`category_not_empty`),
-        # и запрет был не капризом: каскад унёс бы задачи, а обратная операция
-        # вернула бы пустой заголовок. Отвечает на это не запрет, а снимок —
-        # тот же, каким отменяется удаление задачи, только по каждой строке
-        # этапа. Предупредить человека о том, что уйдёт вместе с категорией,
-        # обязан интерфейс: сервер такому предупреждению не место.
+        # Deleting a non-empty category used to be forbidden (`category_not_empty`),
+        # and the ban was not a whim: the cascade would carry the tasks away while
+        # the inverse operation would bring back an empty heading. What answers this
+        # is not a ban but a snapshot — the same one that undoes a task deletion,
+        # only for every row of the stage. Warning a person about what will go away
+        # with the category is the interface's job: the server is no place for such
+        # a warning.
         tasks = db.scalars(
             select(Task).where(Task.category_id == category.id).order_by(Task.position, Task.id)
         ).all()
@@ -1716,27 +1728,29 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             snapshot["tasks"] = [_task_snapshot(db, task) for task in tasks]
         for task in tasks:
             db.delete(task)
-        # Флаш до удаления самой категории, а не один общий следом: связь этих
-        # двух таблиц описана только внешним ключом, порядок удалений
-        # SQLAlchemy по нему не выводит — и снесённая первой категория унесла
-        # бы задачи каскадом базы, оставив ORM удалять уже несуществующие
-        # строки (и жаловаться на это предупреждением).
+        # A flush before the category itself is deleted rather than one shared flush
+        # afterwards: the relationship between these two tables is described only by
+        # a foreign key, SQLAlchemy does not derive the order of deletions from it —
+        # and a category removed first would carry the tasks away by the database's
+        # cascade, leaving the ORM to delete rows that no longer exist (and to
+        # complain about it with a warning).
         db.flush()
         db.delete(category)
         db.flush()
         forward = {"type": "delete_category", "category_id": str(op.category_id)}
-        # Число задач — в самой записи: «удалил категорию» об удалённом вместе
-        # с ней этапе умалчивает, а считать их в ленте истории не по чему —
-        # снимок восстановления виден не каждой роли.
+        # The number of tasks goes into the entry itself: "deleted a category" says
+        # nothing about the stage deleted along with it, and there is nothing to
+        # count them by in the history feed — the restore snapshot is not visible to
+        # every role.
         if tasks:
             forward["tasks"] = len(tasks)
         return (forward, snapshot)
 
     if isinstance(op, DeleteTask):
         task = _require_task(db, project, op.task_id)
-        # Снимок несёт и окружение задачи — связи, назначения, разговор:
-        # каскад уносит их вместе со строкой, и отмена без них вернула бы
-        # голое имя.
+        # The snapshot carries the task's environment too — dependencies,
+        # assignments, the conversation: the cascade carries them away with the row,
+        # and an undo without them would bring back a bare name.
         snapshot = _task_snapshot(db, task)
         db.delete(task)
         db.flush()
@@ -1746,36 +1760,38 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
 
 def _guard_shift_threshold(db: DbSession, project: Project, op, reason: str | None) -> None:
-    """Проверка «отклонение от базового плана больше порога → причина обязательна».
+    """The check "a deviation from the baseline plan greater than the threshold requires a reason".
 
-    Живёт в слое мутаций, а не в маршруте, ровно по той причине, по которой
-    спецификация называет правило одним независимо от способа ввода:
-    перетаскивание мышью, правка поля в карточке и применение пачки от AI
-    приходят сюда одной дорогой, а в маршруте их было бы три.
+    It lives in the mutation layer rather than in the route for exactly the reason
+    the specification calls the rule one and the same regardless of the means of
+    input: dragging with the mouse, editing a field on a card and applying a batch
+    from AI all arrive here by one road, while in the route there would be three of
+    them.
 
-    Проверка идёт до применения: промежуточного состояния «сдвинуто, но не
-    объяснено» в системе не существует, и получиться оно не должно даже на
-    время одной транзакции.
+    The check runs before application: there is no intermediate "moved but not
+    explained" state in the system, and none must come about even for the duration
+    of one transaction.
 
-    Отмена (undo) проходит через ту же проверку сознательно. Она не
-    привилегированное действие: если возврат к прежнему значению уводит задачу
-    от базового плана дальше порога, объяснение нужно ровно так же, как при
-    любом другом способе туда попасть.
+    An undo deliberately goes through the same check. It is not a privileged
+    action: if returning to a previous value takes a task further from the baseline
+    plan than the threshold, an explanation is needed exactly as it is for any other
+    way of getting there.
 
-    Задачи, подвинутые автопереносом, здесь не считаются, и это решение, а не
-    упущение. Порог спрашивает «объясните, что вы делаете», а автоперенос —
-    не то, что человек делает, а следствие связей, которые он расставил
-    раньше: он двигает одну задачу, и цепочка едет за ней по правилу, которое
-    он сам и включил. Спрашивать причину ещё раз за каждое звено цепочки
-    значило бы задать один и тот же вопрос столько раз, сколько связей.
-    Отклонение самих звеньев при этом не скрывается: бейдж на полоске и
-    признак «план разошёлся с согласованным» считаются по датам и показывают
-    их, кто бы эти даты ни подвинул.
+    Tasks moved by the automatic shift are not counted here, and that is a decision
+    rather than an omission. The threshold asks "explain what you are doing", while
+    an automatic shift is not what a person does but a consequence of dependencies
+    they set up earlier: they move one task, and the chain follows it by a rule they
+    themselves turned on. Asking for a reason once more for every link of the chain
+    would mean asking one and the same question as many times as there are
+    dependencies. The links' own deviation is not hidden meanwhile: the badge on the
+    bar and the "the plan has diverged from what was agreed" flag are computed from
+    the dates and show them, whoever moved those dates.
 
-    Проверка идёт до применения, а прямой расчёт переноса — во время, поэтому
-    посчитать здесь будущую цепочку нечем, не повторив весь расчёт вторым
-    проходом. Это второй довод к тому же решению, но не первый: будь расчёт
-    бесплатным, ответ остался бы тем же.
+    The check runs before application while the forward computation of the shift
+    runs during it, so there is nothing here to compute the future chain with short
+    of repeating the whole computation in a second pass. That is a second argument
+    for the same decision, but not the first: were the computation free, the answer
+    would be the same.
     """
     if reason:
         return
@@ -1787,21 +1803,21 @@ def _guard_shift_threshold(db: DbSession, project: Project, op, reason: str | No
         task = _require_task(db, project, op.task_id)
         deviation = deviation_days(task, duration_days=op.duration_days)
     elif isinstance(op, ResizeTask):
-        # Единственная операция, у которой оба измерения меняются одним
-        # движением, — и единственная, которой честно спросить наибольшее из
-        # двух отклонений. Правило «названное измерение и меряется» её не
-        # касается: она называет оба.
+        # The only operation in which both dimensions change with one movement — and
+        # the only one it is honest to ask for the greater of the two deviations.
+        # The rule "the dimension named is the one measured" does not apply to it:
+        # it names both.
         task = _require_task(db, project, op.task_id)
         deviation = deviation_days(
             task, start_date=op.start_date, duration_days=op.duration_days
         )
     elif isinstance(op, MoveCategory):
-        # Сдвиг категории — тот же перенос сроков, только разом по многим
-        # задачам, и порог обязан считаться по нему так же. Берётся наибольшее
-        # отклонение: категорию сдвинули одним движением, и объяснение у него
-        # одно — на самую уехавшую из её задач. Считать порог по каждой
-        # отдельно значило бы спросить причину столько раз, сколько строк в
-        # категории, за одно движение руки.
+        # A category shift is the same move of dates, only across many tasks at
+        # once, and the threshold must be computed against it the same way. The
+        # greatest deviation is taken: the category was shifted with one movement,
+        # and it has one explanation — for the task of it that drifted furthest.
+        # Computing the threshold for each one separately would mean asking for a
+        # reason as many times as the category has rows, for one movement of a hand.
         shift = timedelta(days=op.days)
         deviations = [
             deviation_days(task, start_date=task.start_date + shift)
@@ -1812,16 +1828,16 @@ def _guard_shift_threshold(db: DbSession, project: Project, op, reason: str | No
         measured = [value for value in deviations if value is not None]
         deviation = max(measured) if measured else None
     elif isinstance(op, SetMilestone):
-        # Веха схлопывает длительность — то есть меняет сроки, и порог здесь
-        # тот же, что у set_duration. Длительность после операции известна:
-        # либо продиктована журналом (отмена), либо это один день.
+        # A milestone collapses the duration — that is, it changes dates, and the
+        # threshold here is the same as for set_duration. The duration after the
+        # operation is known: either dictated by the journal (an undo) or one day.
         task = _require_task(db, project, op.task_id)
         after = op.duration_days if op.duration_days is not None else (1 if op.milestone else None)
         deviation = None if after is None else deviation_days(task, duration_days=after)
     else:
-        # Остальные операции базового плана не касаются. Создание задачи —
-        # тоже: у созданной после утверждения задачи базового плана нет, она
-        # помечается «сверх первоначального плана» и от объяснений свободна.
+        # The other operations do not touch the baseline plan. Creating a task does
+        # not either: a task created after approval has no baseline plan, is marked
+        # "beyond the original plan" and is exempt from explanations.
         return
 
     if deviation is None:
@@ -1843,17 +1859,18 @@ def apply_op(
     batch_id: uuid.UUID | None = None,
     undoes_seq: int | None = None,
 ) -> Revision:
-    # Блокировка строки проекта на всё время применения операции. Без неё два
-    # запроса, правящих один проект, считают max(seq)+1 из одного и того же
-    # снимка: проигравший нарушает уникальное ограничение (project_id, seq), и
-    # вызывающий получает голую пятисотку. Та же гонка дублирует position, где
-    # ограничения нет вовсе и расхождение остаётся незамеченным. Совместное
-    # редактирование одного проекта — нормальный режим этого продукта, а не
-    # редкий случай; когда конкуренции нет, блокировка не стоит ничего.
+    # A lock on the project's row for the whole time the operation is applied.
+    # Without it, two requests editing one project compute max(seq)+1 from one and
+    # the same snapshot: the loser violates the unique constraint (project_id, seq)
+    # and the caller gets a bare 500. The same race duplicates position, where there
+    # is no constraint at all and the divergence goes unnoticed. Collaborative
+    # editing of one project is this product's normal mode rather than a rare case;
+    # when there is no contention, the lock costs nothing.
     db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
-    # Причина из одних пробелов — это отсутствие причины. Нормализуется здесь,
-    # а не в маршруте: правило порога живёт в этом слое, и проверять здесь
-    # одно, а хранить другое означало бы две разные истины об одном значении.
+    # A reason made of nothing but spaces is the absence of a reason. It is
+    # normalized here rather than in the route: the threshold rule lives in this
+    # layer, and checking one thing here while storing another would mean two
+    # different truths about one value.
     reason = reason.strip() or None if reason else None
     _guard_shift_threshold(db, project, op, reason)
     forward, inverse = _apply(db, project, op)
@@ -1872,9 +1889,10 @@ def apply_op(
     return revision
 
 
-# Операции, хранящие в журнале обе границы: имя поля модели, в которое ложится
-# скалярное `to`. Отображение, а не цепочка elif: цепочка растёт вместе с
-# числом операций и перестаёт читаться, а здесь новая операция — одна строка.
+# Operations that store both bounds in the journal: the name of the model field
+# the scalar `to` lands in. A mapping rather than a chain of elifs: a chain grows
+# with the number of operations and stops being readable, whereas here a new
+# operation is one line.
 _SCALAR_BOUNDS_FIELD = {
     "move_task": "start_date",
     "set_duration": "duration_days",
@@ -1886,14 +1904,14 @@ _SCALAR_BOUNDS_FIELD = {
     "set_category_color": "color",
 }
 
-# Операции, у которых `to` — не скаляр, а словарь полей: они разворачиваются
-# в модель целиком.
+# Operations whose `to` is not a scalar but a dict of fields: they are unfolded
+# into the model as a whole.
 _MAPPED_BOUNDS = frozenset({"set_task_fields", "resize_task", "set_risk"})
 
-# Связанное поле, границы которого операция несёт сверх собственных: имя
-# поля модели и пара ключей журнала. Присутствуют в записи только когда
-# связка сработала — иначе восстановление читало бы значения, которых
-# операция не меняла.
+# A coupled field whose bounds an operation carries beyond its own: the model
+# field's name and a pair of journal keys. They are present in an entry only when
+# the coupling fired — otherwise a restore would read values the operation did not
+# change.
 _COUPLED_BOUNDS_FIELD = {
     "set_progress": ("status", "status_from", "status_to"),
     "set_status": ("progress_pct", "progress_from", "progress_to"),
@@ -1902,11 +1920,12 @@ _COUPLED_BOUNDS_FIELD = {
 
 
 def _op_from_dict(payload: dict):
-    """Восстанавливает операцию из записи журнала.
+    """Restores an operation from a journal entry.
 
-    Операции с парой границ хранят и from, и to, поэтому значение берётся из
-    to — так одна и та же запись читается и как прямая операция, и как
-    обратная (её inverse отличается лишь порядком этих двух полей).
+    Operations with a pair of bounds store both from and to, so the value is taken
+    from to — that way one and the same entry reads both as the forward operation
+    and as the inverse one (its inverse differs only in the order of those two
+    fields).
     """
     kind = payload["type"]
     model = _MODELS[kind]
@@ -1918,10 +1937,10 @@ def _op_from_dict(payload: dict):
         data.update(data.pop("to"))
         data.pop("from", None)
     if kind in _COUPLED_BOUNDS_FIELD:
-        # Связанное поле — тем же правилом, что и основное: значение из
-        # *_to, так что запись читается и как прямая операция, и как
-        # обратная. Без него отмена доверила бы восстановление связке, а
-        # связка прежнего значения не знает (см. SetProgress.status).
+        # A coupled field follows the same rule as the main one: the value comes
+        # from *_to, so the entry reads both as the forward operation and as the
+        # inverse. Without it an undo would entrust the restore to the coupling, and
+        # the coupling does not know the previous value (see SetProgress.status).
         field, bound_from, bound_to = _COUPLED_BOUNDS_FIELD[kind]
         if bound_to in data:
             data[field] = data.pop(bound_to)
@@ -1938,10 +1957,10 @@ def undo(
     reason: str | None = None,
     batch_id: uuid.UUID | None = None,
 ) -> Revision:
-    # Каждый соседний помощник перепроверяет project_id, а undo принимал
-    # ревизию на веру. Маршрут берёт номер ревизии из адреса, и без этой
-    # проверки это ровно межарендная запись: чужая ревизия применилась бы к
-    # своему проекту.
+    # Every neighbouring helper re-checks project_id, while undo took the revision
+    # on trust. The route takes the revision number from the address, and without
+    # this check that is a cross-tenant write exactly: someone else's revision would
+    # be applied to one's own project.
     if revision.project_id != project.id:
         raise NotFoundInProject("revision_not_found", "ревизия не найдена в этом проекте")
     return apply_op(
@@ -1963,23 +1982,23 @@ def undo_last(
     reason: str | None = None,
     expected_seq: int | None = None,
 ) -> tuple[Revision, Revision]:
-    """Отмена последнего изменения: выбор ревизии и применение — одним замком.
+    """Undoing the last change: choosing the revision and applying it under one lock.
 
-    Выбор здесь, а не в маршруте, закрывает гонку двойной отмены: два
-    одновременных нажатия «Отменить» читали last_undoable из одного снимка,
-    оба находили одну и ту же ревизию — и проигравший блокировку внутри
-    apply_op применял её отмену второй раз, возвращая проект туда, откуда
-    первый только что ушёл. Под замком проекта второй запрос ждёт первого и
-    выбирает уже следующую ревизию — или узнаёт, что отменять нечего.
+    Choosing it here rather than in the route closes the double-undo race: two
+    simultaneous presses of "Undo" read last_undoable from one snapshot, both found
+    the same revision — and the one that lost the lock inside apply_op applied its
+    undo a second time, returning the project to where the first one had just left.
+    Under the project lock the second request waits for the first and picks the next
+    revision — or learns that there is nothing to undo.
 
-    `expected_seq` — номер ревизии, отмену которой клиент обещал человеку.
-    Проверка здесь, под тем же замком: сверка на клиенте отделена от отмены
-    сетевым путешествием, и в этот зазор влезает ровно то изменение, от
-    которого сверка защищала. Без номера отменяется просто верх журнала — так
-    зовёт лента истории, у которой номер тоже есть, и так остаётся возможной
-    отмена вслепую (скрипт, консоль).
+    `expected_seq` is the number of the revision whose undo the client promised to a
+    person. The check happens here, under the same lock: a comparison on the client
+    is separated from the undo by a network journey, and into that gap slips exactly
+    the change the comparison was protecting against. With no number, simply the
+    head of the journal is undone — that is how the history feed calls it, and it
+    has a number too, and that keeps a blind undo (a script, a console) possible.
 
-    Возвращает пару (запись отмены, отменённая ревизия): маршруту нужны обе.
+    Returns the pair (the undo entry, the revision undone): the route needs both.
     """
     db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
     revision = last_undoable(db, project)
@@ -1995,12 +2014,12 @@ def undo_last(
 
 
 def last_undoable(db: DbSession, project: Project) -> Revision | None:
-    """Ревизия, которую отменит кнопка «Отменить».
+    """The revision the "Undo" button will undo.
 
-    Самая новая из тех, что ещё никем не отменены и сами не являются отменой.
-    Без второго условия повторное нажатие возвращало бы отменённое обратно —
-    и человек, нажавший «Отменить» дважды, оказывался бы там же, откуда
-    начал, вместо того чтобы отступить на два шага.
+    The newest of those not yet undone by anyone and not themselves an undo.
+    Without the second condition, pressing again would bring back what was undone —
+    and a person pressing "Undo" twice would end up where they started instead of
+    stepping back twice.
     """
     undone = select(Revision.undoes_seq).where(
         Revision.project_id == project.id, Revision.undoes_seq.is_not(None)
@@ -2025,26 +2044,26 @@ def undo_batch(
     actor_id: uuid.UUID | None,
     reason: str | None = None,
 ) -> list[Revision]:
-    """Откат пачки целиком — той, что применил AI одной кнопкой.
+    """Rolling a whole batch back — the one AI applied with a single button.
 
-    Порядок обратный: пачка создаёт категорию, потом задачи в ней, и откат
-    с начала упёрся бы в непустую категорию.
+    The order is reversed: a batch creates a category and then the tasks in it, and
+    a rollback from the beginning would run into a non-empty category.
 
-    Уже отменённые ревизии пропускаются: повторное нажатие на ту же кнопку —
-    это не приказ применить обратную операцию второй раз. Сами отмены тоже не
-    отменяются — по той же причине, по которой их обходит `last_undoable`;
-    возврата отката («вернуть пачку обратно») в первой версии нет.
+    Revisions already undone are skipped: pressing the same button again is not an
+    order to apply the inverse operation a second time. Undos themselves are not
+    undone either — for the same reason `last_undoable` goes around them; there is
+    no un-rollback ("bring the batch back") in the first version.
 
-    Отмены получают общий свой batch_id: в журнале откат пачки читается одним
-    действием, а не россыпью не связанных между собой записей.
+    The undos get a shared batch_id of their own: in the journal a batch rollback
+    reads as one action rather than as a scattering of unrelated entries.
 
-    Причина принимается и раздаётся каждой отмене: откат проходит ту же
-    проверку порога, что и всякое изменение сроков, и без причины пачка,
-    двигавшая даты дальше порога, была бы неоткатываемой вовсе.
+    A reason is accepted and handed to every undo: a rollback goes through the same
+    threshold check as any change of dates, and without a reason a batch that moved
+    dates further than the threshold would be un-rollbackable altogether.
     """
-    # Тот же замок и по той же причине, что в undo_last: без него два
-    # одновременных отката читают список ревизий из одного снимка и каждый
-    # применяет все отмены — по две на ревизию.
+    # The same lock and for the same reason as in undo_last: without it two
+    # simultaneous rollbacks read the list of revisions from one snapshot and each
+    # applies every undo — two per revision.
     db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
     undone = select(Revision.undoes_seq).where(
         Revision.project_id == project.id, Revision.undoes_seq.is_not(None)

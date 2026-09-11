@@ -2,56 +2,54 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from "react";
 
 /**
- * Тост внизу экрана: «Задача перенесена на 19 авг · Отменить».
+ * A toast at the bottom of the screen: "The task was moved to 19 Aug · Undo".
  *
- * Один, а не очередь: перетаскивания идут подряд, и стопка из пяти «задача
- * перенесена» не сообщает ничего сверх последнего. Новый тост сменяет прежний,
- * заново появляется и заново заводит таймер.
+ * One, not a queue: drags come one after another, and a stack of five "the task was moved" says
+ * nothing beyond the last one. A new toast replaces the previous one, appears anew and starts
+ * its timer anew.
  *
- * `role="status"`, а не `alert`: это подтверждение уже сделанного, а не
- * тревога, и перебивать им чтение с экрана не за что. Исключение — отказ
- * (`tone: "error"`): его как раз стоит объявить сразу.
+ * `role="status"` rather than `alert`: this is a confirmation of something already done rather
+ * than an alarm, and there is no reason to interrupt a screen reader with it. The exception is a
+ * refusal (`tone: "error"`): that is worth announcing at once.
  *
- * Показывать тост обязаны все, кто меняет данные молча: удаление проекта,
- * отзыв приглашения, сохранение поля по уходу фокуса. Иначе получается
- * несогласованность, которая читается как поломка, — перенёс полоску и увидел
- * подтверждение, удалил проект и не увидел ничего.
+ * A toast must be shown by everyone who changes data silently: deleting a project, revoking an
+ * invitation, saving a field on blur. Otherwise you get an inconsistency that reads as a
+ * breakage — you moved a bar and saw a confirmation, deleted a project and saw nothing.
  */
 
 type Toast = {
   message: string;
   /**
-   * Действие целиком, узлом. Без него тост — только подтверждение.
+   * The action in full, as a node. Without it a toast is only a confirmation.
    *
-   * Узел, а не пара «подпись и обработчик»: действие живёт те шесть секунд,
-   * что висит тост, и за это время может умереть — отменять становится нечего
-   * или уже не то. Знает об этом тот, кто действие предложил, а не тост; тост
-   * же, храня обработчик, показывал бы живую кнопку до последней секунды и
-   * узнавал правду только от сервера, уже нажатой.
+   * A node rather than a "caption and handler" pair: the action lives for the six seconds the
+   * toast hangs around, and in that time it can die — there is nothing left to undo, or not the
+   * same thing. That is known by whoever offered the action, not by the toast; the toast,
+   * holding a handler, would show a live button until the last second and learn the truth only
+   * from the server, once it had been pressed.
    */
   action?: ReactNode;
   /**
-   * Отказ или подтверждение. Различие не косметическое: галочка рядом с
-   * «задача не найдена» сообщает ровно обратное тому, что случилось, — а тост
-   * показывает и отказы тоже, когда рядом нет места для строки ошибки.
+   * A refusal or a confirmation. The difference is not cosmetic: a tick next to "task not found"
+   * reports exactly the opposite of what happened — and the toast shows refusals too, when there
+   * is no room for an error line nearby.
    */
   tone?: "done" | "error";
 };
 
 const ToastContext = createContext<(toast: Toast) => void>(() => {});
-/** Спрятать тост. Нужен действию: нажатое, оно само решает, что показывать дальше. */
+/** Hide the toast. Needed by the action: once pressed, it decides for itself what to show next. */
 const DismissContext = createContext<() => void>(() => {});
 
-/** Сколько тост висит. Достаточно, чтобы прочитать и успеть нажать «Отменить». */
+/** How long the toast hangs around. Enough to read it and manage to press "Undo". */
 const TOAST_MS = 6000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<(Toast & { id: number }) | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Номер тоста. Нужен ровно затем, чтобы стать ключом: без него смена тоста
-  // на тот же узел не считается появлением, узел остаётся прежним, и второе
-  // «задача перенесена» подряд возникло бы срезом — тем самым, от которого
-  // избавлено первое.
+  // The toast's number. Needed precisely to serve as a key: without it replacing a toast on the
+  // same node does not count as an appearance, the node stays the same, and a second "the task
+  // was moved" in a row would appear as a cut — the very thing the first one is spared.
   const count = useRef(0);
 
   const show = useCallback((next: Toast) => {
@@ -78,11 +76,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <DismissContext.Provider value={dismiss}>
         {children}
         {toast && (
-          // Ключ по тосту: следующее сообщение — новый узел, и появление
-          // проигрывается заново, а не подменяет текст в уже висящей плашке.
+          // Keyed by the toast: the next message is a new node, and the appearance is played anew
+          // rather than swapping the text in a chip that is already hanging there.
           //
-          // `alert` для отказа, `status` для подтверждения: отказ стоит того,
-          // чтобы прервать чтение с экрана, а «сохранено» — нет.
+          // `alert` for a refusal, `status` for a confirmation: a refusal is worth interrupting a
+          // screen reader for, "saved" is not.
           <div
             className={toast.tone === "error" ? "toast toast--error" : "toast"}
             role={toast.tone === "error" ? "alert" : "status"}

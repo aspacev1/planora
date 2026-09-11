@@ -27,8 +27,8 @@ describe("подтверждение на месте", () => {
 
     expect(onConfirm).not.toHaveBeenCalled();
     expect(screen.getByText("Ссылка перестанет работать")).toBeInTheDocument();
-    // Кнопка подтверждения называет действие, а не отвечает «да, продолжить»:
-    // в списке из трёх кнопок подряд «да» относилось бы к любой из них.
+    // The confirm button names the action rather than answering "yes, continue": in a list of three
+    // buttons in a row a "yes" would apply to any of them.
     expect(screen.getByRole("button", { name: "Да, отозвать" })).toBeInTheDocument();
   });
 
@@ -56,10 +56,10 @@ describe("подтверждение на месте", () => {
   it("фокус переходит на саму выноску, а не на подтверждение", async () => {
     renderAction();
 
-    // Кнопка исчезает вместе с нажатием, и без переноса фокус свалился бы в
-    // начало страницы: с клавиатуры до вопроса было бы не добраться. На
-    // подтверждении фокуса нет намеренно — Enter, нажатый по инерции, не
-    // должен подтверждать то, о чём только что спросили.
+    // The button disappears together with the press, and without a transfer the focus would fall to the
+    // top of the page: the question would be unreachable from the keyboard. There is deliberately no
+    // focus on the confirmation — an Enter pressed out of inertia must not confirm what was only just
+    // asked about.
     await userEvent.click(screen.getByRole("button", { name: "Отозвать" }));
 
     const group = screen.getByRole("group", { name: "Ссылка перестанет работать" });
@@ -70,8 +70,8 @@ describe("подтверждение на месте", () => {
   it("занятое действие не подтверждается дважды", async () => {
     const onConfirm = renderAction(vi.fn(), true);
 
-    // Кнопка заблокирована с самого начала: пока запрос в пути, второй такой
-    // же ничего не улучшит, а перевыпуск повторит дважды.
+    // The button is disabled from the start: while the request is in flight a second one like it will
+    // improve nothing, while a reissue would repeat twice.
     expect(screen.getByRole("button", { name: "Отозвать" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Отозвать" }));
 

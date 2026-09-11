@@ -52,13 +52,13 @@ function InvitationRow({
     mutationFn: () => revokeInvitation(invitation.id),
     onSuccess: () => {
       setLink(null);
-      // «Письмо не ушло» относилось к перевыпуску, которого больше нет:
-      // рядом с «отозвано» оно читалось бы как ещё одна живая проблема.
+      // "The email did not go out" referred to a reissue that no longer exists:
+      // next to "revoked" it would read as one more live problem.
       reissue.reset();
       void refresh();
-      // Отзыв убивает выданную ссылку — самое разрушительное, что здесь можно
-      // сделать, — а на экране от него меняются два слова в подписи статуса и
-      // исчезает ряд кнопок. Для необратимого действия это слишком тихо.
+      // Revoking kills an issued link — the most destructive thing that can be done
+      // here — while on screen it changes two words in the status caption and makes a
+      // row of buttons disappear. For an irreversible action that is too quiet.
       showToast({ message: t("invite.revoked") });
     },
   });
@@ -74,14 +74,13 @@ function InvitationRow({
         {t(`invite.status.${invitation.status}`)}
       </span>
 
-      {/* Отозвать и выпустить заново можно только неиспользованное: принятое
-          приглашение — это уже членство, и снимают его другим действием.
+      {/* Only an unused invitation can be revoked and reissued: an accepted one is
+          already a membership, and it is removed by a different action.
 
-          Спрашивают все три: и «Новая ссылка», и «Отправить ещё раз» — это
-          один и тот же перевыпуск, убивающий прежний токен, и вторая подпись
-          скрывает это сильнее первой. Человек, нажавший «отправить ещё раз»
-          в уверенности, что повторяет письмо, ломает ссылку, отправленную
-          вчера. */}
+          All three ask: both "New link" and "Send again" are one and the same
+          reissue that kills the previous token, and the second caption hides that
+          more than the first. A person who pressed "send again" in the belief they
+          were repeating the email breaks the link they sent yesterday. */}
       {pending && (
         <span className="invite__actions">
           <ConfirmAction
@@ -126,13 +125,14 @@ function InvitationRow({
 }
 
 /**
- * Строка состава: кто это, какая роль и — владельцу — что с ней можно сделать.
+ * A roster row: who this is, what role they have and — for the owner — what can be
+ * done with it.
  *
- * Роль применяется сразу по выбору, без второго нажатия: она обратима — тот же
- * список возвращает прежнее значение, — а подтверждение у каждого выбора
- * превратило бы список в анкету. Необратимое рядом (вывод из организации)
- * спрашивает, и разница между ними видна именно по тому, что одно спрашивает,
- * а другое нет.
+ * The role applies immediately on choice, without a second press: it is reversible —
+ * the same list brings the previous value back — while a confirmation on every choice
+ * would turn the list into a questionnaire. The irreversible thing next to it
+ * (removing from the organization) does ask, and the difference between them is
+ * visible precisely in the fact that one asks and the other does not.
  */
 function MemberRow({
   member,
@@ -141,19 +141,19 @@ function MemberRow({
   lastOwner,
 }: {
   member: Member;
-  /** Владелец правит состав; остальные читают его строкой текста. */
+  /** The owner edits the roster; everyone else reads it as a line of text. */
   manageable: boolean;
   isMe: boolean;
-  /** Организация держится на этом человеке одном: трогать его роль нечем. */
+  /** The organization rests on this person alone: there is nothing to touch their role with. */
   lastOwner: boolean;
 }) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
   const showToast = useToast();
 
-  // Роль вошедшего лежит в ответе `/api/org` и решает, что показывать всему
-  // приложению: владелец, разжаловавший сам себя, обязан увидеть это сразу, а
-  // не после перезагрузки.
+  // The signed-in person's role lies in the `/api/org` response and decides what to
+  // show the whole application: an owner who demoted themselves must see that at once
+  // rather than after a reload.
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: MEMBERS_QUERY_KEY }),
@@ -177,8 +177,8 @@ function MemberRow({
     mutationFn: () => removeMember(member.id),
     onSuccess: () => {
       void refresh();
-      // Вывод из организации меняет на экране одну исчезнувшую строку. Для
-      // действия, которое отыгрывается только новым приглашением, этого мало.
+      // Removing someone from the organization changes one vanished row on screen. For
+      // an action that is only played back by a new invitation, that is not enough.
       showToast({ message: t("members.remove.done", { name: member.name }) });
     },
   });
@@ -215,27 +215,27 @@ function MemberRow({
           ))}
         </select>
 
-        {/* Себя из списка не убирают: уход — это другое действие, названное
-            своими словами и стоящее отдельно. Кнопка «убрать» в собственной
-            строке выглядела бы такой же мелочью, как и в чужой, — а стоит
-            дороже: назад в организацию себя не позовёшь. */}
+        {/* You are not removed from the list yourself: leaving is a different action,
+            named in its own words and standing apart. A "remove" button in your own row
+            would look like the same small thing as in someone else's — while costing
+            more: you cannot invite yourself back into the organization. */}
         {!isMe && !lastOwner && (
           <ConfirmAction
             className="button--quiet"
             label={t("members.remove.label")}
             warning={t("members.remove.warning", { name: member.name })}
             confirm={t("members.remove.confirm")}
-            // Строка исчезает не мгновенно — сначала уходит запрос, потом
-            // приходит обновлённый состав. Второе нажатие в этот промежуток
-            // получило бы `member_not_found` за уже сделанное дело.
+            // The row does not disappear instantly — first the request goes, then the
+            // updated roster arrives. A second press in that gap would get a
+            // `member_not_found` for a job already done.
             disabled={remove.isPending}
             onConfirm={() => remove.mutate()}
           />
         )}
       </span>
 
-      {/* Заперт не человек, а положение: пояснение стоит там же, где
-          выключенный выбор, иначе оно читается как «сломалось». */}
+      {/* What is locked is not the person but the situation: the explanation stands
+          where the disabled control is, otherwise it reads as "it broke". */}
       {lastOwner && <span className="muted members__note">{t("members.last_owner_hint")}</span>}
 
       {error && (
@@ -248,13 +248,13 @@ function MemberRow({
 }
 
 /**
- * «Покинуть организацию» — то же действие, что вывод участника, но над собой.
+ * "Leave the organization" is the same action as removing a member, but on yourself.
  *
- * Стоит отдельным разделом, а не кнопкой в своей строке состава, по двум
- * причинам. Роль `client` состава организации не видит вовсе (сервер отвечает
- * ей отказом), и кнопка внутри списка означала бы, что позванный однажды
- * заперт внутри навсегда. И уход — не мелкая правка списка: он называется
- * словами и стоит там, где его ищут.
+ * It stands as a separate section rather than a button in your own roster row, for
+ * two reasons. The `client` role does not see the organization's roster at all (the
+ * server answers them with a refusal), and a button inside the list would mean that
+ * someone invited once is locked inside forever. And leaving is not a small edit to a
+ * list: it is named in words and stands where it is looked for.
  */
 function LeaveOrganization({ orgName, lastOwner }: { orgName: string; lastOwner: boolean }) {
   const { t } = useLocale();
@@ -266,18 +266,19 @@ function LeaveOrganization({ orgName, lastOwner }: { orgName: string; lastOwner:
   const leave = useMutation({
     mutationFn: (userId: string) => removeMember(userId),
     onSuccess: () => {
-      // Обесценивается всё: проекты, состав, сама организация — после ухода
-      // это данные чужого места. Не `clear()`: сессия жива, и выбрасывать
-      // вместе с кэшем профиль значило бы отправить приложение в «проверяю».
+      // Everything is invalidated: the projects, the roster, the organization itself —
+      // after leaving this is data from somebody else's place. Not `clear()`: the
+      // session is alive, and throwing the profile out along with the cache would send
+      // the application into "checking".
       void queryClient.invalidateQueries();
       showToast({ message: t("members.leave.done", { org: orgName }) });
       navigate("/projects");
     },
   });
 
-  // Уходить некому и неоткуда, пока неизвестно ни кто вошёл, ни куда он
-  // входил: раздел с пустым названием организации в заголовке обещал бы
-  // действие над неизвестно чем.
+  // There is nobody to leave and nowhere to leave from while neither who signed in nor
+  // where they signed in is known: a section with an empty organization name in its
+  // heading would promise an action on who knows what.
   if (!user) return null;
 
   return (
@@ -316,23 +317,23 @@ export function Members() {
   const roster = useQuery({ queryKey: MEMBERS_QUERY_KEY, queryFn: members });
   const isOwner = org.data?.role === "owner";
 
-  // Единственного владельца не разжаловать и не вывести — организация без
-  // владельца не разжалована, а заперта: назначить нового в ней больше некому.
-  // Сервер держит это правило сам (`last_owner`), а список нужен затем, чтобы
-  // выключенный выбор объяснился до нажатия, а не после отказа.
+  // The only owner cannot be demoted or removed — an organization without an owner is
+  // not demoted but locked: there is nobody left in it to appoint a new one. The server
+  // holds this rule itself (`last_owner`), and the list is needed so that the disabled
+  // control explains itself before the press rather than after the refusal.
   const owners = roster.data?.filter((member) => member.role === "owner") ?? [];
   const soleOwnerId = owners.length === 1 ? owners[0].id : null;
 
-  // Приглашения видит только владелец: остальным маршрут отвечает отказом, и
-  // спрашивать его ради заведомого 403 незачем.
+  // Only the owner sees the invitations: the route answers everyone else with a
+  // refusal, and there is no point asking it for a certain 403.
   const invitations = useQuery({
     queryKey: INVITATIONS_QUERY_KEY,
     queryFn: listInvitations,
     enabled: isOwner,
   });
 
-  // Своего `<main>` у экрана нет: он вкладка раздела настроек, и рама его уже
-  // дала.
+  // The screen has no `<main>` of its own: it is a tab of the settings section, and
+  // the frame has already given it one.
   return (
     <>
       <div className="screen__head">
@@ -380,10 +381,10 @@ export function Members() {
         </section>
       )}
 
-      {/* Показывается всем и всегда, включая роль `client`, которой состав
-          организации не отдаётся вовсе: без этого позванный однажды остался бы
-          внутри навсегда. Название организации приходит отдельным запросом и
-          есть у любой роли. */}
+      {/* Shown to everyone and always, including the `client` role, which is not given
+          the organization's roster at all: without this, someone invited once would
+          stay inside forever. The organization's name arrives by a separate request and
+          is available to any role. */}
       {org.data && (
         <LeaveOrganization
           orgName={org.data.name}

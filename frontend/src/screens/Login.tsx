@@ -14,15 +14,15 @@ export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
-  // Человек пришёл по приглашению и завернул сюда, чтобы войти под своим
-  // аккаунтом. После входа он возвращается к приглашению, а не оказывается в
-  // списке проектов, забыв, зачем шёл.
+  // The person came by an invitation and turned in here to sign in under their own account. After
+  // signing in they return to the invitation rather than ending up in the list of projects, having
+  // forgotten what they came for.
   //
-  // Память — запасной путь для того единственного перехода, где строка запроса
-  // бессильна: между «Забыли пароль?» и «Войти» стоит письмо, ссылку в нём
-  // строит сервер, и приглашения там нет. Возврат по памяти безопасен: он
-  // приводит на экран приглашения, где всё равно надо нажать «Принять», —
-  // молча ни в какую организацию человек не вступает.
+  // The memory is a fallback path for the one transition where the query string is powerless:
+  // between "Forgot your password?" and "Sign in" stands an email, the link in it is built by the
+  // server, and there is no invitation there. A return by memory is safe: it leads to the invitation
+  // screen, where "Accept" has to be pressed anyway — a person does not silently join any
+  // organization.
   const inviteToken = params.get("invite") ?? pendingInvite();
 
   const [email, setEmail] = useState("");
@@ -36,9 +36,8 @@ export function Login() {
     setFailureKey(null);
     try {
       await login({ email, password });
-      // Приглашение впереди сохранённого адреса: оно названо в самой ссылке, по
-      // которой человек сюда пришёл, а сохранённый адрес — лишь память о том,
-      // куда его завернули.
+      // The invitation comes before the saved address: it is named in the very link the person came
+      // here by, while the saved address is only a memory of where they were turned aside.
       navigate(
         inviteToken === null
           ? afterAuthPath(location.state)
@@ -87,9 +86,9 @@ export function Login() {
       </form>
 
       <p className="muted">
-        {/* Восстановление пароля — часть пути приглашённого, а не отдельная
-            история: приглашения шлют на рабочие адреса, у которых аккаунт
-            заведён давно, а пароль к нему помнят не всегда. */}
+        {/* Password recovery is part of an invitee's path rather than a separate story: invitations
+            are sent to work addresses, which have had an account for a long time, and the password
+            to it is not always remembered. */}
         <Link to={withInvite("/forgot-password", inviteToken)}>
           {t("auth.login.link_forgot")}
         </Link>
@@ -97,8 +96,8 @@ export function Login() {
 
       <p className="muted">
         {t("auth.login.no_account")}{" "}
-        {/* Состояние едет и на регистрацию: у пришедшего по ссылке чаще всего
-            ещё нет аккаунта, и терять адрес на шаг позже — та же потеря. */}
+        {/* The state travels to registration too: someone arriving by a link most often has no
+            account yet, and losing the address a step later is the same loss. */}
         <Link to={withInvite("/register", inviteToken)} state={location.state}>
           {t("auth.login.link_register")}
         </Link>

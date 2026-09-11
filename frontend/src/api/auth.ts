@@ -1,6 +1,6 @@
 import { request } from "./client";
 
-/** Ключ кэша профиля: один на всё приложение, иначе состояний входа станет два. */
+/** The profile cache's key: one for the whole application, otherwise there will be two sign-in states. */
 export const ME_QUERY_KEY = ["auth", "me"] as const;
 
 export type User = {
@@ -9,20 +9,19 @@ export type User = {
   email: string;
   locale: string;
   /**
-   * Часовой пояс, по которому этому человеку считаются сутки. `null` —
-   * «спросить у браузера»: пояс меняется вместе с человеком, и записанный
-   * однажды при заведении аккаунта врал бы после первой же поездки.
+   * The time zone this person's day is counted by. `null` means "ask the browser": a zone
+   * changes along with a person, and one recorded once when the account was created would lie
+   * after the very first trip.
    */
   timezone: string | null;
-  /** Подтверждён ли адрес. В установке без почты пустой у всех и ничего не
-      запрещает — это признак для подсказки, а не для доступа. */
+  /** Whether the address is confirmed. In an install without mail it is empty for everyone and
+      forbids nothing — it is a flag for a hint rather than for access. */
   email_verified: boolean;
   /**
-   * Носит ли этот человек роль директора — единственную роль уровня всей
-   * установки, закреплённую на сервере за одним конкретным адресом. Решает,
-   * виден ли пункт «Админ-панель»; здесь — только чтобы не показывать пункт
-   * меню, ведущий заведомо в отказ: доступ к самой панели сервер проверяет
-   * заново.
+   * Whether this person carries the director role — the single install-wide role, pinned on the
+   * server to one specific address. It decides whether the "Admin panel" item is visible; here
+   * it is only so as not to show a menu item leading to a certain refusal: access to the panel
+   * itself is checked by the server anew.
    */
   is_director: boolean;
 };
@@ -32,16 +31,15 @@ export type RegisterInput = {
   email: string;
   password: string;
   /**
-   * Название компании — так называется организация, которую регистрация
-   * заводит вместе с аккаунтом. Нужно, только когда организация действительно
-   * заводится: без приглашения на руках. С приглашением человек входит в
-   * чужую, и поле сервер не спрашивает.
+   * The company name — that is what the organization the registration creates along with the
+   * account is called. Needed only when an organization really is created: without an invitation
+   * in hand. With an invitation the person joins somebody else's, and the server does not ask
+   * for the field.
    */
   company_name?: string;
   /**
-   * Приглашение, по которому человек пришёл. С ним аккаунт заводится сразу
-   * внутри позвавшей организации — и заводится даже там, где свободная
-   * регистрация выключена.
+   * The invitation the person came by. With it the account is created right inside the inviting
+   * organization — and is created even where free registration is switched off.
    */
   invite_token?: string;
 };
@@ -74,13 +72,13 @@ export function me(): Promise<User> {
 }
 
 /**
- * Правка своего профиля — четвёртый уровень настроек.
+ * Editing one's own profile — the fourth level of the settings.
  *
- * Язык живёт здесь, а не только в памяти браузера: человек, вошедший с
- * другого компьютера, обязан увидеть тот же язык, а не тот, что просит чужой
- * браузер. То же и с часовым поясом — с одной добавкой: `null` в нём
- * означает «считать сутки по браузеру», и поэтому поле уходит на сервер
- * ровно тогда, когда его назвали, а не когда оно непустое.
+ * The language lives here rather than only in the browser's memory: a person who signed in from
+ * another computer must see the same language rather than the one somebody else's browser asks
+ * for. The same goes for the time zone — with one addition: a `null` in it means "count the day
+ * by the browser", and so the field goes to the server exactly when it has been named rather
+ * than when it is non-empty.
  */
 export function updateProfile(patch: {
   name?: string;
@@ -93,11 +91,11 @@ export function updateProfile(patch: {
   });
 }
 /**
- * Погашение ссылки из письма. Куки не требует: почту читают в другом месте.
+ * Redeeming a link from an email. It requires no cookie: mail is read elsewhere.
  *
- * `already_verified` — ссылку открыли не в первый раз. Это не отказ: адрес
- * подтверждён, и человеку остаётся только выбрать слова — «подтверждён» или
- * «уже подтверждён».
+ * `already_verified` — the link was not opened for the first time. This is not a refusal: the
+ * address is confirmed, and all that is left for the person is to choose the words —
+ * "confirmed" or "already confirmed".
  */
 export function verifyEmail(token: string): Promise<{ already_verified: boolean }> {
   return request<{ already_verified: boolean }>("/api/auth/verify-email", {
@@ -107,17 +105,17 @@ export function verifyEmail(token: string): Promise<{ already_verified: boolean 
 }
 
 /**
- * Повторное письмо. Ответ говорит правду о доставке: `sent: false` — письмо
- * не ушло, и обещать «проверьте почту» в этом случае нельзя.
+ * A repeat email. The response tells the truth about delivery: `sent: false` means the email did
+ * not go out, and promising "check your mail" in that case will not do.
  */
 export function resendVerification(): Promise<{ sent: boolean }> {
   return request<{ sent: boolean }>("/api/auth/verify-email/resend", { method: "POST" });
 }
 
 /**
- * Просьба о письме для восстановления пароля. Ответ одинаковый для любого
- * адреса: есть ли такой аккаунт, сервер не сообщает — и экран не должен
- * обещать письмо, а только «если адрес зарегистрирован».
+ * A request for a password recovery email. The response is the same for any address: the server
+ * does not report whether such an account exists — and the screen must not promise an email,
+ * only "if the address is registered".
  */
 export function requestPasswordReset(email: string): Promise<void> {
   return request<void>("/api/auth/password/forgot", {
@@ -126,7 +124,7 @@ export function requestPasswordReset(email: string): Promise<void> {
   });
 }
 
-/** Погашение ссылки из письма: новый пароль вместо забытого. Куки не требует. */
+/** Redeeming a link from an email: a new password instead of a forgotten one. It requires no cookie. */
 export function resetPassword(input: { token: string; new_password: string }): Promise<void> {
   return request<void>("/api/auth/password/reset", {
     method: "POST",

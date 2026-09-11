@@ -35,28 +35,28 @@ import { TaskProgress } from "./TaskProgress";
 
 import "./panel.css";
 
-/** Вкладка карточки: свойства задачи, история или обсуждение. */
+/** A card's tab: the task's properties, its history or the discussion. */
 export type PanelTab = "details" | "history" | "comments";
 
 /**
- * Карточка задачи — выдвижная панель во всю высоту экрана.
+ * A task's card — a panel sliding out over the full height of the screen.
  *
- * `position: fixed` от верхнего края окна до нижнего, поверх шапки проекта и
- * ленты: карточка не начинается от места клика и не зависит от прокрутки
- * страницы — при любой прокрутке ленты она остаётся растянутой от края до
- * края. Устроена тремя ярусами: закреплённая шапка (название, статус, период,
- * прогресс и вкладки), прокручиваемая середина и закреплённый подвал с
- * кнопками. Если содержимое не помещается, прокручивается только середина.
+ * `position: fixed` from the window's top edge to its bottom, on top of the
+ * project header and the strip: the card does not start from the click's place
+ * and does not depend on the page's scroll — however the strip is scrolled it
+ * stays stretched edge to edge. It is built in three tiers: a pinned header
+ * (name, status, period, progress and tabs), a scrollable middle and a pinned
+ * footer with buttons. If the content does not fit, only the middle scrolls.
  *
- * `complementary`, а не `dialog`: карточка накрывает лишь правую колонку
- * экрана и не забирает фокус — по ленте слева работают одновременно с ней,
- * сверяя полоску с полями. Окно с подложкой требовало бы закрывать себя перед
- * каждым взглядом на соседнюю задачу.
+ * `complementary` rather than `dialog`: the card covers only the screen's right
+ * column and does not take the focus — the strip on the left is worked with at
+ * the same time, checking a bar against the fields. A dialog with a backdrop
+ * would demand closing itself before every glance at a neighbouring task.
  *
- * Закрывается тремя способами, потому что к ней приходят тремя путями: мышью
- * за крестик, с клавиатуры по Esc и повторным щелчком по той же полоске —
- * последнее люди делают не задумываясь, и без этого щелчок выглядит
- * бездействием.
+ * It closes in three ways, because it is arrived at by three paths: with the
+ * mouse on the cross, from the keyboard with Esc, and by a repeat click on the
+ * same bar — people do the last one without thinking, and without it the click
+ * looks like nothing happened.
  */
 export function TaskPanel({
   projectId,
@@ -68,14 +68,14 @@ export function TaskPanel({
 }: {
   projectId: string;
   task: Task;
-  /** Весь проект: карточке нужны и категории, и соседи по ним. */
+  /** The whole project: the card needs both the categories and the neighbours in them. */
   state: ProjectState;
   canWrite: boolean;
   /**
-   * С какого раздела открыть. По умолчанию свойства — за ними приходят чаще
-   * всего; со счётчика реплик на строке ленты приходят сразу в обсуждение, и
-   * лишний щелчок по вкладке там означал бы, что счётчик привёл не туда, куда
-   * обещал.
+   * Which section to open on. Properties by default — that is what people come
+   * for most often; from the reply counter on a strip row they come straight to
+   * the discussion, and an extra click on the tab there would mean the counter
+   * led somewhere other than it promised.
    */
   initialTab?: PanelTab;
   onClose: () => void;
@@ -84,29 +84,29 @@ export function TaskPanel({
   const { t } = useLocale();
   const { apply } = useProjectMutation(projectId);
   const [error, setError] = useState<unknown>(null);
-  // Удаление спрашивает подтверждение прямо в карточке — тем же образом, что
-  // пересогласование плана: окно поверх карточки закрывало бы задачу, о
-  // которой спрашивает.
+  // Deletion asks for confirmation right in the card — the same way plan
+  // re-approval does: a dialog on top of the card would cover the task it is
+  // asking about.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  // Счётчик отказов. Служит полям знаком «вернись к состоянию»: сравнивать
-  // значения им недостаточно — догадка и откат часто укладываются в один кадр,
-  // и с точки зрения поля значение не менялось.
+  // The refusal counter. Serves the fields as a "go back to the state" signal:
+  // comparing values is not enough for them — a guess and a rollback often fit
+  // into one frame, and from a field's point of view the value never changed.
   const [refusals, setRefusals] = useState(0);
 
-  // Вкладка карточки. Сбрасывается к той, с которой карточку открыли, при
-  // переходе к соседней задаче: карточка, оставшаяся открытой на «Истории»
-  // одной задачи, не должна молча показывать историю следующей — на неё
-  // щёлкнули, чтобы увидеть саму задачу.
+  // The card's tab. Reset to the one the card was opened on when moving to a
+  // neighbouring task: a card left open on one task's "History" must not
+  // silently show the next task's history — it was clicked on to see the task
+  // itself.
   //
-  // Зависимость по разделу — не лишняя: со строки ленты в одну и ту же задачу
-  // ведут два пути, и щелчок по счётчику реплик обязан открыть обсуждение,
-  // даже когда карточка этой задачи уже открыта на свойствах.
+  // The dependency on the section is not redundant: two paths lead from a strip
+  // row into one and the same task, and a click on the reply counter must open
+  // the discussion even when that task's card is already open on its properties.
   const [tab, setTab] = useState<PanelTab>(initialTab);
   useEffect(() => setTab(initialTab), [task.id, initialTab]);
 
-  // Отказ здесь — не ошибка карточки: роль `client` состава организации не
-  // получает вовсе, и блок исполнителей просто не рисуется. Тот же довод, что
-  // и в форме создания задачи.
+  // A refusal here is not the card's error: the `client` role never gets the
+  // organization's roster at all, and the assignees block is simply not drawn.
+  // The same reasoning as in the task creation form.
   const membersQuery = useQuery({
     queryKey: MEMBERS_QUERY_KEY,
     queryFn: fetchMembers,
@@ -114,32 +114,34 @@ export function TaskPanel({
     staleTime: Infinity,
   });
 
-  // Карточка — нижний слой: поверх неё встают и окно «объясните сдвиг», и
-  // меню ленты, и встроенное подтверждение удаления. Своим слушателем на
-  // документе карточка закрывалась бы вместе с любым из них, унося
-  // недописанное; общая стопка отдаёт Esc только верхнему.
+  // The card is the bottom layer: the "explain the shift" dialog, the strip's
+  // menu and the inline delete confirmation all stand on top of it. With its own
+  // listener on the document the card would close together with any of them,
+  // carrying away unfinished text; the shared stack gives Esc only to the top one.
   //
-  // Слушатель по-прежнему на документе, а не на самой карточке: к моменту
-  // нажатия фокус чаще всего на полоске, и слушатель на карточке молчал бы.
+  // The listener is still on the document rather than on the card itself: by the
+  // time of the keypress the focus is most often on the bar, and a listener on
+  // the card would stay silent.
   useEscape(onClose);
 
-  // Подтверждение удаления живёт внутри карточки, но ведёт себя как слой над
-  // ней: Esc здесь значит «передумал удалять», а не «закрой карточку». Второе
-  // унесло бы и вопрос, и задачу, о которой он.
+  // The delete confirmation lives inside the card but behaves as a layer above
+  // it: Esc here means "changed my mind about deleting", not "close the card".
+  // The latter would carry away both the question and the task it is about.
   useEscape(() => setConfirmingDelete(false), confirmingDelete);
 
-  // Относительный план: поля дат карточки говорят днями проекта — дат у
-  // такого плана ещё нет (см. gantt/relative.ts).
+  // A relative plan: the card's date fields speak in project days — such a plan
+  // has no dates yet (see gantt/relative.ts).
   const relative = state.schedule_mode === "relative";
 
   const send = (op: Op, optimistic: (state: ProjectState) => ProjectState) => {
     setError(null);
-    // Отказ уже откачен внутри `apply`: здесь остаётся объяснить его словами и
-    // вернуть поле к тому, что осталось в состоянии.
+    // The refusal has already been rolled back inside `apply`: what is left here
+    // is to explain it in words and return the field to what remains in state.
     apply(op, optimistic).catch((refusal: unknown) => {
-      // Отказ объяснять сдвиг — не ошибка: человек нажал «Вернуть», и поле
-      // обязано вернуться к сохранённому значению молча. Сообщение об ошибке
-      // здесь читалось бы как «что-то сломалось», хотя сломаться нечему.
+      // Refusing to explain a shift is not an error: the person pressed
+      // "Revert", and the field must return to the saved value silently. An
+      // error message here would read as "something broke", though there is
+      // nothing to break.
       if (!isShiftCancelled(refusal)) setError(refusal);
       setRefusals((count) => count + 1);
     });
@@ -148,11 +150,12 @@ export function TaskPanel({
   const patch = (fields: Partial<Task>) => (state: ProjectState) =>
     patchTask(state, task.id, fields);
 
-  // Заметка — единственное поле с ограниченной видимостью, и `set_task_fields`
-  // несёт все три текстовых поля разом. Значит, не видя заметки, послать эту
-  // операцию нельзя: она стёрла бы её пустой строкой. По матрице прав такой
-  // роли не существует — писать может лишь тот, кто заметку видит, — но
-  // рассчитывать на совпадение двух списков прав не стоит.
+  // The note is the only field with restricted visibility, and
+  // `set_task_fields` carries all three text fields at once. That means this
+  // operation cannot be sent without seeing the note: it would erase it with an
+  // empty string. By the permission matrix no such role exists — only someone
+  // who sees the note can write — but relying on two permission lists
+  // coinciding is not worth it.
   const editsText = canWrite && "internal_note" in task;
 
   const commitFields = (changed: Partial<Task>) => {
@@ -181,8 +184,8 @@ export function TaskPanel({
     );
   };
 
-  // Период в шапке — теми же словами, что и поля дат ниже: относительный план
-  // говорит днями проекта, календарный — короткими датами.
+  // The period in the header uses the same words as the date fields below: a
+  // relative plan speaks in project days, a calendar one in short dates.
   const dateLabel = (iso: string) =>
     relative ? relativeDayLabel(t, iso) : formatShortDate(t, iso);
 
@@ -190,15 +193,15 @@ export function TaskPanel({
     <aside
       className="panel"
       role="complementary"
-      // Название задачи в подписи: карточек за сеанс открывают десяток, и
-      // «дополнительная информация» без имени не говорит, о какой из них речь.
+      // The task's name in the caption: a dozen cards are opened per session,
+      // and "additional information" without a name does not say which one.
       aria-label={t("task.panel.aria", { name: task.name })}
     >
-      {/* Шапка закреплена: название, статус с периодом, прогресс и вкладки
-          видны при любой прокрутке середины. */}
+      {/* The header is pinned: the name, the status with the period, the
+          progress and the tabs are visible however the middle is scrolled. */}
       <header className="panel__head">
         <div className="panel__head-top">
-          {/* Название задачи — содержимое пользователя: не переводится. */}
+          {/* The task's name is user content: it is not translated. */}
           <h2 className="panel__title">{task.name}</h2>
           <button
             type="button"
@@ -211,8 +214,8 @@ export function TaskPanel({
           </button>
         </div>
 
-        {/* `key` по задаче: «день отмечен» и черновик процента относятся к
-            этой задаче и не должны доноситься до соседней. */}
+        {/* `key` by task: "the day is marked" and the percentage draft belong to
+            this task and must not carry over to a neighbouring one. */}
         <TaskProgress
           key={task.id}
           task={task}
@@ -223,8 +226,8 @@ export function TaskPanel({
             <>
               <StatusChip status={task.status} label={t(`task.status.${task.status}`)} />
               <span className="panel__meta-sep" aria-hidden="true" />
-              {/* Период одной строкой «старт — конец»: тире внутри строки, а
-                  не два узла, — иначе даты разъезжаются по флексу. */}
+              {/* The period on one line as "start — end": the dash is inside the
+                  string rather than two nodes — otherwise flex drives the dates apart. */}
               <span className="panel__period">
                 {dateLabel(task.start_date)} — {dateLabel(task.end_date)}
               </span>
@@ -238,18 +241,19 @@ export function TaskPanel({
           }
         />
 
-        {/* Отказ сервера — в шапке, а не в прокручиваемой середине: объяснение
-            обязано быть на глазах, на какой бы глубине ни правили поле. */}
+        {/* A server refusal goes in the header, not in the scrollable middle:
+            the explanation must be in sight, however deep the field being edited is. */}
         {error !== null && (
           <p className="error" role="alert">
             {t(errorKey(error))}
           </p>
         )}
 
-        {/* Свойства, история и обсуждение — вкладки одной карточки, а не три
-            ленты подряд: и историю, и разговор за сеанс открывают реже, чем
-            правят поля, и держать их всегда развёрнутыми — растягивать
-            карточку тем, что смотрят от случая к случаю. */}
+        {/* Properties, history and discussion are tabs of one card rather than
+            three feeds in a row: both the history and the conversation are
+            opened less often per session than the fields are edited, and
+            keeping them always unfolded means stretching the card with things
+            looked at now and then. */}
         <div className="panel__tabs" role="tablist" aria-label={t("task.panel.tabs")}>
         <button
           type="button"
@@ -287,17 +291,18 @@ export function TaskPanel({
         </div>
       </header>
 
-      {/* Середина — единственное, что прокручивается: шапка и подвал стоят.
-          `key` по задаче: переход к соседней начинает поля заново, а не
-          доносит в новую карточку недописанный текст из прежней. */}
+      {/* The middle is the only thing that scrolls: the header and the footer
+          stand still. `key` by task: moving to a neighbouring one starts the
+          fields afresh rather than carrying unfinished text into the new card. */}
       <div className="panel__body" key={task.id}>
       <Baseline task={task} state={state} />
 
       {tab === "details" && (
         <div id="panel-tabpanel-details" role="tabpanel" aria-labelledby="panel-tab-details">
-          {/* Свойства собраны аккордеонами, как в макете. Все раскрыты с
-              порога: аккордеон здесь — оглавление длинной карточки и способ
-              убрать с глаз лишнее, а не спрятать поля по умолчанию. */}
+          {/* The properties are gathered into accordions, as in the mockup. All
+              are unfolded from the start: an accordion here is a table of
+              contents for a long card and a way to get the extras out of sight,
+              not a way to hide fields by default. */}
           <PanelSection title={t("task.panel.section_main")}>
           <div className="panel__fields">
             <TextField
@@ -330,8 +335,8 @@ export function TaskPanel({
               }))}
               onCommit={(value) => {
                 const status = value as TaskStatus;
-                // Оптимистичная догадка повторяет серверную сцепку: «готово»
-                // доводит прогресс до ста (см. optimistic.ts).
+                // The optimistic guess repeats the server's coupling: "done"
+                // brings the progress up to a hundred (see optimistic.ts).
                 send({ type: "set_status", task_id: task.id, status }, (state) =>
                   patchStatus(state, task.id, status),
                 );
@@ -343,15 +348,15 @@ export function TaskPanel({
               label={t("task.panel.category")}
               value={task.category_id}
               disabled={!canWrite}
-              // Название категории — содержимое пользователя: не переводится.
+              // The category's name is user content: it is not translated.
               options={categories.map((category) => ({
                 value: category.id,
                 label: category.name,
               }))}
               onCommit={(categoryId) => {
-                // В конец выбранной категории: перенос списком — это смена
-                // принадлежности, а не выбор места внутри. Место выбирают
-                // перетаскиванием строки.
+                // To the end of the chosen category: moving by list is a change
+                // of belonging, not a choice of place inside. The place is
+                // chosen by dragging the row.
                 const position = state.tasks.filter(
                   (row) => row.category_id === categoryId && row.id !== task.id,
                 ).length;
@@ -380,9 +385,10 @@ export function TaskPanel({
               }}
             />
 
-            {/* Риск — слово исполнителя, а не расчёт: «успеваю ли я». Причина
-                показывается только у не-зелёного флага: у «по плану» ей
-                нечего объяснять, а пустое поле читалось бы как забытое. */}
+            {/* Risk is the assignee's word rather than a computation: "am I
+                going to make it". The reason is shown only for a non-green
+                flag: "on plan" has nothing to explain, and an empty field would
+                read as a forgotten one. */}
             <SelectField
               id="panel-risk"
               label={t("task.panel.risk")}
@@ -417,10 +423,10 @@ export function TaskPanel({
               />
             )}
 
-            {/* Веха — рубильник, а не поле: у него два состояния, и меняются
-                они сразу. Стоит перед сроками не случайно: включённый он
-                схлопывает длительность в день, и решение «это точка или
-                отрезок» принимается раньше, чем набирается срок. */}
+            {/* A milestone is a switch, not a field: it has two states, and they
+                change at once. It stands before the dates for a reason: turned
+                on, it collapses the duration into a day, and the decision "is
+                this a point or a stretch" is taken before the dates are typed. */}
             <div className="panel__row">
               <Switch
                 id="panel-milestone"
@@ -436,9 +442,10 @@ export function TaskPanel({
             </div>
 
             {relative ? (
-              // Относительный план: старт правится номером дня проекта — дат
-              // у такого плана нет. Перевод номера в координату оси линейный;
-              // рабочие дни считает сервер, как и всюду.
+              // A relative plan: the start is edited as a project day number —
+              // such a plan has no dates. Converting the number into an axis
+              // coordinate is linear; the working days are counted by the
+              // server, as everywhere.
               <ValueField
                 id="panel-start"
                 label={t("task.panel.start_day")}
@@ -485,17 +492,17 @@ export function TaskPanel({
 
             <div className="panel__row">
               <span className="panel__key">{t("task.panel.end")}</span>
-              {/* Дата окончания только показывается: её считает сервер по
-                  календарю проекта, и поле для правки обещало бы влияние,
-                  которого нет. */}
+              {/* The end date is only shown: it is computed by the server from
+                  the project's calendar, and a field for editing it would
+                  promise an influence that does not exist. */}
               <span className="panel__value">
                 {relative ? relativeDayLabel(t, task.end_date) : formatShortDate(t, task.end_date)}
               </span>
             </div>
 
-            {/* Единственное поле с ограниченной видимостью. Показывать его
-                или нет, решает сервер: если заметки нет в ответе, блока нет
-                в интерфейсе. */}
+            {/* The only field with restricted visibility. Whether to show it is
+                decided by the server: if the note is not in the response, the
+                block is not in the interface. */}
             {"internal_note" in task && (
               <TextField
                 id="panel-note"
@@ -516,16 +523,16 @@ export function TaskPanel({
 
           {membersQuery.data && membersQuery.data.length > 0 && (
             <PanelSection title={t("task.panel.assignees")}>
-              {/* Группа с подписью: заголовок аккордеона — украшение, а имя
-                  списку исполнителей нужно и на слух. */}
+              {/* A group with a caption: the accordion's heading is decoration,
+                  while the assignee list needs a name aloud too. */}
               <div
                 className="panel__chips"
                 role="group"
                 aria-label={t("task.panel.assignees")}
               >
                 {membersQuery.data.map((member) => (
-                  // Каждый исполнитель — своя операция: их и снимают по
-                  // одному, и в истории они читаются как отдельные события.
+                  // Each assignee is its own operation: they are both removed
+                  // one at a time and read in the history as separate events.
                   <button
                     key={member.id}
                     type="button"
@@ -534,10 +541,10 @@ export function TaskPanel({
                     disabled={!canWrite}
                     onClick={() => toggleAssignee(member.id)}
                   >
-                    {/* Аватар до имени: в списке и в карточке человек обязан
-                        узнаваться одним и тем же пятном цвета. */}
+                    {/* The avatar before the name: in a list and in a card a
+                        person must be recognized by one and the same patch of colour. */}
                     <Avatar name={member.name} size={20} />
-                    {/* Имя человека — содержимое, а не хрома. */}
+                    {/* A person's name is content, not chrome. */}
                     {member.name}
                   </button>
                 ))}
@@ -559,11 +566,12 @@ export function TaskPanel({
         </div>
       )}
 
-      {/* Удаление — последним блоком, вне вкладок: это не правка задачи, а
-          расставание с ней, и она ждёт на любой вкладке карточки. Отдельного
-          окна нет — подтверждение разворачивается на месте, как у
-          пересогласования плана. Само удаление отменяемо: снимок для отмены
-          (со связями, назначениями и разговором) хранит журнал. */}
+      {/* Deletion comes as the last block, outside the tabs: this is not editing
+          a task but parting with it, and it waits on any of the card's tabs.
+          There is no separate dialog — the confirmation unfolds in place, as
+          with plan re-approval. The deletion itself is undoable: the journal
+          keeps a snapshot for the undo (with links, assignments and the
+          conversation). */}
       {canWrite && (
         <div className="panel__danger">
           {confirmingDelete ? (
@@ -575,10 +583,10 @@ export function TaskPanel({
                   send({ type: "delete_task", task_id: task.id }, (state) =>
                     deleteTask(state, task.id),
                   );
-                  // Карточку закрывает сам факт исчезновения задачи из
-                  // состояния, но выбранный идентификатор должен забыться:
-                  // иначе отказ сервера, вернув задачу, снова открыл бы её
-                  // карточку — уже без объяснения, почему.
+                  // The card is closed by the very fact of the task disappearing
+                  // from the state, but the selected id must be forgotten:
+                  // otherwise a server refusal, returning the task, would open
+                  // its card again — this time with no explanation why.
                   onClose();
                 }}
               >
@@ -605,13 +613,14 @@ export function TaskPanel({
       )}
       </div>
 
-      {/* Подвал закреплён, как в макете. Поля карточки сохраняют себя сами
-          (см. components/autosave), поэтому обе кнопки завершают правку:
-          щелчок по «Сохранить изменения» сперва уводит фокус из поля — и тем
-          отправляет недописанный черновик, — потом закрывает карточку.
-          «Отмена» просто закрывает: откат уже записанного — работа кнопки
-          «Отменить» в журнале, а не подвала. Читателю подвал не показывается:
-          сохранять ему нечего, закрыть можно крестиком и Esc. */}
+      {/* The footer is pinned, as in the mockup. The card's fields save
+          themselves (see components/autosave), so both buttons finish the edit:
+          a click on "Save changes" first takes the focus out of the field — and
+          thereby sends the unfinished draft — and then closes the card.
+          "Cancel" simply closes: rolling back what is already written is the job
+          of the journal's "Undo" button, not the footer's. A reader is not shown
+          the footer: they have nothing to save, and can close with the cross and
+          Esc. */}
       {canWrite && (
         <footer className="panel__foot">
           <button type="button" className="button--quiet" onClick={onClose}>
@@ -628,16 +637,17 @@ export function TaskPanel({
 
 
 /**
- * Связи задачи: «зависит от» и «блокирует», с правкой из карточки.
+ * A task's links: "depends on" and "blocks", editable from the card.
  *
- * Обе стороны одной и той же связи `from → to`: «зависит от» — где задача
- * приёмник, «блокирует» — где источник. Правятся они здесь, а не только
- * рисуются стрелками, потому что стрелку нельзя ни добавить, ни снять мышью
- * на ленте — жеста для этого там нет.
+ * Both sides of one and the same `from → to` link: "depends on" is where the
+ * task is the receiver, "blocks" is where it is the source. They are edited
+ * here and not only drawn as arrows, because an arrow can be neither added nor
+ * removed with the mouse on the strip — there is no gesture for it there.
  *
- * Кандидаты не включают уже связанных и обратную сторону: A→B вместе с B→A —
- * это цикл, и предлагать его значило бы предлагать отказ сервера. Остальные
- * циклы — длинные — ловит сервер, и отказ откатывает догадку.
+ * The candidates exclude already linked tasks and the reverse side: A→B
+ * together with B→A is a cycle, and offering it would mean offering a server
+ * refusal. The other cycles — the long ones — are caught by the server, and the
+ * refusal rolls the guess back.
  */
 function Dependencies({
   task,
@@ -662,17 +672,17 @@ function Dependencies({
     .map((link) => link.to_task_id);
 
   /**
-   * Нарушена ли связь с этой задачей — и как её починить.
+   * Whether the link to this task is violated — and how to fix it.
    *
-   * Стрелка на ленте показывает нарушение молча, и её знак «!» отправляет
-   * человека сюда — значит, здесь оно обязано быть и названо, и поправимо.
-   * Предложение под лентой (см. DependencyNudge) живёт только вокруг
-   * последнего сдвига; нарушение, оставшееся с прежних правок, без этой
-   * пометки не имело ни одного места, где его можно взять и снять.
+   * The arrow on the strip shows a violation silently, and its "!" sign sends
+   * the person here — which means that here it must be both named and fixable.
+   * The nudge under the strip (see DependencyNudge) lives only around the last
+   * shift; a violation left over from earlier edits had, without this marker,
+   * not a single place where it could be taken up and cleared.
    *
-   * Двигается всегда последователь — тем же правилом и на тот же день, что и
-   * в предложении под лентой: два способа починить одну связь обязаны чинить
-   * её одинаково.
+   * It is always the successor that moves — by the same rule and to the same day
+   * as in the nudge under the strip: two ways to fix one link must fix it
+   * identically.
    */
   const trouble = (link: { from: string; to: string }) => {
     const from = byId.get(link.from);
@@ -723,13 +733,14 @@ function Dependencies({
           return (
             <span key={id} className={`panel__dep${broken ? " is-violated" : ""}`}>
               {broken && (
-                // Тот же знак, что на стрелке ленты: человек пришёл сюда с
-                // «!» на связи и должен узнать его, а не искать заново.
+                // The same sign as on the strip's arrow: the person came here
+                // from the "!" on the link and should recognize it rather than
+                // look for it anew.
                 <span className="panel__dep-warn" role="img" aria-label={broken.label} title={broken.label}>
                   !
                 </span>
               )}
-              {/* Название задачи — содержимое пользователя: не переводится. */}
+              {/* The task's name is user content: it is not translated. */}
               {nameOf.get(id) ?? id}
               {canWrite && (
                 <button
@@ -752,9 +763,10 @@ function Dependencies({
           ids.map((id) => {
             const broken = trouble(link(id));
             if (broken === null) return null;
-            // Кнопка стоит рядом с пилюлями, а не внутри пилюли: внутри она
-            // читалась бы как часть имени задачи, и целиться в неё среди
-            // текста пришлось бы точнее, чем стоит просить ради починки.
+            // The button stands next to the pills rather than inside a pill:
+            // inside it would read as part of the task's name, and aiming at it
+            // among the text would have to be more precise than is worth asking
+            // for the sake of a fix.
             return (
               <button
                 key={`fix-${id}`}
@@ -767,8 +779,8 @@ function Dependencies({
             );
           })}
         {canWrite && options.length > 0 && (
-          // Значение всегда пустое: это не выбор состояния, а команда
-          // «добавить связь», и после неё список обязан вернуться к подсказке.
+          // The value is always empty: this is not a choice of state but an "add
+          // a link" command, and after it the list must return to the prompt.
           <select
             className="panel__dep-add"
             value=""
@@ -806,15 +818,15 @@ function Dependencies({
 }
 
 /**
- * Сводка отклонения от базового плана.
+ * A summary of the deviation from the baseline plan.
  *
- * Отдельным блоком наверху карточки, а не строкой среди полей: это не поле —
- * его нельзя править, и стоя между «датой старта» и «длительностью», оно
- * читалось бы как ещё одно значение, которое кто-то ввёл.
+ * As a separate block at the top of the card rather than a line among the
+ * fields: this is not a field — it cannot be edited, and standing between "start
+ * date" and "duration" it would read as one more value somebody typed in.
  *
- * Список переносов с причинами живёт ниже, в ленте истории: причина стоит
- * рядом со своим событием и датой, а второй список тех же событий здесь
- * означал бы два места, где одно и то же расходится.
+ * The list of moves with their reasons lives below, in the history feed: a
+ * reason stands next to its own event and date, and a second list of the same
+ * events here would mean two places where one and the same thing diverges.
  */
 function Baseline({ task, state }: { task: Task; state: ProjectState }) {
   const { t } = useLocale();

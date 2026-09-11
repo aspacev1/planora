@@ -12,18 +12,18 @@ import { useProjectStates } from "./projectStates";
 import { useToday } from "../time/useToday";
 
 /**
- * «Мои задачи»: всё, что назначено вошедшему, поверх всех проектов.
+ * "My tasks": everything assigned to the signed-in person, across all the projects.
  *
- * Сортировка — по сроку окончания, готовое в конец: список отвечает на «что
- * горит у меня», а не пересказывает проекты по порядку. Просроченное помечено
- * тем же красным, что и на ленте, — красный здесь всюду значит срок.
+ * Sorted by end date, the finished at the end: the list answers "what is urgent for me" rather than
+ * retelling the projects in order. The overdue is marked with the same red as on the strip — red here
+ * always means a date.
  */
 export function MyTasks() {
   const { t } = useLocale();
   const { user } = useAuth();
   const { pending, error, states } = useProjectStates();
-  // Проектов здесь много, и у каждого мог быть свой пояс: «просрочено» на
-  // общем списке считается по суткам читателя, а не по суткам одного из них.
+  // There are many projects here, and each could have its own zone: "overdue" on a shared list is
+  // counted by the reader's day rather than by the day of one of them.
   const today = useToday();
 
   const mine: { task: Task; project: ProjectState }[] = states
@@ -63,15 +63,14 @@ export function MyTasks() {
       {mine.length > 0 && (
         <ul className="task-list">
           {mine.map(({ task, project }) => {
-            // Общий счёт просрочки, а не своё сравнение с сегодняшним днём:
-            // у задачи относительного плана «дата» — координата оси от 2001
-            // года, и такое сравнение помечало бы просроченной каждую строку
-            // проекта, которому даты ещё не назначали.
+            // The shared overdueness reckoning rather than a comparison with today of its own: for a
+            // relative plan's task a "date" is an axis coordinate from 2001, and such a comparison would
+            // mark every row of a project with no assigned dates as overdue.
             const overdue = isTaskOverdue(project, task, today);
             return (
               <li key={task.id} className="task-list__row">
                 <span className="task-list__main">
-                  {/* Имя задачи и проекта — содержимое пользователя. */}
+                  {/* The task's and the project's names are user content. */}
                   <span className="task-list__name">{task.name}</span>
                   <Link to={`/projects/${project.id}`} className="task-list__project muted">
                     {project.name}

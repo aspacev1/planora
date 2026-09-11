@@ -9,20 +9,19 @@ import { TimeZoneField } from "../settings/fields";
 import { browserTimeZone } from "../time/zone";
 
 /**
- * Профиль вошедшего: имя, адрес и часовой пояс.
+ * The signed-in person's profile: the name, the address and the time zone.
  *
- * Языка здесь больше нет — переключатель стоит в боковой колонке, над
- * «Настройками». Он и там пишет то же поле профиля, а вторая его копия на этом
- * экране означала бы два одинаковых переключателя в одном окне: колонка видна
- * и отсюда.
+ * The language is no longer here — the switcher stands in the sidebar, above "Settings". There too
+ * it writes the same profile field, and a second copy of it on this screen would mean two identical
+ * switchers in one window: the column is visible from here as well.
  *
- * Часовой пояс, наоборот, живёт именно тут, а не в настройках организации:
- * организация задаёт пояс планирования, общий для всей команды, а этот
- * отвечает на «какое сегодня число у меня» — и у сидящих в разных городах
- * ответ разный. Уровнем выше он был бы одним на всех и врал бы половине.
+ * The time zone, on the contrary, lives precisely here rather than in the organization's settings:
+ * the organization sets the planning zone, shared by the whole team, while this one answers "what is
+ * today's date for me" — and for people sitting in different cities the answer differs. A level
+ * higher it would be one for everybody and would lie to half of them.
  *
- * Своего `<main>` у экрана нет: он вкладка раздела настроек, и рама его уже
- * дала.
+ * The screen has no `<main>` of its own: it is a tab of the settings section, and the frame has
+ * already given it one.
  */
 export function Profile() {
   const { t } = useLocale();
@@ -31,9 +30,9 @@ export function Profile() {
 
   const save = useMutation({
     mutationFn: (patch: { name?: string; timezone?: string | null }) => updateProfile(patch),
-    // Об удавшейся записи отчитывается само поле (см. `useFieldSaves`), а не
-    // тост поверх экрана: имя сохраняется по уходу фокуса, и ответ на этот жест
-    // человек ищет там, где только что печатал.
+    // A successful write is reported by the field itself (see `useFieldSaves`) rather than by a toast
+    // over the screen: the name is saved on blur, and the person looks for the answer to that gesture
+    // where they have just been typing.
     onSuccess: (updated: User) => queryClient.setQueryData(ME_QUERY_KEY, updated),
   });
   const saves = useFieldSaves(save.mutateAsync);
@@ -67,17 +66,17 @@ export function Profile() {
               : t("settings.profile.timezone_auto")
           }
           value={user.timezone}
-          // Через ту же отправку полей, что и имя: отказ сервера иначе был
-          // бы немым — список возвращался к прежнему поясу, и человек не
-          // понимал, почему выбор не удержался.
+          // Through the same field submission as the name: otherwise a server refusal would be mute —
+          // the list would go back to the previous zone, and the person would not understand why the
+          // choice did not hold.
           save={saves.at("profile-timezone")}
           onChange={(timezone) => saves.commit("profile-timezone", { timezone })}
         />
 
         <p className="field">
           <span className="settings__key">{t("auth.field.email")}</span>
-          {/* Адрес не правится: на нём держится вход, и смена адреса — это
-              подтверждение нового адреса, то есть отдельная работа. */}
+          {/* The address is not editable: the sign-in rests on it, and changing the address means
+              confirming a new address, that is, a separate job. */}
           <span className="muted">{user.email}</span>
         </p>
       </section>

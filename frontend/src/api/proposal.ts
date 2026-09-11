@@ -2,36 +2,36 @@ import { request } from "./client";
 import type { Comment } from "./comments";
 
 /**
- * Коммерческое предложение проекта: смета до плана.
+ * A project's commercial proposal: the quote before the plan.
  *
- * Цена строки на проводе не ездит намеренно: она равна effort × rate, и
- * присланная копия разъехалась бы с сомножителями. Итоги считает экран —
- * это произведение и сумма уже показанных чисел.
+ * A line's price deliberately does not travel on the wire: it equals effort × rate, and a
+ * sent copy would diverge from the factors. The totals are computed by the screen — they
+ * are the product and the sum of numbers already shown.
  */
 
 export type EffortUnit = "days" | "hours";
 
 /**
- * Этап сделки, который отмечают рукой. «В плане» здесь нет: он выводится из
- * ссылок строк на задачи (`plan_task_id`) и счётчиков ниже.
+ * A deal stage that is marked by hand. "In the plan" is not here: it is derived from the
+ * lines' references to tasks (`plan_task_id`) and the counters below.
  */
 export type ProposalStage = "draft" | "sent" | "agreed";
 
-/** Роль, которую организация уже писала в сметах, с последней её ставкой. */
+/** A role the organization has already written in quotes, with its latest rate. */
 export type RoleSuggestion = { role: string; rate: number };
 
 export type ProposalTask = {
   id: string;
   category_id: string;
   name: string;
-  /** Короткое описание — колонка таблицы; подробное (`details`) — карточка. */
+  /** A short description is a table column; the detailed one (`details`) is the card. */
   description: string;
   details: string;
-  /** Роль исполнителя словами, а не участник: смету пишут до назначения людей. */
+  /** The performer's role in words rather than a member: a quote is written before people are assigned. */
   role: string;
-  /** Трудоёмкость в единицах предложения (см. ProposalState.effort_unit). */
+  /** The effort in the proposal's units (see ProposalState.effort_unit). */
   effort: number;
-  /** Ставка за единицу трудоёмкости, в валюте предложения. */
+  /** The rate per unit of effort, in the proposal's currency. */
   rate: number;
   notes: string;
   risks: string;
@@ -39,8 +39,8 @@ export type ProposalTask = {
   position: number;
   comment_count: number;
   /**
-   * Задача плана, из которой строка собрана или в которую перенесена.
-   * `null` — в плане её ещё нет: перенос заведёт её, а связанные пропустит.
+   * The plan task the line was assembled from or transferred into. `null` — it is not in
+   * the plan yet: a transfer will create it, and skip the linked ones.
    */
   plan_task_id: string | null;
 };
@@ -48,7 +48,7 @@ export type ProposalTask = {
 export type ProposalCategory = {
   id: string;
   name: string;
-  /** Одна строка о разделе целиком — стоит на его строке в таблице. */
+  /** One line about the whole section — it stands on its row in the table. */
   description: string;
   position: number;
   tasks: ProposalTask[];
@@ -56,24 +56,24 @@ export type ProposalCategory = {
 
 export type ProposalState = {
   effort_unit: EffortUnit;
-  /** Сколько часов считать днём при переносе почасовой сметы в план. */
+  /** How many hours count as a day when transferring an hourly quote into a plan. */
   hours_per_day: number;
   tax_rate_pct: number;
-  /** Код ISO 4217 — например, «USD». */
+  /** An ISO 4217 code — "USD", for example. */
   currency: string;
-  /** Допущения и примечания предложения целиком, по пункту на строку. */
+  /** The proposal's assumptions and notes as a whole, one item per line. */
   notes: string;
   status: ProposalStage;
   sent_at: string | null;
   agreed_at: string | null;
-  /** Сколько строк уже в плане и сколько оценённых строк ещё можно перенести. */
+  /** How many lines are already in the plan and how many estimated lines can still be transferred. */
   pushed_count: number;
   pushable_count: number;
   role_suggestions: RoleSuggestion[];
   /**
-   * Чем наполнен план — для карточки «Собрать из плана» на пустой смете.
-   * Категории считаются те, в которых есть задачи: столько разделов сборка
-   * и заведёт.
+   * What the plan is filled with — for the "Assemble from the plan" card on an empty quote.
+   * The categories counted are those that have tasks: that is how many sections the assembly
+   * will create.
    */
   plan_facts: { categories: number; tasks: number };
   categories: ProposalCategory[];
@@ -100,14 +100,15 @@ export type ProposalTaskPatch = Partial<{
 }>;
 
 /**
- * Ключ — внутри ключа проекта: ревизия из сокета сбрасывает проект целиком,
- * и смета, чей перенос в план сам рождает ревизию, обновляется тем же вызовом.
+ * The key is inside the project's key: a revision from the socket invalidates the whole
+ * project, and the quote — whose transfer into the plan itself produces a revision — is
+ * refreshed by the same call.
  */
 export function proposalQueryKey(projectId: string) {
   return ["project", projectId, "proposal"] as const;
 }
 
-/** Лента строки — внутри ключа сметы: сброс сметы задевает и разговор. */
+/** A line's feed is inside the quote's key: invalidating the quote touches the conversation too. */
 export function proposalCommentsQueryKey(projectId: string, taskId: string) {
   return ["project", projectId, "proposal", "comments", taskId] as const;
 }
@@ -154,7 +155,7 @@ export function deleteProposalCategory(projectId: string, categoryId: string): P
   });
 }
 
-/** Новая строка: имя обязательно, остальное — если назвали сразу. */
+/** A new line: the name is required, the rest only if named straight away. */
 export type NewProposalTask = { name: string; role?: string; effort?: number; rate?: number };
 
 export function createProposalTask(
@@ -164,12 +165,12 @@ export function createProposalTask(
 ): Promise<{ id: string; category_id: string; name: string }> {
   return request(`/api/projects/${projectId}/proposal/categories/${categoryId}/tasks`, {
     method: "POST",
-    // Неназванные поля не уезжают вовсе: JSON.stringify опускает undefined.
+    // Unnamed fields do not travel at all: JSON.stringify omits undefined.
     body: JSON.stringify(input),
   });
 }
 
-/** Отметить этап сделки — в любую сторону; отметки времени ставит сервер. */
+/** Mark a deal stage — in either direction; the timestamps are set by the server. */
 export function setProposalStage(projectId: string, stage: ProposalStage): Promise<ProposalState> {
   return request<ProposalState>(`/api/projects/${projectId}/proposal/stage`, {
     method: "POST",
@@ -194,7 +195,7 @@ export function deleteProposalTask(projectId: string, taskId: string): Promise<v
   });
 }
 
-/** Та же форма реплики, что у ленты проекта: рисует их один компонент. */
+/** The same reply shape as the project's feed: one component draws them. */
 export function proposalComments(projectId: string, taskId: string): Promise<Comment[]> {
   return request<Comment[]>(`/api/projects/${projectId}/proposal/tasks/${taskId}/comments`);
 }
@@ -210,26 +211,26 @@ export function addProposalComment(
   });
 }
 
-/** Что случится при переносе: куда ляжет раздел, во сколько дней выйдет строка. */
+/** What will happen on a transfer: where a section will land, how many days a line comes to. */
 export type PushPreview = {
   categories: {
     id: string;
     name: string;
-    /** Категория плана, найденная по имени; `null` — будет создана новая. */
+    /** The plan category found by name; `null` — a new one will be created. */
     plan_category: { id: string; name: string } | null;
     tasks: {
       id: string;
       name: string;
       duration_days: number;
-      /** Уже перенесена раньше: второй раз в план не идёт. */
+      /** Already transferred earlier: it does not go into the plan a second time. */
       in_plan: boolean;
-      /** Оценка больше нуля; без оценки строка по умолчанию не переносится. */
+      /** The estimate is greater than zero; without an estimate a line is not transferred by default. */
       estimated: boolean;
     }[];
   }[];
 };
 
-/** Внутри ключа сметы: ревизия из сокета сбрасывает и его. */
+/** Inside the quote's key: a revision from the socket invalidates it too. */
 export function pushPreviewQueryKey(projectId: string) {
   return ["project", projectId, "proposal", "push-plan"] as const;
 }
@@ -239,11 +240,11 @@ export function pushPlanPreview(projectId: string): Promise<PushPreview> {
 }
 
 /**
- * Перенос сметы в план: раздел — категорией, строка — задачей на старте
- * плана. На сервере это пачка обычных ревизий с общим batch_id — в истории
- * читается одной записью и снимается одной отменой; `batch_id` в ответе и
- * есть ручка для «Вернуть» в тосте. Переносятся названные строки; уже
- * перенесённые сервер пропускает сам.
+ * Transferring the quote into the plan: a section becomes a category, a line becomes a task
+ * at the plan's start. On the server this is a batch of ordinary revisions with a shared
+ * batch_id — it reads as one entry in the history and is removed by one undo; the `batch_id`
+ * in the response is the handle for the toast's "Revert". The named lines are transferred;
+ * the server skips the already transferred ones itself.
  */
 export function pushProposalToPlan(
   projectId: string,
@@ -256,10 +257,10 @@ export function pushProposalToPlan(
 }
 
 /**
- * Сборка пустой сметы из плана — обратный путь к переносу: категория —
- * разделом, задача — строкой с оценкой из длительности и ссылкой на задачу,
- * чтобы перенос потом не завёл её второй раз. План сборка только читает, и
- * ревизий не рождает. Отказы: `proposal_not_empty`, `plan_empty`.
+ * Assembling an empty quote from the plan — the reverse of a transfer: a category becomes a
+ * section, a task becomes a line with an estimate from its duration and a reference to the
+ * task, so that a later transfer does not create it a second time. The assembly only reads
+ * the plan and produces no revisions. Refusals: `proposal_not_empty`, `plan_empty`.
  */
 export function buildProposalFromPlan(
   projectId: string,

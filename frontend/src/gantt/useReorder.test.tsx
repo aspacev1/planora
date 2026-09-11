@@ -13,8 +13,8 @@ import {
 beforeEach(projectFixtures);
 
 /**
- * Строка по названию в левой колонке — не по тексту полоски: название стоит и
- * там, и там, и поиск по тексту находил бы две штуки.
+ * A row by its name in the left column — not by the bar's text: the name stands in both, and a
+ * search by text would find two of them.
  */
 function rowOf(name: string): HTMLElement {
   const labels = Array.from(document.querySelectorAll<HTMLElement>(".gantt__label-name"));
@@ -27,17 +27,17 @@ function rowHandle(name: string): HTMLElement | null {
   return rowOf(name).querySelector(".gantt__handle");
 }
 
-/** Призрак под курсором: имя того, что сейчас в руке. */
+/** The ghost under the cursor: the name of what is in hand right now. */
 function ghost(): HTMLElement | null {
   return document.querySelector(".gantt__drag-ghost");
 }
 
 /**
- * Высота строки, которой у jsdom нет.
+ * A row's height, which jsdom does not have.
  *
- * Половина строки решает, встанет ли задача над соседом или под ним, и
- * считается она от настоящих границ. Без подстановки все границы нулевые, и
- * верхней половины не существует вовсе.
+ * Half a row decides whether a task lands above its neighbour or below it, and it is computed from
+ * real bounds. Without a substitution all the bounds are zero, and the upper half does not exist at
+ * all.
  */
 function withHeight(row: HTMLElement): HTMLElement {
   row.getBoundingClientRect = () =>
@@ -61,13 +61,13 @@ function dragRow(name: string, options: { over: string; half?: "top" | "bottom" 
 }
 
 /**
- * Тот же жест пальцем.
+ * The same gesture with a finger.
  *
- * Разница не в названии события, а в том, кому оно приходит: указатель после
- * нажатия захвачен ручкой, и движение с отпусканием достаются ей одной —
- * строка под пальцем не получает ничего. Поэтому здесь всё шлётся на ручку, а
- * строку выдаёт попадание в точку, которого у jsdom нет и которое
- * подставляется на время теста.
+ * The difference is not in the event's name but in who receives it: after the press the pointer is
+ * captured by the handle, and the movement and the release go to it alone — the row under the
+ * finger gets nothing. So here everything is sent to the handle, while the row is given by
+ * hit-testing a point, which jsdom does not have and which is substituted for the duration of the
+ * test.
  */
 function touchDragRow(name: string, { over, half }: { over: string; half?: "top" | "bottom" }) {
   const handle = rowHandle(name)!;
@@ -80,8 +80,8 @@ function touchDragRow(name: string, { over, half }: { over: string; half?: "top"
 }
 
 afterEach(() => {
-  // Подстановка попаданий — на один тест: она стоит на документе и утекла бы в
-  // соседние, где строки под точкой быть не должно.
+  // The hit substitution is for one test: it stands on the document and would leak into neighbouring
+  // ones, where there must be no row under the point.
   Reflect.deleteProperty(document, "elementFromPoint");
 });
 
@@ -127,7 +127,7 @@ describe("перестановка строк", () => {
     hoverRowWhileDragging("Третья", { over: "Первая", half: "top" });
     expect(rowOf("Первая")).toHaveClass("drop-before");
 
-    // Над тулбаром сообщить о цели некому — окно узнаёт об этом само.
+    // Over the toolbar there is nobody to report the target to — the window learns about it itself.
     fireEvent.pointerMove(document.body, { pointerId: 2, clientX: 10, clientY: 400 });
 
     expect(rowOf("Первая")).not.toHaveClass("drop-before");
@@ -165,7 +165,7 @@ describe("перестановка строк", () => {
     await screen.findByRole("button", { name: /Третья/ });
 
     const { handle, at } = touchDragRow("Третья", { over: "Первая", half: "top" });
-    // Палец ушёл за строки — над шапкой ленты цели броска нет.
+    // The finger went beyond the rows — above the strip's header there is no drop target.
     document.elementFromPoint = () => null;
     fireEvent.pointerMove(handle, at);
     expect(rowOf("Первая")).not.toHaveClass("drop-before");
@@ -188,8 +188,8 @@ describe("перестановка строк", () => {
     renderProject(THREE_TASKS);
     await screen.findByRole("button", { name: /Первая/ });
 
-    // Правая кнопка зовёт контекстное меню и съедает отпускание: начатый ею
-    // жест остался бы «в руке» с призраком, ползущим за курсором.
+    // The right button calls up the context menu and eats the release: a gesture started by it would
+    // stay "in hand" with a ghost crawling after the cursor.
     fireEvent.pointerDown(rowHandle("Первая")!, { pointerId: 4, button: 2, clientX: 10, clientY: 10 });
 
     expect(ghost()).toBeNull();
@@ -227,13 +227,13 @@ describe("перестановка категорий", () => {
     renderProject(TWO_CATEGORIES);
     await screen.findByRole("button", { name: /Логотип/ });
 
-    // «Логотип» лежит в «Дизайне» — первой категории; бросок в её середину
-    // ставит «Разработку» сразу после неё, то есть туда же, где она и была.
+    // "Logo" lies in "Design" — the first category; a drop into its middle puts "Development" right
+    // after it, that is, where it already was.
     hoverRowWhileDragging("Разработка", { over: "Логотип" });
     expect(rowOf("Дизайн")).toHaveClass("drop-after");
     fireEvent.pointerUp(rowOf("Логотип"), { pointerId: 2, clientX: 10, clientY: 24 });
 
-    // Порядок не изменился — и записывать в историю нечего.
+    // The order did not change — and there is nothing to write into the history.
     await waitFor(() => expect(ghost()).not.toBeInTheDocument());
     expect(sent).toHaveLength(0);
   });
@@ -287,8 +287,8 @@ describe("призрак переносимой строки", () => {
       clientX: 40,
       clientY: 60,
     });
-    // Точка пишется свойствами прямо в узел — состояние React на движение руки
-    // не пересобирается (см. useReorder).
+    // The point is written as properties straight into the node — React state is not rebuilt on a
+    // movement of the hand (see useReorder).
     expect(ghost()!.style.getPropertyValue("--drag-x")).toBe("40px");
 
     fireEvent.pointerMove(window, { pointerId: 2, clientX: 90, clientY: 120 });

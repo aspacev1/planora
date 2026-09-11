@@ -12,13 +12,13 @@ import { rememberGuestName, storedGuestName } from "./guestName";
 import "./comments.css";
 
 /**
- * Лента реплик и форма ответа — одна и та же на рабочем экране и на публичной
- * странице.
+ * The reply feed and the answer form — one and the same on the working screen and on the public
+ * page.
  *
- * Разница между участником и гостем ровно одна: гость подписывается именем,
- * которое вводит сам. Держать ради этого две ленты значило бы поддерживать
- * два способа показать один и тот же разговор — и однажды они разойдутся на
- * той самой пометке «гость», ради которой всё и затевалось.
+ * There is exactly one difference between a member and a guest: a guest signs with a name they
+ * enter themselves. Keeping two feeds for that would mean maintaining two ways of showing one
+ * and the same conversation — and one day they would diverge on the very "guest" mark the whole
+ * thing was for.
  */
 export function CommentThread({
   comments,
@@ -34,34 +34,32 @@ export function CommentThread({
   comments: Comment[];
   loading?: boolean;
   error?: unknown;
-  /** Спрашивать ли имя: у гостя аккаунта нет, и подписаться ему нечем. */
+  /** Whether to ask for a name: a guest has no account and nothing to sign with. */
   askName?: boolean;
-  /** Выключенные комментарии закрывают форму, но не саму ленту. */
+  /** Disabled comments close the form but not the feed itself. */
   canComment?: boolean;
   /**
-   * Отправка. Обещание, если вызывающий его отдаёт: поле очищается только
-   * после подтверждения — отказ сервера это повод исправить реплику, а не
-   * набрать её заново.
+   * The submission. A promise, if the caller gives one: the field is cleared only after the
+   * confirmation — a server refusal is a reason to correct the reply rather than to type it anew.
    */
   onSend: (input: { body: string; name: string }) => void | Promise<unknown>;
   sending?: boolean;
   sendError?: unknown;
   /**
-   * Лента внутри створки карточки: заголовок и черту сверху даёт створка, и
-   * второй заголовок «Комментарии» под «Обсуждением» читался бы как ещё один
-   * раздел.
+   * The feed inside the card's panel: the heading and the rule above are given by the panel, and
+   * a second "Comments" heading under "Discussion" would read as one more section.
    */
   embedded?: boolean;
 }) {
   const { t, locale } = useLocale();
-  // Дата и время рядом обязаны считаться по одним часам: время — по часам
-  // машины (см. formatTime), и день берётся по ним же, а не обрезкой
-  // ISO-строки по UTC — иначе реплика в час ночи подписывалась вчерашним
-  // числом с сегодняшним временем.
+  // The date and the time next to each other must be counted by one clock: the time is by the
+  // machine's clock (see formatTime), and the day is taken from it too rather than by truncating
+  // an ISO string in UTC — otherwise a reply at one in the morning was signed with yesterday's
+  // date and today's time.
   const zone = browserTimeZone();
   const [body, setBody] = useState("");
-  // Имя подтягивается из браузера сразу: гость, уже назвавшийся однажды,
-  // не должен вводить его снова под каждой репликой.
+  // The name is pulled from the browser straight away: a guest who has named themselves once must
+  // not enter it again under every reply.
   const [name, setName] = useState(() => (askName ? storedGuestName() : ""));
 
   const trimmedBody = body.trim();
@@ -88,19 +86,19 @@ export function CommentThread({
       <ol className="comments__list">
         {comments.map((comment) => (
           <li key={comment.id} className="comment">
-            {/* Аватар — как в макете: в ленте из десятка реплик собеседники
-                различаются пятном цвета быстрее, чем чтением имён. */}
+            {/* The avatar — as in the mockup: in a feed of a dozen replies the participants are
+                told apart by a patch of colour faster than by reading names. */}
             <Avatar name={comment.author.name} size={30} />
             <div className="comment__content">
               <p className="comment__head">
-                {/* Имя автора — содержимое пользователя: не переводится ни при
-                    каком языке интерфейса. */}
+                {/* The author's name is user content: it is not translated whatever the interface
+                    language. */}
                 <span className="comment__author">{comment.author.name}</span>
                 {comment.author.guest && (
                   <span className="comment__guest">{t("comments.guest")}</span>
                 )}
-                {/* Дата и время: в разговоре за один день дата без времени не
-                    различает реплики вовсе. */}
+                {/* The date and the time: in a conversation within one day a date without a time
+                    does not tell the replies apart at all. */}
                 <span className="muted">
                   {formatShortDate(t, dayIn(zone, new Date(comment.created_at)))}
                   {" · "}
@@ -120,9 +118,8 @@ export function CommentThread({
             if (!ready) return;
             if (askName) rememberGuestName(trimmedName);
             const sent = onSend({ body: trimmedBody, name: trimmedName });
-            // Отказ показывается через sendError, здесь он только оставляет
-            // текст на месте; необработанное отклонение обещания при этом
-            // всплыло бы в консоль само по себе.
+            // The refusal is shown through sendError, here it only leaves the text in place; an
+            // unhandled promise rejection would surface in the console by itself at that.
             void Promise.resolve(sent).then(
               () => setBody(""),
               () => undefined,
@@ -161,9 +158,8 @@ export function CommentThread({
           </button>
         </form>
       ) : (
-        // Не пустота на месте формы: выключенные комментарии — это решение
-        // владельца, и человек должен прочитать его словами, а не гадать,
-        // куда делось поле ввода.
+        // Not emptiness in the form's place: disabled comments are the owner's decision, and a
+        // person must read it in words rather than guess where the input field has gone.
         <p className="muted">{t("comments.closed")}</p>
       )}
     </section>

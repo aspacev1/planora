@@ -4,11 +4,11 @@ import type { ReactNode } from "react";
 import type { Live } from "./useProjectLive";
 
 /**
- * Живая связь по умолчанию — `unavailable`, а не `offline`.
+ * The live connection defaults to `unavailable` rather than `offline`.
  *
- * Вне экрана проекта сокета нет вовсе: связь не оборвалась, её никто не
- * открывал. Значение по умолчанию должно называть именно это, иначе
- * какой-нибудь будущий экран без провайдера окажется молча заперт на чтение.
+ * Outside the project screen there is no socket at all: the connection did not drop, nobody opened it.
+ * The default value must name precisely that, otherwise some future screen without a provider would be
+ * silently locked to reading.
  */
 const LiveContext = createContext<Live>({ status: "unavailable" });
 
@@ -17,14 +17,14 @@ export function LiveProvider({ live, children }: { live: Live; children: ReactNo
 }
 
 /**
- * Состояние связи там, где о нём спрашивают вглубь дерева: у карточки задачи,
- * у полоски на ленте, у общего пути изменений.
+ * The connection's state where it is asked about deep in the tree: by the task card, by a bar on the
+ * strip, by the shared change path.
  */
 export function useLive(): Live {
   return useContext(LiveContext);
 }
 
-/** Заперто ли редактирование обрывом связи. */
+/** Whether editing is locked by a dropped connection. */
 export function useLiveBlocksEditing(): boolean {
   return useLive().status === "offline";
 }

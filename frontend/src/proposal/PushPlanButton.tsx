@@ -2,23 +2,23 @@ import type { ProposalStage } from "../api/proposal";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Кнопка переноса в план — одна на оба места, где она стоит: полоса этапов
- * и блок «Дальше» карточки итогов.
+ * The transfer-into-the-plan button — one for both places it stands in: the stage bar and the "Next"
+ * block of the totals card.
  *
- * Перенос доступен с любого этапа, черновика в том числе: не все отправляют
- * документ клиенту, и смета, написанная для себя, идёт в план сразу. Но вес
- * у кнопки разный. Пока предложение не согласовано, она тихая: следующий
- * шаг сделки — отправить и дождаться ответа, и залитая кнопка рядом звала бы
- * перенести то, что клиент ещё может переписать. После согласования перенос
- * — единственное, что осталось сделать, и кнопка становится главной.
+ * The transfer is available from any stage, the draft included: not everyone sends the document to
+ * the client, and a quote written for oneself goes into the plan straight away. But the button's
+ * weight differs. While the proposal is not agreed it is quiet: the deal's next step is to send it
+ * and wait for an answer, and a filled button next to that would invite transferring something the
+ * client can still rewrite. After the agreement the transfer is the only thing left to do, and the
+ * button becomes the primary one.
  *
- * Многоточие в подписи — знак, что за нажатием следует окно, а не сам
- * перенос: там выбирают строки и видят, куда что ляжет. Оно остаётся и у
- * главной кнопки — окно открывается то же самое.
+ * The ellipsis in the caption is a sign that a dialog follows the press rather than the transfer
+ * itself: there the lines are chosen and it is seen where what will land. It stays on the primary
+ * button too — the dialog that opens is the same.
  *
- * Подпись меняется по ходу дела: пока в плане ничего нет — перенести;
- * перенесли часть — перенести только новое, счётом. Кнопка, зовущая
- * переносить уже перенесённое, вернула бы прежние дубли на словах.
+ * The caption changes as things go: while nothing is in the plan — transfer; part transferred —
+ * transfer only what is new, by count. A button inviting the transfer of what is already transferred
+ * would bring the old duplicates back in words.
  */
 export function PushPlanButton({
   status,
@@ -28,11 +28,11 @@ export function PushPlanButton({
   onPush,
 }: {
   status: ProposalStage;
-  /** Сколько строк уже в плане и сколько оценённых ещё можно перенести. */
+  /** How many lines are already in the plan and how many estimated ones can still be transferred. */
   pushedCount: number;
   pushableCount: number;
   className?: string;
-  /** Открыть окно переноса. */
+  /** Open the transfer dialog. */
   onPush: () => void;
 }) {
   const { t } = useLocale();
@@ -45,8 +45,8 @@ export function PushPlanButton({
     <button
       type="button"
       className={className === undefined ? weight : `${weight} ${className}`}
-      // Переносить нечего — без единой оценённой строки окно показало бы
-      // пустой список с выключенной кнопкой.
+      // There is nothing to transfer — without a single estimated line the dialog would show an empty
+      // list with a disabled button.
       disabled={pushableCount === 0}
       onClick={onPush}
     >

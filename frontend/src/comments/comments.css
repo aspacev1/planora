@@ -1,11 +1,12 @@
-/* Обсуждение проекта — лента комментариев Notion: реплики идут подряд без
-   рамок, а форма ответа стоит под ними и выглядит полем, а не панелью.
+/* The project's discussion — a Notion comment feed: remarks run one after another
+   with no frames, while the reply form stands beneath them and looks like a field
+   rather than a panel.
 
-   Блок не обведён коробкой: он и так последний на странице, и рамка вокруг
-   него сообщила бы, что это отдельный виджет, а не продолжение той же
-   страницы. */
-/* На публичной странице — колонкой для чтения, с полями от краёв; в карточке
-   задачи поля и черту снимает panel.css. */
+   The block is not boxed in: it is the last thing on the page anyway, and a frame
+   around it would say this is a separate widget rather than a continuation of the
+   same page. */
+/* On the public page it is a reading column with padding from the edges; inside the
+   task card panel.css removes the padding and the rule. */
 .comments {
   max-width: 740px;
   margin: var(--space-24) var(--space-32);
@@ -13,8 +14,8 @@
   border-top: 1px solid var(--border);
 }
 
-/* Внутри створки карточки лента продолжает створку, а не начинает новый
-   блок: черту и отступ сверху уже нарисовала створка. */
+/* Inside the card's section the feed continues the section rather than starting a
+   new block: the rule and the top margin have already been drawn by the section. */
 .comments--embedded {
   margin-top: 0;
   padding-top: 0;
@@ -27,8 +28,8 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  /* Muted, а не faint: 12 пикселей на белом в faint (2.7:1) не читаются, а
-     заголовок раздела читают, а не угадывают. */
+  /* Muted rather than faint: 12 pixels on white in faint (2.7:1) do not read, and a
+     section heading is read rather than guessed at. */
   color: var(--text-muted);
 }
 
@@ -41,8 +42,8 @@
   gap: var(--space-2);
 }
 
-/* Реплика подсвечивается при наведении целиком: так видно её границы, когда
-   в ленте подряд идут короткие ответы одного человека. */
+/* A remark is highlighted in full on hover: that way its bounds are visible when the
+   feed holds several short replies from one person in a row. */
 .comment {
   display: flex;
   align-items: flex-start;
@@ -70,7 +71,7 @@
   gap: var(--space-8);
   margin: 0;
   font-size: 13px;
-  /* Время реплики — данные, им положен контраст текста, а не декорации. */
+  /* A remark's time is data, and it is entitled to text contrast rather than decoration. */
   color: var(--text-muted);
 }
 
@@ -80,10 +81,10 @@
   font-size: 14px;
 }
 
-/* Пометка «гость» видна словом, а не только цветом: реплика человека без
-   аккаунта отличается от реплики участника по смыслу, и различие обязано
-   пережить чёрно-белую печать и дальтонизм. Оформлена меткой Notion — тем
-   же, чем в карточке набраны исполнители. */
+/* The "guest" mark is shown as a word rather than only by colour: a remark from a
+   person with no account differs in meaning from a member's, and the difference must
+   survive black-and-white printing and colour blindness. It is styled as a Notion tag —
+   the same thing the assignees are set in on the card. */
 .comment__guest {
   padding: 1px var(--space-6);
   border-radius: var(--radius-sm);
@@ -94,14 +95,14 @@
 
 .comment__body {
   margin: var(--space-2) 0 0;
-  /* Переводы строк человека сохраняются: список из трёх пунктов, введённый в
-     три строки, не должен слипаться в одну. */
+  /* A person's line breaks are preserved: a list of three items entered on three lines
+     must not run together into one. */
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-/* Поле ответа. Заливка вместо рамки — как у поля «Написать комментарий» в
-   Notion: пустое поле не должно выглядеть незаполненной формой. */
+/* The reply field. A fill instead of a border — like the "Write a comment" field in
+   Notion: an empty field must not look like an unfilled form. */
 .comments textarea {
   width: 100%;
   min-height: 72px;

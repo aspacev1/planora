@@ -2,29 +2,28 @@ import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 
 /**
- * Сеть тестов.
+ * The tests' network.
  *
- * Начальными обработчиками заданы только те ответы, которые спрашивает не
- * проверяемый экран, а окружение вокруг него: без них падал бы любой тест — на
- * запросе, к которому он не имеет никакого отношения. Каждый перекрывается
- * через `server.use`, как и всякий другой ответ.
+ * The initial handlers set only the answers asked for not by the screen under test but by the
+ * environment around it: without them any test would fail — on a request it has nothing to do with.
+ * Each is overridden through `server.use`, like any other answer.
  *
- * Список организаций спрашивает шапка на каждом защищённом экране. Пустой
- * список означает «переключать не между чем», то есть ровно то состояние, в
- * котором живёт человек с одной организацией.
+ * The list of organizations is asked for by the header on every protected screen. An empty list means
+ * "there is nothing to switch between", that is, exactly the state a person with one organization
+ * lives in.
  *
- * Счётчик реплик спрашивает всякий экран с лентой — и рабочий, и публичный.
- * Пустой ответ означает «нигде ещё не обсуждали»: с этого начинается всякий
- * проект, и на строках ленты в этом состоянии нет ни одного числа.
+ * The reply counter is asked for by every screen with a strip — the working one and the public one.
+ * An empty answer means "nothing has been discussed anywhere yet": that is where every project
+ * begins, and in that state there is not a single number on the strip's rows.
  *
- * Привязку к Jira спрашивают настройки проекта при каждой отрисовке — панель
- * синхронизации молчит, пока не пришёл ответ «не привязан», но запрос уходит
- * всё равно, и тестам, которым Jira не по теме (публичная ссылка, удаление
- * проекта, тосты), незачем каждый раз объявлять его сами.
+ * The Jira link is asked for by the project's settings on every render — the sync panel stays silent
+ * until the "not linked" answer arrives, but the request goes out anyway, and tests that are not
+ * about Jira (the public link, deleting a project, the toasts) have no reason to declare it
+ * themselves every time.
  *
- * Настройки установки спрашивает рама приложения — полоска «адрес не
- * подтверждён». Почта включена: это обычная установка, и тест про
- * подтверждение адреса не должен начинаться с объявления почтового сервера.
+ * The install's settings are asked for by the application's frame — the "address not confirmed"
+ * strip. Mail is enabled: this is an ordinary install, and a test about address confirmation must
+ * not start by declaring a mail server.
  */
 export const server = setupServer(
   http.get("/api/config", () =>

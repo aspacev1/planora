@@ -13,12 +13,12 @@ export interface paths {
         };
         /**
          * List Users
-         * @description Все аккаунты установки — самые новые регистрации первыми.
+         * @description Every account of the installation — the newest registrations first.
          *
-         *     Организации подтягиваются одним отдельным запросом и раскладываются по
-         *     владельцу в памяти, а не join'ом к списку пользователей: join размножил
-         *     бы строку человека на число его организаций и потребовал бы схлопывать
-         *     дубликаты здесь же.
+         *     Organizations are pulled in by one separate query and laid out by owner in
+         *     memory rather than joined to the user list: a join would multiply a person's
+         *     row by the number of their organizations and would require collapsing the
+         *     duplicates right here.
          */
         get: operations["list_users_api_admin_users_get"];
         put?: never;
@@ -109,7 +109,7 @@ export interface paths {
         put?: never;
         /**
          * Apply Session
-         * @description Шаг 4: применение пачкой мутаций с общим batch_id.
+         * @description Step 4: applying as a batch of mutations with a shared batch_id.
          */
         post: operations["apply_session_api_ai_sessions__session_id__apply_post"];
         delete?: never;
@@ -130,7 +130,7 @@ export interface paths {
         put: operations["edit_draft_api_ai_sessions__session_id__draft_put"];
         /**
          * Build Draft
-         * @description Ворота 2, главные: черновик. В проект не записано ничего.
+         * @description Gate 2, the main one: the draft. Nothing has been written into the project.
          */
         post: operations["build_draft_api_ai_sessions__session_id__draft_post"];
         delete?: never;
@@ -151,7 +151,7 @@ export interface paths {
         put: operations["edit_summary_api_ai_sessions__session_id__summary_put"];
         /**
          * Build Summary
-         * @description Ворота 1: «вот что я понял про проект».
+         * @description Gate 1: "here is what I understood about the project".
          */
         post: operations["build_summary_api_ai_sessions__session_id__summary_post"];
         delete?: never;
@@ -171,7 +171,7 @@ export interface paths {
         put?: never;
         /**
          * Propose Split
-         * @description Предложение разбить задачу. Ничего не пишет: применяется по кнопке.
+         * @description A suggestion to split a task. Writes nothing: it is applied by a button.
          */
         post: operations["propose_split_api_ai_tasks__task_id__split_post"];
         delete?: never;
@@ -208,14 +208,15 @@ export interface paths {
         put?: never;
         /**
          * Login Route
-         * @description Вход. Два предела частоты — на два разных способа перебора.
+         * @description Sign-in. Two rate limits, for two different kinds of guessing.
          *
-         *     По IP считаются все попытки: один адрес, молотящий вход, — это перебор
-         *     паролей по словарю, чьи бы адреса он ни пробовал. По аккаунту — только
-         *     неудачи: это перебор паролей к конкретному человеку с многих адресов, и
-         *     считать успехи здесь нельзя — успешный вход с двух устройств заперал бы
-         *     владельца. Счётчики в базе, а не в памяти процесса: перезапуск или
-         *     вторая реплика не должны обнулять предел (см. app.throttle).
+         *     By IP every attempt is counted: one address hammering the sign-in is
+         *     dictionary password guessing, whatever addresses it tries. By account only
+         *     failures are: that is password guessing against one particular person from many
+         *     addresses, and successes must not be counted here — a successful sign-in from
+         *     two devices would lock the owner out. The counters live in the database rather
+         *     than in the process's memory: a restart or a second replica must not reset the
+         *     limit (see app.throttle).
          */
         post: operations["login_route_api_auth_login_post"];
         delete?: never;
@@ -257,13 +258,14 @@ export interface paths {
         head?: never;
         /**
          * Update Me
-         * @description Правка своего профиля.
+         * @description Editing one's own profile.
          *
-         *     Язык проверяется по списку поддерживаемых: непроверенное значение легло бы
-         *     в профиль, и интерфейс молча падал бы на язык по умолчанию при каждом
-         *     входе, не объясняя почему. Пояс проверен разбором тела — именем из базы
-         *     IANA, а не свободной строкой: по нему считаются сутки читателя, и опечатка
-         *     в нём сдвинула бы «сегодня» на весь срок, пока её не заметят.
+         *     The language is checked against the list of supported ones: an unvalidated
+         *     value would land in the profile, and the interface would silently fall back to
+         *     the default language on every sign-in without explaining why. The timezone is
+         *     validated by parsing the body — by a name from the IANA database rather than as
+         *     a free string: the reader's days are counted by it, and a typo in it would
+         *     shift "today" for as long as it went unnoticed.
          */
         patch: operations["update_me_api_auth_me_patch"];
         trace?: never;
@@ -279,12 +281,13 @@ export interface paths {
         put?: never;
         /**
          * Change Password Route
-         * @description Смена пароля. Требует прежний: одной сессии для этого мало —
-         *     иначе украденная кука меняла бы пароль владельцу.
+         * @description Changing the password. It requires the previous one: a session alone is not
+         *     enough for this — otherwise a stolen cookie would change the owner's password.
          *
-         *     Остальные сессии закрываются тут же: смена пароля — это обычно ответ на
-         *     подозрение, что он утёк, и оставлять чужие входы жить дальше значило бы
-         *     делать вид, что смена что-то решила. Текущая сессия остаётся.
+         *     The other sessions are closed right away: changing a password is usually an
+         *     answer to a suspicion that it has leaked, and leaving other people's sign-ins
+         *     alive would mean pretending the change solved something. The current session
+         *     stays.
          */
         post: operations["change_password_route_api_auth_password_post"];
         delete?: never;
@@ -304,14 +307,14 @@ export interface paths {
         put?: never;
         /**
          * Forgot Password Route
-         * @description Просьба о письме для восстановления пароля. Куки не требует.
+         * @description A request for a password-recovery message. It requires no cookie.
          *
-         *     Ответ одинаковый для любого адреса — 204: есть ли такой аккаунт, форма
-         *     не сообщает. Иначе она была бы справочником «кто здесь зарегистрирован»,
-         *     тем самым, который authenticate() прячет ценой холостого хеширования.
-         *     По той же причине пауза между повторами не отвечает 429: молчаливый 204
-         *     и есть ответ. Предел по IP один на все адреса — каждая просьба, чей бы
-         *     адрес в ней ни стоял, превращается в письмо с нашего отправителя.
+         *     The answer is the same for any address — 204: the form does not report whether
+         *     such an account exists. Otherwise it would be a directory of "who is registered
+         *     here", the very one authenticate() hides at the cost of a dummy hash. For the
+         *     same reason the pause between repeats does not answer 429: a silent 204 is the
+         *     answer. The IP limit is one for all addresses — every request, whatever address
+         *     stands in it, turns into a message from our sender.
          */
         post: operations["forgot_password_route_api_auth_password_forgot_post"];
         delete?: never;
@@ -331,13 +334,13 @@ export interface paths {
         put?: never;
         /**
          * Reset Password Route
-         * @description Погашение ссылки из письма: новый пароль вместо забытого.
+         * @description Redeeming the link from the message: a new password instead of a forgotten one.
          *
-         *     Куки не требует по той же причине, что и подтверждение адреса: ссылку
-         *     открывают там, куда пришла почта. Сессию не открывает: пароль только что
-         *     задан, и вход им — секундное дело, а вот все прежние сессии умирают
-         *     внутри redeem_token — восстановлением пользуются как раз тогда, когда
-         *     пароль, похоже, утёк.
+         *     It requires no cookie for the same reason as address confirmation: the link is
+         *     opened wherever the mail arrived. It does not open a session: the password has
+         *     just been set and signing in with it is a matter of a second, whereas every
+         *     previous session dies inside redeem_token — recovery is used precisely when the
+         *     password appears to have leaked.
          */
         post: operations["reset_password_route_api_auth_password_reset_post"];
         delete?: never;
@@ -374,7 +377,7 @@ export interface paths {
         put?: never;
         /**
          * Close Other Sessions Route
-         * @description «Выйти на всех устройствах», кроме этого.
+         * @description "Sign out on all devices" except this one.
          */
         post: operations["close_other_sessions_route_api_auth_sessions_close_others_post"];
         delete?: never;
@@ -394,17 +397,17 @@ export interface paths {
         put?: never;
         /**
          * Verify Email Route
-         * @description Погашение ссылки из письма. Куки не требует.
+         * @description Redeeming the link from the message. It requires no cookie.
          *
-         *     Ссылку открывают в том браузере, куда пришла почта, а не обязательно в
-         *     том, где открыта сессия. Требовать вход значило бы ломать самый обычный
-         *     сценарий — письмо на телефоне, работа на ноутбуке; сам токен при этом
-         *     одноразовый, живёт сутки и достаточно длинный, чтобы его нельзя было
-         *     подобрать.
+         *     The link is opened in the browser the mail arrived in, not necessarily in the
+         *     one where a session is open. Requiring a sign-in would mean breaking the most
+         *     ordinary scenario — the message on a phone, the work on a laptop; the token
+         *     itself is single-use, lives for a day and is long enough that it cannot be
+         *     guessed.
          *
-         *     Повторное открытие — не отказ, а тот же успех с оговоркой: по ссылке из
-         *     письма ходят дважды, и второй заход должен рассказывать про подтверждённый
-         *     адрес, а не про недействительную ссылку.
+         *     Opening it again is not a refusal but the same success with a caveat: a link
+         *     from a message is followed twice, and the second visit must speak of a
+         *     confirmed address rather than of an invalid link.
          */
         post: operations["verify_email_route_api_auth_verify_email_post"];
         delete?: never;
@@ -456,9 +459,10 @@ export interface paths {
         };
         /**
          * Health
-         * @description Liveness: процесс жив и отвечает. В базу не ходит намеренно — упавшая
-         *     база не повод перезапускать процесс, а ровно это оркестратор и делает с
-         *     провалившим liveness.
+         * @description Liveness: the process is alive and answering. It deliberately does not
+         *     touch the database — a database that is down is no reason to restart the
+         *     process, and that is exactly what an orchestrator does to whoever fails
+         *     liveness.
          */
         get: operations["health_api_health_get"];
         put?: never;
@@ -478,9 +482,10 @@ export interface paths {
         };
         /**
          * Readiness
-         * @description Readiness: готов ли процесс обслуживать запросы по-настоящему, то есть
-         *     достаёт ли до базы. Отдельно от liveness: на этот отвечает «нет» — и
-         *     балансировщик уводит трафик, не убивая процесс.
+         * @description Readiness: whether the process is genuinely ready to serve requests, that
+         *     is, whether it can reach the database. Separate from liveness: this one
+         *     answers "no" — and the load balancer moves traffic away without killing the
+         *     process.
          */
         get: operations["readiness_api_health_ready_get"];
         put?: never;
@@ -500,11 +505,12 @@ export interface paths {
         };
         /**
          * Preview Invitation
-         * @description Что за приглашение на руках — до входа и до регистрации.
+         * @description What invitation is in hand — before signing in and before registering.
          *
-         *     Отвечает и анониму: человек с непринятым приглашением по определению ещё
-         *     не в организации, и требовать от него войти, прежде чем он узнает, куда
-         *     его зовут, — это просить подписать не глядя.
+         *     It answers anonymous callers too: a person with an unaccepted invitation is
+         *     by definition not in the organization yet, and demanding that they sign in
+         *     before learning where they are being invited is asking them to sign
+         *     unseen.
          */
         get: operations["preview_invitation_api_invitations__token__get"];
         put?: never;
@@ -526,12 +532,12 @@ export interface paths {
         put?: never;
         /**
          * Accept Invitation
-         * @description Принимает приглашение от имени вошедшего.
+         * @description Accepts an invitation on behalf of the signed-in person.
          *
-         *     Членство появляется только здесь — по явному действию человека, а не по
-         *     совпадению адреса при регистрации. Сессия сразу переключается на новую
-         *     организацию: человек нажал «принять» и должен оказаться внутри, а не
-         *     искать её в переключателе.
+         *     A membership appears only here — by a person's explicit action, not by an
+         *     address matching at registration. The session switches to the new
+         *     organization right away: the person pressed "accept" and must end up inside
+         *     rather than looking for it in the switcher.
          */
         post: operations["accept_invitation_api_invitations__token__accept_post"];
         delete?: never;
@@ -602,11 +608,11 @@ export interface paths {
         };
         /**
          * Current Organization
-         * @description Организация, в которой человек находится прямо сейчас.
+         * @description The organization a person is in right now.
          *
-         *     Права здесь не проверяются: название своей организации видит любой её
-         *     участник, включая роль `client`. Скрывать его не от кого — оно подписывает
-         *     каждый экран, на который человек и так имеет право войти.
+         *     No permissions are checked here: the name of their own organization is
+         *     visible to any member of it, including the `client` role. There is nobody to
+         *     hide it from — it signs every screen the person is entitled to enter anyway.
          */
         get: operations["current_organization_api_org_get"];
         put?: never;
@@ -616,16 +622,16 @@ export interface paths {
         head?: never;
         /**
          * Update Organization
-         * @description Уровень 2 настроек: дефолты, которые наследуют все проекты.
+         * @description Level 2 of the settings: the defaults all projects inherit.
          *
-         *     Правит владелец. Производственный календарь живёт именно здесь, а не на
-         *     проекте: никто не станет вбивать даты Новруза в каждый новый проект
-         *     руками, а забытый праздник тихо сдвигает все сроки.
+         *     Edited by the owner. The production calendar lives here specifically rather
+         *     than on a project: nobody is going to type the Novruz dates into every new
+         *     project by hand, and a forgotten holiday silently shifts every deadline.
          *
-         *     Значения меняются по месту, а не копируются в проекты: проект хранит
-         *     `null` — «наследовать», — и правка дефолта доходит до всех, кто его не
-         *     переопределил. Копирование при создании выглядело бы так же ровно до
-         *     первой правки дефолта, а потом расходилось бы навсегда.
+         *     Values are changed in place rather than copied into projects: a project
+         *     stores `null` — "inherit" — and an edit to a default reaches everyone who has
+         *     not overridden it. Copying at creation time would look the same right up to
+         *     the first edit of a default, and would diverge forever after.
          */
         patch: operations["update_organization_api_org_patch"];
         trace?: never;
@@ -639,11 +645,12 @@ export interface paths {
         };
         /**
          * List Invitations
-         * @description Приглашения организации, новые сверху.
+         * @description The organization's invitations, newest first.
          *
-         *     Отдаются все, включая принятые: приглашение живёт в базе и после приёма —
-         *     это журнал того, кто кого привёл. Открытых ссылок в ответе нет ни у одного
-         *     из них, и быть не может: сервер их не помнит.
+         *     All of them are returned, accepted ones included: an invitation lives in the
+         *     database after acceptance too — it is the record of who brought whom in. None
+         *     of them carries a plain link in the answer, and none can: the server does not
+         *     remember them.
          */
         get: operations["list_invitations_api_org_invitations_get"];
         put?: never;
@@ -683,11 +690,11 @@ export interface paths {
         put?: never;
         /**
          * Reissue Invitation
-         * @description Выпускает новую ссылку взамен прежней — она же «отправить ещё раз».
+         * @description Issues a new link in place of the previous one — also known as "send again".
          *
-         *     Одно действие, а не два: прежний токен умирает в обоих случаях, потому что
-         *     иначе отозвать уже отправленное письмо становится невозможно. Отличается
-         *     только доставка — уйдёт ли письмо или ссылку скопируют руками.
+         *     One action, not two: the previous token dies in both cases, because otherwise
+         *     revoking an already sent message becomes impossible. Only the delivery
+         *     differs — whether a message goes out or the link is copied by hand.
          */
         post: operations["reissue_invitation_api_org_invitations__invitation_id__reissue_post"];
         delete?: never;
@@ -705,11 +712,12 @@ export interface paths {
         };
         /**
          * List Organizations
-         * @description Организации, в которых человек состоит, — содержимое переключателя.
+         * @description The organizations a person belongs to — the contents of the switcher.
          *
-         *     Список отдаётся и тогда, когда организация одна: решать, показывать ли
-         *     переключатель, — дело интерфейса, а не сервера, и ветка «а если одна»,
-         *     заведённая здесь, повторилась бы в каждом клиенте.
+         *     The list is returned even when there is only one organization: deciding
+         *     whether to show the switcher is the interface's business, not the server's,
+         *     and an "and what if there is only one" branch introduced here would repeat in
+         *     every client.
          */
         get: operations["list_organizations_api_org_list_get"];
         put?: never;
@@ -729,13 +737,13 @@ export interface paths {
         };
         /**
          * List Members
-         * @description Люди, которых можно назначить исполнителями.
+         * @description The people who can be made assignees.
          *
-         *     Отказ здесь — 403, а не 404, в отличие от маршрутов проекта: адрес не
-         *     называет никакой сущности, существование которой стоило бы скрывать, а
-         *     свою организацию спрашивающий и так видит. По спеку роль client состава
-         *     организации не получает вовсе — и отсутствие у неё PROJECT_READ без
-         *     выданного доступа к проекту ровно это и означает.
+         *     A refusal here is a 403, not a 404, unlike the project routes: the address
+         *     names no entity whose existence would be worth hiding, and the caller sees
+         *     their own organization anyway. Per the specification the client role does not
+         *     get the organization's membership at all — and its lack of PROJECT_READ
+         *     without granted access to a project means exactly that.
          */
         get: operations["list_members_api_org_members_get"];
         put?: never;
@@ -758,26 +766,26 @@ export interface paths {
         post?: never;
         /**
          * Remove Member
-         * @description Выводит человека из организации — или выпускает его самого.
+         * @description Removes a person from the organization — or lets them leave themselves.
          *
-         *     Один маршрут на оба действия, потому что действие и правда одно: членства
-         *     больше нет. Разными их делает только то, кто вправе его выполнить —
-         *     владелец над любым или человек над собой. Уход своими руками не требует
-         *     прав в организации вовсе: роль `client` не видит даже её состава, и
-         *     отдельного права «выйти» у неё нет и быть не должно — иначе позванный
-         *     однажды остаётся внутри навсегда.
+         *     One route for both actions, because the action really is one: the membership
+         *     is gone. The only thing that makes them different is who may perform it — the
+         *     owner over anyone, or a person over themselves. Leaving by one's own hand
+         *     requires no permissions in the organization at all: the `client` role does not
+         *     even see its membership, and it has no separate "leave" permission and must
+         *     not have one — otherwise whoever was once invited stays inside forever.
          */
         delete: operations["remove_member_api_org_members__user_id__delete"];
         options?: never;
         head?: never;
         /**
          * Update Member Role
-         * @description Меняет роль участника. Правит владелец, и только он.
+         * @description Changes a member's role. The owner edits it, and only the owner.
          *
-         *     Свою собственную роль владелец сменить может — пока он не последний.
-         *     Запрещать это отдельно незачем: пока владельцев двое, разжалование
-         *     отыгрывает назад второй, а на последнем срабатывает та же защита, что и
-         *     на всех остальных путях остаться без владельца.
+         *     An owner may change their own role — while they are not the last one.
+         *     Forbidding that separately is pointless: while there are two owners, the
+         *     second one can undo the demotion, and on the last one the same protection
+         *     fires as on every other path to being left without an owner.
          */
         patch: operations["update_member_role_api_org_members__user_id__patch"];
         trace?: never;
@@ -791,11 +799,11 @@ export interface paths {
         };
         /**
          * Check Org Slug
-         * @description Свободен ли такой слаг — и что предложить, если занят.
+         * @description Whether such a slug is free — and what to offer if it is taken.
          *
-         *     Спрашивается из поля ввода до отправки формы: «занятый слаг подсказывает
-         *     свободный вариант прямо в поле». Слаг здесь ещё и нормализуется, поэтому
-         *     ответ заодно показывает, во что превратится введённое название.
+         *     Asked from the input field before the form is submitted: "a taken slug
+         *     suggests a free variant right in the field". The slug is also normalized
+         *     here, so the answer additionally shows what the entered name turns into.
          */
         get: operations["check_org_slug_api_org_slug_check_get"];
         put?: never;
@@ -817,11 +825,11 @@ export interface paths {
         put?: never;
         /**
          * Switch Organization
-         * @description Переключает сессию на другую организацию.
+         * @description Switches the session to another organization.
          *
-         *     Чужая организация неотличима от несуществующей: 404, а не 403 — иначе
-         *     перебор по адресу превращается в способ выяснить, какие организации в
-         *     установке вообще есть.
+         *     Someone else's organization is indistinguishable from a nonexistent one: 404,
+         *     not 403 — otherwise enumerating addresses turns into a way of finding out
+         *     which organizations exist in the installation at all.
          */
         post: operations["switch_organization_api_org_switch_post"];
         delete?: never;
@@ -861,31 +869,33 @@ export interface paths {
         post?: never;
         /**
          * Delete Project
-         * @description Удаление проекта целиком.
+         * @description Deleting the whole project.
          *
-         *     Право — своё, а не PROJECT_ADMIN: вместе с проектом каскад уносит журнал
-         *     ревизий, то есть и всякую возможность отмены. Необратимое действие такого
-         *     веса, как и переутверждение плана, остаётся за владельцем.
+         *     The permission is its own rather than PROJECT_ADMIN: together with the project
+         *     the cascade carries away the revision journal, that is, every possibility of an
+         *     undo. An irreversible action of that weight, like re-approving a plan, stays
+         *     with the owner.
          *
-         *     Через журнал ревизий удаление не проходит намеренно: журнал живёт внутри
-         *     проекта и умирает вместе с ним — записи «проект удалён» негде было бы
-         *     лежать.
+         *     The deletion deliberately does not go through the revision journal: the journal
+         *     lives inside the project and dies with it — there would be nowhere for a
+         *     "project deleted" entry to lie.
          */
         delete: operations["delete_project_api_projects__project_id__delete"];
         options?: never;
         head?: never;
         /**
          * Update Project
-         * @description Уровень 3 настроек: слаг, целевая дата и переопределения организации.
+         * @description Level 3 of the settings: the slug, the target date and the organization's overrides.
          *
-         *     `null` в часовом поясе, рабочих днях и пороге — это «наследовать», а не
-         *     «пусто», и отличается он от «поле не прислали» тем, что второе просто не
-         *     попадает в набор изменений. Без этой разницы сбросить переопределение было
-         *     бы нечем: любой запрос без поля стирал бы его.
+         *     A `null` in the timezone, the working days and the threshold means "inherit"
+         *     rather than "empty", and it is told apart from "the field was not sent" by the
+         *     fact that the latter simply does not reach the set of changes. Without that
+         *     difference there would be nothing to clear an override with: any request without
+         *     the field would erase it.
          *
-         *     Правки не проходят через журнал ревизий: журнал — история плана, а не
-         *     история настроек. Смешать их значило бы наполнить историю задачи записями
-         *     о том, что кто-то поменял часовой пояс.
+         *     Edits do not go through the revision journal: the journal is the history of the
+         *     plan, not the history of the settings. Mixing them would mean filling a task's
+         *     history with entries about someone changing the timezone.
          */
         patch: operations["update_project_api_projects__project_id__patch"];
         trace?: never;
@@ -901,11 +911,11 @@ export interface paths {
         put?: never;
         /**
          * Undo Whole Batch
-         * @description Откат пачки целиком — одной кнопкой, как обещано про применение AI.
+         * @description Rolling a whole batch back — with one button, as promised about applying AI.
          *
-         *     Причина принимается по той же логике, что у одиночной отмены: откат
-         *     проходит проверку порога, и пачка, двигавшая сроки дальше порога, без
-         *     причины была бы неоткатываемой.
+         *     A reason is accepted by the same logic as for a single undo: the rollback goes
+         *     through the threshold check, and a batch that moved dates further than the
+         *     threshold would be un-rollbackable without a reason.
          */
         post: operations["undo_whole_batch_api_projects__project_id__batches__batch_id__undo_post"];
         delete?: never;
@@ -923,12 +933,12 @@ export interface paths {
         };
         /**
          * List Project Comments
-         * @description Лента проекта — та же самая, что видна на публичной странице.
+         * @description The project's feed — the very same one visible on the public page.
          *
-         *     Гостевые реплики приходят участнику вместе с остальными: смысл публичной
-         *     ссылки в том, чтобы разговор с клиентом жил в проекте, а не в почте.
+         *     A member gets guest remarks along with the rest: the point of a public link is
+         *     that the conversation with the client lives in the project rather than in email.
          *
-         *     Отдаётся хвост разговора; «показать раньше» — курсором before.
+         *     The tail of the conversation is returned; "show earlier" uses the before cursor.
          */
         get: operations["list_project_comments_api_projects__project_id__comments_get"];
         put?: never;
@@ -949,13 +959,13 @@ export interface paths {
         };
         /**
          * Project Comment Counts
-         * @description Сколько реплик у каждой задачи — числом на строке ленты.
+         * @description How many remarks each task has — as the number on a chart row.
          *
-         *     Отдельным маршрутом, а не полем в состоянии проекта: комментарий состояния
-         *     не меняет и ревизии не рождает, поэтому состояние после него не
-         *     перезапрашивается, и счётчик, вшитый в него, показывал бы вчерашнее число
-         *     до ближайшей правки плана. Здесь же он обновляется вместе с самой лентой
-         *     реплик — по тому же событию сокета.
+         *     A separate route rather than a field in the project's state: a comment does not
+         *     change the state and gives birth to no revision, so the state is not re-requested
+         *     after it, and a counter sewn into it would show yesterday's number until the next
+         *     edit of the plan. Here it is refreshed together with the remark feed itself — by
+         *     the same socket event.
          */
         get: operations["project_comment_counts_api_projects__project_id__comments_counts_get"];
         put?: never;
@@ -973,7 +983,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Выгрузить проект документом PDF */
+        /** Export the project as a PDF document */
         get: operations["export_project_pdf_api_projects__project_id__export_pdf_get"];
         put?: never;
         post?: never;
@@ -990,7 +1000,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Выгрузить проект книгой Excel */
+        /** Export the project as an Excel workbook */
         get: operations["export_project_xlsx_api_projects__project_id__export_xlsx_get"];
         put?: never;
         post?: never;
@@ -1008,14 +1018,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Что в проекте есть для выгрузки
-         * @description Чем наполнены разделы — чтобы окно не предлагало пустых.
+         * What the project holds for export
+         * @description What the sections contain — so that the dialog does not offer empty ones.
          *
-         *     Отдельный маршрут, а не поля в состоянии проекта: эти числа нужны раз в
-         *     жизни экрана, при открытии окна, а состояние проекта читается на каждый
-         *     кадр ленты. Заодно отсюда приходят границы плана и «сегодня» по таймзоне
-         *     проекта — те самые, от которых сервер считает страницы, так что число на
-         *     кнопке масштаба не может разойтись с числом в файле.
+         *     A separate route rather than fields in the project's state: these numbers are
+         *     needed once in a screen's lifetime, when the dialog opens, while the
+         *     project's state is read for every frame of the chart. The plan's bounds and
+         *     "today" in the project's timezone come from here too — the very ones the
+         *     server counts pages from, so the number on the scale button cannot diverge
+         *     from the number in the file.
          */
         get: operations["export_facts_api_projects__project_id__export_facts_get"];
         put?: never;
@@ -1054,9 +1065,10 @@ export interface paths {
         put?: never;
         /**
          * Push To Jira
-         * @description Отправляет сроки задач в Jira. Отказ одной задачи (Jira отклонила срок,
-         *     у токена нет прав на неё) не проваливает запрос целиком — он приходит
-         *     списком `failed`, а не кодом ответа: остальные задачи всё равно отправились.
+         * @description Pushes task dates to Jira. A refusal for one task (Jira rejected the
+         *     date, the token has no rights to it) does not fail the whole request — it
+         *     comes back in a `failed` list rather than in the response code: the other
+         *     tasks went through anyway.
          */
         post: operations["push_to_jira_api_projects__project_id__jira_push_post"];
         delete?: never;
@@ -1108,22 +1120,22 @@ export interface paths {
         };
         /**
          * List Plan Versions
-         * @description Летопись утверждений: что обещали в январе, что в марте.
+         * @description The chronicle of approvals: what was promised in January, what in March.
          *
-         *     Снимок отдаётся целиком — в нём нет внутренних заметок, только даты,
-         *     длительности и названия, а названия видит всякий, кто вправе читать
-         *     проект.
+         *     The snapshot is returned in full — there are no internal notes in it, only
+         *     dates, durations and names, and names are seen by anyone entitled to read the
+         *     project.
          */
         get: operations["list_plan_versions_api_projects__project_id__plan_approvals_get"];
         put?: never;
         /**
          * Approve Plan Route
-         * @description Утверждение плана, оно же переутверждение.
+         * @description Approving a plan, which is also re-approving it.
          *
-         *     Один маршрут, а не два: действие ровно одно — снять снимок и обновить
-         *     базовые значения, — а различие в том, кому оно позволено. Второй маршрут
-         *     отличался бы от первого только проверкой права, и разъехались бы они на
-         *     первой же правке снимка.
+         *     One route rather than two: the action is exactly one — take a snapshot and
+         *     update the baseline values — while the difference is in who is allowed to do it.
+         *     A second route would differ from the first only in the permission check, and
+         *     they would drift apart on the very first edit to the snapshot.
          */
         post: operations["approve_plan_route_api_projects__project_id__plan_approvals_post"];
         delete?: never;
@@ -1143,10 +1155,10 @@ export interface paths {
         put?: never;
         /**
          * Restore Plan Version Route
-         * @description Возврат обещания к версии из летописи — переутверждение её снимка.
+         * @description Returning the promise to a version from the chronicle — re-approving its snapshot.
          *
-         *     Право — то же, что у переутверждения: восстановление меняет baseline
-         *     всех задач ровно так же.
+         *     The permission is the same as for re-approval: restoring changes the baseline of
+         *     every task in exactly the same way.
          */
         post: operations["restore_plan_version_route_api_projects__project_id__plan_approvals__version__restore_post"];
         delete?: never;
@@ -1164,11 +1176,11 @@ export interface paths {
         };
         /**
          * Get Project Proposal
-         * @description Предложение целиком: настройки, разделы, строки со счётчиками реплик.
+         * @description The whole proposal: settings, sections, rows with remark counters.
          *
-         *     Итоги (сумма, налог, всего) считает клиент: это произведение и сумма уже
-         *     присланных чисел, и сервер, пересказывающий их, был бы вторым местом с
-         *     той же арифметикой.
+         *     The totals (sum, tax, grand total) are computed by the client: they are a
+         *     product and a sum of numbers already sent, and a server restating them would
+         *     be a second place with the same arithmetic.
          */
         get: operations["get_project_proposal_api_projects__project_id__proposal_get"];
         put?: never;
@@ -1191,12 +1203,12 @@ export interface paths {
         put?: never;
         /**
          * Build Proposal From Plan
-         * @description Собирает пустую смету из плана: категория — разделом, задача — строкой.
+         * @description Assembles an empty budget from the plan: a category becomes a section, a task a row.
          *
-         *     Под тем же замком проекта, что и остальные правки (ensure_proposal): две
-         *     одновременные сборки иначе обе застали бы смету пустой и собрали её
-         *     дважды. Отказы — 422 кодом: `proposal_not_empty`, если строки уже есть,
-         *     и `plan_empty`, если собирать не из чего.
+         *     Under the same project lock as the other edits (ensure_proposal): otherwise
+         *     two simultaneous assemblies would both find the budget empty and assemble it
+         *     twice. The refusals are 422 codes: `proposal_not_empty` if rows already
+         *     exist, and `plan_empty` if there is nothing to assemble from.
          */
         post: operations["build_proposal_from_plan_api_projects__project_id__proposal_build_from_plan_post"];
         delete?: never;
@@ -1234,8 +1246,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Proposal Category
-         * @description Удаляет раздел вместе со строками: смета — черновик, и правило плана
-         *     «сначала вынеси задачи» здесь было бы ритуалом без выгоды.
+         * @description Deletes a section together with its rows: a budget is a draft, and the
+         *     plan's rule "carry the tasks out first" would be a ritual with no benefit here.
          */
         delete: operations["delete_proposal_category_api_projects__project_id__proposal_categories__category_id__delete"];
         options?: never;
@@ -1269,14 +1281,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Скачать коммерческое предложение документом для клиента
-         * @description Предложение целиком одним файлом — тем, что уйдёт клиенту.
+         * Download the commercial proposal as a document for the client
+         * @description The whole proposal as one file — the one that will go to the client.
          *
-         *     Не раздел общей выгрузки, а свой документ: у него другой читатель и другой
-         *     состав (см. app/export/proposal_pdf.py). Два права: читать предложение —
-         *     у клиента и гостя его нет, им обещаны сроки, а не ставки; и выносить
-         *     файлом — тот же рычаг, что у выгрузки проекта. Счётчик выгрузок общий:
-         *     для сервера это такая же сборка PDF.
+         *     Not a section of the general export but a document of its own: it has a
+         *     different reader and different contents (see app/export/proposal_pdf.py). Two
+         *     permissions: reading the proposal — which a client and a guest do not have,
+         *     since they were promised deadlines, not rates; and carrying it out as a file
+         *     — the same lever as the project export. The export counter is shared: for the
+         *     server this is the same kind of PDF assembly.
          */
         get: operations["export_proposal_pdf_api_projects__project_id__proposal_export_pdf_get"];
         put?: never;
@@ -1296,12 +1309,12 @@ export interface paths {
         };
         /**
          * Preview Push To Plan
-         * @description Что случится при переносе — до того, как он случился.
+         * @description What will happen on a carry-across — before it happens.
          *
-         *     Окно переноса показывает, куда ляжет каждый раздел и во сколько дней
-         *     выйдет каждая строка, и отмечает то, что переносить не будет: уже
-         *     перенесённое и строки без оценки. Считает это сервер теми же функциями,
-         *     что и перенос, — см. proposals.push_preview.
+         *     The carry-across dialog shows where each section will land and how many days
+         *     each row comes out to, and marks what will not be carried: what has already
+         *     been carried and rows with no estimate. The server computes this with the same
+         *     functions as the carry-across itself — see proposals.push_preview.
          */
         get: operations["preview_push_to_plan_api_projects__project_id__proposal_push_plan_get"];
         put?: never;
@@ -1323,13 +1336,14 @@ export interface paths {
         put?: never;
         /**
          * Push Proposal To Plan
-         * @description Переносит смету в план: раздел — категорией, строка — задачей.
+         * @description Carries the budget into the plan: a section becomes a category, a row a task.
          *
-         *     Пачка ревизий с общим batch_id: в истории перенос читается одной записью
-         *     и снимается одной отменой — batch_id уходит в ответ ради кнопки «Вернуть»
-         *     в тосте. Задачи встают на старт плана — раскладку по оси человек делает
-         *     сам. Заметки, риски и допущения строки уходят во внутреннюю заметку
-         *     задачи на языке организации: её читает команда, а не клиент.
+         *     A batch of revisions with a shared batch_id: in the history the carry-across
+         *     reads as one entry and is removed by one undo — the batch_id goes into the
+         *     answer for the sake of the "Undo" button in the toast. The tasks are placed
+         *     at the plan's start — a person lays them out along the axis themselves. A
+         *     row's notes, risks and assumptions go into the task's internal note in the
+         *     organization's language: it is read by the team, not by the client.
          */
         post: operations["push_proposal_to_plan_api_projects__project_id__proposal_push_to_plan_post"];
         delete?: never;
@@ -1349,7 +1363,7 @@ export interface paths {
         put?: never;
         /**
          * Set Proposal Stage
-         * @description Отметить этап сделки — в любую сторону (см. proposals.set_stage).
+         * @description Mark a stage of the deal — in either direction (see proposals.set_stage).
          */
         post: operations["set_proposal_stage_api_projects__project_id__proposal_stage_post"];
         delete?: never;
@@ -1403,20 +1417,22 @@ export interface paths {
         };
         /**
          * List Revisions
-         * @description Журнал изменений проекта, при желании — одной задачи.
+         * @description The project's change journal, optionally that of a single task.
          *
-         *     Запись отдаётся параметрами, а не готовой фразой: язык читателя решается в
-         *     браузере, и один и тот же перенос обязан читаться на трёх языках. Сервер
-         *     словарей сообщений не держит сознательно (см. MutationError).
+         *     An entry is returned as parameters rather than as a ready phrase: the reader's
+         *     language is decided in the browser, and one and the same move must read in
+         *     three languages. The server deliberately keeps no message dictionaries (see
+         *     MutationError).
          *
-         *     Фильтры — по автору и по типам операций — считает сервер, а не клиент:
-         *     лента листается курсором, и клиентский отсев превращал бы «Показать ещё»
-         *     в лотерею — страница есть, а подходящих записей в ней может не быть.
+         *     The filters — by author and by operation type — are computed by the server
+         *     rather than by the client: the feed is paged by cursor, and client-side sifting
+         *     would turn "Show more" into a lottery — the page exists, but it may hold no
+         *     matching entries.
          *
-         *     Обратная операция наружу не выходит: она нужна отмене, а отмену делает
-         *     сервер (`POST /{project_id}/undo`), клиенту она ни к чему. Отдавать её
-         *     значило бы удваивать вес ленты и заодно удваивать поверхность, на которой
-         *     заметка может утечь.
+         *     The inverse operation does not go outward: it is needed for the undo, and the
+         *     undo is done by the server (`POST /{project_id}/undo`), so the client has no use
+         *     for it. Returning it would mean doubling the feed's weight and doubling the
+         *     surface a note can leak through.
          */
         get: operations["list_revisions_api_projects__project_id__revisions_get"];
         put?: never;
@@ -1438,13 +1454,13 @@ export interface paths {
         put?: never;
         /**
          * Assign Schedule
-         * @description Назначение (или перенос) даты старта проекта.
+         * @description Assigning (or moving) the project's start date.
          *
-         *     Право — то же, что у настроек (PROJECT_ADMIN): действие меняет систему
-         *     отсчёта всего плана и рабочую неделю, а не одну задачу. Через журнал
-         *     ревизий не проходит по той же причине, что и настройки: это не правка
-         *     плана, и отмены у него нет — обратный путь остаётся видом «Относительный
-         *     план», который никуда не девается.
+         *     The permission is the same as for the settings (PROJECT_ADMIN): the action
+         *     changes the frame of reference of the whole plan and the working week rather
+         *     than a single task. It does not go through the revision journal for the same
+         *     reason as the settings: this is not an edit of the plan, and it has no undo —
+         *     the way back remains the "Relative plan" view, which is not going anywhere.
          */
         post: operations["assign_schedule_api_projects__project_id__schedule_post"];
         delete?: never;
@@ -1464,11 +1480,11 @@ export interface paths {
         put?: never;
         /**
          * Preview Schedule
-         * @description Что станет с планом после привязки к дате: границы проекта до записи.
+         * @description What will become of the plan after anchoring to a date: the project's bounds before the write.
          *
-         *     Окно привязки обязано показать рассчитанную дату завершения до
-         *     подтверждения — обещание «учтём выходные и праздники» без этой цифры
-         *     непроверяемо.
+         *     The anchoring dialog must show the computed finish date before confirmation —
+         *     the promise "we will account for weekends and holidays" is unverifiable without
+         *     that figure.
          */
         post: operations["preview_schedule_api_projects__project_id__schedule_preview_post"];
         delete?: never;
@@ -1486,10 +1502,10 @@ export interface paths {
         };
         /**
          * Get Project Scorecard
-         * @description Скоркард целиком: метрики с историей, события, качество данных.
+         * @description The whole scorecard: metrics with history, events, data quality.
          *
-         *     Побочный эффект — ленивая фиксация недель: планировщика в архитектуре
-         *     нет, и дозаписывает снимки первый читатель после границы недели.
+         *     The side effect is the lazy commitment of weeks: the architecture has no
+         *     scheduler, and the first reader after a week boundary appends the snapshots.
          */
         get: operations["get_project_scorecard_api_projects__project_id__scorecard_get"];
         put?: never;
@@ -1515,11 +1531,11 @@ export interface paths {
         head?: never;
         /**
          * Update Scorecard Metric
-         * @description Настройка метрики этого проекта: владелец, цель, включённость.
+         * @description This project's configuration of a metric: owner, target, enabled state.
          *
-         *     Направление не правится — оно жёстко следует из ключа. После правки
-         *     текущая неделя пересчитывается сразу: статус зависит от цели, и экран не
-         *     должен показывать старый цвет при новой цели.
+         *     The direction is not editable — it follows rigidly from the key. After an
+         *     edit the current week is recalculated right away: the status depends on the
+         *     target, and the screen must not show the old colour under a new target.
          */
         patch: operations["update_scorecard_metric_api_projects__project_id__scorecard_metrics__metric_key__patch"];
         trace?: never;
@@ -1533,8 +1549,8 @@ export interface paths {
         };
         /**
          * Get Scorecard Metric Tasks
-         * @description Drill-down метрики: задачи недели. Прошлые недели — из снимка,
-         *     текущая — живой расчёт без записи.
+         * @description A metric drill-down: the week's tasks. Past weeks come from the snapshot,
+         *     the current one is computed live without being written.
          */
         get: operations["get_scorecard_metric_tasks_api_projects__project_id__scorecard_metrics__metric_key__tasks_get"];
         put?: never;
@@ -1556,8 +1572,8 @@ export interface paths {
         put?: never;
         /**
          * Recalculate Project Scorecard
-         * @description Пересчёт текущей недели мимо кэша. Только текущей: прошлые снимки
-         *     неизменяемы, и никакая кнопка их не трогает.
+         * @description Recalculating the current week past the cache. The current one only: past
+         *     snapshots are immutable, and no button touches them.
          */
         post: operations["recalculate_project_scorecard_api_projects__project_id__scorecard_recalculate_post"];
         delete?: never;
@@ -1578,9 +1594,10 @@ export interface paths {
         put?: never;
         /**
          * Issue Share
-         * @description Первый выпуск ссылки. Если она уже есть — 409, а не тихий перевыпуск:
-         *     повтор запроса (двойной клик, ретрай сети) не должен убивать только что
-         *     разосланный адрес. Перевыпуск — отдельный маршрут ниже.
+         * @description The first issue of a link. If one already exists — 409, not a silent
+         *     reissue: a repeated request (a double click, a network retry) must not kill
+         *     an address that has just been sent around. Reissuing is a separate route
+         *     below.
          */
         post: operations["issue_share_api_projects__project_id__share_post"];
         /** Revoke Share */
@@ -1602,7 +1619,7 @@ export interface paths {
         put?: never;
         /**
          * Rotate Share
-         * @description Перевыпуск: прежний адрес умирает в тот же момент.
+         * @description Reissue: the previous address dies at that same moment.
          */
         post: operations["rotate_share_api_projects__project_id__share_rotate_post"];
         delete?: never;
@@ -1620,7 +1637,7 @@ export interface paths {
         };
         /**
          * Check Project Slug
-         * @description Свободен ли слаг внутри этой организации — и что предложить, если занят.
+         * @description Whether the slug is free inside this organization — and what to offer if it is taken.
          */
         get: operations["check_project_slug_api_projects__project_id__slug_check_get"];
         put?: never;
@@ -1642,18 +1659,19 @@ export interface paths {
         put?: never;
         /**
          * Undo Last
-         * @description Отмена последнего изменения.
+         * @description Undoing the last change.
          *
-         *     Произвольная ревизия из середины журнала не отменяется по-прежнему: это
-         *     другая функция («вернуть вот это одно»), и её обратная операция построена
-         *     для того состояния, которого уже нет. `expected_seq` — не выбор ревизии, а
-         *     условие: отменяется всё тот же верх журнала, но лишь пока он тот самый,
-         *     который клиент назвал человеку. Разошлись — отказ 409, а не молчаливая
-         *     отмена чужой правки, влезшей в зазор между показом кнопки и нажатием.
+         *     An arbitrary revision from the middle of the journal is still not undoable:
+         *     that is a different function ("bring back this one thing"), and its inverse
+         *     operation was built for a state that no longer exists. `expected_seq` is not a
+         *     choice of revision but a condition: what is undone is still the same head of
+         *     the journal, but only while it is the very one the client named to the person.
+         *     Diverged — a 409 refusal, rather than a silent undo of someone else's edit that
+         *     slipped into the gap between showing the button and pressing it.
          *
-         *     Причина принимается, потому что отмена проходит ту же проверку порога, что
-         *     и всякое изменение сроков: возврат, уводящий задачу от базового плана
-         *     дальше порога, объясняется ровно так же.
+         *     A reason is accepted, because an undo goes through the same threshold check as
+         *     any change of dates: a revert taking a task further from the baseline plan than
+         *     the threshold is explained in exactly the same way.
          */
         post: operations["undo_last_api_projects__project_id__undo_post"];
         delete?: never;
@@ -1671,8 +1689,8 @@ export interface paths {
         };
         /**
          * Public Project
-         * @description Та же раскладка, что и на рабочем экране, но без внутренних заметок и
-         *     без исполнителей.
+         * @description The same layout as on the working screen, but without internal notes and
+         *     without assignees.
          */
         get: operations["public_project_api_public__org_slug___project_slug__get"];
         put?: never;
@@ -1692,14 +1710,14 @@ export interface paths {
         };
         /**
          * Public Comments
-         * @description Лента видна и при выключенных комментариях.
+         * @description The feed is visible even when comments are turned off.
          *
-         *     Выключенные комментарии — это запрет писать, а не приказ спрятать уже
-         *     сказанное: разговор, который клиент видел вчера, не должен исчезнуть от
-         *     щелчка переключателем.
+         *     Turned-off comments are a ban on writing, not an order to hide what has
+         *     already been said: a conversation the client saw yesterday must not vanish at
+         *     the flick of a toggle.
          *
-         *     Внутренние реплики гость не видит: это разговор команды «в сторону»,
-         *     а не часть публичной страницы.
+         *     A guest does not see internal remarks: that is the team's conversation
+         *     "aside", not part of the public page.
          */
         get: operations["public_comments_api_public__org_slug___project_slug__comments_get"];
         put?: never;
@@ -1720,11 +1738,11 @@ export interface paths {
         };
         /**
          * Public Comment Counts
-         * @description Счётчик реплик на строках публичной ленты — без внутренних.
+         * @description The remark counter on the rows of the public chart — without internal ones.
          *
-         *     Тот же фильтр, что и у ленты выше: гость внутренних реплик не видит, и
-         *     число рядом с задачей не должно проговариваться о том, чего в его ленте
-         *     нет вовсе.
+         *     The same filter as on the feed above: a guest does not see internal remarks,
+         *     and the number next to a task must not let slip what is not in their feed at
+         *     all.
          */
         get: operations["public_comment_counts_api_public__org_slug___project_slug__comments_counts_get"];
         put?: never;
@@ -1742,7 +1760,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Выгрузить проект по публичной ссылке документом PDF */
+        /** Export the project through a public link as a PDF document */
         get: operations["public_export_pdf_api_public__org_slug___project_slug__export_pdf_get"];
         put?: never;
         post?: never;
@@ -1759,7 +1777,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Выгрузить проект по публичной ссылке книгой Excel */
+        /** Export the project through a public link as an Excel workbook */
         get: operations["public_export_xlsx_api_public__org_slug___project_slug__export_xlsx_get"];
         put?: never;
         post?: never;
@@ -1876,7 +1894,7 @@ export interface components {
         };
         /**
          * ExportSection
-         * @description Что человек попросил положить в файл.
+         * @description What a person asked to put into the file.
          * @enum {string}
          */
         ExportSection: "overview" | "tasks" | "gantt" | "links" | "proposal" | "scorecard" | "comments" | "history";
@@ -1904,10 +1922,10 @@ export interface components {
         };
         /**
          * InstallConfig
-         * @description То, что интерфейсу нужно знать об установке до всякого входа.
+         * @description What the interface needs to know about the installation before any sign-in.
          *
-         *     Только рубильники, не значения: адреса, ключи и секреты сюда не попадают
-         *     и попасть не могут — маршрут открыт всякому, кто открыл страницу.
+         *     Switches only, no values: addresses, keys and secrets neither reach this
+         *     route nor can they — it is open to anyone who opened the page.
          */
         InstallConfig: {
             /** Default Locale */
@@ -2093,7 +2111,7 @@ export interface components {
         };
         /**
          * MailResultOut
-         * @description Ушло письмо или нет. Врать «отправлено» нельзя: человек будет ждать.
+         * @description Whether the message went out. Lying "sent" is not allowed: the person will wait.
          */
         MailResultOut: {
             /** Sent */
@@ -2129,7 +2147,7 @@ export interface components {
         };
         /**
          * OrganizationSettingsIn
-         * @description Уровень 2: дефолты организации, которые наследуют все её проекты.
+         * @description Level 2: the organization's defaults, inherited by all of its projects.
          */
         OrganizationSettingsIn: {
             /** Default Comments Enabled */
@@ -2155,11 +2173,12 @@ export interface components {
         };
         /**
          * OrganizationSettingsOut
-         * @description Дефолты организации — те самые, которые наследуют проекты.
+         * @description The organization's defaults — the very ones the projects inherit.
          *
-         *     Отдаются всякому её участнику, а не только владельцу: рабочие дни и
-         *     праздники видит каждый, кто видит диаграмму, — она ими и залита. Править
-         *     их может только владелец, и это решается на записи, а не на чтении.
+         *     Returned to any member of it, not only to the owner: working days and
+         *     holidays are seen by everyone who sees the chart — it is filled with them.
+         *     Only the owner may edit them, and that is decided on the write, not on the
+         *     read.
          */
         OrganizationSettingsOut: {
             /** Default Comments Enabled */
@@ -2193,7 +2212,7 @@ export interface components {
         };
         /**
          * Period
-         * @description Окно ленты. Три последних привязаны к «сегодня».
+         * @description A window onto the chart. The last three are anchored to "today".
          * @enum {string}
          */
         Period: "all" | "next_4w" | "next_3m" | "from_today";
@@ -2212,16 +2231,16 @@ export interface components {
         };
         /**
          * ProfileIn
-         * @description Уровень 4 настроек: язык интерфейса и часовой пояс.
+         * @description Level 4 of the settings: the interface language and the timezone.
          *
-         *     Имя рядом с ними не настройка, а свойство человека, но правится оно там же
-         *     и тем же запросом: заводить ради одного поля второй маршрут значило бы
-         *     делать вид, что это разные экраны.
+         *     The name next to them is not a setting but a property of the person, yet it is
+         *     edited in the same place and by the same request: introducing a second route
+         *     for one field would mean pretending these are different screens.
          *
-         *     `timezone` — единственное поле, у которого `null` что-то значит: «считать
-         *     сутки по браузеру». Отличить его от «поле не прислали» позволяет
-         *     `model_fields_set` — тот же приём, что у переопределений проекта, и по той
-         *     же причине: без него сброс выбора был бы невыразим.
+         *     `timezone` is the only field for which `null` means something: "count days by
+         *     the browser". Telling it apart from "the field was not sent" is made possible
+         *     by `model_fields_set` — the same technique as with a project's overrides, and
+         *     for the same reason: without it, clearing a choice would be inexpressible.
          */
         ProfileIn: {
             /** Locale */
@@ -2247,12 +2266,13 @@ export interface components {
         };
         /**
          * ProjectSettingsIn
-         * @description Уровень 3: настройки проекта.
+         * @description Level 3: the project's settings.
          *
-         *     Три величины здесь допускают `null`, и `null` означает «наследовать от
-         *     организации», а не «пусто». Отличить «прислали null» от «не прислали
-         *     вовсе» позволяет `model_fields_set`: без этого сброс переопределения был
-         *     бы невыразим — любой запрос без поля стирал бы его.
+         *     Three values here allow `null`, and `null` means "inherit from the
+         *     organization" rather than "empty". Telling "null was sent" from "nothing was
+         *     sent at all" is made possible by `model_fields_set`: without it, clearing an
+         *     override would be inexpressible — any request without the field would erase
+         *     it.
          */
         ProjectSettingsIn: {
             /** Auto Schedule */
@@ -2298,7 +2318,7 @@ export interface components {
         };
         /**
          * ProposalSettingsIn
-         * @description Настройки сметы. Каждое поле — по желанию: правится то, что прислано.
+         * @description The budget's settings. Every field is optional: what was sent is what is edited.
          */
         ProposalSettingsIn: {
             /** Currency */
@@ -2322,8 +2342,9 @@ export interface components {
         };
         /**
          * ProposalTaskIn
-         * @description Новая строка: имя обязательно, роль, оценка и ставка — если назвали
-         *     сразу. Потолки чисел те же, что у правки, — ширина колонок Numeric.
+         * @description A new row: the name is mandatory, while role, estimate and rate are
+         *     optional if named right away. The numeric ceilings are the same as on an
+         *     edit — the width of the Numeric columns.
          */
         ProposalTaskIn: {
             /** Effort */
@@ -2340,10 +2361,11 @@ export interface components {
         };
         /**
          * ProposalTaskPatch
-         * @description Правка строки: присланные поля меняются, остальные не трогаются.
+         * @description Editing a row: the fields sent are changed, the rest are untouched.
          *
-         *     Потолки чисел повторяют ширину колонок Numeric: значение шире уехало бы
-         *     в базу ошибкой усечения — пятисоткой вместо честного отказа.
+         *     The numeric ceilings repeat the width of the Numeric columns: a wider value
+         *     would go into the database as a truncation error — a 500 instead of an honest
+         *     refusal.
          */
         ProposalTaskPatch: {
             /** Assumptions */
@@ -2786,8 +2808,8 @@ export interface components {
         };
         /**
          * PushToPlanIn
-         * @description Какие строки переносить. Пустой список — все переносимые по умолчанию:
-         *     оценённые и ещё не перенесённые (см. proposals._pushable).
+         * @description Which rows to carry across. An empty list means all that are carryable by
+         *     default: estimated and not yet carried across (see proposals._pushable).
          */
         PushToPlanIn: {
             /**
@@ -2829,24 +2851,25 @@ export interface components {
         };
         /**
          * RiskFlag
-         * @description Самооценка исполнителя: успеваю ли я к сроку.
+         * @description The assignee's own assessment: am I going to make the deadline.
          *
-         *     Не расчёт, а слово человека: зелёный — по плану, жёлтый — есть риск,
-         *     красный — срок под угрозой. Скоркард сравнивает это слово с фактом
-         *     («предупредил заранее» или «сорвал молча»), и ровно поэтому флаг живёт на
-         *     задаче, а не в комментарии: по журналу видно, когда он был поставлен.
+         *     Not a computation but a person's word: green means on plan, yellow means there
+         *     is a risk, red means the deadline is under threat. The scorecard compares this
+         *     word with the fact ("warned in advance" or "missed it silently"), and that is
+         *     exactly why the flag lives on the task rather than in a comment: the journal
+         *     shows when it was set.
          * @enum {string}
          */
         RiskFlag: "green" | "yellow" | "red";
         /**
          * ScheduleIn
-         * @description Привязка плана к дате старта — или её предпросмотр.
+         * @description Anchoring the plan to a start date — or a preview of it.
          *
-         *     `working_days` — маска новой рабочей недели, если её выбрали в том же
-         *     окне; None — оставить действующую. `shift_tasks=False` — при повторной
-         *     смене старта календарного проекта оставить даты задач как есть; для
-         *     относительного проекта значения не имеет — его задачи раскладываются по
-         *     календарю всегда.
+         *     `working_days` is the mask of the new working week, if one was chosen in the
+         *     same dialog; None means keep the one in force. `shift_tasks=False` means, when
+         *     changing the start of a calendar project again, to leave the task dates as they
+         *     are; for a relative project it makes no difference — its tasks are always laid
+         *     out along the calendar.
          */
         ScheduleIn: {
             /**
@@ -2864,10 +2887,10 @@ export interface components {
         };
         /**
          * ScorecardMetricPatch
-         * @description Правка метрики: присланные поля меняются, остальные не трогаются.
+         * @description Editing a metric: the fields sent are changed, the rest are untouched.
          *
-         *     owner_user_id принимает явный null — «снять владельца»; отличие «не
-         *     прислано» от «прислано null» делает exclude_unset в маршруте.
+         *     owner_user_id accepts an explicit null — "clear the owner"; telling "not
+         *     sent" from "sent as null" is done by exclude_unset in the route.
          */
         ScorecardMetricPatch: {
             /** Enabled */
@@ -2884,11 +2907,12 @@ export interface components {
         };
         /**
          * ShareOut
-         * @description Состояние публикации проекта.
+         * @description The project's publication state.
          *
-         *     `allowed` отдаётся всегда, даже когда ссылки нет: интерфейс обязан
-         *     отличать «ещё не опубликован» от «публикация запрещена установкой» —
-         *     иначе кнопка «опубликовать» обещает действие, которое кончится отказом.
+         *     `allowed` is always returned, even when there is no link: the interface must
+         *     distinguish "not published yet" from "publishing is forbidden by the
+         *     installation" — otherwise the "publish" button promises an action that will
+         *     end in a refusal.
          */
         ShareOut: {
             /** Allowed */
@@ -2967,11 +2991,11 @@ export interface components {
         };
         /**
          * VerifyEmailOut
-         * @description Итог погашения ссылки.
+         * @description The outcome of redeeming a link.
          *
-         *     Признак, а не два разных ответа: адрес подтверждён в обоих случаях, и
-         *     интерфейсу нужно только выбрать слова — «адрес подтверждён» или «адрес
-         *     уже подтверждён».
+         *     A flag rather than two different answers: the address is confirmed in both
+         *     cases, and the interface only needs to pick the words — "the address is
+         *     confirmed" or "the address is already confirmed".
          */
         VerifyEmailOut: {
             /** Already Verified */
@@ -2979,7 +3003,7 @@ export interface components {
         };
         /**
          * Zoom
-         * @description Единица колонки шкалы. Те же три значения, что у ленты на экране.
+         * @description The unit of a scale column. The same three values as the chart on screen.
          * @enum {string}
          */
         Zoom: "day" | "week" | "month";

@@ -20,39 +20,41 @@ from app.orgs import active_membership
 
 router = APIRouter(tags=["live"])
 
-# Коды закрытия из диапазона, отведённого приложению (4000–4999). Стандартный
-# 1008 «нарушение политики» одинаков и для «не представился», и для «нет такого
-# проекта», а клиенту они разные: на первом переподключаться бессмысленно, на
-# втором — тем более, зато на разрыве связи обязательно.
+# Close codes from the range reserved for applications (4000-4999). The standard
+# 1008 "policy violation" is the same for "did not identify themselves" and for
+# "no such project", while to a client those differ: on the first, reconnecting is
+# pointless, on the second even more so, whereas on a dropped connection it is
+# essential.
 CLOSE_UNAUTHENTICATED = 4401
 CLOSE_NOT_FOUND = 4404
 CLOSE_LAGGING = 4409
 
-# Как часто напоминать о себе, когда в проекте ничего не происходит. Нужно не
-# серверу, а клиенту: половина обрывов — это не закрытое соединение, а
-# замолчавшее (уснувший ноутбук, сменившаяся сеть), и отличить такое от тишины
-# в проекте можно только по отсутствию ожидаемого сообщения.
+# How often to remind of oneself when nothing is happening in the project. It is
+# needed not by the server but by the client: half of all drops are not a closed
+# connection but a silenced one (a laptop gone to sleep, a changed network), and
+# telling that apart from silence in the project is only possible by the absence
+# of an expected message.
 HEARTBEAT_SECONDS = 25
 
 HEARTBEAT = {"type": "heartbeat"}
 
-# Как часто перепроверять, что подписчику всё ещё можно читать проект. Сокет
-# живёт часами, а право за это время отзывают: человека выводят из
-# организации, сессию закрывают «выйти на всех устройствах». Проверять на
-# каждом сообщении — поход в базу на каждую ревизию каждому читателю;
-# раз в минуту — самое большее минута жизни отозванного доступа.
+# How often to re-check that the subscriber may still read the project. A socket
+# lives for hours, and a permission gets revoked in that time: a person is removed
+# from the organization, a session is closed by "sign out on all devices".
+# Checking on every message means a trip to the database for every revision for
+# every reader; once a minute means at most a minute of life for revoked access.
 RECHECK_SECONDS = 60.0
 
 
 def _origin_allowed(websocket: WebSocket) -> bool:
-    """Пришло ли рукопожатие со своей страницы.
+    """Whether the handshake came from our own page.
 
-    Кука уезжает с WebSocket-рукопожатием с любого сайта: SameSite=Lax
-    считает его top-level навигацией. Без проверки Origin чужая страница
-    открывает сокет от имени залогиненного посетителя и читает живую ленту
-    его проекта. Браузер Origin подделать не даёт; запрос без Origin — не
-    браузер, ему CSRF не грозит (кука сама не подставится), поэтому
-    отсутствие заголовка — проход.
+    The cookie rides out with a WebSocket handshake from any site: SameSite=Lax
+    counts it as top-level navigation. Without an Origin check, a foreign page
+    opens a socket on behalf of a signed-in visitor and reads the live feed of
+    their project. The browser does not let Origin be forged; a request with no
+    Origin is not a browser and CSRF does not threaten it (the cookie is not
+    attached by itself), so a missing header means pass.
     """
     origin = websocket.headers.get("origin")
     if origin is None:
@@ -70,26 +72,26 @@ def _origin_allowed(websocket: WebSocket) -> bool:
 
 
 def db_scope() -> Callable[[], AbstractContextManager[DbSession]]:
-    """Фабрика короткоживущей сессии базы.
+    """A factory for a short-lived database session.
 
-    Не `Depends(get_db)`, как в обычных маршрутах, и это не мелочь: та сессия
-    живёт столько, сколько живёт обработчик, а обработчик сокета живёт ровно
-    столько, сколько открыта вкладка. Соединение из пула, занятое каждым
-    открытым проектом, кончилось бы на полутора десятках читателей — и не
-    из-за нагрузки, а из-за того, что все они просто смотрят.
+    Not `Depends(get_db)` as in ordinary routes, and that is no trifle: that
+    session lives as long as the handler, and a socket handler lives exactly as
+    long as the tab is open. Pool connections held by every open project would run
+    out at a dozen and a half readers — and not because of load but because they
+    are simply watching.
 
-    Отдельная зависимость, а не прямой вызов SessionLocal, — чтобы тесту было
-    что подменить.
+    A separate dependency rather than a direct SessionLocal call, so that a test
+    has something to substitute.
     """
     return SessionLocal
 
 
 def _for_role(message: dict, role: Role | str | None, granted: bool) -> dict:
-    """Сообщение в том виде, в каком его вправе увидеть этот подписчик.
+    """A message in the form this subscriber is entitled to see it.
 
-    Фильтруется на выходе к конкретному сокету, а не на входе в комнату: в
-    одной комнате сидят и редактор, и клиент, и внутренняя заметка обязана
-    доехать до первого и не доехать до второго.
+    It is filtered on the way out to a specific socket rather than on the way into
+    the room: an editor and a client sit in one room, and an internal note must
+    reach the first and must not reach the second.
     """
     if message.get("type") != "revision":
         return message
@@ -97,27 +99,27 @@ def _for_role(message: dict, role: Role | str | None, granted: bool) -> dict:
 
 
 async def _refuse(websocket: WebSocket, code: int) -> None:
-    """Отказать так, чтобы клиент узнал причину.
+    """Refuse in a way that lets the client learn the reason.
 
-    accept() перед close() — не церемония. Сокет, закрытый до принятия, — это
-    несостоявшееся рукопожатие, и браузеру достаётся код 1006, одинаковый и для
-    «не пущу», и для «сеть отвалилась»: клиент обречён переподключаться туда,
-    куда его не пустят никогда. Приняв и немедленно закрыв, сервер доносит свой
-    код. Отправлено при этом не бывает ничего — отказавший узнаёт ровно то же,
-    что сказал бы ему тот же запрос по HTTP.
+    accept() before close() is not ceremony. A socket closed before acceptance is
+    a handshake that never happened, and the browser gets code 1006, the same for
+    "not letting you in" and for "the network dropped": the client is doomed to
+    reconnect to a place it will never be let into. By accepting and immediately
+    closing, the server conveys its code. Nothing is ever sent in the process — the
+    one refused learns exactly what the same request over HTTP would have told them.
     """
     await websocket.accept()
     await websocket.close(code=code)
 
 
 async def _drain(websocket: WebSocket) -> None:
-    """Читает и выбрасывает всё, что скажет клиент.
+    """Reads and discards everything the client says.
 
-    По этому сокету клиент не говорит ничего: единственный способ изменить
-    проект — POST мутации, где проверяется право. Но читать всё равно
-    необходимо — уведомление о разрыве приходит той же дорогой, что и данные,
-    и обработчик, который только пишет, узнаёт о закрытой вкладке лишь тогда,
-    когда сам захочет что-нибудь отправить.
+    Over this socket the client says nothing: the only way to change a project is a
+    mutation POST, where the permission is checked. But reading is still necessary
+    — notification of a disconnect arrives by the same road as data, and a handler
+    that only writes learns of a closed tab only when it wants to send something
+    itself.
     """
     while True:
         message = await websocket.receive()
@@ -144,15 +146,15 @@ async def _pump(
             )
 
             if reader in done:
-                # Клиент ушёл. Отмена ожидания очереди безопасна: сообщение,
-                # если оно уже положено, остаётся в очереди, а очередь уходит
-                # вместе с подпиской.
+                # The client has left. Cancelling the queue wait is safe: a
+                # message, if it has already been placed, stays in the queue, and
+                # the queue goes away together with the subscription.
                 incoming.cancel()
                 return
 
-            # Переавторизация: и перед рассылкой, и на пустом ходу — сокет,
-            # которому больше нельзя, закрывается не позже RECHECK_SECONDS
-            # после отзыва права, а не «когда-нибудь при перезагрузке».
+            # Re-authorization: both before a broadcast and while idle — a socket
+            # that may no longer be open is closed no later than RECHECK_SECONDS
+            # after the permission is revoked rather than "some time on a reload".
             if still_allowed is not None and time.monotonic() - last_recheck >= RECHECK_SECONDS:
                 last_recheck = time.monotonic()
                 if not still_allowed():
@@ -166,9 +168,10 @@ async def _pump(
                 continue
 
             if subscriber.lagging:
-                # Отставшему нельзя досылать обрывок ленты: он применил бы
-                # часть изменений и считал бы себя в курсе. Закрываем —
-                # клиент переподключится и перечитает проект целиком (§12).
+                # A fragment of the feed must not be sent on to someone who has
+                # fallen behind: they would apply part of the changes and consider
+                # themselves up to date. We close — the client will reconnect and
+                # re-read the whole project (§12).
                 await websocket.close(code=CLOSE_LAGGING)
                 return
 
@@ -185,15 +188,15 @@ async def project_live(
     project_id: uuid.UUID,
     session_scope: Callable[[], AbstractContextManager[DbSession]] = Depends(db_scope),
 ):
-    """Живая лента проекта: ревизии по мере их появления.
+    """The project's live feed: revisions as they appear.
 
-    Права проверяются один раз, при подключении. Роль, изменившаяся за время
-    жизни сокета, догонит человека при следующей перезагрузке страницы: делать
-    из этого повод перепроверять членство на каждой ревизии значило бы ходить
-    в базу на каждое сообщение каждому читателю.
+    Permissions are checked once, at connection time. A role that changed during
+    the socket's lifetime will catch up with a person on the next page reload:
+    making that a reason to re-check the membership on every revision would mean a
+    trip to the database for every message for every reader.
     """
-    # Origin — до всего остального: чужой странице не положено даже узнать,
-    # есть ли у посетителя сессия.
+    # Origin comes before everything else: a foreign page has no business even
+    # learning whether the visitor has a session.
     if not _origin_allowed(websocket):
         await _refuse(websocket, CLOSE_UNAUTHENTICATED)
         return
@@ -205,9 +208,9 @@ async def project_live(
             await _refuse(websocket, CLOSE_UNAUTHENTICATED)
             return
 
-        # Организация — та же, что и в HTTP: выбранная переключателем, а не
-        # первая попавшаяся. Иначе человек, переключившийся на вторую
-        # организацию, слушал бы проект в первой.
+        # The organization is the same as over HTTP: the one chosen by the
+        # switcher, not whichever came first. Otherwise a person who switched to
+        # their second organization would be listening to a project in the first.
         membership = active_membership(db, session)
         project = None if membership is None else db.get(Project, project_id)
         if project is not None and project.org_id != membership.org_id:
@@ -215,21 +218,21 @@ async def project_live(
         role = None if membership is None else parse_role(membership.role)
         scoped = membership is not None and membership.project_scoped
         granted = project is not None and has_project_grant(db, project.id, session.user_id)
-        # Отказ в чтении — то же закрытие, что и «нет такого проекта», по тому
-        # же принципу, что и 404 вместо 403 в HTTP-маршрутах: тот, кому проект
-        # не показывают, не должен узнать, что он существует. Роль, которую
-        # зовут в проекты поимённо (или чьё членство сужено), без выданного
-        # доступа сюда не попадает.
+        # A read refusal is the same close as "no such project", by the same
+        # principle as a 404 instead of a 403 in the HTTP routes: whoever is not
+        # shown a project must not learn that it exists. A role invited into
+        # projects individually (or whose membership is narrowed) does not get here
+        # without a granted access.
         if project is None or not can(role, Action.PROJECT_READ, project_granted=granted, scoped=scoped):
             await _refuse(websocket, CLOSE_NOT_FOUND)
             return
 
     def still_allowed() -> bool:
-        """Право читать проект, проверенное заново, — для переавторизации.
+        """The right to read the project, re-checked — for re-authorization.
 
-        Короткая сессия базы на каждую проверку — тем же приёмом, что и при
-        подключении: держать соединение из пула под живущим часами сокетом
-        нельзя, а раз в минуту открыть и закрыть — не стоит ничего.
+        A short database session per check, by the same technique as at connection
+        time: holding a pool connection under a socket that lives for hours is not
+        an option, while opening and closing one once a minute costs nothing.
         """
         with session_scope() as db:
             fresh = session_for_token(db, token)
@@ -248,8 +251,8 @@ async def project_live(
                 scoped=membership.project_scoped,
             )
 
-    # Сессия закрыта до accept(): дальше обработчик только ждёт, и держать за
-    # этим ожиданием соединение с базой не за что.
+    # The session is closed before accept(): from then on the handler only waits,
+    # and there is no reason to hold a database connection behind that wait.
     await websocket.accept()
     with hub.subscribe(project_id) as subscriber:
         await _pump(websocket, subscriber, role, granted, still_allowed)

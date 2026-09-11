@@ -48,7 +48,7 @@ describe("окно привязки к дате старта", () => {
     await user.clear(screen.getByLabelText("Дата старта"));
     await user.type(screen.getByLabelText("Дата старта"), "2026-08-24");
 
-    // «Сроки проекта: 24 августа — 18 декабря» — обещание сервера, не клиента.
+    // "Project dates: 24 August — 18 December" — the server's promise, not the client's.
     await waitFor(() =>
       expect(screen.getByRole("status").textContent).toContain("24 августа — 18 декабря"),
     );
@@ -77,14 +77,14 @@ describe("окно привязки к дате старта", () => {
     });
     await user.clear(screen.getByLabelText("Дата старта"));
     await user.type(screen.getByLabelText("Дата старта"), "2026-08-24");
-    // Рабочая неделя выбирается тут же: 6/1 — маска пн–сб.
+    // The working week is chosen right here: 6/1 is a Mon–Sat mask.
     await user.selectOptions(screen.getByLabelText("Рабочая неделя"), "63");
     await user.click(screen.getByRole("button", { name: "Применить даты" }));
 
     await waitFor(() => expect(closed).toBe(true));
     expect(sent).toMatchObject({ start_date: "2026-08-24", working_days: 63 });
-    // Первая привязка выбора «сдвигать или нет» не предлагает: относительные
-    // координаты обязаны стать датами.
+    // The first binding does not offer a "shift or not" choice: the relative coordinates must become
+    // dates.
     expect(sent).not.toHaveProperty("shift_tasks");
   });
 

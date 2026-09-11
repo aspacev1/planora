@@ -1,11 +1,12 @@
-"""Панель директора: /api/admin/users.
+"""The director's panel: /api/admin/users.
 
-Доступ решает не роль в организации, а роль директора — она закреплена
-переменной окружения DIRECTOR_EMAIL (см. app.config.Settings), а не константой
-кода. tests/conftest.py задаёт ей значение по умолчанию — "director@example.com"
-— тем же способом, что и APP_SECRET; тесты, которым нужен другой адрес,
-подменяют переменную monkeypatch'ем и сбрасывают кэш настроек, как и остальные
-рубильники (см. test_comments_api.py::test_a_comment_longer_than_the_limit_is_refused).
+Access is decided not by a role within an organization but by the director role —
+which is pinned by the DIRECTOR_EMAIL environment variable (see
+app.config.Settings) rather than by a code constant. tests/conftest.py gives it a
+default value — "director@example.com" — the same way it does APP_SECRET; tests that
+need a different address substitute the variable with monkeypatch and reset the
+settings cache, as with the other switches (see
+test_comments_api.py::test_a_comment_longer_than_the_limit_is_refused).
 """
 
 from datetime import timedelta
@@ -20,20 +21,21 @@ from app.db import get_db
 from app.main import app
 from app.models import Membership
 
-#: Тот же адрес, что tests/conftest.py прописывает в DIRECTOR_EMAIL по
-#: умолчанию — заводить его в каждом тесте константой рядом со строкой было бы
-#: тем же дублированием, что и держать APP_SECRET в двух местах, но раз
-#: переменная окружения не отдаёт значение обратно как импортируемый символ,
-#: приходится повторить строку здесь.
+#: The same address tests/conftest.py writes into DIRECTOR_EMAIL by default —
+#: declaring it as a constant next to the line in every test would be the same
+#: duplication as keeping APP_SECRET in two places, but since an environment
+#: variable does not hand its value back as an importable symbol, the string has to
+#: be repeated here.
 DIRECTOR_EMAIL = "director@example.com"
 
 
 @pytest.fixture
 def clients(db):
-    """Фабрика клиентов поверх одной сессии базы — как в test_org_api.py.
+    """A factory of clients over one database session — as in test_org_api.py.
 
-    Каждый вызов — новая кука, то есть новый вошедший; сессия базы общая,
-    иначе директор не увидел бы регистрации, сделанные вторым клиентом.
+    Every call is a new cookie, that is, a new signed-in person; the database session
+    is shared, otherwise the director would not see the registrations made by the
+    second client.
     """
 
     def _override_get_db():
@@ -60,7 +62,7 @@ def _register(client, name, email):
 
 @pytest.fixture
 def director(client):
-    """Клиент, вошедший под адресом из DIRECTOR_EMAIL."""
+    """A client signed in under the address from DIRECTOR_EMAIL."""
     _register(client, "Director", DIRECTOR_EMAIL)
     return client
 
@@ -70,9 +72,9 @@ def test_admin_route_requires_authentication(client):
 
 
 def test_a_plain_user_is_refused_with_403_not_404(client):
-    """403, а не 404: раздел не называет никакой сущности, о существовании
-    которой стоило бы молчать, — от не-директора прячет пункт меню интерфейс,
-    а не сервер."""
+    """403, not 404: the section names no entity whose existence would be worth
+    staying silent about — the menu item is hidden from a non-director by the
+    interface, not by the server."""
     _register(client, "Alex", "alex@example.com")
 
     response = client.get("/api/admin/users")
@@ -82,13 +84,13 @@ def test_a_plain_user_is_refused_with_403_not_404(client):
 
 
 def test_nobody_else_gets_in_even_when_the_director_is_registered(director, clients):
-    """DIRECTOR_EMAIL — не список, а один адрес, и второй зарегистрированный
-    человек в панель не попадает, кем бы он ни был."""
+    """DIRECTOR_EMAIL is not a list but a single address, and a second registered
+    person does not get into the panel, whoever they are."""
     stranger = clients()
     _register(stranger, "Maria", "maria@example.com")
 
     assert stranger.get("/api/admin/users").status_code == 403
-    # Директор при этом видит панель как обычно.
+    # The director, meanwhile, sees the panel as usual.
     assert director.get("/api/admin/users").status_code == 200
 
 
@@ -107,18 +109,18 @@ def test_admin_row_carries_registration_and_activity(director):
     [row] = [row for row in rows if row["email"] == DIRECTOR_EMAIL]
 
     assert row["name"] == "Director"
-    # Регистрация уже сама по себе активность — см. open_session в app.auth.
+    # Registration is already activity in itself — see open_session in app.auth.
     assert row["created_at"] is not None
     assert row["last_active_at"] is not None
     assert row["organizations"] == ["Director"]
 
 
 def test_the_most_recent_registration_comes_first(director, db):
-    # created_at использует server_default=func.now(): внутри одной
-    # транзакции теста (см. tests/conftest.py::db) это отдаёт одну и ту же
-    # отметку двум подряд идущим регистрациям — то, чего не бывает в бою, где
-    # у каждой регистрации своя транзакция. Метка сдвигается руками, чтобы
-    # проверять именно сортировку маршрута, а не совпадение часов теста.
+    # created_at uses server_default=func.now(): inside one transaction of the test
+    # (see tests/conftest.py::db) that gives one and the same timestamp to two
+    # consecutive registrations — which does not happen in production, where every
+    # registration has its own transaction. The timestamp is shifted by hand so as to
+    # check the route's sorting rather than a coincidence of the test's clocks.
     maria = register(db, name="Maria", email="maria@example.com", password="s3cret-pass")
     db.flush()
     maria.created_at = maria.created_at + timedelta(hours=1)
@@ -131,7 +133,7 @@ def test_the_most_recent_registration_comes_first(director, db):
 def test_a_user_outside_any_organization_still_lists_with_an_empty_roster(director, db):
     person = register(db, name="Solo", email="solo@example.com", password="s3cret-pass")
     db.flush()
-    # Единственное членство — своя же организация, заведённая регистрацией.
+    # The only membership is their own organization, created by the registration.
     membership = db.scalar(select(Membership).where(Membership.user_id == person.id))
     db.delete(membership)
     db.flush()
@@ -142,9 +144,9 @@ def test_a_user_outside_any_organization_still_lists_with_an_empty_roster(direct
 
 
 def test_director_email_comparison_is_case_and_form_insensitive(client, monkeypatch):
-    """Роль директора сравнивается той же нормализацией, что и уникальность
-    аккаунта: адрес в DIRECTOR_EMAIL не обязан побуквенно совпадать регистром
-    с тем, что ввели при регистрации."""
+    """The director role is compared by the same normalization as account uniqueness:
+    the address in DIRECTOR_EMAIL need not match letter for letter and case for case
+    what was entered at registration."""
     monkeypatch.setenv("DIRECTOR_EMAIL", "Owner@Example.com")
     get_settings.cache_clear()
     try:
@@ -157,7 +159,7 @@ def test_director_email_comparison_is_case_and_form_insensitive(client, monkeypa
 
 
 def test_changing_the_variable_moves_the_role_without_touching_code(client, clients, monkeypatch):
-    """Смена директора — правка DIRECTOR_EMAIL, а не редактирование кода."""
+    """Changing the director is an edit to DIRECTOR_EMAIL, not an edit to the code."""
     monkeypatch.setenv("DIRECTOR_EMAIL", "new-director@example.com")
     get_settings.cache_clear()
     try:

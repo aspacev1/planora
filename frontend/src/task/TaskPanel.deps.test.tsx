@@ -8,8 +8,8 @@ import { captureMutations, projectFixtures, renderProject, WITH_DEPENDENCY } fro
 beforeEach(projectFixtures);
 
 /**
- * Та же пара задач, но «Макет» начат 9 марта — за два дня до конца
- * «Логотипа»: связь нарушена ровно так, как её рисует косая стрелка ленты.
+ * The same pair of tasks, but with "Mockup" starting on 9 March — two days before "Logo" ends: the
+ * link is violated exactly the way the strip's slanted arrow draws it.
  */
 const VIOLATED: ProjectState = {
   ...WITH_DEPENDENCY,
@@ -19,9 +19,8 @@ const VIOLATED: ProjectState = {
 };
 
 /**
- * Статус и связи — то, чем карточка пополнилась при сведении с макетом
- * Planora: статус назначается руками, связи правятся отсюда, а не только
- * рисуются стрелками.
+ * The status and the links — what the card gained when it was reconciled with the Planora mockup: the
+ * status is assigned by hand, the links are edited from here rather than only drawn as arrows.
  */
 describe("карточка: статус и связи", () => {
   it("смена статуса уходит операцией set_status", async () => {
@@ -40,7 +39,7 @@ describe("карточка: статус и связи", () => {
     const sent = captureMutations();
     renderProject(WITH_DEPENDENCY);
 
-    // У приёмника связь видна как «зависит от».
+    // On the receiver the link is visible as "depends on".
     await userEvent.click(await screen.findByRole("button", { name: /^Макет, / }));
     const depends = screen.getByText("Зависит от").closest(".panel__deps")!;
     expect(within(depends as HTMLElement).getByText("Логотип")).toBeInTheDocument();
@@ -62,17 +61,16 @@ describe("карточка: статус и связи", () => {
     renderProject(WITH_DEPENDENCY);
 
     await userEvent.click(await screen.findByRole("button", { name: /^Логотип, / }));
-    // У «Логотипа» уже есть исходящая связь на «Макет», поэтому кандидат
-    // остаётся только в списке «зависит от» — и это не «Макет»: обратная
-    // сторона существующей связи была бы циклом.
+    // "Logo" already has an outgoing link to "Mockup", so the candidate stays only in the "depends on"
+    // list — and it is not "Mockup": the reverse side of an existing link would be a cycle.
     const depends = screen.getByText("Зависит от").closest(".panel__deps")!;
     const picker = within(depends as HTMLElement).queryByRole("combobox");
-    // Кандидатов нет: единственная другая задача — «Макет», а он исключён.
+    // There are no candidates: the only other task is "Mockup", and it is excluded.
     expect(picker).toBeNull();
 
-    // Зато со стороны «Макета» связь добавить можно — на самого «Логотипа»
-    // она уже есть, значит список пуст и там. Проверяем добавление на третьей
-    // задаче не выйдет — её нет; вместо этого снимем и вернём связь.
+    // From "Mockup"'s side, though, a link can be added — to "Logo" itself it already exists, so the
+    // list is empty there too. Checking an addition on a third task will not work — there is none;
+    // instead we remove and restore a link.
     await userEvent.click(screen.getByRole("button", { name: /^Макет, / }));
     await userEvent.click(
       screen.getByRole("button", { name: "Убрать связь с «Логотип»" }),
@@ -99,13 +97,13 @@ describe("карточка: статус и связи", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /^Макет, / }));
     const depends = screen.getByText("Зависит от").closest(".panel__deps")!;
-    // Знак — тот же «!», что на стрелке ленты, и он называет нарушение словами.
+    // The sign is the same "!" as on the strip's arrow, and it names the violation in words.
     expect(
       within(depends as HTMLElement).getByLabelText("«Макет» начинается до конца «Логотип»"),
     ).toBeInTheDocument();
 
-    // Починка — тем же правилом, что предложение под лентой: последователь
-    // встаёт на следующий день после конца предшественника.
+    // The fix follows the same rule as the nudge under the strip: the successor lands on the day after
+    // the predecessor's end.
     await userEvent.click(
       within(depends as HTMLElement).getByRole("button", { name: /Подвинуть «Макет» на 2 дня/ }),
     );

@@ -4,17 +4,15 @@ import type { ReactNode } from "react";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Кнопка, которая перед необратимым действием разворачивает вопрос на своём
- * месте.
+ * A button that unfolds a question in its own place before an irreversible action.
  *
- * Окна здесь нет намеренно: окно прерывает работу ради решения, которое человек
- * уже принял, нажав кнопку, и приучает закрывать себя не читая. Подтверждение
- * на месте отвечает на другой вопрос — не «уверены ли вы», а «вот что сейчас
- * сломается», — и стоит ровно там, куда смотрят.
+ * There is deliberately no dialog here: a dialog interrupts work for a decision the person has
+ * already made by pressing the button, and teaches them to close it without reading. An inline
+ * confirmation answers a different question — not "are you sure" but "here is what is about to
+ * break" — and stands exactly where they are looking.
  *
- * Компонент один на все такие кнопки: правил тут три (предупредить словами,
- * дать отказ, не потерять фокус), и каждый экран, изобретающий их заново,
- * ошибается в одном.
+ * There is one component for all such buttons: there are three rules here (warn in words, give a
+ * way out, do not lose the focus), and every screen reinventing them gets one wrong.
  */
 export function ConfirmAction({
   label,
@@ -25,17 +23,17 @@ export function ConfirmAction({
   className,
   disabled = false,
 }: {
-  /** Подпись самой кнопки — до вопроса. */
+  /** The button's own caption — before the question. */
   label: string;
   /**
-   * Знак вместо подписи — для кнопки на строке таблицы, где на слово места
-   * нет. Подпись при этом никуда не девается: она становится именем кнопки, и
-   * с экрана читается по-прежнему словами, а не «крестик».
+   * A sign instead of a caption — for a button on a table row, where there is no room for a word.
+   * The caption goes nowhere at that: it becomes the button's name, and from the screen it is
+   * still read as words rather than as "a cross".
    */
   icon?: ReactNode;
-  /** Что именно сломается. Не «вы уверены?», а последствие. */
+  /** What exactly will break. Not "are you sure?" but the consequence. */
   warning: string;
-  /** Подпись подтверждения: она называет действие, а не отвечает «да». */
+  /** The confirmation's caption: it names the action rather than answering "yes". */
   confirm: string;
   onConfirm: () => void;
   className?: string;
@@ -45,23 +43,23 @@ export function ConfirmAction({
   const [confirming, setConfirming] = useState(false);
   const group = useRef<HTMLSpanElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  // Была ли выноска только что открыта: фокус возвращается на кнопку только
-  // после её сворачивания, а не при первой отрисовке.
+  // Whether the popover has just been opened: the focus returns to the button only after it folds
+  // back, not on the first render.
   const wasConfirming = useRef(false);
 
-  // Фокус переходит на саму выноску, а не на кнопку подтверждения: человек с
-  // клавиатуры нажимает Enter быстрее, чем читает, и подтверждение, поймавшее
-  // этот же Enter, не подтверждает ничего — оно возвращает прежнее поведение,
-  // добавив к нему лишнее нажатие. На кнопку отказа фокус тоже не ставится:
-  // выноска сама называет последствие, и голосом оно читается первым.
+  // The focus moves to the popover itself rather than to the confirm button: a person on the
+  // keyboard presses Enter faster than they read, and a confirmation that caught that same Enter
+  // confirms nothing — it brings back the previous behaviour with one extra press added. The focus
+  // is not put on the cancel button either: the popover names the consequence itself, and aloud it
+  // is read first.
   useEffect(() => {
     if (confirming) {
       group.current?.focus();
     } else if (wasConfirming.current) {
-      // Выноска свёрнута — а вместе с ней ушёл и узел, на котором стоял
-      // фокус. Без возврата человек с клавиатуры оказывался в начале
-      // документа и искал место заново после каждого «отмена». Кнопка при
-      // этом могла уйти вместе с удалённой строкой — тогда возвращать некуда.
+      // The popover is folded — and the node the focus stood on went with it. Without a return, a
+      // person on the keyboard ended up at the top of the document and had to find their place
+      // again after every "cancel". The button may have gone along with the deleted row at that —
+      // then there is nowhere to return to.
       trigger.current?.focus();
     }
     wasConfirming.current = confirming;
@@ -75,9 +73,9 @@ export function ConfirmAction({
           type="button"
           disabled={disabled}
           onClick={() => {
-            // Вопрос сворачивается сразу: ответ на него уже дан, а результат
-            // самого действия покажет экран — ошибкой рядом или исчезновением
-            // того, что удалили.
+            // The question folds at once: it has already been answered, and the action's own result
+            // will be shown by the screen — as an error next to it or as the disappearance of what
+            // was deleted.
             setConfirming(false);
             onConfirm();
           }}

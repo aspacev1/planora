@@ -8,13 +8,13 @@ import { server } from "./server";
 import { ORG, USER, renderApp } from "./utils";
 
 /**
- * Оснастка экрана проекта: одно состояние, одни ответы сервера, один способ
- * его нарисовать.
+ * The project screen's harness: one state, one set of server answers, one way to
+ * render it.
  *
- * Карточку задачи, перетаскивание и перестановку строк проверяют четыре разных
- * файла, и каждому нужен один и тот же проект с теми же датами. Скопированное
- * в четыре места состояние расходится на второй правке, и тесты начинают
- * проверять четыре разных проекта под одними названиями.
+ * The task card, dragging and row reordering are checked by four different files,
+ * and each of them needs the same project with the same dates. State copied into
+ * four places diverges on the second edit, and the tests start checking four
+ * different projects under the same names.
  */
 
 export const MEMBERS = [
@@ -31,9 +31,8 @@ export const STATE: ProjectState = {
   plan_approved_at: null,
   plan_version: 0,
   undoable: null,
-  // Календарный режим: заглушки существующих тестов живут настоящими датами.
-  // Относительные проекты собирают своё состояние поверх этого (см. тесты
-  // относительной шкалы).
+  // Calendar mode: the existing tests' fixtures live on real dates. Relative
+  // projects build their own state on top of this (see the relative-scale tests).
   schedule_mode: "calendar" as const,
   start_date: null,
 
@@ -70,10 +69,10 @@ export const STATE: ProjectState = {
   dependencies: [],
 };
 
-/** Тот же проект: обе категории на месте и в базовом состоянии. */
+/** The same project: both categories in place and in their base state. */
 export const TWO_CATEGORIES = STATE;
 
-/** Три задачи в одной категории — для перестановки строк. */
+/** Three tasks in one category — for row reordering. */
 export const THREE_TASKS: ProjectState = {
   ...STATE,
   tasks: [
@@ -98,10 +97,11 @@ export const THREE_TASKS: ProjectState = {
 };
 
 /**
- * Тот же проект с утверждённым планом.
+ * The same project with an approved plan.
  *
- * Базовый план совпадает с текущими датами: задача ещё никуда не уехала, и
- * любое отклонение в тесте — целиком заслуга самого теста, а не оснастки.
+ * The baseline plan coincides with the current dates: the task has not travelled
+ * anywhere yet, and any deviation in a test is entirely the test's own doing
+ * rather than the harness's.
  */
 export const APPROVED: ProjectState = {
   ...STATE,
@@ -117,7 +117,7 @@ export const APPROVED: ProjectState = {
   ],
 };
 
-/** Утверждённый план и задача, добавленная после утверждения. */
+/** An approved plan and a task added after the approval. */
 export const APPROVED_WITH_EXTRA: ProjectState = {
   ...APPROVED,
   tasks: [
@@ -136,7 +136,7 @@ export const APPROVED_WITH_EXTRA: ProjectState = {
   ],
 };
 
-/** Две задачи в одной категории — для сдвига категории целиком и для связей. */
+/** Two tasks in one category — for shifting a whole category and for links. */
 export const TWO_TASKS: ProjectState = {
   ...STATE,
   tasks: [
@@ -152,7 +152,7 @@ export const TWO_TASKS: ProjectState = {
   ],
 };
 
-/** Задача и веха: точка на шкале рисуется ромбом и граней не имеет. */
+/** A task and a milestone: a point on the scale is drawn as a diamond and has no edges. */
 export const WITH_MILESTONE: ProjectState = {
   ...STATE,
   tasks: [
@@ -172,7 +172,7 @@ export const WITH_MILESTONE: ProjectState = {
   ],
 };
 
-/** Цепочка из двух задач и одинокая третья: критический путь держат первые две. */
+/** A chain of two tasks and a lone third: the critical path is held by the first two. */
 export const WITH_CRITICAL_PATH: ProjectState = {
   ...STATE,
   tasks: [
@@ -199,7 +199,7 @@ export const WITH_CRITICAL_PATH: ProjectState = {
   dependencies: [{ from_task_id: "t1", to_task_id: "t2" }],
 };
 
-/** Две задачи со стрелкой между ними. */
+/** Two tasks with an arrow between them. */
 export const WITH_DEPENDENCY: ProjectState = {
   ...STATE,
   tasks: [
@@ -219,15 +219,16 @@ export const WITH_DEPENDENCY: ProjectState = {
 export type Sent = { op: Record<string, unknown>; reason?: string };
 
 /**
- * Принятая операция, отражённая в состоянии.
+ * An accepted operation, reflected in the state.
  *
- * Без этого сервер-заглушка отвечал бы «принято» и продолжал отдавать прежний
- * проект: перезапрос после успеха возвращал бы изменение назад, и тест на
- * второй щелчок по исполнителю проверял бы не то, что написано в его названии.
+ * Without this the stub server would answer "accepted" and go on handing out the
+ * previous project: a refetch after a success would bring the change back, and the
+ * test about a second click on an assignee would be checking something other than
+ * what its name says.
  *
- * Дата окончания здесь не пересчитывается намеренно — календаря у заглушки
- * нет. Это и хорошо: тест, ожидающий пересчитанный конец, обязан объявить его
- * сам, а не получить его от подделки под сервер.
+ * The end date is deliberately not recomputed here — the stub has no calendar. And
+ * that is a good thing: a test expecting a recomputed end must declare it itself
+ * rather than get it from a fake pretending to be the server.
  */
 function applied(state: ProjectState, op: Record<string, unknown>): ProjectState {
   const id = op.task_id as string;
@@ -239,11 +240,11 @@ function applied(state: ProjectState, op: Record<string, unknown>): ProjectState
 
   switch (op.type) {
     case "create_task": {
-      // Идентификатор назначает сервер — здесь тоже. Позицию клиент называет
-      // только при вставке посередине; тогда соседи с этого номера и ниже
-      // съезжают на единицу, как в `_make_room` на сервере. Без номера
-      // задача встаёт в конец своей категории; конец равен началу, потому что
-      // заводится она однодневной, а календаря у заглушки нет.
+      // The id is assigned by the server — here too. The client names a position
+      // only when inserting in the middle; then the neighbours from that number
+      // down move by one, as in `_make_room` on the server. Without a number the
+      // task goes to the end of its category; the end equals the start, because it
+      // is created as a one-day task and the stub has no calendar.
       const categoryId = op.category_id as string;
       const siblings = state.tasks.filter((task) => task.category_id === categoryId);
       const start = op.start_date as string;
@@ -292,8 +293,8 @@ function applied(state: ProjectState, op: Record<string, unknown>): ProjectState
         duration_days: op.duration_days as number,
       });
     case "set_milestone": {
-      // Та же сцепка, что на сервере: веха схлопывает длительность в день, а
-      // снятый признак её не трогает.
+      // The same coupling as on the server: a milestone collapses the duration into
+      // a day, while clearing the flag does not touch it.
       const milestone = op.milestone as boolean;
       const was = state.tasks.find((task) => task.id === id);
       return patch({ milestone, duration_days: milestone ? 1 : was?.duration_days });
@@ -308,8 +309,8 @@ function applied(state: ProjectState, op: Record<string, unknown>): ProjectState
         ),
       };
     case "set_progress": {
-      // Та же сцепка, что на сервере: сто процентов — «готово», спуск ниже
-      // ста из «готово» — «в работе».
+      // The same coupling as on the server: a hundred percent is "done", and going
+      // below a hundred from "done" is "in progress".
       const pct = op.progress_pct as number;
       const was = state.tasks.find((task) => task.id === id);
       return patch({
@@ -363,8 +364,8 @@ function applied(state: ProjectState, op: Record<string, unknown>): ProjectState
     case "delete_category":
       return deleteCategory(state, op.category_id as string);
     case "create_category":
-      // Тем же приёмом, что и `create_task`: сервер сам назначает
-      // идентификатор и позицию, здесь тоже.
+      // By the same device as `create_task`: the server assigns the id and the
+      // position itself, and so does this.
       return {
         ...state,
         categories: [
@@ -389,19 +390,18 @@ function applied(state: ProjectState, op: Record<string, unknown>): ProjectState
   }
 }
 
-// Состояние оснастки. Живёт в модуле, а не в замыкании renderProject, потому
-// что обработчики регистрируются раньше — в beforeEach, — и обязаны видеть то,
-// что тест выберет позже.
+// The harness's state. It lives in the module rather than in renderProject's
+// closure, because the handlers are registered earlier — in beforeEach — and must
+// see what the test will choose later.
 let state: ProjectState = STATE;
 let role = "owner";
 const sent: Sent[] = [];
 
 /**
- * Ответы сервера по умолчанию. Ставятся в `beforeEach`, а не внутри
- * `renderProject`, и это важно: msw отдаёт предпочтение обработчику,
- * зарегистрированному последним. Тест, объявляющий отказ через `server.use` в
- * своём теле, обязан перебить оснастку — а перебивает он только то, что
- * зарегистрировано до него.
+ * The server's default answers. Set in `beforeEach` rather than inside
+ * `renderProject`, and that matters: msw prefers the handler registered last. A
+ * test declaring a refusal through `server.use` in its own body must override the
+ * harness — and it only overrides what was registered before it.
  */
 export function projectFixtures() {
   state = STATE;
@@ -413,24 +413,25 @@ export function projectFixtures() {
     http.get("/api/org", () => HttpResponse.json({ ...ORG, role })),
     http.get("/api/org/members", () => HttpResponse.json(MEMBERS)),
     http.get("/api/projects/p1", () => HttpResponse.json(state)),
-    // Журнал карточки. Пустой по умолчанию: тест, которому история важна,
-    // объявляет её сам.
+    // The card's journal. Empty by default: a test that cares about the history
+    // declares it itself.
     http.get("/api/projects/p1/revisions", () => HttpResponse.json([])),
-    // Лента комментариев — по той же причине пустая: тест, которому разговор
-    // важен, объявляет его сам.
+    // The comment feed — empty for the same reason: a test that cares about the
+    // conversation declares it itself.
     http.get("/api/projects/p1/comments", () => HttpResponse.json([])),
-    // Летопись согласований — тоже пустая: её спрашивают и лента истории, и
-    // окно изменений, а нужна она там лишь для имён — согласовавшего и
-    // удалённых задач. Тест, которому версии важны, объявляет их сам.
+    // The approval chronicle — also empty: it is asked for both by the history feed
+    // and by the changes panel, and it is needed there only for names — the
+    // approver's and the deleted tasks'. A test that cares about versions declares
+    // them itself.
     http.get("/api/projects/p1/plan/approvals", () => HttpResponse.json([])),
     http.post("/api/projects/p1/mutations", async ({ request }) => {
       const body = (await request.json()) as Sent;
       sent.push(body);
       const seq = sent.length;
-      // Верх журнала двигается вместе с состоянием — как на сервере.
-      // Заглушка, забывшая про `undoable`, гасила бы кнопку отмены в тосте
-      // просто потому, что «отменять нечего», и тест на отмену проверял бы
-      // не то, что написано в его названии.
+      // The top of the journal moves along with the state — as on the server. A
+      // stub that forgot about `undoable` would disable the undo button in the toast
+      // simply because "there is nothing to undo", and the undo test would be
+      // checking something other than what its name says.
       state = { ...applied(state, body.op), undoable: { seq, op: body.op, batch_id: null } };
       return HttpResponse.json({ seq, op: body.op, inverse: {} }, { status: 201 });
     }),
@@ -438,11 +439,11 @@ export function projectFixtures() {
 }
 
 /**
- * Операции, ушедшие на сервер с начала теста.
+ * The operations that went to the server since the test began.
  *
- * Массив живой: он наполняется по ходу, и его не нужно перезапрашивать. Один и
- * тот же массив на весь тест — поэтому вызвать это можно и до отрисовки, как
- * оно и читается в тестах.
+ * The array is live: it fills up as things go, and there is no need to re-request
+ * it. One and the same array for the whole test — so this can be called before the
+ * render too, which is how it reads in the tests.
  */
 export function captureMutations(): Sent[] {
   return sent;
@@ -452,7 +453,7 @@ export function renderProject(
   next: ProjectState = STATE,
   options: {
     canWrite?: boolean;
-    /** Роль словами — там, где двух состояний «пишет / не пишет» мало: клиент не пишет, как и наблюдатель, но видит меньше него. */
+    /** The role in words — where two states, "writes / does not write", are not enough: a client does not write, like an observer, but sees less than they do. */
     role?: "owner" | "editor" | "viewer" | "client";
     locale?: Locale;
     route?: string;
@@ -460,8 +461,8 @@ export function renderProject(
 ) {
   const { canWrite = true, locale = "ru", route = "/projects/p1" } = options;
   state = next;
-  // Гость по спеку — это роль без права писать, а не человек без сессии:
-  // диаграмму он видит, трогать её не может.
+  // By the spec a guest is a role without write permission rather than a person
+  // without a session: they see the chart but cannot touch it.
   role = options.role ?? (canWrite ? "owner" : "viewer");
   return renderApp({ route, locale });
 }

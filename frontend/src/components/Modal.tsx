@@ -5,20 +5,20 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { useEscape } from "./useEscape";
 
 /**
- * Что в окне принимает фокус. Тот же список, что у первого поля при открытии:
- * им же замыкается Tab (см. `trapTab`).
+ * What in a dialog accepts the focus. The same list as for the first field on
+ * opening: Tab is also cycled through it (see `trapTab`).
  */
 const FOCUSABLE =
   'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
 /**
- * Tab не выходит из окна: с последнего поля — на первое, с первого назад — на
- * последнее.
+ * Tab does not leave the dialog: from the last field it goes to the first, from
+ * the first backwards to the last.
  *
- * `aria-modal` обещает читателю с экрана, что страницы за окном сейчас нет, —
- * и клавиатура обязана держать то же обещание. Без замыкания Tab с кнопки
- * «Создать» уходил в боковую колонку под подложкой, и человек с клавиатуры
- * дальше нажимал ссылки, которых не видел.
+ * `aria-modal` promises a screen reader that the page behind the dialog is not
+ * there right now — and the keyboard must keep the same promise. Without the Tab
+ * cycle it went from the "Create" button into the sidebar under the backdrop, and
+ * a person on the keyboard went on pressing links they could not see.
  */
 function trapTab(event: KeyboardEvent<HTMLElement>, dialog: HTMLElement | null) {
   if (event.key !== "Tab" || dialog === null) return;
@@ -40,64 +40,65 @@ type ModalProps = {
   title: string;
   onClose: () => void;
   /**
-   * В окне есть введённое, но ещё не сохранённое.
+   * The dialog has something typed in but not yet saved.
    *
-   * Считает потребитель, а не окно: что именно человек успел ввести, знает
-   * только форма, и «пустая» форма у каждой своя — где-то это пустое поле, а
-   * где-то выбранная не по умолчанию роль.
+   * Computed by the consumer rather than by the dialog: only the form knows what
+   * exactly the person managed to type, and every form's "empty" is its own —
+   * somewhere it is an empty field, somewhere a role chosen away from the default.
    */
   dirty?: boolean;
   /**
-   * Широкое окно — под содержимое, которое не укладывается в колонку формы.
+   * A wide dialog — for content that does not fit into a form's column.
    *
-   * Признак, а не произвольная ширина: окон в приложении немного, и второй
-   * размер должен остаться вторым, а не превратиться в поле, которое каждый
-   * потребитель настраивает на свой вкус.
+   * A flag rather than an arbitrary width: there are few dialogs in the
+   * application, and a second size must stay a second size rather than turn into a
+   * field every consumer tunes to its own taste.
    */
   wide?: boolean;
   children: ReactNode;
 };
 
 /**
- * Окно, которое ведёт себя как окно.
+ * A dialog that behaves like a dialog.
  *
- * Закрывается по Esc и по клику мимо, ставит фокус на первое поле при
- * открытии и возвращает его туда, откуда его открыли. Всё это — не украшение:
- * без возврата фокуса человек с клавиатуры после закрытия оказывается в
- * начале страницы, а без Esc у него вовсе нет способа уйти, не найдя мышью
- * крестик.
+ * It closes on Esc and on a click outside, puts the focus on the first field when
+ * opening and returns it where it was opened from. None of this is decoration:
+ * without the focus return a person on the keyboard ends up at the top of the page
+ * after closing, and without Esc they have no way at all to leave without finding
+ * the cross with a mouse.
  *
- * Оба этих жеста — короткие и промахиваемые: до кнопки «Отмена» надо
- * дотянуться, а мимо окна попадаешь, промахнувшись по селекту на два десятка
- * пикселей. Пока вводить нечего, цена промаха нулевая, и окно закрывается
- * сразу. Как только в форме появилось введённое (`dirty`), оба жеста сперва
- * спрашивают — иначе форма задачи с её дюжиной полей теряется от одного
- * случайного щелчка. Кнопка «Отмена» самой формы при этом закрывает окно без
- * вопроса: до неё целятся, а по фону промахиваются.
+ * Both of these gestures are short and easy to make by accident: the "Cancel"
+ * button has to be reached for, while you hit outside the dialog by missing a
+ * select by a couple of dozen pixels. While there is nothing typed in, the price of
+ * a miss is zero, and the dialog closes at once. As soon as something is typed into
+ * the form (`dirty`), both gestures ask first — otherwise the task form with its
+ * dozen fields is lost to a single accidental click. The form's own "Cancel" button
+ * closes the dialog without a question at that: it is aimed at, while the backdrop
+ * is missed.
  *
- * Компонент один на всё приложение сознательно: следующий экран, которому
- * понадобится окно, не должен изобретать эти четыре правила заново и
- * ошибиться в одном из них.
+ * One component for the whole application, deliberately: the next screen that needs
+ * a dialog must not reinvent these four rules and get one of them wrong.
  */
 export function Modal({ title, onClose, dirty = false, wide = false, children }: ModalProps) {
   const { t } = useLocale();
   const titleId = useId();
   const dialog = useRef<HTMLDivElement>(null);
-  // Захватывается при монтировании, а не при закрытии: к моменту закрытия
-  // фокус давно внутри окна, и спрашивать его уже поздно.
+  // Captured on mount rather than on closing: by the time of closing the focus has
+  // long been inside the dialog, and it is too late to ask for it.
   const opener = useRef<Element | null>(null);
 
   const [asking, setAsking] = useState(false);
-  // Поле, на котором человека прервал вопрос: туда же его и возвращают, если
-  // он ответил «продолжить». Иначе отказ от закрытия стоил бы места в форме.
+  // The field the person was interrupted at by the question: that is where they are
+  // returned if they answered "continue". Otherwise refusing to close would cost
+  // your place in the form.
   const interrupted = useRef<Element | null>(null);
   const keepEditing = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     opener.current = document.activeElement;
 
-    // Первое поле, а не само окно: человек открыл форму, чтобы её заполнить,
-    // и лишнее нажатие Tab здесь — это лишний шаг в каждом создании подряд.
+    // The first field rather than the dialog itself: the person opened the form to
+    // fill it in, and an extra Tab press here is an extra step in every creation in a row.
     const focusable = dialog.current?.querySelector<HTMLElement>(FOCUSABLE);
     focusable?.focus();
 
@@ -107,15 +108,16 @@ export function Modal({ title, onClose, dirty = false, wide = false, children }:
     };
   }, []);
 
-  /** Промахиваемый жест: без введённого закрывает сразу, с введённым — спрашивает. */
+  /** An easily-missed gesture: with nothing typed it closes at once, with something typed it asks. */
   const close = useCallback(() => {
     if (!dirty) {
       onClose();
       return;
     }
-    // Повторный промах, пока вопрос уже задан, ничего не меняет — и не должен
-    // переписывать место, куда возвращать фокус: иначе «продолжить» вернуло бы
-    // человека на собственную кнопку, а не в поле, где его прервали.
+    // A repeat miss while the question is already asked changes nothing — and must
+    // not rewrite the place to return the focus to: otherwise "continue" would
+    // return the person to their own button rather than to the field they were
+    // interrupted at.
     if (asking) return;
     interrupted.current = document.activeElement;
     setAsking(true);
@@ -127,19 +129,19 @@ export function Modal({ title, onClose, dirty = false, wide = false, children }:
     if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
   }, []);
 
-  // Esc через общую стопку слоёв, а не своим слушателем на документе: окно
-  // почти всегда всплывает поверх чего-то — карточки задачи, меню, другого
-  // окна, — и собственный слушатель у каждого закрывал бы одним нажатием всех
-  // сразу. Слушатель всё так же на документе, а не на самом окне: Esc обязан
-  // работать и тогда, когда фокус ушёл из окна, — иначе правило действует не
-  // всегда, а это хуже, чем не действовать вовсе.
+  // Esc through the shared layer stack rather than through a listener of its own on
+  // the document: a dialog almost always pops up on top of something — a task card,
+  // a menu, another dialog — and a listener of its own on each would close them all
+  // with one press. The listener is still on the document rather than on the dialog
+  // itself: Esc must work when the focus has left the dialog too — otherwise the
+  // rule applies not always, and that is worse than not applying at all.
   //
-  // Esc поверх самого вопроса означает «продолжить», а не «закрыть»: клавиша
-  // отменяет последнее действие, а не доводит его до конца. Иначе два Esc
-  // подряд — привычный жест «закрыть всё» — вели бы ровно к той потере, ради
-  // которой вопрос и задан. Слой при этом один: вопрос живёт внутри окна, и
-  // отдавать ему собственное место в стопке значило бы требовать третьего Esc
-  // там, где человек ждёт двух.
+  // Esc on top of the question itself means "continue", not "close": the key cancels
+  // the last action rather than carrying it through. Otherwise two Escs in a row —
+  // the habitual "close everything" gesture — would lead to exactly the loss the
+  // question is asked to prevent. There is one layer at that: the question lives
+  // inside the dialog, and giving it a place of its own in the stack would mean
+  // demanding a third Esc where the person expects two.
   useEscape(() => {
     if (asking) {
       dismiss();
@@ -148,8 +150,8 @@ export function Modal({ title, onClose, dirty = false, wide = false, children }:
     close();
   });
 
-  // Фокус переезжает на «продолжить»: вопрос задан клавишей, и отвечать на
-  // него человек будет тоже клавишей. Первой под рукой стоит безопасная.
+  // The focus moves to "continue": the question was asked with a key, and the person
+  // will answer it with a key too. The safe one stands first at hand.
   useEffect(() => {
     if (asking) keepEditing.current?.focus();
   }, [asking]);
@@ -158,8 +160,8 @@ export function Modal({ title, onClose, dirty = false, wide = false, children }:
     <div
       className="modal__backdrop"
       data-testid="modal-backdrop"
-      // Клик именно по подложке, а не по всплывшему из окна: иначе окно
-      // закрывалось бы от клика по любому своему полю.
+      // A click on the backdrop specifically, not on something bubbled up from the
+      // dialog: otherwise the dialog would close on a click on any of its fields.
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) close();
       }}
@@ -177,9 +179,9 @@ export function Modal({ title, onClose, dirty = false, wide = false, children }:
         </h2>
         {children}
 
-        {/* Вопрос внутри того же окна, а не вторым окном поверх первого: окна
-            поверх окон закрываются в два приёма и путают, какое из них Esc
-            имеет в виду. */}
+        {/* The question is inside the same dialog rather than a second dialog on top
+            of the first: dialogs on top of dialogs close in two goes and confuse
+            which of them Esc means. */}
         {asking && (
           <div className="modal__confirm" role="alert">
             <p>{t("modal.discard.question")}</p>

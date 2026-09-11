@@ -9,11 +9,11 @@ import { forgetInvite, rememberInvite, withInvite } from "../auth/invite";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Экран приглашения: то, что видит человек, открывший ссылку.
+ * The invitation screen: what a person opening the link sees.
  *
- * Живёт снаружи RequireAuth: приглашённый по определению ещё не в
- * организации, а часто и не в системе вовсе. Требовать входа прежде, чем он
- * узнает, куда его зовут, — это просить подписать не глядя.
+ * It lives outside RequireAuth: an invitee is by definition not in the organization yet, and often
+ * not in the system at all. Demanding a sign-in before they learn what they are being invited to is
+ * asking them to sign without looking.
  */
 export function Invite() {
   const { t } = useLocale();
@@ -28,13 +28,13 @@ export function Invite() {
     retry: false,
   });
 
-  // Живое приглашение запоминается, как только стало понятно, что оно живое:
-  // дальше человека может унести на вход, оттуда — в восстановление пароля, а
-  // оттуда — в письмо, после которого строка запроса уже ничего не помнит.
+  // A live invitation is remembered as soon as it becomes clear that it is live: after that the
+  // person may be carried off to the sign-in, from there to password recovery, and from there into
+  // an email, after which the query string no longer remembers anything.
   useEffect(() => {
     if (preview.isSuccess) rememberInvite(token);
-    // Мёртвую ссылку помнить незачем: она уже никуда не приведёт, а всплыть
-    // посреди следующего входа успела бы.
+    // There is no point remembering a dead link: it will lead nowhere any more, while it would
+    // manage to surface in the middle of the next sign-in.
     if (preview.isError) forgetInvite();
   }, [preview.isSuccess, preview.isError, token]);
 
@@ -42,10 +42,10 @@ export function Invite() {
     mutationFn: () => acceptInvitation(token),
     onSuccess: () => {
       forgetInvite();
-      // Сервер переключил сессию на новую организацию — всё, что кэш помнит о
-      // прежней, устарело в тот же момент. Инвалидация, а не clear(): профиль
-      // вошедшего никуда не делся, и выбрасывать его значило бы отправить
-      // приложение в «проверяю сессию» сразу после успешного действия.
+      // The server switched the session to the new organization — everything the cache remembers
+      // about the former one went stale at that same moment. Invalidation rather than clear(): the
+      // signed-in person's profile has gone nowhere, and throwing it out would mean sending the
+      // application into "checking the session" right after a successful action.
       void queryClient.invalidateQueries();
       navigate("/projects");
     },
@@ -60,8 +60,8 @@ export function Invite() {
   }
 
   if (preview.error) {
-    // Просрочено, отозвано, принято — три разных сообщения, а не одно
-    // «ссылка недействительна»: по каждому человек делает разное.
+    // Expired, revoked, accepted — three different messages rather than a single "the link is
+    // invalid": for each of them a person does something different.
     return (
       <main className="screen screen--narrow">
         <h1>{t("invite.accept.title")}</h1>
@@ -76,9 +76,9 @@ export function Invite() {
   }
 
   const invitation = preview.data;
-  // Адрес привязывает приглашение: вошедшему под другим аккаунтом система
-  // прямо говорит, кому оно адресовано, и предлагает выйти — вместо отказа,
-  // из которого не понять, что делать дальше.
+  // The address ties the invitation down: to someone signed in under a different account the system
+  // says outright who it is addressed to and offers to sign out — instead of a refusal from which
+  // it is unclear what to do next.
   const wrongAccount =
     user !== null && invitation.email !== null && invitation.email !== user.email.toLowerCase();
 

@@ -5,15 +5,16 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Один селектор живёт в одном файле. Тема (northstar-theme.css) перекрывает
- * только styles.css: она собирается сразу за ним, а стили компонентов
- * (gantt.css, panel.css, …) — позже, вместе со своими модулями. Стоит теме
- * объявить селектор, который уже есть в файле компонента, и при равном весе
- * побеждает компонент, а правило темы молча не действует — так карточка
- * задачи однажды оказалась смесью двух замыслов, ни один из которых не был
- * виден целиком. Тест ловит такой дубль до того, как он попадёт в сборку.
+ * One selector lives in one file. The theme (northstar-theme.css) overrides
+ * only styles.css: it is assembled right after it, while the component styles
+ * (gantt.css, panel.css, ...) come later, together with their own modules.
+ * Should the theme declare a selector that already exists in a component's
+ * file, at equal weight the component wins and the theme's rule silently does
+ * nothing — that is how the task card once turned out to be a mixture of two
+ * intentions, neither of which was visible in full. The test catches such a
+ * duplicate before it reaches a build.
  *
- * `:root` не в счёт: токены каждый файл вправе объявлять свои.
+ * `:root` does not count: every file is entitled to declare tokens of its own.
  */
 
 const SRC = join(process.cwd(), "src");
@@ -28,7 +29,7 @@ function stylesheets(dir: string): string[] {
   });
 }
 
-/** Селекторы файла с учётом медиа-обёртки: правило внутри @media — другой ключ. */
+/** A file's selectors, accounting for a media wrapper: a rule inside @media is a different key. */
 function selectors(source: string): Set<string> {
   const text = source.replace(/\/\*[\s\S]*?\*\//g, "");
   const found = new Set<string>();

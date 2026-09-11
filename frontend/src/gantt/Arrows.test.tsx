@@ -6,15 +6,15 @@ import { WITH_DEPENDENCY, projectFixtures, renderProject } from "../test/project
 
 beforeEach(projectFixtures);
 
-/** Левый край и ширина полоски — так, как их поставила шкала. */
+/** A bar's left edge and width — as the scale set them. */
 function barBox(name: string): { left: number; width: number } {
-  // Имя полоски начинается с имени задачи и продолжается датами — этим она
-  // отличается от кнопок карточки вроде «Убрать связь с „Макет“».
+  // A bar's name starts with the task's name and continues with the dates — that is what tells it
+  // from the card's buttons such as "Remove the link with “Mockup”".
   const bar = screen.getByRole("button", { name: new RegExp(`^${name}, `) });
   return {
     left: Number.parseFloat(bar.style.left),
-    // Ширина живёт свойством, а не `width`: полоску растягивают за грань, и
-    // к её ширине по датам прибавляется сдвиг пальца (см. gantt.css).
+    // The width lives as a property rather than as `width`: a bar is stretched by its edge, and the
+    // finger's offset is added to its width by dates (see gantt.css).
     width: Number.parseFloat(bar.style.getPropertyValue("--bar-w")),
   };
 }
@@ -22,9 +22,9 @@ function barBox(name: string): { left: number; width: number } {
 function pointsOf(container: HTMLElement): number[][] {
   const line = container.querySelector("svg.arrows .arrows__line");
   if (!line) throw new Error("стрелки нет");
-  // Из пути берутся все пары координат подряд, без разбора команд: тесту
-  // важны концы линии, а начало пути — всегда первая пара, конец — последняя,
-  // какие бы дуги ни стояли между ними.
+  // All the coordinate pairs are taken from the path in turn, without parsing the commands: the test
+  // cares about the line's ends, and a path's start is always the first pair and its end the last,
+  // whatever arcs stand between them.
   const numbers = line.getAttribute("d")!.match(/-?[\d.]+/g)!.map(Number);
   const points: number[][] = [];
   for (let i = 0; i < numbers.length; i += 2) points.push([numbers[i], numbers[i + 1]]);
@@ -40,12 +40,12 @@ describe("стрелки связей", () => {
   });
 
   it("держит стрелку на концах полосок, когда открывается карточка", async () => {
-    // План требовал здесь другого: чтобы точки после открытия карточки
-    // изменились. Изменяться им нечего — стрелки живут в системе координат
-    // ленты, а не окна, и открытие карточки сужает окно, но не двигает
-    // полоски. Проверять надо не движение точек, а то, ради чего оно затевалось
-    // бы: что стрелка по-прежнему упирается в концы полосок. Этот тест поймает
-    // и уехавшую стрелку, и стрелку, забывшую пересчитаться.
+    // The plan demanded something else here: that the points change after the card is opened. There
+    // is nothing for them to change by — the arrows live in the strip's coordinate system rather than
+    // the window's, and opening the card narrows the window but does not move the bars. What has to
+    // be checked is not the points moving but what that would be done for: that the arrow still rests
+    // on the bars' ends. This test will catch both an arrow that drifted and an arrow that forgot to
+    // recompute itself.
     const { container } = renderProject(WITH_DEPENDENCY);
     await screen.findByRole("button", { name: /Логотип/ });
 
@@ -57,8 +57,8 @@ describe("стрелки связей", () => {
     const points = pointsOf(container);
 
     expect(points[0][0]).toBe(from.left + from.width);
-    // Ломаная кончается на размер наконечника раньше полоски: остриё
-    // треугольника доводит стрелку ровно до её левого края.
+    // The polyline ends short of the bar by the arrowhead's size: the triangle's tip brings the arrow
+    // exactly to its left edge.
     expect(points.at(-1)![0]).toBe(to.left - 4);
     expect(container.querySelector("svg.arrows .arrows__head")!.getAttribute("d")).toContain(
       `L${to.left} `,
@@ -66,8 +66,8 @@ describe("стрелки связей", () => {
   });
 
   it("подсвечивает нарушенную связь, когда приёмник начат до готовности источника", async () => {
-    // Конец отрезка включительный: старт в последний день источника — уже
-    // нахлёст, и такую стрелку лента красит цветом тревоги.
+    // The stretch's end is inclusive: a start on the source's last day is already an overlap, and the
+    // strip paints such an arrow in the alarm colour.
     const { container } = renderProject({
       ...WITH_DEPENDENCY,
       tasks: [
@@ -88,9 +88,8 @@ describe("стрелки связей", () => {
   });
 
   it("не рисует стрелку в задачу, которой нет в проекте", async () => {
-    // Связь переживает задачу ровно на один ответ сервера: её удалили в
-    // соседней вкладке. Рисовать стрелку в пустоту нельзя — она уходит в
-    // NaN и уносит с собой весь слой.
+    // A link outlives a task by exactly one server answer: it was deleted in another tab. An arrow
+    // must not be drawn into nothing — it goes to NaN and takes the whole layer with it.
     const { container } = renderProject({
       ...WITH_DEPENDENCY,
       dependencies: [{ from_task_id: "t1", to_task_id: "t404" }],

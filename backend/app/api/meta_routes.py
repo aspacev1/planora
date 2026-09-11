@@ -8,24 +8,24 @@ router = APIRouter(prefix="/api", tags=["meta"])
 
 
 class InstallConfig(BaseModel):
-    """То, что интерфейсу нужно знать об установке до всякого входа.
+    """What the interface needs to know about the installation before any sign-in.
 
-    Только рубильники, не значения: адреса, ключи и секреты сюда не попадают
-    и попасть не могут — маршрут открыт всякому, кто открыл страницу.
+    Switches only, no values: addresses, keys and secrets neither reach this
+    route nor can they — it is open to anyone who opened the page.
     """
 
-    #: Показывать ли кнопку «Отправить письмо». При MAIL_TRANSPORT=none её нет
-    #: вовсе, остаётся только копирование ссылки — установка без почтового
-    #: сервера должна оставаться полноценной.
+    #: Whether to show the "Send email" button. With MAIL_TRANSPORT=none there
+    #: is no such button at all and only copying the link remains — an
+    #: installation without a mail server must stay fully usable.
     mail_enabled: bool
-    #: `open` / `invite_only` / `closed`: рисовать ли форму регистрации.
+    #: `open` / `invite_only` / `closed`: whether to draw the registration form.
     signup_mode: str
     supported_locales: list[str]
     default_locale: str
     public_sharing_enabled: bool
-    #: Есть ли на установке живая лента (WebSocket). На serverless её нет, и
-    #: клиенту не за чем тратить попытки подключения и пугать полоской «нет
-    #: связи» там, где связи не бывает.
+    #: Whether the installation has a live feed (WebSocket). Serverless has
+    #: none, and there is no reason for the client to spend connection attempts
+    #: and scare people with a "no connection" bar where no connection exists.
     live_enabled: bool
 
 

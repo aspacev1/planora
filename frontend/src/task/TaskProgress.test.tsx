@@ -8,7 +8,7 @@ import { server } from "../test/server";
 
 beforeEach(projectFixtures);
 
-/** Открыть карточку щелчком по полоске. */
+/** Open the card with a click on the bar. */
 async function openPanel() {
   await userEvent.click(await screen.findByRole("button", { name: /Логотип/ }));
 }
@@ -19,7 +19,7 @@ describe("быстрый прогресс в карточке", () => {
     renderProject();
     await openPanel();
 
-    // Пять рабочих дней — дневная норма 20%: 40 → 60.
+    // Five working days — a daily quota of 20%: 40 → 60.
     await userEvent.click(screen.getByRole("button", { name: "Записать прогресс · +20%" }));
     await waitFor(() =>
       expect(sent).toEqual([
@@ -27,8 +27,7 @@ describe("быстрый прогресс в карточке", () => {
       ]),
     );
 
-    // Погасшая кнопка защищает от двойного тапа: второй «день» за один заход
-    // не записывается.
+    // The disabled button guards against a double tap: a second "day" is not recorded in one visit.
     expect(screen.getByRole("button", { name: "День отмечен" })).toBeDisabled();
   });
 
@@ -43,8 +42,8 @@ describe("быстрый прогресс в карточке", () => {
     await openPanel();
     await userEvent.click(screen.getByRole("button", { name: "Записать прогресс · +20%" }));
 
-    // Прогресс не записан — значит день не отмечен: главная дневная кнопка не
-    // имеет права остаться погасшей до конца захода.
+    // The progress was not written — so the day is not marked: the main daily button has no right to
+    // stay dark until the end of the visit.
     const day = await screen.findByRole("button", { name: "Записать прогресс · +20%" });
     await waitFor(() => expect(day).toBeEnabled());
   });
@@ -56,8 +55,8 @@ describe("быстрый прогресс в карточке", () => {
 
     await userEvent.clear(screen.getByLabelText(/выполнено/i));
     await userEvent.type(screen.getByLabelText(/выполнено/i), "75");
-    // Число уходит по уходу из поля, а не по каждой клавише: иначе «75»
-    // оставляло бы в истории задачи две записи — про 7 и про 75.
+    // The number leaves on blur rather than on every key: otherwise "75" would leave two entries in the
+    // task's history — about 7 and about 75.
     expect(sent).toHaveLength(0);
     await userEvent.tab();
 

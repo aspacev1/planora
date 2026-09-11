@@ -1,8 +1,9 @@
-"""Комментарии к проекту и к отдельной задаче.
+"""Comments on a project and on an individual task.
 
-Комментарий не мутация: он ничего не меняет в плане, не имеет обратной
-операции и в журнал ревизий не попадает. Поэтому он живёт своим модулем, а не
-очередной веткой в реестре операций, где обязателен `inverse`.
+A comment is not a mutation: it changes nothing in the plan, has no inverse
+operation and does not land in the revision journal. That is why it lives in a
+module of its own rather than as yet another branch in the operation registry,
+where an `inverse` is mandatory.
 """
 
 import uuid
@@ -14,16 +15,16 @@ from sqlalchemy.orm import Session as DbSession
 from app.config import get_settings
 from app.models import Comment, Project, Task, User
 
-# Имя гостя — подпись под репликой, а не текст: длинное имя ломает вёрстку
-# ленты, а не несёт смысла. Совпадает с длиной колонки.
+# A guest's name is a signature under a remark, not text: a long name breaks the
+# feed's layout without carrying meaning. It matches the column's length.
 MAX_GUEST_NAME_LEN = 80
 
 
 class CommentRejected(Exception):
-    """Отказ принять комментарий.
+    """A refusal to accept a comment.
 
-    Как и у мутаций, наружу выходит машинный код, а не проза: словарей
-    сообщений сервер не держит, их составляет клиент.
+    As with mutations, what goes outward is a machine code rather than prose:
+    the server keeps no message dictionaries, the client composes them.
     """
 
     def __init__(self, code: str, message: str):
@@ -51,9 +52,9 @@ def _resolve_task(db: DbSession, project: Project, task_id: uuid.UUID | None) ->
     if task_id is None:
         return None
     task = db.get(Task, task_id)
-    # Задача чужого проекта неотличима от несуществующей — тем же принципом,
-    # что и в маршрутах: иначе комментарий становится способом проверять,
-    # существует ли задача в чужой организации.
+    # A task in someone else's project is indistinguishable from a nonexistent
+    # one — by the same principle as in the routes: otherwise a comment becomes
+    # a way of checking whether a task exists in another organization.
     if task is None or task.project_id != project.id:
         raise CommentRejected("task_not_found", "задача не найдена в этом проекте")
     return task.id
@@ -69,15 +70,15 @@ def add_comment(
     guest_name: str | None = None,
     internal: bool = False,
 ) -> Comment:
-    """Добавляет реплику от участника или от гостя.
+    """Adds a remark from a member or from a guest.
 
-    Ровно один автор: участник подписан аккаунтом, гость — именем, которое он
-    ввёл. Оба сразу или ни одного — ошибка вызывающего, а не входных данных,
-    поэтому здесь она поднимается как ValueError, а не как отказ с кодом.
+    Exactly one author: a member is signed by their account, a guest by the name
+    they entered. Both at once or neither is the caller's error rather than bad
+    input, so it is raised here as a ValueError rather than as a coded refusal.
 
-    Внутренняя реплика гостю недоступна в обе стороны: он её не видит и не
-    может написать. Гость с internal — ошибка вызывающего кода: публичный
-    маршрут признака не принимает вовсе.
+    An internal remark is unavailable to a guest in both directions: they
+    neither see it nor can write one. A guest with internal is an error in the
+    calling code: the public route does not accept the flag at all.
     """
     if (author is None) == (guest_name is None):
         raise ValueError("у комментария должен быть ровно один автор: участник или гость")
@@ -97,9 +98,9 @@ def add_comment(
     return comment
 
 
-#: Сколько реплик отдаётся, если вызывающий не сказал иначе, и больше чего
-#: не отдаётся никогда. Потолок — не украшение: лента с годами переписки
-#: иначе приезжает целиком на каждое открытие карточки.
+#: How many remarks are returned when the caller says nothing else, and what is
+#: never exceeded. The ceiling is not decoration: otherwise a feed with years of
+#: conversation arrives in full every time a card is opened.
 DEFAULT_COMMENTS_LIMIT = 100
 MAX_COMMENTS_LIMIT = 200
 
@@ -113,20 +114,21 @@ def list_comments(
     limit: int = DEFAULT_COMMENTS_LIMIT,
     before: uuid.UUID | None = None,
 ) -> Sequence[Comment]:
-    """Лента проекта, при желании — одной задачи.
+    """A project's feed, optionally that of a single task.
 
-    Старые сверху: разговор читается сверху вниз, в отличие от журнала
-    ревизий, где нужна последняя запись. Отдаётся хвост разговора — последние
-    `limit` реплик до курсора `before`; «показать раньше» листает назад,
-    передавая id старейшей показанной реплики.
+    Oldest first: a conversation is read top to bottom, unlike the revision
+    journal, where the latest entry is what is wanted. What is returned is the
+    tail of the conversation — the last `limit` remarks before the `before`
+    cursor; "show earlier" pages backwards by passing the id of the oldest
+    remark shown.
 
-    Курсор — пара (created_at, id), а не одна метка времени: две реплики
-    одной транзакции по времени неразличимы, и страница по голому времени
-    то теряла бы, то дублировала одну из них.
+    The cursor is a (created_at, id) pair rather than a single timestamp: two
+    remarks from one transaction are indistinguishable by time, and a page based
+    on bare time would sometimes lose and sometimes duplicate one of them.
 
-    include_internal=False — лента глазами гостя публичной ссылки: реплики
-    «в сторону» в неё не попадают. Фильтр здесь, а не в маршруте: маршрутов,
-    отдающих ленту, два, и расходиться им нельзя.
+    include_internal=False is the feed through the eyes of a public-link guest:
+    "aside" remarks do not reach it. The filter lives here rather than in the
+    route: there are two routes serving the feed, and they must not diverge.
     """
     query = select(Comment).where(Comment.project_id == project.id)
     if task_id is not None:
@@ -152,21 +154,22 @@ def list_comments(
 def comment_counts(
     db: DbSession, project: Project, *, include_internal: bool = True
 ) -> dict[uuid.UUID, int]:
-    """Сколько реплик у каждой задачи проекта.
+    """How many remarks each task of the project has.
 
-    Счётчик стоит на каждой строке ленты, поэтому считается одним запросом на
-    проект, а не запросом на задачу: на сотне задач второе означало бы сотню
-    походов в базу ради одного экрана. Ленту для этого не годится взять
-    целиком — она отдаётся хвостом в сто реплик (см. list_comments), и счёт по
-    ней врал бы ровно на тех проектах, где переписки много.
+    The counter sits on every row of the chart, so it is computed with one query
+    per project rather than a query per task: with a hundred tasks the latter
+    would mean a hundred trips to the database for one screen. Taking the whole
+    feed for this will not do — it is returned as a tail of a hundred remarks
+    (see list_comments), and a count based on it would lie precisely on those
+    projects where there is a lot of conversation.
 
-    Отдаются только задачи, у которых реплики есть: ноль — это отсутствие
-    ключа. Реплики к проекту целиком (`task_id is NULL`) не считаются вовсе —
-    они не принадлежат ни одной строке.
+    Only tasks that have remarks are returned: zero is the absence of a key.
+    Remarks on the project as a whole (`task_id is NULL`) are not counted at all
+    — they belong to no row.
 
-    `include_internal=False` — счёт глазами гостя публичной ссылки: реплики
-    «в сторону» он не видит, и число рядом с задачей не должно проговариваться
-    о том, что команда что-то обсуждала.
+    `include_internal=False` is the count through the eyes of a public-link
+    guest: they do not see "aside" remarks, and the number next to a task must
+    not let slip that the team was discussing something.
     """
     query = (
         select(Comment.task_id, func.count())
@@ -179,7 +182,7 @@ def comment_counts(
 
 
 def author_names(db: DbSession, comments: Sequence[Comment]) -> dict[uuid.UUID, str]:
-    """Имена авторов одним запросом, а не по запросу на реплику."""
+    """The authors' names in one query, rather than a query per remark."""
     ids = {c.author_user_id for c in comments if c.author_user_id is not None}
     if not ids:
         return {}

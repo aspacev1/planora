@@ -37,8 +37,8 @@ def project_id(authed):
 
 
 def test_slug_is_normalized_by_the_server_not_by_the_caller(authed, project_id):
-    """Транслитерацию повторять в браузере нельзя: расхождение даст ссылку,
-    которая не открывается."""
+    """Transliteration must not be repeated in the browser: a divergence would give
+    a link that does not open."""
     response = authed.patch(f"/api/projects/{project_id}", json={"slug": "Редизайн 2026"})
 
     assert response.status_code == 200
@@ -46,8 +46,8 @@ def test_slug_is_normalized_by_the_server_not_by_the_caller(authed, project_id):
 
 
 def test_renaming_the_slug_moves_the_published_address(authed, project_id):
-    """Адрес собран из слагов, поэтому переименование переносит и его. Токен
-    при этом остаётся прежним: ссылку не отзывали, её перевесили."""
+    """The address is assembled from the slugs, so renaming moves it too. The token
+    stays the same meanwhile: the link was not revoked, it was rehung."""
     before = authed.post(f"/api/projects/{project_id}/share", json={}).json()["url"]
 
     authed.patch(f"/api/projects/{project_id}", json={"slug": "redesign-2027"})
@@ -72,7 +72,7 @@ def test_a_taken_slug_is_refused_and_a_free_one_is_suggested(authed, project_id)
 
 
 def test_its_own_slug_is_not_taken_by_itself(authed, project_id):
-    """Иначе форма настроек ругается на слаг, который уже стоит в поле."""
+    """Otherwise the settings form complains about a slug that is already in the field."""
     current = authed.get(f"/api/projects/{project_id}").json()["slug"]
 
     assert (
@@ -82,17 +82,17 @@ def test_its_own_slug_is_not_taken_by_itself(authed, project_id):
 
 
 def test_a_slug_that_normalizes_to_nothing_is_refused(authed, project_id):
-    """«...» и одни пробелы дают пустой слаг, а пустой адрес не открывается."""
+    """"..." and nothing but spaces give an empty slug, and an empty address does not open."""
     response = authed.patch(f"/api/projects/{project_id}", json={"slug": "..."})
 
-    # Пустой слаг до базы не доходит: нормализация подставляет запасное слово,
-    # и адрес остаётся открываемым, а не превращается в «/p/acme/».
+    # An empty slug never reaches the database: normalization substitutes a fallback
+    # word, and the address stays openable rather than turning into "/p/acme/".
     assert response.status_code == 200
     assert response.json()["slug"] == "project"
 
 
 def test_a_slug_taken_in_another_organization_is_free_here(authed, project_id, db):
-    """Слаг уникален внутри организации, а не глобально: адрес несёт оба слага."""
+    """A slug is unique within an organization rather than globally: the address carries both slugs."""
     from app.models import Organization, Project
 
     other = Organization(name="Globex", slug="globex")

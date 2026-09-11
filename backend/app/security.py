@@ -12,16 +12,16 @@ def hash_password(raw: str) -> str:
 
 
 def verify_password(raw: str, hashed: str) -> bool:
-    """Проверка пароля. Любой отказ argon2 — это неудачный вход, а не авария.
+    """Password verification. Any argon2 refusal is a failed sign-in, not a crash.
 
-    VerifyMismatchError (неверный пароль) — лишь один из случаев: испорченная
-    или обрезанная строка хеша поднимает InvalidHashError, прочие поломки —
-    VerificationError. Все они раньше долетали до клиента пятисоткой, хотя
-    правильный ответ на них тот же самый: войти не удалось.
+    VerifyMismatchError (a wrong password) is only one of the cases: a corrupted
+    or truncated hash string raises InvalidHashError, and other breakages raise
+    VerificationError. All of them used to reach the client as a 500, even
+    though the right answer to all of them is the same: sign-in failed.
 
-    UnicodeEncodeError в том же списке не по недосмотру: argon2 кодирует
-    строку хеша в ascii и на нелатинском мусоре в колонке падает ещё до
-    разбора формата. Пароль это не затрагивает — он кодируется в utf-8.
+    UnicodeEncodeError is on the same list not by oversight: argon2 encodes the
+    hash string as ascii and fails on non-Latin garbage in the column before it
+    even parses the format. The password is unaffected — it is encoded as utf-8.
     """
     try:
         return _hasher.verify(hashed, raw)
@@ -30,7 +30,7 @@ def verify_password(raw: str, hashed: str) -> bool:
 
 
 def new_token() -> tuple[str, str]:
-    """Открытый токен и его хеш. Открытый показывается один раз, хранится хеш."""
+    """The plain token and its hash. The plain one is shown once; the hash is stored."""
     raw = secrets.token_urlsafe(32)
     return raw, hash_token(raw)
 

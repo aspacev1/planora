@@ -2,11 +2,11 @@ import { request } from "./client";
 
 export const ORG_QUERY_KEY = ["org"] as const;
 
-/** Дефолты организации — те самые, которые наследуют проекты. */
+/** The organization's defaults — the very ones projects inherit. */
 export type OrganizationSettings = {
   default_locale: string;
   default_timezone: string;
-  /** Битовая маска, где бит 0 — понедельник: так её считает сервер. */
+  /** A bitmask where bit 0 is Monday: that is how the server counts it. */
   working_days: number;
   week_start: number;
   holiday_calendar: string[];
@@ -23,7 +23,7 @@ export type Organization = {
   settings: OrganizationSettings;
 };
 
-/** Ответ поля ввода слага: во что превратится введённое и что делать, если занято. */
+/** The slug field's answer: what the input will turn into and what to do if it is taken. */
 export type SlugCheck = {
   normalized: string;
   available: boolean;
@@ -41,26 +41,26 @@ export type Member = {
 
 export const ORGANIZATIONS_QUERY_KEY = ["org", "list"] as const;
 
-/** Организация, в которой человек находится сейчас. */
+/** The organization the person is currently in. */
 export function organization(): Promise<Organization> {
   return request<Organization>("/api/org");
 }
 
 /**
- * Организации, в которых человек состоит, — содержимое переключателя.
+ * The organizations the person belongs to — the switcher's contents.
  *
- * Приходит и тогда, когда организация одна: решать, показывать ли
- * переключатель, — дело интерфейса, а не сервера.
+ * It arrives even when there is one organization: deciding whether to show the switcher is the
+ * interface's business, not the server's.
  */
 export function organizations(): Promise<Organization[]> {
   return request<Organization[]>("/api/org/list");
 }
 
 /**
- * Переключает сессию на другую организацию.
+ * Switches the session to another organization.
  *
- * Выбор живёт на сессии, а не на странице: после перезагрузки человек
- * остаётся там, где работал, а не возвращается в свою организацию.
+ * The choice lives on the session rather than on the page: after a reload the person stays where
+ * they were working rather than returning to their own organization.
  */
 export function switchOrganization(orgId: string): Promise<Organization> {
   return request<Organization>("/api/org/switch", {
@@ -70,22 +70,22 @@ export function switchOrganization(orgId: string): Promise<Organization> {
 }
 
 /**
- * Люди, которых можно назначить исполнителями.
+ * The people who can be made assignees.
  *
- * Роль `client` этот маршрут не получает вовсе и видит 403. Это не поломка:
- * вызывающий обязан пережить отказ, спрятав выбор исполнителей, а не
- * показывать ошибку в форме, к которой она не относится.
+ * The `client` role never gets this route and sees a 403. That is not a breakage: the caller must
+ * survive the refusal by hiding the assignee choice rather than showing an error in a form it has
+ * nothing to do with.
  */
 export function members(): Promise<Member[]> {
   return request<Member[]>("/api/org/members");
 }
 
 /**
- * Правка настроек организации.
+ * Editing the organization's settings.
  *
- * Присылаются только изменённые поля: сервер отличает «не прислали» от
- * «прислали null», и отправлять всю форму целиком значило бы затирать чужие
- * правки, сделанные между открытием экрана и нажатием кнопки.
+ * Only the changed fields are sent: the server tells "not sent" from "sent as null", and sending
+ * the whole form would mean overwriting somebody else's edits made between the screen opening and
+ * the button being pressed.
  */
 export function updateOrganization(
   patch: Partial<OrganizationSettings & { name: string; slug: string }>,
@@ -101,15 +101,14 @@ export function checkOrgSlug(slug: string): Promise<SlugCheck> {
 }
 
 /**
- * Меняет роль участника. Правит владелец, и только он.
+ * Changes a member's role. The owner edits, and only they.
  *
- * Владельца назначают именно отсюда, а не приглашением: приглашение без адреса
- * достаётся предъявителю, и владельцем становился бы всякий, кто открыл
- * переславшуюся ссылку. Здесь адресат назван поимённо.
+ * An owner is appointed precisely from here rather than by an invitation: an invitation with no
+ * address goes to whoever holds it, and anyone who opened a forwarded link would become an owner.
+ * Here the recipient is named by name.
  *
- * Последнего владельца разжаловать нельзя — сервер отвечает `last_owner`.
- * Организация без владельца не разжалована, а заперта: назначить нового в ней
- * больше нечем.
+ * The last owner cannot be demoted — the server answers `last_owner`. An organization without an
+ * owner is not demoted but locked: there is nothing left in it to appoint a new one with.
  */
 export function updateMemberRole(userId: string, role: string): Promise<Member> {
   return request<Member>(`/api/org/members/${encodeURIComponent(userId)}`, {
@@ -119,12 +118,11 @@ export function updateMemberRole(userId: string, role: string): Promise<Member> 
 }
 
 /**
- * Выводит человека из организации — или выпускает его самого.
+ * Removes a person from the organization — or lets them out themselves.
  *
- * Один маршрут на оба действия: членства в обоих случаях больше нет, и
- * разными их делает только то, кто вправе его выполнить — владелец над любым
- * или человек над собой. Отсюда и «Покинуть организацию»: это тот же вызов со
- * своим собственным идентификатором.
+ * One route for both actions: in both cases the membership is gone, and all that makes them
+ * different is who is entitled to perform it — an owner over anyone, or a person over themselves.
+ * Hence "Leave the organization": it is the same call with one's own id.
  */
 export function removeMember(userId: string): Promise<void> {
   return request<void>(`/api/org/members/${encodeURIComponent(userId)}`, { method: "DELETE" });

@@ -7,7 +7,7 @@ import type { ProjectState, Task } from "../api/projects";
 import { server } from "../test/server";
 import { ORG, USER, renderApp, sessionHandlers } from "../test/utils";
 
-/** Открыть окно, набрать название, отправить. */
+/** Open the dialog, type the name, submit. */
 async function createProjectNamed(name: string) {
   await userEvent.click(await screen.findByRole("button", { name: /создать проект/i }));
   await userEvent.type(screen.getByLabelText(/название/i), name);
@@ -15,8 +15,8 @@ async function createProjectNamed(name: string) {
 }
 
 /**
- * Спокойная задача: согласована, идёт своим ходом, кончается впереди. Всё
- * остальное — просрочку, блокировку, расхождение — тест объявляет сам.
+ * A quiet task: approved, going along at its own pace, ending ahead. Everything
+ * else — being overdue, blocked, divergent — the test declares itself.
  */
 function task(fields: Partial<Task> = {}): Task {
   return {
@@ -63,11 +63,11 @@ function state(fields: Partial<ProjectState> = {}): ProjectState {
 }
 
 /**
- * Список проектов и состояние каждого из них.
+ * The list of projects and each one's state.
  *
- * Строка несёт сводку, а сводного маршрута на сервере нет: список отдаёт
- * имена, состояния приходят по одному. Тест обязан описать оба конца — иначе
- * он проверял бы строку, которой нечего сказать.
+ * A row carries a summary, and there is no combined route on the server: the list
+ * gives the names, the states arrive one at a time. The test must describe both
+ * ends — otherwise it would be checking a row with nothing to say.
  */
 function projectsWithStates(...states: ProjectState[]) {
   return [
@@ -81,11 +81,11 @@ function projectsWithStates(...states: ProjectState[]) {
 }
 
 /**
- * Два проекта и сервер, который и правда с ними расстаётся.
+ * Two projects and a server that really does part with them.
  *
- * Список отдаёт то, что живо, удалённый проект отвечает 404-м — иначе тест
- * про исчезнувшую строку проходил бы и в том случае, когда клиент лишь
- * убрал её у себя, а на сервере ничего не случилось.
+ * The list gives what is alive, a deleted project answers with a 404 — otherwise
+ * the test about the vanished row would pass in the case where the client merely
+ * removed it locally while nothing happened on the server.
  */
 function deletableProjects() {
   const states = [
@@ -93,7 +93,7 @@ function deletableProjects() {
     state({ id: "p2", name: "Смета", slug: "smeta" }),
   ];
   const alive = new Set(states.map((project) => project.id));
-  /** Кого сервер получил приказ удалить. Пустой — значит, никого. */
+  /** Who the server was ordered to delete. Empty means nobody. */
   const deleted: string[] = [];
 
   return {
@@ -123,7 +123,7 @@ function deletableProjects() {
   };
 }
 
-/** Шестерёнка на строке названного проекта — не на соседней. */
+/** The cog on the named project's row — not on its neighbour. */
 async function gearOf(name: string): Promise<HTMLElement> {
   const rows = await screen.findAllByRole("row");
   const row = rows.find((node) => within(node).queryByRole("link", { name }) !== null);
@@ -131,13 +131,13 @@ async function gearOf(name: string): Promise<HTMLElement> {
   return within(row).findByRole("button", { name: "Действия проекта" });
 }
 
-/** Раскрыть шестерёнку строки и выбрать в ней удаление. */
+/** Open the row's cog and pick deletion in it. */
 async function askToDelete(name: string) {
   await userEvent.click(await gearOf(name));
   await userEvent.click(screen.getByRole("button", { name: "Удалить проект" }));
 }
 
-/** 11 марта 2026 в Баку — пояс организации, по которому считается «сегодня». */
+/** 11 March 2026 in Baku — the organization's zone, which "today" is counted by. */
 function atMarch11(run: () => Promise<void>) {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date(Date.UTC(2026, 2, 11, 9, 0)));
@@ -153,10 +153,10 @@ describe("экран проектов", () => {
 
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Заголовок, а не любой текст: слово «Проекты» есть и в колонке.
+    // The heading, not any text: the word "Projects" is in the column too.
     expect(await screen.findByRole("heading", { name: "Проекты" })).toBeInTheDocument();
-    // А название проекта осталось азербайджанским на русском интерфейсе: это
-    // содержимое пользователя, и переводится интерфейс, а не данные.
+    // And the project's name stayed Azerbaijani on a Russian interface: it is user
+    // content, and what is translated is the interface, not the data.
     expect(await screen.findByText("Şəhər Layihəsi")).toBeInTheDocument();
   });
 
@@ -193,8 +193,8 @@ describe("экран проектов", () => {
           { status: 201 },
         );
       }),
-      // Экран проекта — цель перехода; здесь он нужен лишь как адрес, куда
-      // приложение обязано привести.
+      // The project screen is the navigation's target; here it is needed only as
+      // an address the application must lead to.
       http.get("/api/projects/p1", () =>
         HttpResponse.json({
           id: "p1",
@@ -238,7 +238,7 @@ describe("экран проектов", () => {
     renderApp({ route: "/projects", locale: "ru" });
     await createProjectNamed("Тест");
 
-    // Текст берётся из словаря по коду `forbidden`. Сам код наружу не выходит.
+    // The text is taken from the dictionary by the `forbidden` code. The code itself never gets out.
     expect(await screen.findByText(/у вас нет прав/i)).toBeInTheDocument();
     expect(screen.queryByText("forbidden")).not.toBeInTheDocument();
   });
@@ -252,8 +252,8 @@ describe("модальное окно", () => {
     const opener = await screen.findByRole("button", { name: /создать проект/i });
     await userEvent.click(opener);
 
-    // Фокус при открытии стоит на первом поле: иначе человек с клавиатуры
-    // оказывается неизвестно где и обязан искать поле табуляцией.
+    // On opening, the focus stands on the first field: otherwise a person on the
+    // keyboard ends up who knows where and has to hunt for the field with Tab.
     expect(screen.getByLabelText(/название/i)).toHaveFocus();
 
     await userEvent.keyboard("{Escape}");
@@ -283,7 +283,7 @@ describe("модальное окно", () => {
 
     await userEvent.keyboard("{Escape}");
 
-    // Окно на месте, набранное в нём — тоже.
+    // The dialog is in place, and so is what was typed in it.
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByLabelText(/название/i)).toHaveValue("Редизайн");
     expect(screen.getByText(/введённое не сохранится/i)).toBeInTheDocument();
@@ -297,13 +297,13 @@ describe("модальное окно", () => {
     await userEvent.type(screen.getByLabelText(/название/i), "Редизайн");
     await userEvent.keyboard("{Escape}");
 
-    // Esc поверх вопроса — ответ «продолжить»: привычные два Esc подряд не
-    // должны приводить ровно к той потере, ради которой вопрос и задан.
+    // Esc on top of the question is a "continue" answer: the habitual two Escs in
+    // a row must not lead to exactly the loss the question is asked to prevent.
     await userEvent.keyboard("{Escape}");
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.queryByText(/введённое не сохранится/i)).not.toBeInTheDocument();
-    // Фокус вернулся туда, где человека прервали.
+    // The focus returned where the person was interrupted.
     expect(screen.getByLabelText(/название/i)).toHaveFocus();
   });
 
@@ -329,7 +329,7 @@ describe("модальное окно", () => {
     await userEvent.click(await screen.findByRole("button", { name: /создать проект/i }));
     await userEvent.type(screen.getByLabelText(/название/i), "Редизайн");
 
-    // Промах мимо селекта на два десятка пикселей — это тот же клик по фону.
+    // Missing the select by a couple of dozen pixels is the same click on the backdrop.
     await userEvent.click(screen.getByTestId("modal-backdrop"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -343,8 +343,8 @@ describe("модальное окно", () => {
     await userEvent.click(await screen.findByRole("button", { name: /создать проект/i }));
     await userEvent.type(screen.getByLabelText(/название/i), "Редизайн");
 
-    // До кнопки целятся, а по фону промахиваются: спрашивать здесь значило бы
-    // требовать два подтверждения на одно осознанное действие.
+    // The button is aimed at while the backdrop is missed: asking here would mean
+    // demanding two confirmations for one deliberate action.
     await userEvent.click(screen.getByRole("button", { name: /отмена/i }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -360,7 +360,7 @@ describe("сводка в таблице", () => {
           state({
             tasks: [
               task({ id: "t1", status: "in_progress", progress_pct: 50 }),
-              // Заблокирована и вдобавок не закрыта, а её срок уже прошёл.
+              // Blocked and, on top of that, not closed, while its date has already passed.
               task({ id: "t2", status: "blocked", progress_pct: 0, end_date: "2026-03-05" }),
             ],
           }),
@@ -444,8 +444,8 @@ describe("сводка в таблице", () => {
 
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Строка с посчитанной сводкой остаётся на месте — незачем прятать то,
-    // что и так готово; а баннер сверху честно называет то, что не пришло.
+    // The row with the computed summary stays in place — there is no point hiding
+    // what is already ready; and the banner above honestly names what did not arrive.
     expect(await screen.findByText("Первый")).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByText("Второй")).not.toBeInTheDocument();
@@ -456,8 +456,8 @@ describe("сводка в таблице", () => {
 
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Пустой список и несостоявшийся ответ — разные вещи: пока причина в
-    // отказе, «проектов нет» было бы враньём поверх баннера ошибки.
+    // An empty list and a failed answer are different things: while the cause is a
+    // refusal, "there are no projects" would be a lie on top of the error banner.
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByText(/ни одного проекта/i)).not.toBeInTheDocument();
   });
@@ -472,12 +472,12 @@ describe("удаление проекта из таблицы", () => {
     await askToDelete("Редизайн");
 
     const dialog = screen.getByRole("dialog");
-    // Окно называет имя проекта: в таблице из одинаковых строк это
-    // единственное место, где видно, что целились в соседнюю.
+    // The dialog names the project's name: in a table of identical rows this is
+    // the only place where you can see that you were aiming at the neighbour.
     expect(
       within(dialog).getByRole("heading", { name: "Удалить проект «Редизайн»?" }),
     ).toBeInTheDocument();
-    // И называет последствие, а не спрашивает «вы уверены?».
+    // And it names the consequence rather than asking "are you sure?".
     expect(within(dialog).getByText(/отменить это будет нельзя/i)).toBeInTheDocument();
     expect(deleted).toEqual([]);
   });
@@ -489,8 +489,8 @@ describe("удаление проекта из таблицы", () => {
     renderApp({ route: "/projects", locale: "ru" });
     await askToDelete("Редизайн");
 
-    // Enter, нажатый быстрее, чем прочитано предупреждение, обязан ничего не
-    // удалить: у необратимого действия первым под рукой стоит отказ.
+    // An Enter pressed faster than the warning is read must delete nothing: for an
+    // irreversible action the first thing at hand is the refusal.
     expect(screen.getByRole("button", { name: "Отмена" })).toHaveFocus();
   });
 
@@ -502,13 +502,13 @@ describe("удаление проекта из таблицы", () => {
     await askToDelete("Редизайн");
     await userEvent.click(screen.getByRole("button", { name: "Да, удалить проект" }));
 
-    // Удалён названный проект, а не соседний по таблице.
+    // The named project was deleted, not its neighbour in the table.
     await waitFor(() => expect(deleted).toEqual(["p1"]));
     await waitFor(() => expect(screen.queryByText("Редизайн")).toBeNull());
     expect(screen.getByText("Смета")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).toBeNull();
-    // Таблица после удаления выглядит так же, как после промаха мимо кнопки:
-    // отчитаться о тихой операции обязан тост, и называет он то, что удалено.
+    // The table after a deletion looks the same as after missing the button: a
+    // toast must report a silent operation, and it names what was deleted.
     expect(await screen.findByText("Проект «Редизайн» удалён")).toBeInTheDocument();
   });
 
@@ -528,9 +528,9 @@ describe("удаление проекта из таблицы", () => {
   it("отказ сервера остаётся в окне, а строка — на месте", async () => {
     const { handlers } = deletableProjects();
     server.use(...sessionHandlers(), ...handlers);
-    // Отдельным вызовом, а не последним доводом в предыдущем: msw отдаёт
-    // предпочтение обработчику, объявленному позже, — но именно вызовом, а
-    // внутри одного вызова побеждает первый подошедший.
+    // As a separate call rather than the last argument in the previous one: msw
+    // prefers a handler declared later — but by call, while within one call the
+    // first matching one wins.
     server.use(
       http.delete("/api/projects/p1", () =>
         HttpResponse.json({ detail: "forbidden" }, { status: 403 }),
@@ -541,8 +541,8 @@ describe("удаление проекта из таблицы", () => {
     await askToDelete("Редизайн");
     await userEvent.click(screen.getByRole("button", { name: "Да, удалить проект" }));
 
-    // Окно не закрывается на отказе: закрытое, оно унесло бы с собой и
-    // объяснение, и строка молча осталась бы на месте без причины.
+    // The dialog does not close on a refusal: closed, it would carry the
+    // explanation away with it, and the row would silently stay in place for no reason.
     expect(await screen.findByText(/у вас нет прав/i)).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Редизайн")).toBeInTheDocument();
@@ -551,12 +551,12 @@ describe("удаление проекта из таблицы", () => {
   it("редактору шестерёнки в таблице нет", async () => {
     const { handlers } = deletableProjects();
     server.use(...sessionHandlers(), ...handlers);
-    // Отдельным вызовом: см. соседний тест про отказ сервера.
+    // As a separate call: see the neighbouring test about a server refusal.
     server.use(http.get("/api/org", () => HttpResponse.json({ ...ORG, role: "editor" })));
 
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Расстаться с проектом целиком — право владельца; редактор правит план.
+    // Parting with a whole project is the owner's right; an editor edits the plan.
     expect(await screen.findByText("Редизайн")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Действия проекта" })).toBeNull();
   });
@@ -577,9 +577,9 @@ describe("адреса списка", () => {
 
     renderApp({ route: "/portfolio", locale: "ru" });
 
-    // Портфель разобран: сводка живёт в таблице списка. По старому адресу
-    // ходили из закладок, и отвечать на него пустотой — расплата за наведение
-    // порядка, которую платит читатель, а не мы.
+    // The portfolio has been taken apart: the summary lives in the list's table.
+    // People came to the old address from bookmarks, and answering it with
+    // emptiness is a price for tidying up that the reader pays rather than us.
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/projects"));
     expect(await screen.findByRole("heading", { name: "Проекты" })).toBeInTheDocument();
   });
@@ -589,9 +589,9 @@ describe("адреса списка", () => {
 
     renderApp({ route: "/reports", locale: "ru" });
 
-    // Таблица отчётов переехала в «Проекты» и стала тем, чем этот раздел
-    // показывает сводку. По старому адресу ходили и из колонки, и из
-    // закладок — переезд отвечает им обоим, а не «страница не найдена».
+    // The reports table moved into "Projects" and became what that section shows
+    // its summary with. People came to the old address both from the column and
+    // from bookmarks — a redirect answers both, rather than "page not found".
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/projects"));
     expect(await screen.findByRole("heading", { name: "Проекты" })).toBeInTheDocument();
   });
@@ -620,18 +620,18 @@ describe("данные организации", () => {
     renderApp({ route: "/projects", locale: "ru" });
 
     expect(await screen.findByText(ORG.name)).toBeInTheDocument();
-    // Имя вошедшего колонка больше не показывает: приветствие убрано, и
-    // верхний блок держит только организацию.
+    // The column no longer shows the signed-in person's name: the greeting was
+    // removed, and the top block holds only the organization.
     expect(screen.queryByText(new RegExp(USER.name))).toBeNull();
   });
 });
 
 describe("пустой список для того, кто не может писать", () => {
   /**
-   * Тот же экран глазами заданной роли.
+   * The same screen through the eyes of a given role.
    *
-   * Свой `/api/org` идёт первым: msw берёт первый подходящий обработчик, и
-   * общий из sessionHandlers перекрыл бы роль, ради которой тест и написан.
+   * Its own `/api/org` comes first: msw takes the first matching handler, and the
+   * shared one from sessionHandlers would override the role the test is written for.
    */
   function asRole(role: string) {
     return [
@@ -646,8 +646,8 @@ describe("пустой список для того, кто не может пи
 
     renderApp({ route: "/projects", locale: "ru" });
 
-    // Сперва дожидаемся текста, который появляется только с известной ролью:
-    // проверка отсутствия кнопок до ответа `/api/org` зеленела бы сама собой.
+    // First we wait for text that only appears with a known role: checking for the
+    // absence of buttons before `/api/org` answers would go green on its own.
     await screen.findByText(/вам пока не открыли ни одного проекта/i);
     expect(screen.queryByRole("button", { name: /создать проект/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /создать через интервью/i })).toBeNull();
@@ -659,7 +659,7 @@ describe("пустой список для того, кто не может пи
     renderApp({ route: "/projects", locale: "ru" });
 
     expect(await screen.findByText(/доступ к ним выдаёт владелец/i)).toBeInTheDocument();
-    // Прежний призыв обманывал: проекты в организации есть, их просто не выдали.
+    // The former call to action was deceptive: the organization does have projects, they were simply not granted.
     expect(screen.queryByText(/создайте первый проект/i)).toBeNull();
   });
 

@@ -1,10 +1,10 @@
 """jira push due date
 
-Одна колонка: `jira_task_links.pushed_due_date`. `NULL` — сроки задачи ведёт
-Jira, как и раньше. Заполненная — задача заведена в Planora как источник
-правды по срокам (кнопка «Отправить в Jira», см. app/jira/sync.py:push_project),
-и обычная синхронизация больше не подтягивает для неё старт и длительность
-из Jira.
+One column: `jira_task_links.pushed_due_date`. `NULL` means Jira drives the
+task's dates, as before. A filled-in value means the task has been declared in
+Planora as the source of truth on dates (the "Push to Jira" button, see
+app/jira/sync.py:push_project), and an ordinary sync no longer pulls its start
+and duration from Jira.
 
 Revision ID: 12c30f757a97
 Revises: 342f2b35de69

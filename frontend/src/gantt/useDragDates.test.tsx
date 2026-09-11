@@ -12,17 +12,18 @@ import { DAY_WIDTH } from "./scale";
 beforeEach(projectFixtures);
 
 /**
- * Настоящая прокрутка у ленты: в jsdom ширины и прокрутки у элементов нет, а
- * без ширины слой подкачки сознательно вырождается в пустышку — и ход ленты в
- * жест не попадал бы вовсе, то есть проверять было бы нечего.
+ * A real scroll on the strip: in jsdom elements have no widths and no scrolling, and
+ * without a width the edge-scroll layer deliberately degenerates into a stub — so the
+ * strip's travel would not enter the gesture at all, that is, there would be nothing
+ * to check.
  */
 function scrollableTape(): (left: number) => void {
   const box = document.querySelector<HTMLElement>(".gantt__scroll");
   if (box === null) throw new Error("ленты нет");
 
   Object.defineProperty(box, "clientWidth", { value: 800, configurable: true });
-  // Прямоугольник настоящий, а не нулевой: с нулевым любая точка указателя
-  // оказывается за правым краем, и подкачка поехала бы сама.
+  // The rectangle is real rather than zero: with a zero one any pointer point turns
+  // out to be beyond the right edge, and the scrolling would start by itself.
   box.getBoundingClientRect = () =>
     ({ left: 0, right: 800, top: 0, bottom: 400, width: 800, height: 400, x: 0, y: 0 }) as DOMRect;
 
@@ -60,7 +61,7 @@ describe("перетаскивание дат", () => {
     renderProject();
     const bar = await screen.findByRole("button", { name: /Логотип/ });
 
-    drag(bar, { fromX: 100, toX: 100 + 12 }); // меньше половины дня
+    drag(bar, { fromX: 100, toX: 100 + 12 }); // less than half a day
 
     expect(sent).toHaveLength(0);
   });
@@ -71,9 +72,9 @@ describe("перетаскивание дат", () => {
 
     fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
     fireEvent.pointerMove(bar, { pointerId: 1, clientX: 102 });
-    // Два пикселя — это ещё щелчок. Признак жеста меняет вид полоски, и
-    // включать его на дрожании руки значит мигать им на каждом открытии
-    // карточки.
+    // Two pixels is still a click. The gesture flag changes the bar's appearance, and
+    // switching it on from a trembling hand means flashing it every time a card is
+    // opened.
     expect(bar).not.toHaveClass("is-dragging");
 
     fireEvent.pointerMove(bar, { pointerId: 1, clientX: 160 });
@@ -109,8 +110,9 @@ describe("перетаскивание дат", () => {
   });
 
   it("держит полоску на месте броска, пока спрашивают причину", async () => {
-    // Возврат до вопроса читался бы как отказ: человек ещё ничего не решил, а
-    // полоска уже съездила обратно — и после ответа поехала бы второй раз.
+    // A return before the question would read as a refusal: the person has decided
+    // nothing yet while the bar has already travelled back — and after the answer it
+    // would travel a second time.
     const sent = captureMutations();
     renderProject(APPROVED);
     const bar = await screen.findByRole("button", { name: /Логотип/ });
@@ -120,8 +122,8 @@ describe("перетаскивание дат", () => {
 
     await screen.findByRole("dialog");
     expect(sent).toHaveLength(0);
-    // Место по датам не менялось: полоску держит сдвиг, а не `left` — двигают
-    // её только через `transform` (см. useBarMotion).
+    // The place by dates has not changed: the bar is held by an offset rather than by
+    // `left` — it is moved only through `transform` (see useBarMotion).
     expect(Number.parseFloat(bar.style.left)).toBe(before);
     expect(bar.style.getPropertyValue("--bar-dx")).toBe(`${7 * DAY_WIDTH.day}px`);
   });
@@ -151,8 +153,8 @@ describe("перетаскивание дат", () => {
     await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    // Полоска и до ответа стояла здесь: смена дат её не двигает — она лишь
-    // объясняет положение, в котором полоска уже стоит.
+    // The bar stood here before the answer too: a change of dates does not move it —
+    // it merely explains the position the bar is already in.
     expect(Number.parseFloat(bar.style.left)).toBe(before + 7 * DAY_WIDTH.day);
   });
 
@@ -177,28 +179,28 @@ describe("перетаскивание дат", () => {
 
     fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
     fireEvent.pointerMove(bar, { pointerId: 1, clientX: 100 + 3 * DAY_WIDTH.day });
-    // Полоска ушла за курсором сдвигом, а не местом по датам (см. useBarMotion).
+    // The bar followed the cursor by an offset rather than by its place by dates (see useBarMotion).
     expect(bar.style.getPropertyValue("--bar-dx")).toBe(`${3 * DAY_WIDTH.day}px`);
 
     await userEvent.keyboard("{Escape}");
 
-    // Полоска дома, и отпускание после Esc уже ничего не отправляет: жест
-    // прерван, а не приостановлен.
+    // The bar is home, and a release after Esc no longer sends anything: the gesture
+    // was aborted, not paused.
     expect(bar.style.getPropertyValue("--bar-dx")).toBe("0px");
     expect(bar.style.left).toBe(before);
     fireEvent.pointerUp(bar, { pointerId: 1, clientX: 100 + 3 * DAY_WIDTH.day });
     fireEvent.click(bar, { clientX: 100 + 3 * DAY_WIDTH.day });
 
     expect(sent).toHaveLength(0);
-    // И карточку прерванный жест не открывает: Esc означает «ничего не
-    // делать», а не «открыть задачу».
+    // And an aborted gesture does not open the card: Esc means "do nothing", not "open
+    // the task".
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
   it("называет все три сочетания прямо на полоске", async () => {
-    // Возможность, о которой знает только исходник, всё равно что её нет.
-    // Сочетаний три, потому что и жестов у полоски три: перенос, правая грань
-    // и левая.
+    // A capability only the source knows about might as well not exist. There are
+    // three combinations because the bar has three gestures: the move, the right edge
+    // and the left one.
     renderProject();
     const bar = await screen.findByRole("button", { name: /Логотип/ });
 
@@ -212,16 +214,16 @@ describe("перетаскивание дат", () => {
     renderProject(STATE, { canWrite: false });
     const bar = await screen.findByRole("button", { name: /Логотип/ });
 
-    // Стрелки у читателя ничего не двигают, и объявленное сочетание отправило
-    // бы его нажимать клавиши, которые молчат.
+    // The arrows move nothing for a reader, and an announced combination would send
+    // them pressing keys that stay silent.
     expect(bar).not.toHaveAttribute("aria-keyshortcuts");
   });
 
   it("подтверждённый перенос показывает тост с отменой", async () => {
-    // Отмена из тоста бьёт в тот же /undo, что и кнопка в шапке: тост — это
-    // короткий путь к ней, а не второй механизм отмены. Номер ревизии в теле
-    // запроса — обещание кнопки: отменяется тот самый перенос, о котором тост
-    // говорит, а не то, что окажется наверху журнала к моменту нажатия.
+    // Undo from the toast hits the same /undo as the header button: the toast is a
+    // shortcut to it rather than a second undo mechanism. The revision number in the
+    // request body is the button's promise: what gets undone is the very move the
+    // toast talks about, not whatever ends up on top of the journal by the time of the press.
     const undos: { expected_seq?: number }[] = [];
     server.use(
       http.post("/api/projects/p1/undo", async ({ request }) => {
@@ -241,7 +243,7 @@ describe("перетаскивание дат", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Отменить" }));
     await waitFor(() => expect(undos).toEqual([{ expected_seq: 1 }]));
-    // Нажатая отмена прячет тост: предлагать отменить отменённое нечестно.
+    // A pressed undo hides the toast: offering to undo what has been undone is dishonest.
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
@@ -253,8 +255,8 @@ describe("перетаскивание дат", () => {
 
     fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
     fireEvent.pointerMove(bar, { pointerId: 1, clientX: 100 + DAY_WIDTH.day });
-    // Палец стоит, лента едет: два дня приезжают из прокрутки, один пройден
-    // рукой. Без учёта прокрутки задача легла бы на день, а не на три.
+    // The finger is still, the strip is moving: two days come from the scroll, one was
+    // covered by hand. Without accounting for the scroll the task would land on one day rather than three.
     scrollTo(2 * DAY_WIDTH.day);
     fireEvent.pointerUp(bar, { pointerId: 1, clientX: 100 + DAY_WIDTH.day });
     fireEvent.click(bar, { clientX: 100 + DAY_WIDTH.day });
@@ -270,19 +272,19 @@ describe("перетаскивание дат", () => {
     const scrollTo = scrollableTape();
     const before = bar.style.left;
 
-    // Нажали на полоску, чтобы открыть карточку, а лента в этот момент ещё
-    // доезжала по инерции прокрутки, начатой до нажатия. Указатель не сдвинулся
-    // ни разу — значит это щелчок, и сроков он не трогает.
+    // The bar was pressed to open the card while the strip at that moment was still
+    // coasting from a scroll started before the press. The pointer never moved — so
+    // this is a click, and it does not touch the dates.
     fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
     scrollTo(5 * DAY_WIDTH.day);
     fireEvent.pointerUp(bar, { pointerId: 1, clientX: 100 });
     fireEvent.click(bar, { clientX: 100 });
 
-    // По месту полоски, а не по пустоте отправленного: догадка ложится в кэш
-    // синхронно, а до сервера операция доходит позже проверки — пустой список
-    // не отличил бы «не отправляли» от «ещё не дошло». Полоска же стоит ровно
-    // тогда, когда операции не случилось вовсе: догадку и отправку `commit`
-    // делает одним вызовом.
+    // By the bar's place rather than by the emptiness of what was sent: the guess lands
+    // in the cache synchronously, while the operation reaches the server later than the
+    // check — an empty list would not tell "we did not send" from "it has not arrived
+    // yet". The bar, meanwhile, stands still exactly when no operation happened at all:
+    // `commit` does the guess and the send in one call.
     expect(bar.style.left).toBe(before);
   });
 
@@ -291,10 +293,10 @@ describe("перетаскивание дат", () => {
     renderProject();
     const bar = await screen.findByRole("button", { name: /Логотип/ });
 
-    // Окно заглушки кончается 30 июня (последняя дата — project_end,
-    // округлённая до конца месяца). Сто тридцать дней вправо — далеко за его
-    // краем; прежде такой бросок прижимался к 30 июня, и тост называл день, в
-    // который никто не целился.
+    // The fixture's window ends on 30 June (the last date is project_end, rounded up to
+    // the end of the month). A hundred and thirty days to the right is far beyond its
+    // edge; such a drop used to be clamped to 30 June, and the toast named a day nobody
+    // was aiming at.
     dragDays(bar, 130);
 
     await waitFor(() =>
@@ -306,19 +308,19 @@ describe("перетаскивание дат", () => {
     renderProject();
     const bar = await screen.findByRole("button", { name: /Логотип/ });
     const days = () => document.querySelectorAll(".gantt__grid-day").length;
-    expect(days()).toBe(122); // март — июнь: окно заглушки кончается 30 июня
+    expect(days()).toBe(122); // March to June: the fixture's window ends on 30 June
 
     fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
     fireEvent.pointerMove(bar, { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
-    // Конец полоски пришёлся на 18 июля — окно доросло до конца июля тем же
-    // округлением, каким лента строит его сама. Сетка существует всюду, куда
-    // доехала полоска, а не обрывается на прежнем краю.
+    // The bar's end landed on 18 July — the window grew to the end of July with the
+    // same rounding the strip builds it with itself. The grid exists everywhere the bar
+    // travelled rather than breaking off at the former edge.
     expect(days()).toBe(153);
 
     fireEvent.pointerUp(bar, { pointerId: 1, clientX: 100 + 130 * DAY_WIDTH.day });
     fireEvent.click(bar, { clientX: 100 + 130 * DAY_WIDTH.day });
-    // Бросок снял достройку, но догадка тем же событием положила новые даты в
-    // состояние — окно пересчиталось от них и не изменилось ни на день.
+    // The drop released the extension, but the guess put the new dates into the state
+    // with the same event — the window was recomputed from them and did not change by a day.
     expect(days()).toBe(153);
   });
 
@@ -336,9 +338,9 @@ describe("перетаскивание дат", () => {
   });
 
   it("гасит отмену в тосте, если верх журнала уехал", async () => {
-    // Шесть секунд тоста — достаточный срок, чтобы сосед по проекту применил
-    // свою правку. Отмена «последнего» сняла бы её, поэтому кнопка, обещавшая
-    // вернуть свой перенос, гаснет вместе с обещанием.
+    // Six seconds of a toast is time enough for a colleague on the project to apply
+    // their own edit. Undoing "the last one" would remove it, so the button that
+    // promised to revert your own move goes dark together with the promise.
     let undone = 0;
     server.use(
       http.post("/api/projects/p1/undo", () => {
@@ -357,7 +359,7 @@ describe("перетаскивание дат", () => {
     const undo = screen.getByRole("button", { name: "Отменить" });
     expect(undo).toBeEnabled();
 
-    // Правка соседа: она же становится верхом журнала.
+    // A colleague's edit: it also becomes the top of the journal.
     server.use(
       http.get("/api/projects/p1", () =>
         HttpResponse.json({

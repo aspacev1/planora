@@ -40,9 +40,9 @@ class Criticality(StrEnum):
     CRITICAL = "critical"
 
 
-# Выведен из Criticality, а не выписан вторым списком: два списка одних и тех
-# же значений однажды разъедутся при добавлении уровня — ровно так же, как
-# разъехался бы CHECK на роли, будь он выписан руками.
+# Derived from Criticality rather than spelled out as a second list: two lists of
+# the same values would one day diverge when a level is added — exactly as the
+# CHECK on roles would diverge if it were spelled out by hand.
 CRITICALITY_LEVELS: tuple[str, ...] = tuple(level.value for level in Criticality)
 
 
@@ -53,18 +53,20 @@ class TaskStatus(StrEnum):
     BLOCKED = "blocked"
 
 
-# Тем же приёмом, что CRITICALITY_LEVELS: список для CHECK и проверок слоя
-# мутаций выводится из enum, а не выписывается второй раз руками.
+# By the same technique as CRITICALITY_LEVELS: the list for the CHECK and for the
+# mutation layer's validation is derived from the enum rather than written out a
+# second time by hand.
 TASK_STATUSES: tuple[str, ...] = tuple(status.value for status in TaskStatus)
 
 
 class RiskFlag(StrEnum):
-    """Самооценка исполнителя: успеваю ли я к сроку.
+    """The assignee's own assessment: am I going to make the deadline.
 
-    Не расчёт, а слово человека: зелёный — по плану, жёлтый — есть риск,
-    красный — срок под угрозой. Скоркард сравнивает это слово с фактом
-    («предупредил заранее» или «сорвал молча»), и ровно поэтому флаг живёт на
-    задаче, а не в комментарии: по журналу видно, когда он был поставлен.
+    Not a computation but a person's word: green means on plan, yellow means there
+    is a risk, red means the deadline is under threat. The scorecard compares this
+    word with the fact ("warned in advance" or "missed it silently"), and that is
+    exactly why the flag lives on the task rather than in a comment: the journal
+    shows when it was set.
     """
 
     GREEN = "green"
@@ -72,17 +74,18 @@ class RiskFlag(StrEnum):
     RED = "red"
 
 
-# Тем же приёмом, что CRITICALITY_LEVELS и TASK_STATUSES.
+# By the same technique as CRITICALITY_LEVELS and TASK_STATUSES.
 RISK_FLAGS: tuple[str, ...] = tuple(flag.value for flag in RiskFlag)
 
 
 class ScheduleMode(StrEnum):
-    """Каким временем живёт план проекта.
+    """Which kind of time the project's plan lives in.
 
-    `relative` — предварительный план без дат: шкала «Месяц 1 / Неделя 1 /
-    День 1», старт проекта ещё не назначен. `calendar` — старт назначен, у
-    задач настоящие даты. Значение по умолчанию — `relative`: при создании
-    проекта дата начала не спрашивается, её назначают, когда проект утверждён.
+    `relative` is a preliminary plan with no dates: the scale is "Month 1 / Week 1
+    / Day 1" and the project's start has not been assigned yet. `calendar` means
+    the start is assigned and the tasks have real dates. The default value is
+    `relative`: creating a project does not ask for a start date, which is assigned
+    once the plan is approved.
     """
 
     RELATIVE = "relative"
@@ -93,30 +96,30 @@ SCHEDULE_MODES: tuple[str, ...] = tuple(mode.value for mode in ScheduleMode)
 
 
 class EffortUnit(StrEnum):
-    """В чём оценивается трудоёмкость предложения: в днях или в часах.
+    """What a proposal's effort is measured in: days or hours.
 
-    Свойство предложения целиком, а не каждой строки: смета, где одна строка
-    в днях, а соседняя в часах, не складывается в один итог без вопроса
-    «а что тут написано» на каждой строке.
+    A property of the proposal as a whole rather than of each row: a budget where
+    one row is in days and the next is in hours does not add up into one total
+    without the question "what does this say" on every row.
     """
 
     DAYS = "days"
     HOURS = "hours"
 
 
-# Тем же приёмом, что CRITICALITY_LEVELS: список для CHECK выводится из enum,
-# а не выписывается второй раз руками.
+# By the same technique as CRITICALITY_LEVELS: the list for the CHECK is derived
+# from the enum rather than written out a second time by hand.
 EFFORT_UNITS: tuple[str, ...] = tuple(unit.value for unit in EffortUnit)
 
 
 class ProposalStatus(StrEnum):
-    """Этап предложения, который отмечает человек: черновик, отправлено,
-    согласовано.
+    """The stage of a proposal that a person marks: draft, sent, agreed.
 
-    «В плане» здесь нет намеренно: этот этап не отмечают, а выводят из ссылок
-    строк на задачи (ProposalTask.plan_task_id). Хранимый флаг разошёлся бы с
-    правдой первой же отменой переноса — отмена удаляет задачи, ссылки
-    обнуляются базой, а флаг остался бы поднятым.
+    "In the plan" is deliberately absent here: that stage is not marked but derived
+    from the rows' references to tasks (ProposalTask.plan_task_id). A stored flag
+    would diverge from the truth on the very first undo of a carry-across — an undo
+    deletes the tasks, the database nulls the references, and the flag would stay
+    raised.
     """
 
     DRAFT = "draft"
@@ -156,22 +159,22 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(200))
     name: Mapped[str] = mapped_column(String(200))
     locale: Mapped[str] = mapped_column(String(5), default="az")
-    # Часовой пояс читателя — уровень 4 настроек. Nullable, и `null` здесь не
-    # «пусто», а «спросить у браузера»: пояс человека меняется вместе с ним,
-    # и записанный однажды при заведении аккаунта он врал бы после первой же
-    # поездки. Пояс организации сюда не копируется по той же причине, по
-    # которой проект не копирует её настройки: копия расходится с оригиналом.
+    # The reader's timezone — level 4 of the settings. Nullable, and `null` here is
+    # not "empty" but "ask the browser": a person's timezone travels with them, and
+    # one written down once when the account was created would lie after the first
+    # trip. The organization's timezone is not copied here for the same reason a
+    # project does not copy its settings: a copy drifts from the original.
     timezone: Mapped[str | None] = mapped_column(String(64))
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    # Последняя активность этого человека — момент последнего запроса с его
-    # валидной сессией, а не производная от Session.last_used_at. Строки
-    # сессий подметаются (выход, просрочка, недельный простой без обращений —
-    # см. app.auth), и агрегат по ним слепнет ровно тогда, когда об
-    # активности спрашивают после давнего перерыва: свежих строк уже нет, а
-    # человек продолжает пользоваться продуктом. Отдельное поле переживает
-    # эту уборку. Обновляется тем же шагом, что и last_used_at, — не на
-    # каждый запрос. Кормит панель директора (см. admin_routes).
+    # This person's last activity — the moment of the last request with a valid
+    # session of theirs, rather than something derived from Session.last_used_at.
+    # Session rows are swept away (sign-out, expiry, a week of idleness with no
+    # requests — see app.auth), and an aggregate over them goes blind precisely
+    # when activity is asked about after a long break: there are no fresh rows left
+    # while the person keeps using the product. A separate field survives that
+    # cleanup. It is refreshed by the same step as last_used_at — not on every
+    # request. It feeds the director's panel (see admin_routes).
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -179,9 +182,9 @@ class Membership(Base):
     __tablename__ = "memberships"
     __table_args__ = (
         UniqueConstraint("org_id", "user_id"),
-        # Свободный String(16) пускал в колонку любое значение, а Role(...)
-        # на нём поднимал ValueError уже в запросе. Список выведен из Role,
-        # чтобы не разъехаться с ним при добавлении роли.
+        # A free String(16) let any value into the column, and Role(...) on it
+        # raised ValueError right inside the query. The list is derived from Role so
+        # as not to diverge from it when a role is added.
         CheckConstraint(
             "role IN (" + ", ".join(f"'{role.value}'" for role in Role) + ")",
             name="ck_memberships_role",
@@ -190,20 +193,21 @@ class Membership(Base):
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
-    # Спрашивается на каждом запросе с сессией; составной (org_id, user_id)
-    # ведёт не с той колонки и для этого поиска бесполезен.
+    # Asked on every request with a session; the composite (org_id, user_id) does
+    # not lead with the right column and is useless for this lookup.
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     role: Mapped[str] = mapped_column(String(16))
-    # Видит ли это членство только те проекты, куда его позвали поимённо, —
-    # независимо от роли. Роли `client` и гостю по ссылке это и так решает
-    # сама роль (см. `_NEEDS_GRANT` в app.access); колонка нужна ради
-    # остальных ролей — приглашающий вправе позвать редактора или наблюдателя
-    # в конкретные проекты, а не сразу во все проекты организации. По
-    # умолчанию False: приглашение без отмеченных проектов не сужает роль,
-    # которая по умолчанию видит всю организацию, — иначе включение этой
-    # возможности само по себе урезало бы права уже приглашённым.
+    # Whether this membership sees only the projects it was individually invited to
+    # — regardless of the role. For the `client` role and for a link-holding guest
+    # the role itself already decides this (see `_NEEDS_GRANT` in app.access); the
+    # column exists for the sake of the other roles — an inviter is entitled to
+    # invite an editor or a viewer into particular projects rather than into all of
+    # the organization's projects at once. False by default: an invitation with no
+    # projects selected does not narrow a role that sees the whole organization by
+    # default — otherwise enabling this capability would itself trim the rights of
+    # those already invited.
     project_scoped: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
 
 
@@ -211,8 +215,8 @@ class Session(Base):
     __tablename__ = "sessions"
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    # По владельцу сессии ищут «выйти на всех устройствах» и уборка
-    # просроченных при входе.
+    # "Sign out on all devices" and the cleanup of expired sessions at sign-in both
+    # look sessions up by their owner.
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
@@ -220,37 +224,38 @@ class Session(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    # Организация, выбранная переключателем. Живёт на сессии, а не на
-    # пользователе: с одной вкладки смотрят свою компанию, с другой — чужую,
-    # куда позвали, и общее поле у пользователя перебрасывало бы обе вкладки
-    # разом. SET NULL, а не CASCADE: удалённая организация не должна уносить
-    # с собой сессию — человек просто вернётся к первой доступной.
+    # The organization chosen by the switcher. It lives on the session rather than
+    # on the user: one tab looks at one's own company while another looks at
+    # someone else's that one was invited to, and a shared field on the user would
+    # throw both tabs across at once. SET NULL rather than CASCADE: a deleted
+    # organization must not carry the session away with it — the person simply
+    # returns to the first available one.
     active_org_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("organizations.id", ondelete="SET NULL")
     )
 
-    # Последнее обращение с этой сессией — для idle-таймаута: украденная кука
-    # с брошенного устройства не должна жить все тридцать дней срока годности
-    # только потому, что её однажды выдали. Обновляется с шагом (см.
-    # app.auth), а не на каждый запрос: иначе каждое чтение проекта — это
-    # ещё и запись в таблицу сессий.
+    # The last request made with this session — for the idle timeout: a stolen
+    # cookie from an abandoned device must not live all thirty days of its expiry
+    # merely because it was issued once. Refreshed by a step (see app.auth) rather
+    # than on every request: otherwise every read of a project is also a write into
+    # the sessions table.
     last_used_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
 
 
 class ThrottleEvent(Base):
-    """Событие для счётчиков частоты: одна строка — одна учтённая попытка.
+    """An event for the rate counters: one row is one counted attempt.
 
-    В базе, а не в памяти процесса, потому что вход и регистрацию — в
-    отличие от гостевых комментариев — стерегут не от заливки, а от перебора
-    паролей: предохранитель, который обнуляется перезапуском процесса и не
-    виден соседней реплике, там не предохранитель. База — единственное
-    общее хранилище этой архитектуры (внешних сервисов у продукта нет).
+    In the database rather than in the process's memory, because sign-in and
+    registration — unlike guest comments — are guarded not against flooding but
+    against password guessing: a fuse that a process restart resets and that a
+    neighbouring replica cannot see is no fuse there. The database is the only
+    shared storage of this architecture (the product has no external services).
 
-    Ключ — произвольная строка вида «login:ip:…»; составитель сам отвечает
-    за её уникальность между применениями. Старые строки подметаются
-    попутно при каждом обращении к своему ключу.
+    The key is an arbitrary string of the form "login:ip:...", and whoever composes
+    it is responsible for its uniqueness across uses. Old rows are swept away along
+    the way on every access to their own key.
     """
 
     __tablename__ = "throttle_events"
@@ -262,11 +267,11 @@ class ThrottleEvent(Base):
 
 
 class AiUsage(Base):
-    """Расход токенов LLM организацией за календарные сутки.
+    """An organization's LLM token spend over a calendar day.
 
-    Отдельно от AiSession.tokens_used: сессия считает свой разговор, а
-    бюджет — всё, что организация потратила за день, включая точечные
-    действия вроде разбиения задачи, у которых сессии нет вовсе.
+    Separate from AiSession.tokens_used: a session counts its own conversation,
+    while the budget counts everything the organization spent in a day, including
+    targeted actions such as splitting a task, which have no session at all.
     """
 
     __tablename__ = "ai_usage"
@@ -281,15 +286,15 @@ class AiUsage(Base):
 
 
 class IdempotencyRecord(Base):
-    """Ответ, однажды выданный на пишущий запрос с ключом идемпотентности.
+    """The answer once issued to a writing request carrying an idempotency key.
 
-    Повтор запроса с тем же ключом (ретрай сети, двойной клик) получает
-    сохранённый ответ вместо второго применения: мутация «сдвинуть на день»,
-    применённая дважды, — это сдвиг на два дня, и клиент, чей первый ответ
-    потерялся в сети, не должен уметь это устроить.
+    A repeated request with the same key (a network retry, a double click) gets the
+    stored answer instead of a second application: the mutation "move by a day",
+    applied twice, is a move by two days, and a client whose first answer got lost
+    in the network must not be able to arrange that.
 
-    Строки живут сутки и подметаются попутно: ретраи приходят в течение
-    секунд, ключ старше суток — это уже не ретрай.
+    The rows live for a day and are swept away along the way: retries arrive within
+    seconds, and a key older than a day is no longer a retry.
     """
 
     __tablename__ = "idempotency_records"
@@ -305,52 +310,53 @@ class IdempotencyRecord(Base):
 
 
 class EmailVerification(Base):
-    """Одноразовая ссылка подтверждения адреса.
+    """A single-use address confirmation link.
 
-    Устроена как сессия: наружу уходит открытый токен, в базе лежит его
-    хеш — утечка дампа не даёт подтвердить чужой адрес. Строка живёт до
-    истечения срока, поэтому таблица не растёт: следующая выдача сносит
-    прежние ссылки владельца, а просроченные подметает подтверждение.
+    Arranged like a session: the plain token goes outward while its hash lies in
+    the database — a leaked dump does not let anyone confirm someone else's
+    address. A row lives until it expires, so the table does not grow: the next
+    issue removes the owner's previous links, and confirmation sweeps away the
+    expired ones.
 
-    Погашенная строка не удаляется, а помечается `used_at`: ссылку из письма
-    открывают повторно — из истории браузера, из того же письма на другом
-    устройстве, — и без этой отметки второй заход отвечал бы «ссылка не
-    подходит» человеку, у которого всё в порядке. Подтвердить ею что-либо
-    второй раз нельзя: отметка проверяется раньше срока годности.
+    A redeemed row is not deleted but marked `used_at`: a link from an email gets
+    opened again — from the browser's history, from the same email on another
+    device — and without that mark the second visit would answer "this link does
+    not fit" to a person for whom everything is fine. Nothing can be confirmed with
+    it a second time: the mark is checked before the expiry date.
     """
 
     __tablename__ = "email_verifications"
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    # Ищется по владельцу на каждой повторной отправке и на подтверждении.
+    # Looked up by owner on every resend and on confirmation.
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     token_hash: Mapped[str] = mapped_column(String(128), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    #: Когда письмо действительно ушло. Пусто — не ушло: токен выдаётся до
-    #: отправки и переживает недоступный почтовый сервер, а пауза между
-    #: повторами считается от письма, а не от строки в таблице.
+    #: When the message actually went out. Empty means it did not: the token is
+    #: issued before sending and survives an unreachable mail server, while the
+    #: pause between resends is counted from the message rather than from the row.
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
-    #: Когда ссылкой воспользовались. Пусто — ссылка ещё годная.
+    #: When the link was used. Empty means the link is still valid.
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
 
 class PasswordReset(Base):
-    """Одноразовая ссылка восстановления пароля.
+    """A single-use password recovery link.
 
-    Та же дисциплина, что у EmailVerification: наружу уходит открытый токен,
-    в базе лежит его хеш. Таблица отдельная, а не общая с подтверждением:
-    ссылка восстановления — это вход в аккаунт, и жить она должна заметно
-    короче, а ошибка в общем коде не должна превращать письмо «подтвердите
-    адрес» в ключ от чужого пароля.
+    The same discipline as EmailVerification: the plain token goes outward while
+    its hash lies in the database. A separate table rather than one shared with
+    confirmation: a recovery link is entry into an account, and it must live
+    noticeably shorter, while a mistake in shared code must not turn a "confirm
+    your address" message into the key to someone else's password.
     """
 
     __tablename__ = "password_resets"
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    # Ищется по владельцу на каждой повторной просьбе и при погашении.
+    # Looked up by owner on every repeated request and on redemption.
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
@@ -363,9 +369,9 @@ class Project(Base):
     __tablename__ = "projects"
     __table_args__ = (
         UniqueConstraint("org_id", "slug"),
-        # Тот же принцип, что у CHECK-ограничений задачи: инвариант держит
-        # база, а не только слой приложения — второй путь записи не должен
-        # уметь положить режим, которого не существует.
+        # The same principle as the task's CHECK constraints: the invariant is held
+        # by the database rather than by the application layer alone — a second
+        # write path must not be able to store a mode that does not exist.
         CheckConstraint(
             "schedule_mode IN (" + ", ".join(f"'{mode}'" for mode in SCHEDULE_MODES) + ")",
             name="ck_projects_schedule_mode",
@@ -380,47 +386,50 @@ class Project(Base):
     plan_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     plan_version: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Относительный план или календарный (см. ScheduleMode). В относительном
-    # режиме `start_date` пуста, а даты задач — координаты на относительной
-    # оси: день N проекта хранится как RELATIVE_EPOCH + (N-1) (см.
-    # app.schedule). Источник истины — старт + длительности + связи + рабочий
-    # календарь; дат окончания в базе нет и в этом режиме тоже.
+    # A relative plan or a calendar one (see ScheduleMode). In relative mode
+    # `start_date` is empty and the task dates are coordinates on the relative
+    # axis: day N of the project is stored as RELATIVE_EPOCH + (N-1) (see
+    # app.schedule). The source of truth is the start plus durations plus
+    # dependencies plus the working calendar; there are no finish dates in the
+    # database in this mode either.
     #
-    # server_default — по той же причине, что у Task.status: NOT NULL без
-    # значения сломал бы второй путь записи.
+    # server_default for the same reason as Task.status: a NOT NULL with no value
+    # would break the second write path.
     schedule_mode: Mapped[str] = mapped_column(
         Text, default=ScheduleMode.RELATIVE, server_default=text("'relative'")
     )
-    # Назначенная дата старта. Появляется при привязке плана к календарю и
-    # остаётся якорем: от неё считают относительное представление уже
-    # календарного проекта и сдвиг всех задач при переносе старта.
+    # The assigned start date. It appears when the plan is anchored to the calendar
+    # and stays as the anchor: the relative view of an already calendar-based
+    # project is counted from it, as is the shift of every task when the start moves.
     start_date: Mapped[date | None] = mapped_column(Date)
 
-    # nullable = «наследовать от организации»
+    # nullable = "inherit from the organization"
     timezone: Mapped[str | None] = mapped_column(String(64))
     working_days: Mapped[int | None] = mapped_column(Integer)
     shift_threshold_days: Mapped[int | None] = mapped_column(Integer)
 
     holidays_extra: Mapped[list] = mapped_column(JSON, default=list)
     workdays_extra: Mapped[list] = mapped_column(JSON, default=list)
-    # Автоперенос по связям: последователь не начинается раньше, чем кончился
-    # его предшественник. Выключен по умолчанию — до него связь не двигала
-    # ничего вовсе, и включённый он меняет смысл каждой связи в проекте разом
-    # (см. app/cascade.py). Свойство проекта, а не организации: в одном
-    # проекте план ведут по цепочке, в соседнем — руками, и общая настройка
-    # заставила бы выбирать одно на всех.
+    # Automatic shifting along dependencies: a successor does not start before its
+    # predecessor has finished. Off by default — before it, a dependency moved
+    # nothing at all, and turning it on changes the meaning of every dependency in
+    # the project at once (see app/cascade.py). A property of the project rather
+    # than of the organization: in one project the plan is driven by the chain and
+    # in the next one by hand, and a shared setting would force one choice on
+    # everyone.
     auto_schedule: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false")
     )
 
 
 class ProjectAccess(Base):
-    """Доступ к одному проекту, выданный человеку поимённо.
+    """Access to one project, granted to a person individually.
 
-    Нужна роли `client` и гостю по ссылке всегда (см. `_NEEDS_GRANT` в
-    app.access), а остальным ролям — когда их собственное членство сужено
-    (`Membership.project_scoped`, см. там же). Несуженному членству записи
-    здесь не значат ничего — его право читать проект следует из роли одной.
+    Always needed by the `client` role and by a link-holding guest (see
+    `_NEEDS_GRANT` in app.access), and by the other roles when their own membership
+    is narrowed (`Membership.project_scoped`, see the same place). For an
+    un-narrowed membership, rows here mean nothing — its right to read a project
+    follows from the role alone.
     """
 
     __tablename__ = "project_access"
@@ -430,33 +439,33 @@ class ProjectAccess(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
-    # Спрашивается на каждом чтении проекта ролью, которой нужен явный доступ,
-    # и при сборке списка проектов такого человека — то есть с этой колонки.
+    # Asked on every read of a project by a role that needs explicit access, and
+    # when assembling such a person's project list — that is, leading with this column.
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
 
 
 class ShareLink(Base):
-    """Публичная ссылка на проект.
+    """A project's public link.
 
-    Токен лежит открытым текстом — сознательно, в отличие от приглашения,
-    где хранится хеш. Приглашение показывается один раз и уходит адресату;
-    публичную ссылку владелец копирует снова и снова, из настроек проекта,
-    и сервер, забывший её, оставил бы единственный способ «показать ссылку
-    ещё раз» — выпустить новую и убить действующую. Цена размена названа
-    прямо: утёкший дамп базы отдаёт чтение опубликованных проектов, а не
-    доступ к организациям.
+    The token lies in plain text — deliberately, unlike an invitation, where a hash
+    is stored. An invitation is shown once and goes to its recipient; a public link
+    is copied by the owner again and again, from the project's settings, and a
+    server that had forgotten it would leave "show the link again" with only one
+    meaning — issue a new one and kill the one in force. The price of the trade-off
+    is stated plainly: a leaked database dump hands over read access to published
+    projects, not access to organizations.
 
-    Отозванная ссылка не удаляется, а помечается `revoked_at`: старый адрес
-    обязан отвечать «ссылка больше не действует», а не «такого проекта нет».
+    A revoked link is not deleted but marked `revoked_at`: the old address must
+    answer "this link is no longer valid" rather than "there is no such project".
     """
 
     __tablename__ = "share_links"
     __table_args__ = (
-        # Действующая ссылка у проекта одна. Частичный индекс, а не обычное
-        # ограничение уникальности: отозванных ссылок у проекта сколько
-        # угодно — это журнал того, какой адрес когда умер.
+        # A project has one link in force. A partial index rather than an ordinary
+        # unique constraint: a project may have any number of revoked links — that
+        # is the record of which address died when.
         Index(
             "uq_share_links_active_project",
             "project_id",
@@ -476,13 +485,13 @@ class ShareLink(Base):
 
 
 class Comment(Base):
-    """Реплика к проекту или к одной его задаче.
+    """A remark on a project or on one of its tasks.
 
-    Автор — либо участник с аккаунтом, либо гость по ссылке, назвавший себя
-    именем. Ровно один из двух: комментарий без автора не подписан никем, а
-    комментарий с обоими — это участник, притворившийся гостем. Держит это
-    ограничение база, а не проверка в маршруте: маршрутов, создающих
-    комментарий, уже два.
+    The author is either a member with an account or a link-holding guest who gave
+    a name. Exactly one of the two: a comment with no author is signed by nobody,
+    while a comment with both is a member pretending to be a guest. That constraint
+    is held by the database rather than by a check in a route: there are already
+    two routes that create a comment.
     """
 
     __tablename__ = "comments"
@@ -497,45 +506,44 @@ class Comment(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
-    # null — комментарий к проекту целиком, а не к задаче. Лента задачи
-    # ищется ровно по этой колонке.
+    # null means a comment on the whole project rather than on a task. A task's feed
+    # is looked up by exactly this column.
     task_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("tasks.id", ondelete="CASCADE"), index=True
     )
-    # CASCADE, а не SET NULL: обнулённый автор оставил бы запись без подписи
-    # вовсе — ни аккаунта, ни имени гостя, — то есть нарушил бы ограничение
-    # ниже прямо в момент удаления человека.
+    # CASCADE rather than SET NULL: a nulled author would leave the entry with no
+    # signature at all — neither an account nor a guest name — that is, it would
+    # violate the constraint below at the very moment the person was deleted.
     author_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE")
     )
     guest_name: Mapped[str | None] = mapped_column(String(80))
     body: Mapped[str] = mapped_column(Text)
-    # Внутренняя реплика: видна участникам, гостю публичной ссылки — нет.
-    # По умолчанию false — разговор с клиентом остаётся общим, как и был;
-    # признак ставит автор, решивший говорить «в сторону». server_default
-    # закрывает и старые строки: до появления признака все реплики были
-    # публичными по факту.
+    # An internal remark: visible to members, not to a public-link guest. False by
+    # default — the conversation with the client stays shared, as it was; the flag
+    # is set by an author who decided to speak "aside". server_default covers the
+    # old rows too: before the flag existed, every remark was public in fact.
     internal: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
-    # clock_timestamp(), а не now(): now() отдаёт время начала транзакции, и
-    # две реплики, вставленные в одной, получают одинаковую метку — а
-    # порядок в разговоре держится именно на ней. У журнала ревизий для
-    # этого есть seq, у комментариев его нет и заводить его незачем.
+    # clock_timestamp(), not now(): now() returns the transaction's start time, and
+    # two remarks inserted in one get the same timestamp — while the order of the
+    # conversation rests on exactly that. The revision journal has seq for this;
+    # comments do not, and there is no reason to introduce one.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
 
 
 class Invitation(Base):
-    """Приглашение в организацию: одноразовое, с сроком жизни и ролью внутри.
+    """An invitation into an organization: single-use, with a lifetime and a role inside.
 
-    Живёт в базе и после принятия — это журнал того, кто кого привёл, а
-    `accepted_at` заодно служит признаком «токен больше не работает».
+    It lives in the database after acceptance too — it is the record of who brought
+    whom in, and `accepted_at` doubles as the flag for "the token no longer works".
     """
 
     __tablename__ = "invitations"
     __table_args__ = (
-        # Тем же способом, что и у членства: список выведен из Role, чтобы
-        # роль в приглашении нельзя было завести мимо матрицы прав.
+        # The same way as with membership: the list is derived from Role so that a
+        # role in an invitation cannot be created around the permission matrix.
         CheckConstraint(
             "role IN (" + ", ".join(f"'{role.value}'" for role in Role) + ")",
             name="ck_invitations_role",
@@ -546,20 +554,21 @@ class Invitation(Base):
     org_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), index=True
     )
-    # null — приглашение только по ссылке: оно достаётся предъявителю, и это
-    # осознанный размен, а не недосмотр.
+    # null means an invitation by link only: it goes to whoever presents it, and
+    # that is a deliberate trade-off rather than an oversight.
     email: Mapped[str | None] = mapped_column(String(320))
     role: Mapped[str] = mapped_column(String(16))
-    # Проекты, к которым приглашение сразу даёт доступ. Нужны роли `client`;
-    # у остальных ролей список пуст. Хранится списком id, а не таблицей
-    # связей: он читается и переписывается целиком, поиска по нему нет.
+    # The projects an invitation grants access to right away. Needed by the
+    # `client` role; for other roles the list is empty. Stored as a list of ids
+    # rather than as a link table: it is read and rewritten whole, and nothing
+    # searches inside it.
     project_ids: Mapped[list] = mapped_column(JSON, default=list)
-    # Хранится хеш, как у пароля и у сессии: дамп базы не должен раздавать
-    # доступ к организациям. Прямое следствие — открытую ссылку показываем
-    # один раз, в момент выпуска.
+    # A hash is stored, as with a password and a session: a database dump must not
+    # hand out access to organizations. The direct consequence is that we show the
+    # plain link once, at the moment it is issued.
     token_hash: Mapped[str] = mapped_column(String(128), unique=True)
-    # SET NULL: ушедший из организации человек не уносит с собой запись о том,
-    # кого он привёл.
+    # SET NULL: a person who has left the organization does not carry away the
+    # record of whom they brought in.
     invited_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
@@ -570,8 +579,9 @@ class Invitation(Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Заполняется только отправкой письма. Выпуск ссылки для копирования его
-    # не трогает: письма не было, и в потолок рассылки такой выпуск не идёт.
+    # Filled in only by sending a message. Issuing a link to copy does not touch
+    # it: there was no message, and such an issue does not count towards the
+    # mailing ceiling.
     last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -590,10 +600,10 @@ class Category(Base):
 class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
-        # Позиция уникальна внутри категории — это и есть модель порядка.
-        # DEFERRABLE INITIALLY DEFERRED: перестановка перенумеровывает
-        # несколько строк одной транзакцией, и проверка в момент каждого
-        # UPDATE ловила бы промежуточные дубли, которых в итоге нет.
+        # The position is unique within a category — that is the model of ordering
+        # itself. DEFERRABLE INITIALLY DEFERRED: a reorder renumbers several rows in
+        # one transaction, and a check at every UPDATE would catch intermediate
+        # duplicates that do not exist in the end.
         UniqueConstraint(
             "category_id",
             "position",
@@ -601,15 +611,17 @@ class Task(Base):
             deferrable=True,
             initially="DEFERRED",
         ),
-        # Инварианты домена держит база, а не только слой мутаций: второй
-        # путь записи (восстановление из журнала, ручной SQL) не должен уметь
-        # положить строку, которую слой мутаций не принял бы.
+        # The domain's invariants are held by the database rather than by the
+        # mutation layer alone: a second write path (a restore from the journal,
+        # hand-written SQL) must not be able to store a row the mutation layer
+        # would not have accepted.
         CheckConstraint("progress_pct BETWEEN 0 AND 100", name="ck_tasks_progress_pct"),
         CheckConstraint("duration_days >= 1", name="ck_tasks_duration_days"),
-        # Веха — точка на шкале, и один день это и означает. Инвариант держит
-        # база, а не только слой мутаций: веха с длительностью в неделю
-        # рисуется ромбом, а считается отрезком, и расхождение между тем, что
-        # видно, и тем, что посчитано, — худший род ошибки в диаграмме.
+        # A milestone is a point on the scale, and one day is exactly what that
+        # means. The invariant is held by the database rather than by the mutation
+        # layer alone: a milestone with a duration of a week is drawn as a diamond
+        # but counted as a segment, and a divergence between what is seen and what
+        # is computed is the worst kind of error in a chart.
         CheckConstraint(
             "NOT milestone OR duration_days = 1", name="ck_tasks_milestone_duration"
         ),
@@ -631,7 +643,7 @@ class Task(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
-    # Строки ганта группируются по категории — выборка идёт с этой колонки.
+    # Gantt rows are grouped by category — the selection leads with this column.
     category_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categories.id", ondelete="CASCADE"), index=True
     )
@@ -640,44 +652,46 @@ class Task(Base):
     internal_note: Mapped[str] = mapped_column(Text, default="")
     start_date: Mapped[date] = mapped_column(Date)
     duration_days: Mapped[int] = mapped_column(Integer)
-    # Веха: сдача этапа, согласование, дедлайн подрядчика — то, что происходит
-    # в день, а не длится. Признак задачи, а не отдельная таблица: у вехи те же
-    # имя, категория, статус, исполнители, комментарии и связи, и вторая
-    # сущность означала бы второй набор операций, второй журнал и вторую
-    # отмену ради одного различия в отрисовке.
+    # A milestone: a stage handover, a sign-off, a contractor's deadline — something
+    # that happens on a day rather than lasting. A flag on the task rather than a
+    # separate table: a milestone has the same name, category, status, assignees,
+    # comments and dependencies, and a second entity would mean a second set of
+    # operations, a second journal and a second undo for the sake of one difference
+    # in rendering.
     #
-    # Длительность у вехи всё равно хранится (и равна одному дню — см.
-    # ограничение выше): расчёт даты окончания, снимки плана и порог сдвига
-    # спрашивают её у всех задач одинаково, и nullable-колонка добавила бы в
-    # каждый из них ветку «а если веха».
+    # A milestone still stores a duration (equal to one day — see the constraint
+    # above): the finish-date computation, the plan snapshots and the shift
+    # threshold all ask every task for it alike, and a nullable column would add an
+    # "and what if it is a milestone" branch to each of them.
     milestone: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     criticality: Mapped[str] = mapped_column(String(16), default="normal")
     progress_pct: Mapped[int] = mapped_column(Integer, default=0)
-    # server_default — не только для миграции по живой таблице: второй путь
-    # записи (ручной SQL) без него получил бы NOT NULL без значения.
+    # server_default is not only for a migration over a live table: without it a
+    # second write path (hand-written SQL) would get a NOT NULL with no value.
     status: Mapped[str] = mapped_column(Text, default="planned", server_default=text("'planned'"))
     position: Mapped[int] = mapped_column(Integer, default=0)
     baseline_start: Mapped[date | None] = mapped_column(Date)
     baseline_duration: Mapped[int | None] = mapped_column(Integer)
-    # Откуда взялась задача. В истории остаётся «создана AI-сессией от
-    # 10 августа», и без этого поля такой записи неоткуда взяться: журнал
-    # ревизий хранит операцию, а не её происхождение.
+    # Where the task came from. The history keeps "created by an AI session of
+    # 10 August", and without this field there would be nowhere for such an entry to
+    # come from: the revision journal stores the operation, not its origin.
     created_by_ai_session_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("ai_sessions.id", ondelete="SET NULL")
     )
-    # Когда задача стала «сделано» и когда взята в работу. Ставятся слоем
-    # мутаций при переходе статуса и чистятся при уходе из него (см.
-    # _stamp_status_change в app.mutations): скоркарду нужны «закрыто на этой
-    # неделе» и «висит в работе N дней», а журнал ревизий отвечает на эти
-    # вопросы только проходом по всем записям задачи. Колонка — последняя
-    # граница, а не история: полную летопись переходов по-прежнему хранит
-    # журнал.
+    # When the task became "done" and when it was taken up. They are set by the
+    # mutation layer on a status transition and cleared on leaving it (see
+    # _stamp_status_change in app.mutations): the scorecard needs "closed this week"
+    # and "hanging in progress for N days", and the revision journal answers those
+    # questions only by walking every entry of the task. The column is the last
+    # boundary, not a history: the full chronicle of transitions is still kept by
+    # the journal.
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     in_progress_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Флаг риска от исполнителя и причина одной строкой (см. RiskFlag). На
-    # закрытой задаче флаг не сбрасывается: сброс мимо журнала сломал бы
-    # отмену, а сброс через связку статуса — лишняя запись в истории о том,
-    # чего человек не делал. Экран просто не показывает флаг у «сделано».
+    # The assignee's risk flag and a one-line reason (see RiskFlag). The flag is not
+    # cleared on a closed task: clearing it around the journal would break the undo,
+    # while clearing it through the status coupling would be an extra history entry
+    # about something the person did not do. The screen simply does not show a flag
+    # on "done".
     risk: Mapped[str] = mapped_column(
         String(8), default="green", server_default=text("'green'")
     )
@@ -685,13 +699,13 @@ class Task(Base):
 
 
 class PlanVersion(Base):
-    """Утверждённый план: снимок дат и длительностей на момент утверждения.
+    """An approved plan: a snapshot of dates and durations at the moment of approval.
 
-    Отдельная таблица, а не только baseline_* у задачи: базовые поля задачи
-    хранят последнюю версию, а летопись «что обещали в январе, что в марте»
-    требует всех предыдущих. Версии нумеруются внутри проекта, и уникальное
-    ограничение держит эту нумерацию: два одновременных утверждения иначе
-    получили бы один номер.
+    A separate table rather than only the task's baseline_*: a task's baseline
+    fields hold the latest version, while a chronicle of "what was promised in
+    January, what in March" requires all the previous ones. Versions are numbered
+    within a project, and a unique constraint holds that numbering: two
+    simultaneous approvals would otherwise get the same number.
     """
 
     __tablename__ = "plan_versions"
@@ -702,16 +716,16 @@ class PlanVersion(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
     version: Mapped[int] = mapped_column(Integer)
-    # SET NULL: удаление аккаунта не должно ни падать по внешнему ключу,
-    # ни уносить летопись утверждений — запись остаётся, автор забывается.
+    # SET NULL: deleting an account must neither fail on a foreign key nor carry
+    # away the chronicle of approvals — the entry stays, the author is forgotten.
     approved_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
     approved_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    # jsonb по той же причине, что и журнал ревизий: снимок читается целиком,
-    # но по нему же ищут задачу при сравнении версий.
+    # jsonb for the same reason as the revision journal: the snapshot is read whole,
+    # but a task is also looked up inside it when versions are compared.
     snapshot: Mapped[dict] = mapped_column(JSONB)
 
 
@@ -721,8 +735,8 @@ class TaskAssignee(Base):
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
-    # «Задачи этого человека» ищутся с колонки user_id; составной уникальный
-    # (task_id, user_id) ведёт не с неё и здесь бесполезен.
+    # "This person's tasks" are looked up leading with the user_id column; the
+    # composite unique (task_id, user_id) does not lead with it and is useless here.
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
@@ -733,27 +747,28 @@ class Dependency(Base):
     __table_args__ = (UniqueConstraint("from_task_id", "to_task_id"),)
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    # Связи проекта читаются целиком на каждый GET состояния.
+    # A project's dependencies are read in full on every GET of the state.
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
     from_task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
-    # Обратный конец: «кто ждёт эту задачу» и снимок связей при её удалении.
-    # Прямой конец покрыт префиксом уникального (from_task_id, to_task_id).
+    # The reverse end: "who is waiting on this task" and the snapshot of
+    # dependencies when it is deleted. The forward end is covered by the prefix of
+    # the unique (from_task_id, to_task_id).
     to_task_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tasks.id", ondelete="CASCADE"), index=True
     )
 
 
 class OrgLlmCredential(Base):
-    """Подключение LLM: одно на организацию.
+    """An LLM connection: one per organization.
 
-    `base_url` и `model` — обязательные настройки, а не константы: без них
-    BYOK работает с одним облаком по одной зашитой модели, и обещание «можно
-    подсунуть локальную модель» остаётся на словах.
+    `base_url` and `model` are mandatory settings rather than constants: without
+    them BYOK works with one cloud on one hard-coded model, and the promise "you
+    can plug in a local model" stays words.
 
-    Ключ шифруется симметрично секретом приложения и наружу не отдаётся
-    никогда — только признак «ключ настроен».
+    The key is encrypted symmetrically with the application's secret and is never
+    handed outward — only the flag "a key is configured".
     """
 
     __tablename__ = "org_llm_credentials"
@@ -769,17 +784,17 @@ class OrgLlmCredential(Base):
 
 
 class JiraConnection(Base):
-    """Подключение Jira: одно на организацию.
+    """A Jira connection: one per organization.
 
-    Basic-аутентификация Jira Cloud — email участника и API-токен, выпущенный
-    в его профиле (id.atlassian.com/manage-profile/security/api-tokens).
-    OAuth 2.0 (3LO) устроен сложнее — своё приложение, редиректы, обновляемые
-    токены — и в MVP не нужен: организация, вводящая сюда свои же учётные
-    данные, доверяет собственному инстансу Jira ровно так же, как доверяет
-    адресу и ключу LLM.
+    Jira Cloud's Basic authentication is a member's email and an API token issued
+    in their profile (id.atlassian.com/manage-profile/security/api-tokens). OAuth
+    2.0 (3LO) is more complicated — an application of one's own, redirects,
+    refreshable tokens — and is not needed in the MVP: an organization entering its
+    own credentials here trusts its own Jira instance exactly as it trusts the LLM
+    address and key.
 
-    Токен шифруется тем же способом, что ключ LLM (см. OrgLlmCredential), и
-    наружу не отдаётся никогда — только признак «подключено».
+    The token is encrypted the same way as the LLM key (see OrgLlmCredential) and
+    is never handed outward — only the flag "connected".
     """
 
     __tablename__ = "jira_connections"
@@ -794,13 +809,13 @@ class JiraConnection(Base):
 
 
 class JiraProjectLink(Base):
-    """Проект Planora, заведённый импортом из проекта Jira.
+    """A Planora project created by an import from a Jira project.
 
-    Одна связь на проект: второй импорт того же плана из другой строки Jira
-    не имеет смысла — планом либо управляет Jira, либо нет. `jql` хранит
-    запрос исходного импорта (по умолчанию — все задачи проекта Jira), и
-    повторная синхронизация спрашивает Jira о том же подмножестве, а не обо
-    всём инстансе.
+    One link per project: a second import of the same plan from another Jira row
+    makes no sense — either Jira drives the plan or it does not. `jql` holds the
+    query of the original import (by default, every issue of the Jira project), and
+    a repeated sync asks Jira about the same subset rather than about the whole
+    instance.
     """
 
     __tablename__ = "jira_project_links"
@@ -815,11 +830,11 @@ class JiraProjectLink(Base):
 
 
 class JiraCategoryLink(Base):
-    """Этап плана, заведённый из эпика Jira, — привязка для повторной синхронизации.
+    """A plan stage created from a Jira epic — the link for a repeated sync.
 
-    Отдельная таблица от JiraTaskLink, а не общая с признаком «вид строки»:
-    категория и задача ссылаются на разные таблицы плана, и общая колонка
-    держала бы половину значений пустыми на каждой строке.
+    A separate table from JiraTaskLink rather than one shared with a "row kind"
+    flag: a category and a task refer to different plan tables, and a shared column
+    would leave half of the values empty on every row.
     """
 
     __tablename__ = "jira_category_links"
@@ -836,28 +851,28 @@ class JiraCategoryLink(Base):
 
 
 class JiraTaskLink(Base):
-    """Задача плана, заведённая из строки Jira, — привязка для повторной синхронизации.
+    """A plan task created from a Jira issue — the link for a repeated sync.
 
-    `issue_key`, а не внутренний числовой id Jira: ключ виден человеку в
-    самой Jira и меняется только явным переносом задачи между проектами, а
-    числовой id не нужен нигде в этом продукте.
+    `issue_key` rather than Jira's internal numeric id: the key is visible to a
+    person in Jira itself and changes only on an explicit move of the issue between
+    projects, while the numeric id is needed nowhere in this product.
 
-    `task_id` — SET NULL, а не CASCADE, вопреки остальным привязкам этого
-    модуля: удаление задачи человеком в Planora — осознанное решение, и
-    повторная синхронизация не должна его отменять, воскрешая строку по
-    первому же совпадению ключа. Строка с `task_id IS NULL` — надгробие: она
-    остаётся в таблице только затем, чтобы этот самый ключ больше не считался
-    новым (см. app/jira/sync.py:_sync_tasks).
+    `task_id` is SET NULL rather than CASCADE, contrary to the module's other
+    links: a person deleting a task in Planora is a deliberate decision, and a
+    repeated sync must not undo it by resurrecting the row on the first match of a
+    key. A row with `task_id IS NULL` is a headstone: it stays in the table only so
+    that this very key is no longer considered new (see
+    app/jira/sync.py:_sync_tasks).
 
-    `pushed_due_date` — дата, последней отправленная в Jira кнопкой «Отправить
-    в Jira» (см. app/jira/sync.py:push_project). `NULL` — сроки этой задачи
-    ведёт Jira: обычная синхронизация подтягивает `duedate` оттуда как обычно.
-    Заполненное значение переворачивает направление для дат этой конкретной
-    задачи: она заведена человеком в Planora как источник правды по срокам, и
-    обычная синхронизация больше не трогает её старт и длительность — только
-    отправка снова меняет это поле. Свойство задачи, а не проекта целиком:
-    в одном плане часть строк может остаться под Jira, а часть — перейти под
-    ручное управление, по мере того как их даты поправляют здесь.
+    `pushed_due_date` is the date last pushed to Jira by the "Push to Jira" button
+    (see app/jira/sync.py:push_project). `NULL` means Jira drives this task's dates:
+    an ordinary sync pulls `duedate` from there as usual. A filled-in value reverses
+    the direction for this particular task's dates: it has been declared by a person
+    in Planora as the source of truth on deadlines, and an ordinary sync no longer
+    touches its start and duration — only another push changes this field again. A
+    property of the task rather than of the whole project: in one plan some rows may
+    stay under Jira while others move to manual control, as their dates are fixed up
+    here.
     """
 
     __tablename__ = "jira_task_links"
@@ -875,10 +890,11 @@ class JiraTaskLink(Base):
 
 
 class AiSession(Base):
-    """Интервью, конспект и черновик — до применения в проект.
+    """The interview, the summary and the draft — before being applied to a project.
 
-    Живёт отдельно от проекта, потому что проекта до применения не существует:
-    AI ничего не пишет в проект без явного подтверждения человека.
+    It lives separately from the project, because before application the project
+    does not exist: AI writes nothing into a project without a person's explicit
+    confirmation.
     """
 
     __tablename__ = "ai_sessions"
@@ -887,17 +903,17 @@ class AiSession(Base):
     org_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), index=True
     )
-    # Заполняется после применения: до него проекта нет.
+    # Filled in after application: before it there is no project.
     project_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("projects.id", ondelete="SET NULL")
     )
-    # SET NULL — по той же причине, что у plan_versions.approved_by.
+    # SET NULL — for the same reason as plan_versions.approved_by.
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
-    # Язык интервью фиксируется на сессии, а не берётся из профиля каждый раз:
-    # человек, переключивший интерфейс посреди интервью, иначе получил бы
-    # черновик наполовину на одном языке, наполовину на другом.
+    # The interview's language is fixed on the session rather than taken from the
+    # profile each time: otherwise someone who switched the interface mid-interview
+    # would get a draft half in one language and half in another.
     locale: Mapped[str] = mapped_column(String(5), default="az")
     status: Mapped[str] = mapped_column(String(16), default="interview")
     transcript: Mapped[list] = mapped_column(JSONB, default=list)
@@ -912,55 +928,55 @@ class Revision(Base):
     __tablename__ = "revisions"
     __table_args__ = (
         UniqueConstraint("project_id", "seq"),
-        # GIN по полезной нагрузке: история задачи ищется вхождением
-        # task_id в op (см. serialization), и без индекса это последовательное
-        # чтение всего журнала проекта на каждое открытие карточки.
+        # A GIN index over the payload: a task's history is found by the occurrence
+        # of task_id in op (see serialization), and without the index that is a
+        # sequential read of the project's whole journal every time a card is opened.
         Index("ix_revisions_op_gin", "op", postgresql_using="gin"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     seq: Mapped[int] = mapped_column(Integer)
-    # SET NULL: журнал ревизий переживает удаление автора — история проекта
-    # не собственность аккаунта.
+    # SET NULL: the revision journal outlives the deletion of an author — a
+    # project's history is not an account's property.
     actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
-    # jsonb, а не json: все три фичи, ради которых ведётся журнал, ищут по
-    # содержимому полезной нагрузки. json хранит сырой текст, не умеет
-    # операторов вхождения и не индексируется GIN. Продукт только под
-    # Postgres; менять это после появления боевых записей — переписывание
-    # таблицы, сегодня — бесплатно.
+    # jsonb rather than json: all three features the journal is kept for search by
+    # the payload's content. json stores raw text, knows no containment operators
+    # and is not GIN-indexable. The product is Postgres-only; changing this after
+    # production entries appear means rewriting the table, whereas today it is free.
     op: Mapped[dict] = mapped_column(JSONB)
     inverse: Mapped[dict] = mapped_column(JSONB)
     reason: Mapped[str | None] = mapped_column(Text)
-    # Пакет ревизий читается целиком при отмене групповой операции.
+    # A batch of revisions is read in full when a group operation is undone.
     batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
-    # Номер ревизии, которую эта отменила. Без него «отменить последнее»
-    # означало бы отменить свою же отмену: журнал линеен, и вторая ревизия
-    # сверху после отмены — это она сама. Внешнего ключа нет намеренно:
-    # ссылаться пришлось бы на составной (project_id, seq), а выигрыш от такой
-    # ссылки нулевой — ревизии не удаляются.
+    # The number of the revision this one undid. Without it, "undo the last thing"
+    # would mean undoing one's own undo: the journal is linear, and the second
+    # revision from the top after an undo is the undo itself. There is deliberately
+    # no foreign key: it would have to refer to the composite (project_id, seq), and
+    # the benefit of such a reference is nil — revisions are not deleted.
     undoes_seq: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Proposal(Base):
-    """Коммерческое предложение проекта: настройки сметы.
+    """A project's commercial proposal: the budget's settings.
 
-    Одна строка на проект, и заводится она лениво — первым изменением, а не
-    созданием проекта: у большинства проектов предложения нет, и пустая
-    строка на каждый из них была бы записью ради записи. Чтение без строки
-    отдаёт значения по умолчанию (см. app.proposals).
+    One row per project, and it is created lazily — by the first change rather than
+    by the creation of the project: most projects have no proposal, and an empty
+    row for each of them would be a record for the record's sake. A read with no row
+    returns the default values (see app.proposals).
 
-    Ставка и налог живут здесь, а не в организации: предложение составляется
-    под конкретного клиента, и в соседних проектах и валюта, и налог свои.
+    The rate and the tax live here rather than in the organization: a proposal is
+    drawn up for a particular client, and neighbouring projects have their own
+    currency and their own tax.
     """
 
     __tablename__ = "proposals"
     __table_args__ = (
-        # Тот же принцип, что у schedule_mode: инвариант держит база, а не
-        # только слой приложения.
+        # The same principle as with schedule_mode: the invariant is held by the
+        # database rather than by the application layer alone.
         CheckConstraint(
             "effort_unit IN (" + ", ".join(f"'{unit}'" for unit in EFFORT_UNITS) + ")",
             name="ck_proposals_effort_unit",
@@ -974,33 +990,34 @@ class Proposal(Base):
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    # unique: предложение у проекта одно. Второе — это другой проект, а не
-    # вторая строка здесь.
+    # unique: a project has one proposal. A second one is a different project, not
+    # a second row here.
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), unique=True
     )
     effort_unit: Mapped[str] = mapped_column(
         Text, default=EffortUnit.DAYS, server_default=text("'days'")
     )
-    # Сколько часов считать рабочим днём при переносе почасовой сметы в план:
-    # у плана длительности в днях, и без этого числа их не из чего получить.
+    # How many hours to count as a working day when carrying an hourly budget into
+    # the plan: the plan's durations are in days, and without this number there is
+    # nothing to derive them from.
     hours_per_day: Mapped[int] = mapped_column(Integer, default=8, server_default=text("8"))
-    # Numeric, а не Float: налог — деньги, и 18% обязаны оставаться ровно
-    # восемнадцатью, а не 17.999999.
+    # Numeric rather than Float: tax is money, and 18% must stay exactly eighteen
+    # rather than 17.999999.
     tax_rate_pct: Mapped[Decimal] = mapped_column(
         Numeric(5, 2), default=Decimal("0"), server_default=text("0")
     )
-    # Код ISO 4217. Хранится, а не выводится из языка: язык интерфейса и
-    # валюта сделки — независимые вещи.
+    # An ISO 4217 code. Stored rather than derived from the language: the
+    # interface's language and the deal's currency are independent things.
     currency: Mapped[str] = mapped_column(String(3), default="USD", server_default=text("'USD'"))
-    # Допущения и примечания предложения целиком — «оценки по текущему объёму»,
-    # «ставки без стоимости лицензий». Свободный текст, а не список: пункты
-    # пишут строками, и структура списка не добавила бы к ним ничего.
+    # The proposal's assumptions and notes as a whole — "estimates for the current
+    # scope", "rates exclude licence costs". Free text rather than a list: the items
+    # are written as lines, and a list's structure would add nothing to them.
     notes: Mapped[str] = mapped_column(Text, default="", server_default=text("''"))
-    # Этап сделки, отмеченный рукой: черновик, отправлено клиенту, согласовано.
-    # Отметки времени рядом — подписи под полосой этапов («отправлено 27 авг»);
-    # шаг назад их снимает, чтобы полоса не называла дату этапа, которого
-    # больше нет.
+    # The stage of the deal marked by hand: draft, sent to the client, agreed. The
+    # timestamps next to it are the captions under the stage bar ("sent 27 Aug"); a
+    # step back clears them so that the bar does not name the date of a stage that no
+    # longer exists.
     status: Mapped[str] = mapped_column(
         Text, default=ProposalStatus.DRAFT, server_default=text("'draft'")
     )
@@ -1009,12 +1026,12 @@ class Proposal(Base):
 
 
 class ProposalCategory(Base):
-    """Раздел предложения: группа работ со своими строками.
+    """A proposal's section: a group of works with its own rows.
 
-    Своя таблица, а не Category плана: раздел сметы живёт до плана и без
-    плана, а категория диаграммы несёт цвет и участвует в порядке ленты —
-    смешение двух жизней в одной таблице означало бы, что черновик сметы
-    виден на диаграмме.
+    Its own table rather than the plan's Category: a budget section lives before the
+    plan and without the plan, while a chart category carries a colour and takes
+    part in the chart's ordering — mixing two lives in one table would mean a budget
+    draft showing up on the chart.
     """
 
     __tablename__ = "proposal_categories"
@@ -1024,18 +1041,19 @@ class ProposalCategory(Base):
         ForeignKey("proposals.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(200))
-    # Одна строка о разделе целиком — «понять цели, людей и требования»:
-    # в таблице сметы она стоит на строке раздела, рядом с суммой его работ.
+    # One line about the section as a whole — "understand the goals, the people and
+    # the requirements": in the budget table it stands on the section's row, next to
+    # the sum of its works.
     description: Mapped[str] = mapped_column(Text, default="", server_default=text("''"))
     position: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class ProposalTask(Base):
-    """Строка сметы: работа, роль, трудоёмкость и ставка.
+    """A budget row: the work, the role, the effort and the rate.
 
-    Цена не хранится намеренно: она равна effort × rate, и хранимая копия
-    разъехалась бы с сомножителями первой же правкой. Считают её оба конца
-    заново — клиент для экрана, сервер нигде не пересказывает.
+    The price is deliberately not stored: it equals effort x rate, and a stored copy
+    would diverge from its factors on the very first edit. Both ends compute it
+    anew — the client for the screen, and the server restates it nowhere.
     """
 
     __tablename__ = "proposal_tasks"
@@ -1045,8 +1063,8 @@ class ProposalTask(Base):
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    # Обе ссылки сразу: раздел — для порядка на экране, предложение — чтобы
-    # строки проекта читались одним запросом, без прохода по разделам.
+    # Both references at once: the section for the order on screen, the proposal so
+    # that a project's rows can be read with one query, without walking the sections.
     proposal_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("proposals.id", ondelete="CASCADE"), index=True
     )
@@ -1054,18 +1072,19 @@ class ProposalTask(Base):
         ForeignKey("proposal_categories.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(300))
-    # Короткое описание — колонка таблицы; подробное — карточка строки.
+    # The short description is a table column; the detailed one is the row's card.
     description: Mapped[str] = mapped_column(Text, default="")
     details: Mapped[str] = mapped_column(Text, default="")
-    # Роль исполнителя словами («дизайнер», «senior backend»), а не ссылка на
-    # участника: смету пишут до того, как известно, кто именно будет делать.
+    # The performer's role in words ("designer", "senior backend") rather than a
+    # reference to a member: a budget is written before it is known who exactly will
+    # do the work.
     role: Mapped[str] = mapped_column(String(120), default="")
-    # Трудоёмкость в единицах предложения (см. Proposal.effort_unit). Numeric:
-    # полдня — это 0.5, а не 0.5000000000000001.
+    # The effort in the proposal's units (see Proposal.effort_unit). Numeric: half a
+    # day is 0.5, not 0.5000000000000001.
     effort: Mapped[Decimal] = mapped_column(
         Numeric(8, 2), default=Decimal("0"), server_default=text("0")
     )
-    # Ставка за единицу трудоёмкости, в валюте предложения.
+    # The rate per unit of effort, in the proposal's currency.
     rate: Mapped[Decimal] = mapped_column(
         Numeric(12, 2), default=Decimal("0"), server_default=text("0")
     )
@@ -1073,32 +1092,35 @@ class ProposalTask(Base):
     risks: Mapped[str] = mapped_column(Text, default="")
     assumptions: Mapped[str] = mapped_column(Text, default="")
     position: Mapped[int] = mapped_column(Integer, default=0)
-    # Задача плана, из которой строка собрана («Собрать из плана») или в
-    # которую перенесена («Добавить в план», см. app.proposals). Пока ссылка
-    # жива, перенос строку пропускает: без неё второй перенос удваивал план.
-    # SET NULL, а не CASCADE: удаление задачи — в том числе отменой пачки
-    # переноса — возвращает строку в переносимые, а не уносит её из
-    # предложения. Индекс — ради самого SET NULL: без него каждое удаление
-    # задачи перебирало бы все строки всех смет в поисках ссылающихся.
+    # The plan task the row was assembled from ("Assemble from the plan") or carried
+    # across into ("Add to the plan", see app.proposals). While the reference is
+    # alive, the carry-across skips the row: without it a second carry-across would
+    # double the plan. SET NULL rather than CASCADE: deleting a task — including by
+    # undoing a carry-across batch — returns the row to the carryable ones rather
+    # than carrying it out of the proposal. The index exists for the sake of the SET
+    # NULL itself: without it every task deletion would scan every row of every
+    # budget looking for referrers.
     plan_task_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("tasks.id", ondelete="SET NULL"), index=True
     )
-    # Для подсказок ролей: «последняя ставка этой роли» — ставка самой свежей
-    # строки, и свежесть не из чего вывести без метки. clock_timestamp, а не
-    # now(): строки, заведённые одной транзакцией (сбор из плана), должны
-    # различаться по времени, а now() у всех них одно.
+    # For the role suggestions: "this role's latest rate" is the rate of the
+    # freshest row, and freshness cannot be derived from anything without a
+    # timestamp. clock_timestamp rather than now(): rows created in one transaction
+    # (assembling from the plan) must differ in time, while now() is the same for
+    # all of them.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
 
 
 class ProposalComment(Base):
-    """Реплика к строке сметы.
+    """A remark on a budget row.
 
-    Своя таблица, а не Comment проекта: та жёстко связана с задачами плана
-    (task_id ведёт в tasks) и с публичной страницей, а обсуждение сметы —
-    внутренний разговор участников, гостям оно не отдаётся вовсе. Поэтому и
-    автор здесь обязателен: гостя, подписанного именем, не бывает.
+    Its own table rather than the project's Comment: that one is rigidly tied to
+    plan tasks (task_id leads into tasks) and to the public page, whereas discussing
+    the budget is an internal conversation among members and is not handed to guests
+    at all. That is also why the author is mandatory here: there is no such thing as
+    a guest signed by a name.
     """
 
     __tablename__ = "proposal_comments"
@@ -1107,20 +1129,21 @@ class ProposalComment(Base):
     proposal_task_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("proposal_tasks.id", ondelete="CASCADE"), index=True
     )
-    # CASCADE, как у Comment: реплика без автора не подписана никем.
+    # CASCADE, as with Comment: a remark with no author is signed by nobody.
     author_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE")
     )
     body: Mapped[str] = mapped_column(Text)
-    # clock_timestamp по той же причине, что у Comment: порядок разговора
-    # держится на метке, и две реплики одной транзакции неразличимы по now().
+    # clock_timestamp for the same reason as with Comment: the order of the
+    # conversation rests on the timestamp, and two remarks from one transaction are
+    # indistinguishable by now().
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
 
 
 class ScorecardDirection(StrEnum):
-    """Куда должна смотреть метрика скоркарда: «не больше цели» или «не меньше»."""
+    """Which way a scorecard metric should look: "no more than the target" or "no less"."""
 
     LTE = "lte"
     GTE = "gte"
@@ -1130,8 +1153,8 @@ SCORECARD_DIRECTIONS: tuple[str, ...] = tuple(d.value for d in ScorecardDirectio
 
 
 class ScorecardStatus(StrEnum):
-    """Оценка недели по метрике. `no_data` — источника нет или метрика
-    выключена: серый прочерк, в сериях и правилах не участвует."""
+    """The week's assessment for a metric. `no_data` means there is no source or the
+    metric is disabled: a grey dash, taking part in no streaks and no rules."""
 
     OK = "ok"
     WARN = "warn"
@@ -1151,21 +1174,22 @@ SCORECARD_ALERT_KINDS: tuple[str, ...] = tuple(k.value for k in ScorecardAlertKi
 
 
 class ScorecardMetric(Base):
-    """Настройка метрики скоркарда — на проект, не на организацию.
+    """A scorecard metric's configuration — per project, not per organization.
 
-    Строки заводятся лениво, первым открытием скоркарда проекта (см.
-    app.scorecard.ensure_metrics): дефолты — только сид, дальше владелец,
-    цель и включённость правятся PATCH-ем и действуют в своём проекте.
-    Направление в таблице всё же хранится, хотя оно жёстко следует из ключа:
-    снимок копирует конфиг на момент записи, и без колонки здесь копировать
-    было бы неоткуда при смене констант в коде.
+    The rows are created lazily, by the first opening of a project's scorecard (see
+    app.scorecard.ensure_metrics): the defaults are only a seed, after which the
+    owner, the target and the enabled state are edited by PATCH and apply within
+    their project. The direction is nonetheless stored in the table even though it
+    follows rigidly from the key: a snapshot copies the config as of the moment it
+    is written, and without a column here there would be nowhere to copy it from
+    when the constants in the code change.
     """
 
     __tablename__ = "scorecard_metrics"
     __table_args__ = (
         UniqueConstraint("project_id", "metric_key"),
-        # Тот же принцип, что у schedule_mode: инвариант держит база, а не
-        # только слой приложения.
+        # The same principle as with schedule_mode: the invariant is held by the
+        # database rather than by the application layer alone.
         CheckConstraint(
             "direction IN (" + ", ".join(f"'{d}'" for d in SCORECARD_DIRECTIONS) + ")",
             name="ck_scorecard_metrics_direction",
@@ -1177,36 +1201,37 @@ class ScorecardMetric(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
     metric_key: Mapped[str] = mapped_column(String(40))
-    # SET NULL: удаление аккаунта оставляет метрику без владельца, а не
-    # уносит её настройку.
+    # SET NULL: deleting an account leaves the metric without an owner rather than
+    # carrying its configuration away.
     owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
-    # Numeric, а не Float: цель «90%» обязана оставаться ровно девяноста.
+    # Numeric rather than Float: a target of "90%" must stay exactly ninety.
     target_value: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     direction: Mapped[str] = mapped_column(String(3))
-    # Порог «жёлтого» — задел на будущее, в MVP не используется: статусы
-    # считаются от цели множителями-константами (см. app.scorecard).
+    # The "yellow" threshold is groundwork for the future and is unused in the MVP:
+    # the statuses are computed from the target by constant multipliers (see
+    # app.scorecard).
     warn_value: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     position: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class ScorecardSnapshot(Base):
-    """Недельный снимок метрики: значение, статус и копия конфига на момент
-    записи.
+    """A metric's weekly snapshot: the value, the status and a copy of the config as
+    of the moment it was written.
 
-    Снимки прошлых недель неизменяемы — это летопись, по которой считаются
-    серии и спарклайн. Перезаписывается только строка текущей недели: она же
-    служит кэшем живого расчёта (см. app.scorecard). Цель и направление
-    копируются в снимок сознательно: правка цели сегодня не должна
-    перекрашивать прошлые недели.
+    Snapshots of past weeks are immutable — they are a chronicle from which streaks
+    and the sparkline are computed. Only the current week's row is overwritten: it
+    also serves as the cache of the live computation (see app.scorecard). The target
+    and the direction are copied into the snapshot deliberately: editing a target
+    today must not repaint past weeks.
     """
 
     __tablename__ = "scorecard_snapshots"
     __table_args__ = (
         UniqueConstraint("project_id", "metric_key", "week_start"),
-        # История читается «все метрики проекта за N недель» — с этой пары.
+        # The history is read as "every metric of the project over N weeks" — leading with this pair.
         Index("ix_scorecard_snapshots_project_week", "project_id", "week_start"),
         CheckConstraint(
             "direction IN (" + ", ".join(f"'{d}'" for d in SCORECARD_DIRECTIONS) + ")",
@@ -1223,9 +1248,9 @@ class ScorecardSnapshot(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
     metric_key: Mapped[str] = mapped_column(String(40))
-    # Понедельник ISO-недели в таймзоне проекта.
+    # The Monday of the ISO week in the project's timezone.
     week_start: Mapped[date] = mapped_column(Date)
-    # NULL — данных нет (источник отсутствует или метрика была выключена).
+    # NULL means there is no data (the source is absent or the metric was disabled).
     value: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     target_value: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     direction: Mapped[str] = mapped_column(String(3))
@@ -1233,24 +1258,24 @@ class ScorecardSnapshot(Base):
     computed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    # NULL — снимок записан не человеком, а ленивой фиксацией на GET.
+    # NULL means the snapshot was written not by a person but by lazy committing on a GET.
     computed_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
-    # Сериализованный drill-down: id и краткие атрибуты задач метрики. jsonb
-    # по правилу журнала: прошлые недели читаются только отсюда, и по ключам
-    # внутри однажды придётся искать.
+    # The serialized drill-down: the ids and short attributes of the metric's tasks.
+    # jsonb by the journal's rule: past weeks are read only from here, and one day
+    # something will have to search by the keys inside.
     details: Mapped[dict] = mapped_column(JSONB, default=dict)
 
 
 class ScorecardAlert(Base):
-    """Событие панели «Требует внимания».
+    """An event for the "Needs attention" panel.
 
-    `metric_risk` живёт, пока метрика в красном на текущей неделе;
-    `rule_triggered` — след сработавшего правила «красная 2 недели подряд»
-    со ссылкой на созданную задачу в payload. Закрытые события не удаляются,
-    а помечаются resolved_at: по ним видно, когда серия оборвалась, и по ним
-    же подавляется повтор правила внутри одной серии.
+    `metric_risk` lives while a metric is red in the current week; `rule_triggered`
+    is the trace of the "red two weeks running" rule having fired, with a reference
+    to the created task in payload. Closed events are not deleted but marked
+    resolved_at: they show when a streak broke, and they are also what suppresses a
+    repeat of the rule within one streak.
     """
 
     __tablename__ = "scorecard_alerts"
@@ -1262,7 +1287,7 @@ class ScorecardAlert(Base):
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    # События читаются пачкой на каждый GET скоркарда — с этой колонки.
+    # The events are read as a batch on every GET of the scorecard — leading with this column.
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )

@@ -9,28 +9,27 @@ import { RELATIVE_EPOCH } from "./relative";
 import { startDayFor } from "./useQuickTask";
 
 /**
- * Заведение задачи — строкой в ленте.
+ * Creating a task — as a row in the strip.
  *
- * Проверяется тот путь, которым задачи и заводят: «плюс» на категории, имя,
- * Enter, следующее имя. Раньше здесь открывалось окно на
- * девять полей, и на десяти задачах это было десять открытий и закрытий.
+ * What is checked is the path tasks are actually created by: the "plus" on a category, the
+ * name, Enter, the next name. A dialog with nine fields used to open here, and with ten tasks
+ * that was ten openings and closings.
  */
 
 beforeEach(projectFixtures);
 
-/** Поле новой задачи в категории «Дизайн». */
+/** The new task field in the "Design" category. */
 function field() {
   return screen.getByRole("textbox", { name: "Новая задача в «Дизайн»" });
 }
 
 /**
- * Строка новой задачи открывается «плюсом» на строке категории.
+ * The new task row is opened by the "plus" on a category's row.
  *
- * У самой последней категории то же имя для читалки носит и строка
- * «+ Добавить задачу» с низа ленты (см. `gantt/BottomActions.tsx`) — она
- * целится в ту же категорию, и оба «плюса» делают одно и то же. Здесь берём
- * именно строку категории: тест проверяет её собственный «плюс», а не низ
- * ленты, у которого своя проверка ниже.
+ * For the very last category the "+ Add task" row at the bottom of the strip carries the same
+ * name for the screen reader (see `gantt/BottomActions.tsx`) — it aims at the same category,
+ * and both "pluses" do the same thing. Here we take the category's row specifically: the test
+ * checks its own "plus" rather than the bottom of the strip, which has its own check below.
  */
 async function openRow(category = "Дизайн") {
   const buttons = screen.getAllByRole("button", { name: `Добавить задачу в «${category}»` });
@@ -46,8 +45,8 @@ describe("новая задача", () => {
     await openRow();
 
     expect(field()).toHaveFocus();
-    // Окна с девятью полями больше нет: имя спрашивается на месте, остальное
-    // правится в карточке.
+    // There is no dialog with nine fields any more: the name is asked for in place, the rest is
+    // edited in the card.
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -64,14 +63,14 @@ describe("новая задача", () => {
       type: "create_task",
       category_id: "c1",
       name: "Макет",
-      // Сегодня в поясе проекта и один рабочий день: всё остальное у задачи
-      // уже есть, и спрашивать это ради строки списка не за что.
+      // Today in the project's zone and one working day: the task already has everything else,
+      // and there is no reason to ask for it for the sake of a list row.
       start_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       duration_days: 1,
     });
 
-    // Задача приехала с сервера — строка ввода на месте, пустая и в фокусе:
-    // следующую пишут сразу, не касаясь мыши.
+    // The task arrived from the server — the input row is in place, empty and focused: the next
+    // one is written straight away without touching the mouse.
     expect(await screen.findByRole("button", { name: /Макет/ })).toBeInTheDocument();
     expect(field()).toHaveValue("");
     expect(field()).toHaveFocus();
@@ -139,11 +138,11 @@ describe("новая задача", () => {
     renderProject();
     await screen.findByRole("button", { name: /Логотип/ });
 
-    // Прежняя кнопка тулбара клала задачу в первую категорию, потому что не
-    // знала, куда ещё. Теперь плюс стоит на том, чему добавляет ребёнка: на
-    // строке категории — задачу, в углу таблицы — категорию.
+    // The former toolbar button put a task into the first category, because it did not know
+    // where else. Now the plus stands on what it adds a child to: on a category's row a task, in
+    // the table's corner a category.
     expect(screen.queryByRole("button", { name: "Новая задача" })).not.toBeInTheDocument();
-    // Внутри угла таблицы: то же имя носит и «+ Новая категория» с низа ленты.
+    // Inside the table's corner: "+ New category" at the bottom of the strip carries the same name.
     const corner = document.querySelector(".gantt__corner") as HTMLElement;
     expect(within(corner).getByRole("button", { name: "Новая категория" })).toBeInTheDocument();
   });
@@ -177,8 +176,8 @@ describe("новая задача", () => {
   });
 
   it("отказ сервера объясняется словами, а не исчезновением строки", async () => {
-    // Предупреждение о ключе словаря здесь не нужно: сообщение об отказе
-    // переведено, и падает тест не на нём.
+    // No warning about a dictionary key is needed here: the refusal message is translated, and
+    // the test is not failing on it.
     renderProject();
     await screen.findByRole("button", { name: /Логотип/ });
     server.use(
@@ -191,16 +190,16 @@ describe("новая задача", () => {
     await userEvent.type(field(), "Лишняя{Enter}");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/задач/i);
-    // Строка ожидания снята: задачи нет, и держать её имя на ленте значило бы
-    // обещать несуществующее.
+    // The pending row is removed: the task is not there, and holding its name on the strip would
+    // promise something that does not exist.
     await waitFor(() =>
       expect(screen.queryByText("Лишняя", { selector: ".gantt__label-name" })).not.toBeInTheDocument(),
     );
   });
 
   it("читателю строки не открыть: заводить задачи ему нечем", async () => {
-    // Полоска у читателя по-прежнему кнопка: карточку задачи он открывает и
-    // читает — не может он только менять.
+    // For a reader the bar is still a button: they open and read the task's card — the only thing
+    // they cannot do is change it.
     renderProject(undefined, { canWrite: false });
     await screen.findByRole("button", { name: /Логотип/ });
 
@@ -210,16 +209,16 @@ describe("новая задача", () => {
 });
 
 describe("день новой задачи", () => {
-  // «Сегодня» здесь — просто аргумент: пояс читателя считает вызывающий, и
-  // правило от него не зависит.
+  // "Today" here is just an argument: the reader's zone is computed by the caller, and the rule
+  // does not depend on it.
   it("у идущего этапа — сегодня: заведённая сегодня вчера не начиналась", () => {
-    // «Дизайн» начался 4 марта, сегодня — 10-е: этап уже идёт.
+    // "Design" started on 4 March, today is the 10th: the stage is already under way.
     expect(startDayFor(STATE, "c1", "2026-03-10")).toBe("2026-03-10");
   });
 
   it("у будущего этапа — его начало, а не сегодня", () => {
-    // Плана пишут наперёд: задача, поставленная на сегодня, уехала бы на месяц
-    // левее собственного этапа и за пределы видимого окна.
+    // Plans are written in advance: a task placed on today would travel a month to the left of
+    // its own stage and outside the visible window.
     expect(startDayFor(STATE, "c1", "2026-02-01")).toBe("2026-03-04");
   });
 
@@ -235,8 +234,8 @@ describe("день новой задачи", () => {
 
 describe("строка ожидания", () => {
   it("имя видно сразу, а полоска — только когда сервер ответил", async () => {
-    // Ответ задерживается: без задержки строка ожидания живёт доли секунды, и
-    // проверить её нечем.
+    // The answer is delayed: without a delay the pending row lives for fractions of a second, and
+    // there is nothing to check it with.
     let release = () => {};
     const held = new Promise<void>((resolve) => {
       release = resolve;
@@ -253,7 +252,7 @@ describe("строка ожидания", () => {
 
     await userEvent.type(field(), "Макет{Enter}");
 
-    // Имя уже на ленте — но не кнопкой: задачи ещё нет, открывать нечего.
+    // The name is already on the strip — but not as a button: the task is not there yet, there is nothing to open.
     const pending = await screen.findByText("Макет", { selector: ".gantt__label-name" });
     expect(pending.closest(".gantt__row")).toHaveAttribute("aria-busy", "true");
     expect(screen.queryByRole("button", { name: /Макет/ })).not.toBeInTheDocument();
@@ -284,7 +283,7 @@ describe("строка ожидания", () => {
 
       await user.type(field(), "Созвон{Enter}Созвон{Enter}");
 
-      // Два созвона — две строки: ответ на первый не должен снимать второй.
+      // Two calls are two rows: the answer to the first must not remove the second.
       await waitFor(() =>
         expect(document.querySelectorAll(".gantt__row--pending")).toHaveLength(2),
       );

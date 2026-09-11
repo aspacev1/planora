@@ -1,17 +1,17 @@
 import { request } from "./client";
 
 /**
- * Ключ журнала лежит под ключом проекта: `["project", id, ...]`.
+ * The journal's key lies under the project's key: `["project", id, ...]`.
  *
- * Это не украшение. Изменение проекта сбрасывает всё поддерево одним
- * `invalidateQueries` по префиксу, и история обновляется вместе с состоянием
- * сама — без отдельного списка ключей, который однажды забудут пополнить.
+ * This is not decoration. A change to the project invalidates the whole subtree with one
+ * `invalidateQueries` by prefix, and the history refreshes along with the state on its own — without a
+ * separate list of keys that someone will one day forget to extend.
  */
 export function revisionsQueryKey(projectId: string, taskId: string) {
   return ["project", projectId, "revisions", taskId] as const;
 }
 
-/** Лента всего проекта — своя ветка того же поддерева, с фильтрами в ключе. */
+/** The whole project's feed — its own branch of the same subtree, with the filters in the key. */
 export function feedQueryKey(projectId: string, filters: FeedFilters) {
   return ["project", projectId, "revisions", "feed", filters] as const;
 }
@@ -19,19 +19,19 @@ export function feedQueryKey(projectId: string, filters: FeedFilters) {
 export type RevisionEntry = {
   seq: number;
   created_at: string;
-  /** Автора может не быть: операции AI и системные записи идут без человека. */
+  /** There may be no author: the AI's operations and system entries go without a person. */
   actor: { id: string; name: string } | null;
-  /** Причина сдвига — текст человека. Не переводится. */
+  /** The shift's reason — a person's text. Not translated. */
   reason: string | null;
-  /** Общий у пачки, применённой одним действием (AI). */
+  /** Shared by a batch applied in one action (the AI). */
   batch_id: string | null;
-  /** Номер ревизии, которую эта отменила. `null` — обычная запись. */
+  /** The number of the revision this one undid. `null` — an ordinary entry. */
   undoes_seq: number | null;
-  /** Событие параметрами. Во фразу его собирает клиент, на языке читателя. */
+  /** The event as parameters. It is assembled into a phrase by the client, in the reader's language. */
   op: Record<string, unknown>;
   /**
-   * Имена сущностей, которые упоминает операция, по идентификатору. Для
-   * удалённых — из снимка восстановления: имя переживает удаление в журнале.
+   * The names of the entities the operation mentions, by id. For deleted ones — from the restoration
+   * snapshot: a name outlives a deletion in the journal.
    */
   names: Record<string, string>;
 };
@@ -39,7 +39,7 @@ export type RevisionEntry = {
 export type FeedFilters = {
   taskId?: string;
   actorId?: string;
-  /** Типы операций как их знает журнал; собираются из групп фильтра. */
+  /** The operation types as the journal knows them; assembled from the filter's groups. */
   types?: string[];
 };
 
@@ -49,8 +49,8 @@ export function listTaskRevisions(projectId: string, taskId: string): Promise<Re
   );
 }
 
-/** Размер страницы ленты. Отдельной константой: по ней лента узнаёт последнюю
- *  страницу — короче предела значит «дальше ничего нет». */
+/** The feed's page size. As a separate constant: the feed recognizes the last page by it — shorter than
+ *  the limit means "there is nothing further". */
 export const FEED_PAGE = 50;
 
 export function listProjectRevisions(

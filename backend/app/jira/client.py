@@ -1,14 +1,14 @@
-"""Клиент Jira Cloud REST API v3 за тонким протоколом.
+"""A Jira Cloud REST API v3 client behind a thin protocol.
 
-Тонкий по той же причине, что у app/ai/provider.py: слою синхронизации нужны
-ровно четыре вещи — «кто я», «какие проекты видны», «какие поля есть» и
-«какие задачи нашлись по запросу», — и urllib вместо клиента-обёртки библиотеки
-не тянет лишней зависимости ради HTTP, который и так умеет стандартная
-библиотека.
+Thin for the same reason as app/ai/provider.py: the sync layer needs exactly
+four things — "who am I", "which projects are visible", "which fields exist" and
+"which issues matched a query" — and urllib instead of a library's wrapper
+client avoids pulling in an extra dependency for HTTP the standard library
+already speaks.
 
-Сети в тестах нет: слой синхронизации проверяется на `RecordedJiraClient` —
-не заглушке «чтобы компилировалось», а полноправной реализации того же
-протокола, что и боевой клиент.
+There is no network in the tests: the sync layer is checked against
+`RecordedJiraClient` — not a stub "so it compiles" but a full implementation of
+the same protocol as the production client.
 """
 
 import base64
@@ -24,9 +24,9 @@ from app.jira.netguard import ensure_public_https
 
 
 class _NoRedirects(urllib.request.HTTPRedirectHandler):
-    """Отказ следовать за редиректами — тем же приёмом, что у app/ai/provider.py:
-    адрес проверяется на публичность до запроса, и ответ 3xx не должен уводить
-    его в обход этой проверки."""
+    """Refusing to follow redirects — the same technique as in app/ai/provider.py:
+    the address is checked for being public before the request, and a 3xx response
+    must not lead it around that check."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ARG002
         return None
@@ -34,10 +34,10 @@ class _NoRedirects(urllib.request.HTTPRedirectHandler):
 
 _opener = urllib.request.build_opener(_NoRedirects())
 
-#: Поля, которых слою синхронизации достаточно для эпика или задачи. `parent`
-#: покрывает эпик team-managed проекта; классический «Epic Link» — отдельное
-#: пользовательское поле, чей id инстанс-специфичен и находится через
-#: list_fields() (см. app/jira/sync.py:resolve_epic_link_field).
+#: The fields the sync layer needs for an epic or an issue. `parent` covers the
+#: epic of a team-managed project; the classic "Epic Link" is a separate custom
+#: field whose id is instance-specific and is found through list_fields() (see
+#: app/jira/sync.py:resolve_epic_link_field).
 ISSUE_FIELDS = (
     "summary",
     "description",
@@ -49,42 +49,41 @@ ISSUE_FIELDS = (
     "parent",
 )
 
-#: Потолок страниц пагинации на один вызов — не самих задач (тот держит
-#: max_results), а именно страниц: битый или бесконечный курсор Jira не
-#: должен превращать один запрос в вечный цикл.
+#: The ceiling on pagination pages per call — not on the issues themselves (that
+#: is held by max_results) but on the pages specifically: a broken or endless
+#: Jira cursor must not turn one request into an eternal loop.
 _MAX_PAGES = 200
 
 
 class JiraClient(Protocol):
     def list_projects(self) -> list[dict]:
-        """Проекты, видимые этому аккаунту: [{key, id, name}, …]."""
+        """The projects visible to this account: [{key, id, name}, ...]."""
         ...
 
     def list_fields(self) -> list[dict]:
-        """Поля инстанса — сырой ответ /rest/api/3/field."""
+        """The instance's fields — the raw answer of /rest/api/3/field."""
         ...
 
     def search_issues(
         self, jql: str, *, fields: list[str], max_results: int
     ) -> list[dict]:
-        """Задачи по JQL, сырые объекты Jira, не длиннее max_results."""
+        """Issues by JQL, as raw Jira objects, no longer than max_results."""
         ...
 
     def update_issue_due_date(self, issue_key: str, due_date: date) -> None:
-        """Отправляет срок задачи в Jira — кнопка «Отправить в Jira».
+        """Pushes a task's due date to Jira — the "Push to Jira" button.
 
-        Единственный пишущий вызов этого клиента: остальные три читают.
-        Только Due Date — у Due Date есть системное поле на любом сайте Jira
-        Cloud, а Start Date есть лишь при Advanced Roadmaps, чьим
-        пользовательским полем этот клиент не занимается (см.
-        app/jira/sync.py:push_project).
+        The only writing call of this client: the other three read. Due Date
+        only — Due Date has a system field on any Jira Cloud site, while Start
+        Date exists only with Advanced Roadmaps, whose custom field this client
+        does not deal with (see app/jira/sync.py:push_project).
         """
         ...
 
 
 class HttpJiraClient:
-    """Basic-аутентификация: email + API-токен, тем же способом, каким Jira
-    Cloud принимает личные токены (id.atlassian.com/manage-profile/security/api-tokens)."""
+    """Basic authentication: email + API token, the same way Jira Cloud accepts
+    personal tokens (id.atlassian.com/manage-profile/security/api-tokens)."""
 
     def __init__(self, *, base_url: str, email: str, api_token: str, timeout: int):
         self._base = base_url.rstrip("/")
@@ -96,10 +95,10 @@ class HttpJiraClient:
         url = f"{self._base}{path}"
         if params:
             url += "?" + urlencode(params)
-        # Проверка адреса — на каждом запросе, а не только при сохранении
-        # подключения: DNS хоста мог смениться после (перепривязка — обычный
-        # приём SSRF). Импорт локальный по той же причине, что в provider.py —
-        # не заводить цикл между модулями.
+        # The address is checked on every request, not only when the connection
+        # is saved: the host's DNS could have changed since (rebinding is a
+        # standard SSRF technique). The import is local for the same reason as in
+        # provider.py — not to create a cycle between modules.
         ensure_public_https(url)
 
         data = None if body is None else json.dumps(body).encode()
@@ -154,8 +153,8 @@ class HttpJiraClient:
 
     def list_fields(self) -> list[dict]:
         body = self._request("GET", "/rest/api/3/field")
-        # /field отдаёт список прямо телом ответа, не обёрнутым в объект —
-        # единственная ручка API v3 с такой формой из тех, что здесь нужны.
+        # /field returns the list directly as the response body, not wrapped in
+        # an object — the only API v3 endpoint of those needed here with that shape.
         return body if isinstance(body, list) else []
 
     def search_issues(self, jql: str, *, fields: list[str], max_results: int) -> list[dict]:
@@ -185,8 +184,8 @@ class HttpJiraClient:
         return issues[:max_results]
 
     def update_issue_due_date(self, issue_key: str, due_date: date) -> None:
-        # PUT /issue отвечает 204 без тела на успех — _request просто
-        # возвращает {} для пустого ответа, и это ровно то, что здесь нужно.
+        # PUT /issue answers 204 with no body on success — _request simply
+        # returns {} for an empty response, and that is exactly what is needed here.
         self._request(
             "PUT",
             f"/rest/api/3/issue/{issue_key}",
@@ -195,8 +194,8 @@ class HttpJiraClient:
 
 
 class RecordedJiraClient:
-    """Заранее заготовленные ответы — тем же приёмом, что RecordedProvider
-    у app/ai/provider.py. Ими проверяется всё, что не про сеть."""
+    """Pre-arranged answers — the same technique as RecordedProvider in
+    app/ai/provider.py. Everything that is not about the network is checked with them."""
 
     def __init__(
         self,
@@ -204,9 +203,9 @@ class RecordedJiraClient:
         projects: list[dict] | None = None,
         fields: list[dict] | None = None,
         issues: list[dict] | None = None,
-        #: Ключи задач, на которых update_issue_due_date отказывает, —
-        #: тест партичного отказа отправки: одна отвергнутая Jira задача не
-        #: должна прерывать отправку остальных (см. app/jira/sync.py:push_project).
+        #: The keys of issues on which update_issue_due_date refuses — the test
+        #: of a partial push failure: one issue rejected by Jira must not
+        #: interrupt pushing the rest (see app/jira/sync.py:push_project).
         due_date_failures: frozenset[str] = frozenset(),
     ):
         self._projects = projects or []

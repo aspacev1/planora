@@ -520,8 +520,8 @@ docs/               screenshots, design specs, audits, brand assets
 
 Planora is in active development and runs in production for its authoring organization.
 The default interface locale is Azerbaijani with full English and Russian translations. Code
-comments explain the *why* behind non-obvious decisions and are written mostly in Russian;
-the architecture documents above are the English entry point.
+comments explain the *why* behind non-obvious decisions; the architecture documents above
+are the entry point.
 
 ---
 

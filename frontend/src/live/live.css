@@ -1,13 +1,13 @@
-/* Полоска обрыва связи.
+/* The connection-lost bar.
 
-   Стоит над диаграммой во всю ширину и занимает место, а не всплывает поверх
-   неё: она сообщает не о событии, которое можно проводить взглядом, а о
-   состоянии, в котором экран находится сейчас, — и обязана оставаться на виду
-   всё время, пока оно длится.
+   It stands above the chart across the full width and takes up space rather than
+   floating over it: it reports not an event that can be followed with the eye but a
+   state the screen is currently in — and it must stay in plain sight for the whole
+   time that state lasts.
 
-   Оформлена как красная выноска Notion: тонкая заливка тем же цветом, каким
-   набран текст. Полотно в полную силу цвета над диаграммой перекрикивало бы
-   саму диаграмму, ради которой человек и смотрит на экран. */
+   Styled as a Notion red callout: a thin fill in the same colour the text is set in.
+   A canvas at the colour's full strength above the chart would shout over the chart
+   itself, which is what the person is looking at the screen for. */
 .offline-bar {
   display: flex;
   align-items: center;
