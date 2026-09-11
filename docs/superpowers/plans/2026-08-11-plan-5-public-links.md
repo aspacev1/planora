@@ -1,4 +1,4 @@
-# План 5: публичные ссылки и гости — план реализации
+# Plan 5: public links and guests — implementation plan
 
 > **Historical.** This is one of the original build plans this codebase
 > was built from — every step below has since shipped. It reflects the plan
@@ -9,50 +9,50 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Показать проект человеку без аккаунта по адресу, собранному из слагов организации и проекта, и дать ему комментировать под своим именем.
+**Goal:** Show a project to a person without an account at an address assembled from the organization and project slugs, and let them comment under their own name.
 
-**Architecture:** Публичная страница читает проект отдельным маршрутом без сессии. Тело ответа собирает тот же сборщик, что и рабочий экран, — с выключенными заметками и исполнителями: две копии одной раскладки разошлись бы на первой же новой колонке, и внутренняя заметка утекла бы наружу именно через ту копию, про которую забыли. Право гостя комментировать спрашивается у той же матрицы, что и у участника: `can(None, Action.COMMENT, project_granted=True)`, где ролью выступает `None`, а выданным доступом — сама действующая ссылка.
+**Architecture:** The public page reads the project through a separate route with no session. The response body is assembled by the same builder as the working screen — with notes and assignees switched off: two copies of one layout would diverge on the very first new column, and an internal note would leak outward through exactly the copy that was forgotten. The guest's right to comment is asked of the same matrix as a member's: `can(None, Action.COMMENT, project_granted=True)`, where the role is `None` and the granted access is the live link itself.
 
-**Tech Stack:** Как в планах 0–4. Никаких новых зависимостей.
+**Tech Stack:** As in plans 0-4. No new dependencies.
 
-## Решения, принятые до плана
+## Decisions taken before the plan
 
-**Адрес — `/p/{слаг-организации}/{слаг-проекта}`, без токена.** Так решил владелец продукта. Спецификация в §7 обещает и красивый адрес из слагов, и перевыпуск ссылки, убивающий прежнюю, — вместе это не работает: если в адресе нет секрета, после перевыпуска адрес тот же самый. Принятые следствия:
+**The address is `/p/{org-slug}/{project-slug}`, with no token.** That is the product owner's decision. The specification in §7 promises both a pretty address made of slugs and a link re-issue that kills the previous one — those two do not work together: if there is no secret in the address, the address after a re-issue is the same one. The accepted consequences:
 
-- Отзыв снимает публикацию: адрес мгновенно перестаёт открываться. Повторная публикация оживляет **тот же** адрес — «перевыпуска», после которого старая ссылка мертва, а новая работает, у слагов быть не может.
-- Настоящий перевыпуск — переименование слага проекта. Поэтому правка слага входит в этот план, а не в план настроек: без неё обещание §7 не выполняется вообще ничем.
-- Опубликованный проект угадывается перебором слагов. Это цена решения, и она осознанная: наружу не выходят ни внутренние заметки, ни состав организации, ни журнал изменений.
+- Revoking takes the project out of publication: the address stops opening instantly. Publishing again revives **the same** address — slugs cannot give you a "re-issue" after which the old link is dead and a new one works.
+- A real re-issue is renaming the project slug. That is why editing the slug belongs to this plan and not to the settings plan: without it nothing whatsoever fulfils the promise of §7.
+- A published project can be guessed by brute-forcing slugs. That is the price of the decision, and it is a conscious one: neither internal notes, nor the organization's roster, nor the change journal ever go outward.
 
-**Префикс `/p/` сохранён,** хотя в примере владельца его не было (`planora.com/company/project`). Причина техническая: `/{что-то}/{что-то}` в корне перехватывает и собственные адреса приложения — организация со слагом `login` или `projects` заслонила бы вход и список проектов, — и ни один неизвестный двухсегментный адрес после этого не сможет честно ответить «не найдено».
+**The `/p/` prefix is kept,** even though the owner's example did not have it (`planora.com/company/project`). The reason is technical: `/{something}/{something}` at the root also intercepts the application's own addresses — an organization with the slug `login` or `projects` would shadow the sign-in page and the project list — and after that no unknown two-segment address can honestly answer "not found".
 
-**Токена в `share_links` нет.** Спецификация перечисляет его в составе сущности, но в адресе его теперь нет, а секрет, который никуда не подставляется, ничего не защищает и вводит в заблуждение следующего читателя.
+**There is no token in `share_links`.** The specification lists one as part of the entity, but it is no longer in the address, and a secret that is never substituted anywhere protects nothing and misleads the next reader.
 
 ## Global Constraints
 
-- Публичные маршруты не требуют сессии и не читают куку. Всё, что решает доступ, — слаги в адресе и состояние ссылки.
-- Внутренняя заметка не выходит наружу никогда. Решение принимает сервер: нет поля в ответе — нет блока в интерфейсе.
-- Право гостя спрашивается у `app.access`, а не сравнивается со строкой. Ролью гостя выступает `None`.
-- Отказы сервера — машинный код в `detail`, без прозы.
-- Языки: `az` по умолчанию, `en`, `ru`; ключ обязан появиться во всех трёх словарях.
-- Даты и окончания считает сервер. Публичная страница считает не больше рабочей — то есть ничего.
-- Ограничитель гостевых реплик берёт потолок из `GUEST_COMMENT_RATE_LIMIT`, а не из константы в коде.
+- Public routes require no session and do not read the cookie. Everything that decides access is the slugs in the address and the state of the link.
+- An internal note never goes outward. The server makes that decision: no field in the response means no block in the interface.
+- The guest's right is asked of `app.access`, not compared against a string. `None` acts as the guest's role.
+- Server refusals are a machine code in `detail`, with no prose.
+- Languages: `az` by default, `en`, `ru`; a key must appear in all three dictionaries.
+- Dates and endings are computed by the server. The public page computes no more than the working one — that is, nothing.
+- The guest comment limiter takes its ceiling from `GUEST_COMMENT_RATE_LIMIT`, not from a constant in the code.
 
-## Файлы
+## Files
 
-| Файл | Ответственность |
+| File | Responsibility |
 |---|---|
-| `backend/app/models.py` | Таблица `share_links` |
-| `backend/app/sharing.py` | Домен публикации: опубликовать, отозвать, переключить комментарии, найти по слагам |
-| `backend/app/project_state.py` | Единственный сборщик состояния проекта — для рабочего экрана и для публичной страницы |
-| `backend/app/rate_limit.py` | Скользящее окно по ключу; ключ гостя — его адрес |
-| `backend/app/api/project_routes.py` | Настройки проекта, публикация, слаг |
-| `backend/app/api/public_routes.py` | Чтение проекта и гостевые реплики без сессии |
-| `frontend/src/api/sharing.ts`, `frontend/src/screens/ProjectSettings.tsx` | Экран настроек проекта |
-| `frontend/src/api/public.ts`, `frontend/src/screens/PublicProject.tsx` | Публичная страница |
+| `backend/app/models.py` | The `share_links` table |
+| `backend/app/sharing.py` | The publication domain: publish, revoke, toggle comments, find by slugs |
+| `backend/app/project_state.py` | The single project-state builder — for the working screen and for the public page |
+| `backend/app/rate_limit.py` | Sliding window by key; the guest's key is their address |
+| `backend/app/api/project_routes.py` | Project settings, publication, slug |
+| `backend/app/api/public_routes.py` | Reading the project and guest replies without a session |
+| `frontend/src/api/sharing.ts`, `frontend/src/screens/ProjectSettings.tsx` | The project settings screen |
+| `frontend/src/api/public.ts`, `frontend/src/screens/PublicProject.tsx` | The public page |
 
 ---
 
-### Task 1: Таблица публичной ссылки
+### Task 1: The public link table
 
 **Files:**
 - Modify: `backend/app/models.py`
@@ -60,13 +60,13 @@
 - Test: `backend/tests/test_models.py`
 
 **Interfaces:**
-- Produces: `ShareLink` с полями `id`, `project_id` (уникален), `comments_enabled`, `revoked_at`, `created_at`.
+- Produces: `ShareLink` with the fields `id`, `project_id` (unique), `comments_enabled`, `revoked_at`, `created_at`.
 
-Ссылка одна на проект — отсюда `UniqueConstraint("project_id")`. Второй ряд означал бы два разных адреса к одному проекту, а адрес выводится из слагов и потому ровно один.
+There is one link per project — hence `UniqueConstraint("project_id")`. A second row would mean two different addresses to one project, whereas the address is derived from the slugs and is therefore exactly one.
 
-- [x] **Step 1: Написать падающий тест**
+- [x] **Step 1: Write a failing test**
 
-В конец `backend/tests/test_models.py`:
+At the end of `backend/tests/test_models.py`:
 
 ```python
 def test_project_has_at_most_one_share_link(db):
@@ -92,19 +92,19 @@ def test_project_has_at_most_one_share_link(db):
             db.flush()
 ```
 
-Импорт в шапке дополнить `ShareLink`.
+Extend the import at the top with `ShareLink`.
 
-- [x] **Step 2: Убедиться, что тест падает**
+- [x] **Step 2: Make sure the test fails**
 
 ```bash
 cd backend && uv run pytest tests/test_models.py -q
 ```
 
-Ожидается: `ImportError: cannot import name 'ShareLink'`.
+Expected: `ImportError: cannot import name 'ShareLink'`.
 
-- [x] **Step 3: Добавить модель**
+- [x] **Step 3: Add the model**
 
-В `backend/app/models.py`, после `Comment`:
+In `backend/app/models.py`, after `Comment`:
 
 ```python
 class ShareLink(Base):
@@ -125,21 +125,21 @@ class ShareLink(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 ```
 
-- [x] **Step 4: Убедиться, что тест проходит**
+- [x] **Step 4: Make sure the test passes**
 
 ```bash
 cd backend && uv run pytest tests/test_models.py -q
 ```
 
-- [x] **Step 5: Миграция**
+- [x] **Step 5: Migration**
 
 ```bash
 cd backend && uv run alembic revision --autogenerate -m "share_links" && uv run alembic upgrade head && uv run pytest -q
 ```
 
-Проверить, что в `upgrade()` только `create_table('share_links')`.
+Check that `upgrade()` contains only `create_table('share_links')`.
 
-- [x] **Step 6: Коммит**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/models.py backend/migrations backend/tests/test_models.py
@@ -148,7 +148,7 @@ git commit -m "feat: таблица публичной ссылки"
 
 ---
 
-### Task 2: Домен публикации
+### Task 2: The publication domain
 
 **Files:**
 - Create: `backend/app/sharing.py`
@@ -159,16 +159,16 @@ git commit -m "feat: таблица публичной ссылки"
   - `publish(db, project, org) -> ShareLink`
   - `revoke(db, project) -> None`
   - `set_comments_enabled(db, project, enabled: bool) -> ShareLink`
-  - `link_of(db, project) -> ShareLink | None` — действующая ссылка или `None`
+  - `link_of(db, project) -> ShareLink | None` — the live link or `None`
   - `resolve(db, org_slug: str, project_slug: str) -> tuple[Project, Organization, ShareLink]`
   - `public_path(org, project) -> str`
   - `SharingRefused(code, message)`, `NotPublished(SharingRefused)`
 
-`resolve` — единственное место, где решается, открыт ли проект наружу. Условий три (ссылка есть, не отозвана, организация не запретила публикацию вовсе), и разнести их по маршрутам значило бы проверить два из трёх в одном месте и три из трёх в другом.
+`resolve` is the only place where it is decided whether the project is open to the outside. There are three conditions (the link exists, it is not revoked, the organization has not forbidden publication altogether), and spreading them across routes would mean checking two out of three in one place and three out of three in another.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write failing tests**
 
-Создать `backend/tests/test_sharing.py`:
+Create `backend/tests/test_sharing.py`:
 
 ```python
 import pytest
@@ -286,17 +286,17 @@ def test_switching_comments_on_an_unpublished_project_is_refused(db, org, projec
     assert refusal.value.code == "not_published"
 ```
 
-- [x] **Step 2: Убедиться, что тесты падают**
+- [x] **Step 2: Make sure the tests fail**
 
 ```bash
 cd backend && uv run pytest tests/test_sharing.py -q
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.sharing'`.
+Expected: `ModuleNotFoundError: No module named 'app.sharing'`.
 
-- [x] **Step 3: Написать модуль**
+- [x] **Step 3: Write the module**
 
-Создать `backend/app/sharing.py`:
+Create `backend/app/sharing.py`:
 
 ```python
 from datetime import datetime, timezone
@@ -413,15 +413,15 @@ def resolve(
     return row[0], row[1], row[2]
 ```
 
-- [x] **Step 4: Убедиться, что тесты проходят**
+- [x] **Step 4: Make sure the tests pass**
 
 ```bash
 cd backend && uv run pytest tests/test_sharing.py -q
 ```
 
-Ожидается: 9 passed.
+Expected: 9 passed.
 
-- [x] **Step 5: Коммит**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/sharing.py backend/tests/test_sharing.py
@@ -430,7 +430,7 @@ git commit -m "feat: домен публикации проекта"
 
 ---
 
-### Task 3: Один сборщик состояния проекта
+### Task 3: One project-state builder
 
 **Files:**
 - Create: `backend/app/project_state.py`
@@ -440,13 +440,13 @@ git commit -m "feat: домен публикации проекта"
 **Interfaces:**
 - Produces: `build_state(db, project, org, *, show_notes: bool, show_assignees: bool) -> dict`.
 
-Правка без изменения поведения: тело `GET /api/projects/{id}` переезжает в модуль как есть, маршрут начинает его звать. Делается **до** публичного маршрута и отдельным коммитом, потому что иначе публичная страница получит вторую копию раскладки, и первая же новая колонка появится только в одной из них — а если этой колонкой окажется заметка, она утечёт наружу.
+A change with no change in behaviour: the body of `GET /api/projects/{id}` moves into a module as it is, and the route starts calling it. Done **before** the public route and as a separate commit, because otherwise the public page gets a second copy of the layout and the very first new column will appear in only one of them — and if that column turns out to be the note, it leaks outward.
 
-`show_assignees` выключается для гостя: исполнители — это состав организации, а его гостю не показывают (`GET /api/org/members` роль `client` не получает вовсе).
+`show_assignees` is switched off for a guest: assignees are the organization's roster, and a guest is not shown it (`GET /api/org/members` is not available to the `client` role at all).
 
-- [x] **Step 1: Написать тест на сборщик**
+- [x] **Step 1: Write a test for the builder**
 
-Создать `backend/tests/test_project_state.py`:
+Create `backend/tests/test_project_state.py`:
 
 ```python
 from datetime import date
@@ -504,17 +504,17 @@ def test_state_for_a_guest_carries_neither_notes_nor_assignees(db, filled):
     assert state["calendar"]["working_days"] > 0
 ```
 
-- [x] **Step 2: Убедиться, что тест падает**
+- [x] **Step 2: Make sure the test fails**
 
 ```bash
 cd backend && uv run pytest tests/test_project_state.py -q
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.project_state'`.
+Expected: `ModuleNotFoundError: No module named 'app.project_state'`.
 
-- [x] **Step 3: Перенести сборку состояния в модуль**
+- [x] **Step 3: Move the state assembly into a module**
 
-Создать `backend/app/project_state.py`: перенести в него **без изменений по существу** тело `get_project` из `backend/app/api/project_routes.py` начиная со строки `calendar = project_calendar(project, org)` и до `return {...}` включительно, обернув в функцию:
+Create `backend/app/project_state.py`: move into it, **with no changes in substance**, the body of `get_project` from `backend/app/api/project_routes.py`, starting at the line `calendar = project_calendar(project, org)` and up to and including `return {...}`, wrapped in a function:
 
 ```python
 import uuid
@@ -548,7 +548,7 @@ def build_state(
     """
 ```
 
-Тело — прежний код с двумя различиями: словарь исполнителей собирается только при `show_assignees`, и в задачу он подставляется тем же приёмом, что и заметка:
+The body is the former code with two differences: the assignee dictionary is built only when `show_assignees`, and it is substituted into the task by the same trick as the note:
 
 ```python
     assignees: dict[str, list[str]] = {}
@@ -558,16 +558,16 @@ def build_state(
             assignees[str(task_id)].append(str(user_id))
 ```
 
-и в сборке задачи:
+and in the task assembly:
 
 ```python
                 **({"assignee_ids": assignees[str(t.id)]} if show_assignees else {}),
                 **({"internal_note": t.internal_note} if show_notes else {}),
 ```
 
-- [x] **Step 4: Позвать сборщик из маршрута**
+- [x] **Step 4: Call the builder from the route**
 
-`get_project` в `backend/app/api/project_routes.py` сокращается до:
+`get_project` in `backend/app/api/project_routes.py` shrinks to:
 
 ```python
 @router.get("/{project_id}")
@@ -586,17 +586,17 @@ def get_project(
     )
 ```
 
-Неиспользованные после переезда импорты (`Category`, `Task`, `TaskAssignee`, `Dependency`, `end_date`, `CalendarError`, `project_calendar`, `resolve_*`) из `project_routes.py` убрать — те, что ещё нужны мутациям, оставить; проверяет `npm run lint`-эквивалент для Python здесь только глазами, поэтому свериться со списком в конце файла.
+Imports left unused after the move (`Category`, `Task`, `TaskAssignee`, `Dependency`, `end_date`, `CalendarError`, `project_calendar`, `resolve_*`) should be removed from `project_routes.py` — keep the ones the mutations still need; the equivalent of `npm run lint` for Python here is only a pair of eyes, so cross-check against the list at the end of the file.
 
-- [x] **Step 5: Убедиться, что ничего не сломалось**
+- [x] **Step 5: Make sure nothing broke**
 
 ```bash
 cd backend && uv run pytest -q
 ```
 
-Ожидается: все прежние тесты проекта проходят без правок — это и есть проверка того, что правка не изменила поведение.
+Expected: all the previous project tests pass without edits — that is exactly the check that the change did not alter behaviour.
 
-- [x] **Step 6: Коммит**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/project_state.py backend/app/api/project_routes.py backend/tests/test_project_state.py
@@ -605,7 +605,7 @@ git commit -m "refactor: состояние проекта собирается 
 
 ---
 
-### Task 4: Настройки проекта и публикация
+### Task 4: Project settings and publication
 
 **Files:**
 - Modify: `backend/app/api/project_routes.py`
@@ -614,15 +614,15 @@ git commit -m "refactor: состояние проекта собирается 
 **Interfaces:**
 - Produces:
   - `GET /api/projects/{id}/settings` → `{slug, public_url, public_sharing_enabled, share: {published, comments_enabled}}`
-  - `PUT /api/projects/{id}/share` тело `{published: bool, comments_enabled: bool}` → тот же объект `share`
+  - `PUT /api/projects/{id}/share` with body `{published: bool, comments_enabled: bool}` → the same `share` object
 
-Один маршрут вместо трёх (опубликовать, отозвать, переключить): тело описывает желаемое состояние целиком, поэтому повторный вызов ничего не ломает, а переключатель и кнопка публикации в интерфейсе шлют одно и то же.
+One route instead of three (publish, revoke, toggle): the body describes the desired state in full, so calling it again breaks nothing, and the toggle and the publish button in the interface send the same thing.
 
-Право — `Action.PROJECT_ADMIN`: публикация проекта наружу это не то же, что правка задачи, и `viewer`, которому правка запрещена, тем более не должен открывать проект миру.
+The permission is `Action.PROJECT_ADMIN`: publishing a project to the outside is not the same as editing a task, and a `viewer`, who is forbidden to edit, certainly should not be opening the project to the world.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write failing tests**
 
-Создать `backend/tests/test_share_api.py` с фикстурами `client`/`authed`/`project_id` (скопировать из `tests/test_comment_api.py` — они там же и той же формы) и тестами:
+Create `backend/tests/test_share_api.py` with the `client`/`authed`/`project_id` fixtures (copy them from `tests/test_comment_api.py` — they are right there and of the same shape) and tests:
 
 ```python
 def test_settings_show_the_address_before_it_is_published(authed, project_id):
@@ -714,15 +714,15 @@ def test_settings_of_another_organization_are_not_reachable(authed, db):
     assert authed.get(f"/api/projects/{stranger.id}/settings").status_code == 404
 ```
 
-- [x] **Step 2: Убедиться, что тесты падают**
+- [x] **Step 2: Make sure the tests fail**
 
 ```bash
 cd backend && uv run pytest tests/test_share_api.py -q
 ```
 
-- [x] **Step 3: Добавить маршруты**
+- [x] **Step 3: Add the routes**
 
-В `backend/app/api/project_routes.py`:
+In `backend/app/api/project_routes.py`:
 
 ```python
 class ShareIn(BaseModel):
@@ -789,15 +789,15 @@ def set_share(
     return _share_out(link_of(db, project))
 ```
 
-Импорты: `from app.config import get_settings`, `from app.models import ShareLink`, `from app.sharing import SharingRefused, link_of, public_path, publish, revoke, set_comments_enabled`.
+Imports: `from app.config import get_settings`, `from app.models import ShareLink`, `from app.sharing import SharingRefused, link_of, public_path, publish, revoke, set_comments_enabled`.
 
-- [x] **Step 4: Убедиться, что тесты проходят, и прогнать бэкенд**
+- [x] **Step 4: Make sure the tests pass, and run the backend suite**
 
 ```bash
 cd backend && uv run pytest -q
 ```
 
-- [x] **Step 5: Коммит**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/api/project_routes.py backend/tests/test_share_api.py
@@ -806,7 +806,7 @@ git commit -m "feat: настройки проекта и публикация"
 
 ---
 
-### Task 5: Слаг проекта — проверка и переименование
+### Task 5: The project slug — checking and renaming
 
 **Files:**
 - Modify: `backend/app/projects.py`, `backend/app/api/project_routes.py`
@@ -814,17 +814,17 @@ git commit -m "feat: настройки проекта и публикация"
 
 **Interfaces:**
 - Produces:
-  - `rename_slug(db, project, raw: str) -> Project` и `free_slug(db, org_id, raw: str) -> tuple[bool, str]` в `app/projects.py`
+  - `rename_slug(db, project, raw: str) -> Project` and `free_slug(db, org_id, raw: str) -> tuple[bool, str]` in `app/projects.py`
   - `GET /api/projects/{id}/slug-check?slug=…` → `{available: bool, suggestion: str}`
-  - `PUT /api/projects/{id}/slug` тело `{slug}` → `{slug, public_url}`; занятый — 422 `slug_taken`
+  - `PUT /api/projects/{id}/slug` with body `{slug}` → `{slug, public_url}`; a taken one is 422 `slug_taken`
 
-Переименование — единственный способ по-настоящему перевыпустить ссылку при адресе из слагов: старый адрес после него мёртв, новый работает. Поэтому оно здесь, а не в плане настроек.
+Renaming is the only way to genuinely re-issue the link when the address is made of slugs: after it the old address is dead and the new one works. That is why it is here and not in the settings plan.
 
-Слаг нормализует сервер той же `slugify`, что и при создании: человек вводит «Редизайн 2026», получает `redizayn-2026`. Повторять транслитерацию в браузере нельзя — расхождение даст ссылку, которая не открывается.
+The slug is normalized by the server with the same `slugify` as at creation time: a person types «Редизайн 2026» and gets `redizayn-2026`. The transliteration must not be repeated in the browser — a divergence would produce a link that does not open.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write failing tests**
 
-Создать `backend/tests/test_slug_api.py` (фикстуры — как в `test_share_api.py`):
+Create `backend/tests/test_slug_api.py` (fixtures as in `test_share_api.py`):
 
 ```python
 def test_slug_is_normalized_by_the_server_not_by_the_caller(authed, project_id):
@@ -892,15 +892,15 @@ def test_a_viewer_may_not_rename_the_slug(authed, project_id, db):
     )
 ```
 
-- [x] **Step 2: Убедиться, что тесты падают**
+- [x] **Step 2: Make sure the tests fail**
 
 ```bash
 cd backend && uv run pytest tests/test_slug_api.py -q
 ```
 
-- [x] **Step 3: Дописать домен**
+- [x] **Step 3: Extend the domain**
 
-В `backend/app/projects.py`:
+In `backend/app/projects.py`:
 
 ```python
 import secrets
@@ -944,9 +944,9 @@ def rename_slug(db: DbSession, project: Project, raw: str) -> Project:
     return project
 ```
 
-- [x] **Step 4: Добавить маршруты**
+- [x] **Step 4: Add the routes**
 
-В `backend/app/api/project_routes.py`:
+In `backend/app/api/project_routes.py`:
 
 ```python
 class SlugIn(BaseModel):
@@ -992,7 +992,7 @@ def set_slug(
     }
 ```
 
-- [x] **Step 5: Прогнать бэкенд и закоммитить**
+- [x] **Step 5: Run the backend suite and commit**
 
 ```bash
 cd backend && uv run pytest -q
@@ -1002,7 +1002,7 @@ git commit -m "feat: переименование слага проекта"
 
 ---
 
-### Task 6: Публичное чтение проекта
+### Task 6: Public reading of a project
 
 **Files:**
 - Create: `backend/app/api/public_routes.py`
@@ -1011,13 +1011,13 @@ git commit -m "feat: переименование слага проекта"
 
 **Interfaces:**
 - Consumes: `resolve` (Task 2), `build_state` (Task 3).
-- Produces: `GET /api/public/{org_slug}/{project_slug}` → состояние проекта плюс `comments_enabled`.
+- Produces: `GET /api/public/{org_slug}/{project_slug}` → the project state plus `comments_enabled`.
 
-Свой файл, а не `project_routes.py`: тамошние маршруты все до одного начинаются с `_load_project(db, user, …)`, а здесь пользователя нет вовсе. Соседство двух семейств в одном файле рано или поздно кончается тем, что публичный маршрут по недосмотру получает `Depends(current_user)` и перестаёт быть публичным.
+Its own file rather than `project_routes.py`: every single route there begins with `_load_project(db, user, …)`, whereas here there is no user at all. Two families sharing one file sooner or later ends with a public route getting a `Depends(current_user)` by oversight and ceasing to be public.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write failing tests**
 
-Создать `backend/tests/test_public_api.py`. Фикстуры `client`/`authed`/`project_id` — как раньше; плюс:
+Create `backend/tests/test_public_api.py`. The `client`/`authed`/`project_id` fixtures are as before; plus:
 
 ```python
 @pytest.fixture
@@ -1104,15 +1104,15 @@ def test_the_state_says_whether_comments_are_open(client, authed, published):
     assert guest.get(_address(authed, published)).json()["comments_enabled"] is False
 ```
 
-- [x] **Step 2: Убедиться, что тесты падают**
+- [x] **Step 2: Make sure the tests fail**
 
 ```bash
 cd backend && uv run pytest tests/test_public_api.py -q
 ```
 
-- [x] **Step 3: Написать маршрут**
+- [x] **Step 3: Write the route**
 
-Создать `backend/app/api/public_routes.py`:
+Create `backend/app/api/public_routes.py`:
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException
@@ -1145,9 +1145,9 @@ def public_project(org_slug: str, project_slug: str, db: DbSession = Depends(get
     return state
 ```
 
-В `backend/app/main.py` — `app.include_router(public_routes.router)`.
+In `backend/app/main.py` — `app.include_router(public_routes.router)`.
 
-- [x] **Step 4: Прогнать бэкенд и закоммитить**
+- [x] **Step 4: Run the backend suite and commit**
 
 ```bash
 cd backend && uv run pytest -q
@@ -1157,7 +1157,7 @@ git commit -m "feat: публичное чтение проекта"
 
 ---
 
-### Task 7: Гостевые реплики и ограничитель по адресу
+### Task 7: Guest replies and a per-address limiter
 
 **Files:**
 - Create: `backend/app/rate_limit.py`
@@ -1166,19 +1166,19 @@ git commit -m "feat: публичное чтение проекта"
 
 **Interfaces:**
 - Produces:
-  - `RateLimiter(limit: int, window_seconds: float, now: Callable[[], float] = time.monotonic)` с методом `allow(key: str) -> bool`
-  - `GET /api/public/{org}/{project}/comments` → ветка проекта целиком
-  - `POST /api/public/{org}/{project}/comments` тело `{body, guest_name}` → 201; 403 `comments_disabled`; 429 `too_many_comments`
+  - `RateLimiter(limit: int, window_seconds: float, now: Callable[[], float] = time.monotonic)` with an `allow(key: str) -> bool` method
+  - `GET /api/public/{org}/{project}/comments` → the project thread in full
+  - `POST /api/public/{org}/{project}/comments` with body `{body, guest_name}` → 201; 403 `comments_disabled`; 429 `too_many_comments`
 
-Ограничитель держит окно в памяти процесса, а не в базе. Причина не в лени: ключ ограничителя — адрес гостя, а адрес это персональные данные, и хранить их в базе ради счётчика значит завести хранилище персональных данных там, где достаточно счётчика. Плата известна и записана: перезапуск обнуляет окно, а при нескольких процессах у каждого своё. Сегодня контейнер `api` один.
+The limiter keeps its window in process memory, not in the database. The reason is not laziness: the limiter's key is the guest's address, an address is personal data, and storing it in the database for the sake of a counter means setting up a store of personal data where a counter is enough. The price is known and written down: a restart resets the window, and with several processes each has its own. Today there is a single `api` container.
 
-`now` — параметр, а не вызов внутри: иначе проверить истечение окна можно только настоящим ожиданием, и тест на минутное окно идёт минуту.
+`now` is a parameter, not a call inside: otherwise the only way to check window expiry is to actually wait, and a test for a one-minute window takes a minute.
 
-Право гостя спрашивается у матрицы: `can(None, Action.COMMENT, project_granted=True)`. Роль `None` — это гость, а действующая ссылка и есть тот самый выданный доступ, ради которого в `access.py` заведён `project_granted`.
+The guest's right is asked of the matrix: `can(None, Action.COMMENT, project_granted=True)`. The role `None` is the guest, and a live link is exactly the granted access for whose sake `project_granted` exists in `access.py`.
 
-- [x] **Step 1: Написать тест ограничителя**
+- [x] **Step 1: Write a test for the limiter**
 
-Создать `backend/tests/test_rate_limit.py`:
+Create `backend/tests/test_rate_limit.py`:
 
 ```python
 from app.rate_limit import RateLimiter
@@ -1230,9 +1230,9 @@ def test_keys_that_fell_out_of_the_window_stop_taking_memory():
     assert "ip" not in limiter._hits
 ```
 
-- [x] **Step 2: Написать ограничитель**
+- [x] **Step 2: Write the limiter**
 
-Создать `backend/app/rate_limit.py`:
+Create `backend/app/rate_limit.py`:
 
 ```python
 import time
@@ -1295,9 +1295,9 @@ class RateLimiter:
 cd backend && uv run pytest tests/test_rate_limit.py -q
 ```
 
-- [x] **Step 3: Написать падающие тесты гостевых реплик**
+- [x] **Step 3: Write failing tests for guest replies**
 
-Создать `backend/tests/test_public_comments_api.py` (фикстуры `authed`/`published`/`_address` — как в Task 6):
+Create `backend/tests/test_public_comments_api.py` (the `authed`/`published`/`_address` fixtures are as in Task 6):
 
 ```python
 def test_a_guest_leaves_a_reply_signed_by_the_name_they_gave(client, authed, published):
@@ -1383,9 +1383,9 @@ def test_too_many_replies_from_one_address_are_refused(client, authed, published
     assert refused.json()["detail"] == "too_many_comments"
 ```
 
-- [x] **Step 4: Дописать публичные маршруты**
+- [x] **Step 4: Extend the public routes**
 
-В `backend/app/api/public_routes.py`:
+In `backend/app/api/public_routes.py`:
 
 ```python
 _settings = get_settings()
@@ -1459,9 +1459,9 @@ def add_public_comment(
     return _comment_out(comment, {})
 ```
 
-`_comment_out` переехал: вынести его из `project_routes.py` в `app/comments.py` (там же, где домен реплик) и импортировать в обоих маршрутных файлах — иначе публичный файл импортирует приватного помощника из соседнего, ровно того сорта связь, ради отсутствия которой файл и заведён.
+`_comment_out` has moved: take it out of `project_routes.py` into `app/comments.py` (where the reply domain lives) and import it in both route files — otherwise the public file imports a private helper from its neighbour, exactly the kind of coupling the file was created to avoid.
 
-- [x] **Step 5: Прогнать бэкенд и закоммитить**
+- [x] **Step 5: Run the backend suite and commit**
 
 ```bash
 cd backend && uv run pytest -q
@@ -1471,44 +1471,44 @@ git commit -m "feat: гостевые реплики и ограничитель
 
 ---
 
-### Task 8: Экран настроек проекта
+### Task 8: The project settings screen
 
 **Files:**
 - Create: `frontend/src/api/sharing.ts`, `frontend/src/screens/ProjectSettings.tsx`, `frontend/src/screens/ProjectSettings.test.tsx`, `frontend/src/screens/settings.css`
-- Modify: `frontend/src/AppRoutes.tsx`, `frontend/src/screens/Project.tsx`, `frontend/src/api/errors.ts`, три словаря
+- Modify: `frontend/src/AppRoutes.tsx`, `frontend/src/screens/Project.tsx`, `frontend/src/api/errors.ts`, the three dictionaries
 
 **Interfaces:**
-- Produces: маршрут `/projects/:projectId/settings`, `settingsQueryKey(projectId)`, `projectSettings`, `setShare`, `checkSlug`, `renameSlug`.
+- Produces: the `/projects/:projectId/settings` route, `settingsQueryKey(projectId)`, `projectSettings`, `setShare`, `checkSlug`, `renameSlug`.
 
-Экран — каркас: сегодня на нём публичная ссылка и слаг, завтра сюда лягут дедлайн, часовой пояс и календарь. Поэтому разделы, а не одна форма.
+The screen is a frame: today it carries the public link and the slug, tomorrow the deadline, the time zone and the calendar will land here. Hence sections rather than one form.
 
-Ссылку показывает поле только для чтения плюс кнопка «скопировать», а не голый текст: адрес длинный, и выделять его мышью из абзаца — работа, которую делает одна кнопка.
+The link is shown by a read-only field plus a "copy" button, not as bare text: the address is long, and picking it out of a paragraph with the mouse is work that one button does.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write failing tests**
 
-`frontend/src/screens/ProjectSettings.test.tsx` — проверить: адрес виден до публикации; переключатель публикации шлёт `{published, comments_enabled}`; выключение комментариев шлёт то же с `comments_enabled: false`; занятый слаг показывает подсказанный вариант и не отправляет форму; успешное переименование меняет показанный адрес; человеку без права администрирования проекта экран отвечает объяснением, а не пустой формой.
+`frontend/src/screens/ProjectSettings.test.tsx` — check that: the address is visible before publication; the publication toggle sends `{published, comments_enabled}`; turning comments off sends the same with `comments_enabled: false`; a taken slug shows the suggested variant and does not submit the form; a successful rename changes the displayed address; someone without the project-admin permission is met by an explanation rather than an empty form.
 
-Оснастка — в стиле `src/test/project.ts`: обработчики `GET /api/projects/p1/settings`, `PUT /api/projects/p1/share`, `GET /api/projects/p1/slug-check`, `PUT /api/projects/p1/slug`.
+The harness follows the style of `src/test/project.ts`: handlers for `GET /api/projects/p1/settings`, `PUT /api/projects/p1/share`, `GET /api/projects/p1/slug-check`, `PUT /api/projects/p1/slug`.
 
-- [x] **Step 2: Клиент**
+- [x] **Step 2: The client**
 
-`frontend/src/api/sharing.ts` — типы `ProjectSettings = {slug, public_url, public_sharing_enabled, share: {published, comments_enabled}}`, функции `projectSettings(id)`, `setShare(id, {published, comments_enabled})`, `checkSlug(id, slug)`, `renameSlug(id, slug)`. Ключ — `["project", id, "settings"]`, под тем же префиксом, что и остальное поддерево проекта.
+`frontend/src/api/sharing.ts` — the types `ProjectSettings = {slug, public_url, public_sharing_enabled, share: {published, comments_enabled}}` and the functions `projectSettings(id)`, `setShare(id, {published, comments_enabled})`, `checkSlug(id, slug)`, `renameSlug(id, slug)`. The key is `["project", id, "settings"]`, under the same prefix as the rest of the project subtree.
 
-- [x] **Step 3: Экран**
+- [x] **Step 3: The screen**
 
-`ProjectSettings.tsx`: заголовок с названием проекта, раздел «Публичная ссылка» (адрес только для чтения + «Скопировать», переключатель публикации, переключатель комментариев — неактивный, пока не опубликовано), раздел «Адрес» (поле слага, живая проверка с подсказкой, кнопка «Сохранить»), и предупреждение о том, что переименование слага убивает прежний адрес: человек обязан узнать об этом до нажатия, а не от клиента, у которого перестала открываться ссылка.
+`ProjectSettings.tsx`: a heading with the project name, a "Public link" section (read-only address + "Copy", the publication toggle, the comments toggle — inactive until published), an "Address" section (the slug field, a live check with a suggestion, a "Save" button), and a warning that renaming the slug kills the previous address: a person must learn about that before pressing, not from a client whose link has stopped opening.
 
-Копирование — `navigator.clipboard.writeText`; отсутствие API (старый браузер, не-https) не должно ронять экран: кнопка тогда просто не показывается, а поле остаётся выделяемым.
+Copying uses `navigator.clipboard.writeText`; the absence of the API (an old browser, non-https) must not bring the screen down: the button then simply is not shown, and the field stays selectable.
 
-- [x] **Step 4: Маршрут и вход на экран**
+- [x] **Step 4: The route and the way into the screen**
 
-В `AppRoutes.tsx` — `<Route path="/projects/:projectId/settings" element={<ProjectSettings />} />` внутри `RequireAuth`. В `Project.tsx` — ссылка «Настройки» в `screen__actions`, видимая только при `canWrite`.
+In `AppRoutes.tsx` — `<Route path="/projects/:projectId/settings" element={<ProjectSettings />} />` inside `RequireAuth`. In `Project.tsx` — a "Settings" link in `screen__actions`, visible only when `canWrite`.
 
-- [x] **Step 5: Словари и коды отказов**
+- [x] **Step 5: Dictionaries and refusal codes**
 
-Ключи `settings.*` в трёх словарях; коды `slug_taken`, `slug_empty`, `public_sharing_disabled`, `not_published` — в `PLAIN_CODES` и в блок `error` всех трёх словарей.
+The `settings.*` keys in the three dictionaries; the codes `slug_taken`, `slug_empty`, `public_sharing_disabled`, `not_published` — in `PLAIN_CODES` and in the `error` block of all three dictionaries.
 
-- [x] **Step 6: Проверить и закоммитить**
+- [x] **Step 6: Verify and commit**
 
 ```bash
 cd frontend && npx vitest run --maxWorkers=2 && npm run lint && npx tsc -b
@@ -1517,51 +1517,51 @@ git add frontend/src && git commit -m "feat: экран настроек про�
 
 ---
 
-### Task 9: Публичная страница
+### Task 9: The public page
 
 **Files:**
 - Create: `frontend/src/api/public.ts`, `frontend/src/screens/PublicProject.tsx`, `frontend/src/screens/PublicProject.test.tsx`, `frontend/src/public/guestName.ts`
-- Modify: `frontend/src/AppRoutes.tsx`, `frontend/src/task/Comments.tsx`, три словаря
+- Modify: `frontend/src/AppRoutes.tsx`, `frontend/src/task/Comments.tsx`, the three dictionaries
 
 **Interfaces:**
 - Consumes: `GET/POST /api/public/{org}/{project}[/comments]`.
-- Produces: маршрут `/p/:orgSlug/:projectSlug`, `rememberedGuestName()` / `rememberGuestName(name)`.
+- Produces: the `/p/:orgSlug/:projectSlug` route, `rememberedGuestName()` / `rememberGuestName(name)`.
 
-Страница лежит **вне** `RequireAuth`: у гостя нет сессии, и проверять её значило бы отправить его на вход. Шапки приложения на ней тоже нет — вместо неё название организации и переключатель языка: «Выйти» гостю предлагать неоткуда.
+The page lies **outside** `RequireAuth`: a guest has no session, and checking for one would mean sending them to the sign-in page. The application header is not on it either — in its place are the organization name and the language switch: there is nowhere to offer a guest "Sign out" from.
 
-Диаграмма — тот же `<Gantt>` с `canWrite={false}` и без `onSelectTask`: карточки задачи на публичной странице нет. Внутренних заметок нет в ответе, поэтому и в разметке им взяться неоткуда — решение принял сервер.
+The chart is the same `<Gantt>` with `canWrite={false}` and without `onSelectTask`: there is no task card on the public page. Internal notes are not in the response, so there is nowhere for them to come from in the markup either — the server made that decision.
 
-Обсуждение — ветка проекта целиком, та самая, которую план 4 научился отдавать, но которой негде было показаться.
+The discussion is the project thread in full, the very one plan 4 learned to serve but which had nowhere to be shown.
 
-Имя гостя запрашивается один раз и запоминается в браузере (`localStorage`, ключ `planora_guest_name`). Не в куке: сервер его не спрашивает, а кука уезжала бы с каждым запросом впустую.
+The guest's name is asked once and remembered in the browser (`localStorage`, key `planora_guest_name`). Not in a cookie: the server never asks for it, and a cookie would travel with every request for nothing.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write failing tests**
 
-`PublicProject.test.tsx` — проверить: страница открывается без сессии и показывает диаграмму; внутренних заметок в разметке нет; при `comments_enabled: false` формы реплики нет вовсе; первая реплика спрашивает имя и шлёт `{body, guest_name}`; имя, сохранённое в браузере, больше не спрашивается; 404 показывает объяснение «ссылка не действует», а не пустой экран; отказ 429 объясняется словами.
+`PublicProject.test.tsx` — check that: the page opens without a session and shows the chart; there are no internal notes in the markup; with `comments_enabled: false` there is no reply form at all; the first reply asks for a name and sends `{body, guest_name}`; a name saved in the browser is not asked for again; a 404 shows the explanation "this link is not live" rather than an empty screen; a 429 refusal is explained in words.
 
-- [x] **Step 2: Память об имени**
+- [x] **Step 2: Remembering the name**
 
-`frontend/src/public/guestName.ts` — чтение и запись `localStorage` с защитой от исключения: в приватном режиме некоторых браузеров обращение к `localStorage` бросает, и страница не должна из-за этого падать целиком.
+`frontend/src/public/guestName.ts` — reading and writing `localStorage` guarded against an exception: in some browsers' private mode touching `localStorage` throws, and the page must not go down as a whole because of it.
 
-- [x] **Step 3: Клиент и страница**
+- [x] **Step 3: The client and the page**
 
-`api/public.ts`: `publicProjectQueryKey(org, project)`, `getPublicProject`, `listPublicComments`, `postPublicComment`. Тип состояния — `ProjectState & { comments_enabled: boolean }`, где `tasks[].internal_note` и `assignee_ids` необязательны.
+`api/public.ts`: `publicProjectQueryKey(org, project)`, `getPublicProject`, `listPublicComments`, `postPublicComment`. The state type is `ProjectState & { comments_enabled: boolean }`, where `tasks[].internal_note` and `assignee_ids` are optional.
 
-`PublicProject.tsx`: три состояния (ожидание, отказ, страница), шапка с названием организации и `<LocaleSwitch />`, `<Gantt canWrite={false} />`, ветка обсуждения с формой, в которой рядом с полем реплики стоит поле имени — оно показывается, только пока имя не запомнено.
+`PublicProject.tsx`: three states (waiting, refusal, page), a header with the organization name and `<LocaleSwitch />`, `<Gantt canWrite={false} />`, and the discussion thread with a form in which a name field stands next to the reply field — it is shown only until the name is remembered.
 
-- [x] **Step 4: Разделить ветку обсуждения**
+- [x] **Step 4: Split the discussion thread**
 
-`Comments.tsx` из плана 4 умеет только ветку задачи под сессией. Публичной странице нужна ветка проекта под публичными маршрутами. Вынести разметку ветки в `CommentThread` (принимает список реплик, состояние отправки и слот под поля формы), а `Comments` и публичная страница пусть будут двумя её вызывающими. Разметка одна — иначе реплика гостя и реплика участника разойдутся по виду, хотя это одна и та же реплика.
+`Comments.tsx` from plan 4 can only do the task thread under a session. The public page needs the project thread under the public routes. Extract the thread markup into `CommentThread` (it takes the list of replies, the submission state and a slot for the form fields), and let `Comments` and the public page be two of its callers. The markup is one — otherwise a guest's reply and a member's reply would diverge in appearance, even though it is one and the same reply.
 
-- [x] **Step 5: Маршрут**
+- [x] **Step 5: The route**
 
-В `AppRoutes.tsx`, **вне** `RequireAuth` и **до** `*`:
+In `AppRoutes.tsx`, **outside** `RequireAuth` and **before** `*`:
 
 ```tsx
       <Route path="/p/:orgSlug/:projectSlug" element={<PublicProject />} />
 ```
 
-- [x] **Step 6: Проверить и закоммитить**
+- [x] **Step 6: Verify and commit**
 
 ```bash
 cd frontend && npx vitest run --maxWorkers=2 && npm run lint && npx tsc -b
@@ -1570,16 +1570,13 @@ git add frontend/src && git commit -m "feat: публичная страница
 
 ---
 
-## Правки по ходу исполнения
+## Changes made along the way
 
-- **`stored_link()` рядом с `link_of()`.** Настройкам нужен ряд как он есть, включая отозванный: иначе снятие публикации возвращало переключатель комментариев в положение «включено», и решение владельца пропадало у него на глазах.
-- **Полоска задачи — не всегда кнопка** (`Bar` в `frontend/src/gantt/Row.tsx`). На публичной странице она не открывает карточку и не двигается, а кнопка там забирает фокус с клавиатуры и читается с экрана как нажимаемая. Теперь в этом случае это `role="img"` с тем же именем. Тесты диаграммы, которые рисуют её на чтение, спрашивают полоску по новой роли.
-- **`comment_out` и `author_names` переехали в `app/comments.py`.** Их собирают оба файла маршрутов, и вторая копия развела бы форму одной и той же реплики по двум лентам.
+- **`stored_link()` next to `link_of()`.** Settings need the row as it is, including a revoked one: otherwise unpublishing returned the comments toggle to the "on" position, and the owner's decision vanished before their eyes.
+- **A task bar is not always a button** (`Bar` in `frontend/src/gantt/Row.tsx`). On the public page it neither opens the card nor moves, and a button there takes keyboard focus and is read out by a screen reader as pressable. Now in that case it is a `role="img"` with the same name. Chart tests that render it read-only ask for the bar by the new role.
+- **`comment_out` and `author_names` moved into `app/comments.py`.** Both route files assemble them, and a second copy would have split the shape of one and the same reply across two feeds.
 
-## Что осталось за границей плана
+## What was left outside the plan
 
-- **Карточка задачи на публичной странице.** Гость видит диаграмму и обсуждение проекта; ветка отдельной задачи наружу не отдаётся.
-- **Живые обновления.** Спецификация обещает гостю движение полосок без перезагрузки по WebSocket — это отдельный план.
-- **Редактирование слага организации.** Он входит в адрес, но живёт в настройках организации, которых ещё нет.
-- **Остальные настройки проекта** (дедлайн, часовой пояс, рабочие дни, праздники) — экран под них готов, endpoint'ов нет.
-- **Общий ограничитель на несколько процессов.** Окно живёт в памяти процесса; при масштабировании `api` потолок умножается на число процессов.
+- **The task card on the public page.** A guest sees the chart and the project discussion; an individual task's thread is not served outward.
+- **Live updates.** The specification promises the guest bars moving without a reload over WebSocket — that is a separate plan.
