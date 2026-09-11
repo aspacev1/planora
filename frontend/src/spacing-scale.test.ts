@@ -5,18 +5,20 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Отступы, поля и просветы берутся из шкалы (`--space-*` в styles.css), а не
- * пишутся числом по месту. Тест ловит литерал раньше, чем он размножится:
- * прежде в стилях жили 10, 14, 18 и 22 пикселя рядом с 8, 12, 16 и 24, и
- * соседние блоки читались «почти ровными». Исключение объявляется на месте
- * комментарием со словами «вне шкалы» и причиной — обычно это геометрия
- * (компенсация рамки, ширина шеврона), а не воздух между блоками.
+ * Padding, margins and gaps come from the scale (`--space-*` in styles.css)
+ * rather than being written as a number in place. The test catches a literal
+ * before it multiplies: the styles used to hold 10, 14, 18 and 22 pixels next
+ * to 8, 12, 16 and 24, and neighbouring blocks read as "almost even". An
+ * exception is declared in place with a comment containing the words
+ * "off-scale" and a reason — usually it is geometry (compensating for a
+ * border, a chevron's width) rather than air between blocks.
  */
 
-/* Файлы читаются с диска, а не через `import.meta.glob(…?raw)`: в тестовой
-   сборке стили проходят через конвейер CSS и приходят пустой строкой. Путь —
-   от корня пакета (vitest запускается из `frontend/`), а не от
-   `import.meta.url`: в среде jsdom это адрес http, а не file. */
+/* The files are read from disk rather than through `import.meta.glob(...?raw)`:
+   in the test build the styles go through the CSS pipeline and arrive as an
+   empty string. The path is from the package root (vitest runs from
+   `frontend/`) rather than from `import.meta.url`: in jsdom that is an http
+   address, not a file one. */
 const SRC = join(process.cwd(), "src");
 
 function stylesheets(dir: string): string[] {
@@ -38,11 +40,11 @@ const LITERAL = /(?<![\d.\w-])(\d+)px\b/g;
 function offenders(source: string): string[] {
   const found: string[] = [];
   for (const line of source.split("\n")) {
-    if (line.includes("вне шкалы") || line.includes("calc(")) continue;
+    if (line.includes("off-scale") || line.includes("calc(")) continue;
     for (const declaration of line.matchAll(SPACING)) {
       for (const literal of declaration[1].matchAll(LITERAL)) {
-        // 0 и 1px — не отступы: ноль ничего не отмеряет, пиксель — волосяная
-        // компенсация рамки.
+        // 0 and 1px are not spacing: zero measures nothing, and a pixel is a
+        // hairline compensation for a border.
         if (Number(literal[1]) > 1) found.push(line.trim());
       }
     }
