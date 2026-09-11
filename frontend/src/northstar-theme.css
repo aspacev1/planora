@@ -1,23 +1,23 @@
-/* Тема Northstar.
-   Идёт после styles.css и переопределяет её токены: палитра, меры и
-   типографика взяты из `:root` макета `docs/design/northstar-gantt-mockup.html`
-   целиком.
+/* The Northstar theme.
+   It comes after styles.css and overrides its tokens: the palette, the
+   measurements and the typography are taken wholesale from the `:root` of the
+   `docs/design/northstar-gantt-mockup.html` mockup.
 
-   Оформления ленты здесь нет ни строки — оно живёт в `gantt/gantt.css`.
-   Правило не про порядок эмиссии, а про то, что один селектор не должен
-   жить в двух файлах: прежняя тема дублировала `.gantt__bar`, `.gantt__row`
-   и меры колонки, и побеждал тот файл, который сборка положила ниже. */
+   There is not a line of chart styling here — that lives in `gantt/gantt.css`.
+   The rule is not about the order of emission but about one selector not living
+   in two files: the previous theme duplicated `.gantt__bar`, `.gantt__row` and
+   the column measurements, and whichever file the build placed lower won. */
 
 :root {
   color-scheme: light;
-  /* Чернила макета: холодный тёмно-синий, а не серый. Тройка — для
-     полупрозрачных производных, которые считает styles.css. */
+  /* The mockup's ink: a cold dark blue rather than grey. The triple is for the
+     semi-transparent derivatives styles.css computes. */
   --ink: 23 32 51;
   --text: #172033;
   --text-muted: #667085;
   --text-faint: #98a2b3;
-  /* Страница не белая: белые — поверхности на ней, и именно этим они от
-     страницы и отличаются. */
+  /* The page is not white: white is for the surfaces on it, and that is exactly
+     what distinguishes them from the page. */
   --bg: #f5f7fb;
   --bg-subtle: #fbfcfe;
   --surface: #ffffff;
@@ -31,12 +31,12 @@
   --accent-soft: #eef0ff;
   --ok: #29a36a;
   --ok-soft: #e9f8f0;
-  /* «Внимание» — черновик плана и просрочка. Отдельный цвет от тревоги:
-     просроченная задача требует решения, а не сообщает об ошибке. */
+  /* "Attention" covers a draft plan and being overdue. A separate colour from
+     alarm: an overdue task calls for a decision rather than reporting an error. */
   --warn: #e69a2d;
   --warn-soft: #fff6e7;
-  /* Тревога — розово-красная, как в макете: блокировка и срыв срока. Тёмный
-     оттенок — для цифр и тонких граней, где светлый не набирает контраста. */
+  /* Alarm is pink-red, as in the mockup: a block and a missed deadline. The dark
+     shade is for figures and thin edges, where the light one falls short of contrast. */
   --danger: #d94c71;
   --danger-soft: #fff0f4;
   --danger-strong: #bd4263;
@@ -45,8 +45,8 @@
   --tag-blue: #eef0ff;
   --tag-yellow: #fff6e7;
   --tag-red: #fff0f4;
-  /* Выходной — не заливка, а затемнение: колонка ложится и на белое тело
-     ленты, и на серую шапку, и в обоих местах обязана читаться одинаково. */
+  /* A day off is not a fill but a darkening: the column lies both on the chart's
+     white body and on its grey header, and must read the same in both places. */
   --nonworking: rgb(36 48 68 / 3.5%);
   --shadow-sm: 0 1px 1px rgb(16 24 40 / 3%);
   --shadow-md: 0 12px 36px rgb(16 24 40 / 13%);
@@ -55,32 +55,35 @@
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-pill: 20px;
-  /* Ширина отмерена по самой длинной подписи, а не на глаз: «Админ-панель» —
-     101px при прежних 14px/600, и вместе с полем колонки, полем строки,
-     значком и просветом ей было нужно 181px. Нынешние 13px/620 набирают её
-     чуть уже, и разница уходит запасом названию организации, которое приходит
-     с сервера какой угодно длины и обрезается многоточием. Прежние 232px
-     держали лишние шестнадцать пикселей, и брала их колонка у диаграммы —
-     ради которой это приложение и открывают. */
+  /* The width is measured against the longest label rather than by eye:
+     "Admin panel" is 101px at the previous 14px/600, and together with the
+     column's padding, the row's padding, an icon and a gap it needed 181px. The
+     present 13px/620 sets it slightly narrower, and the difference goes as
+     headroom to the organization's name, which arrives from the server at any
+     length and is truncated with an ellipsis. The previous 232px held sixteen
+     extra pixels, and the column took them from the chart — the very thing this
+     application is opened for. */
   --sidebar: 216px;
   --control: 36px;
-  /* Рост кнопки. Меньше `--control` намеренно — см. styles.css, где токен
-     заведён: одна высота на все кнопки приложения, взятая у ряда действий в
-     шапке проекта. */
+  /* The button's height. Deliberately smaller than `--control` — see styles.css,
+     where the token is declared: one height for every button in the application,
+     taken from the row of actions in the project's header. */
   --control-button: 29px;
-  /* Отклик на наведение и нажатие — одной длительностью на весь продукт.
-     Токен, а не число в каждом правиле: стоило одной кнопке написать своё
-     значение, и на соседних элементах одного ряда отклик расходился — часть
-     проявлялась плавно, часть щёлкала. Это короче, чем переезд полоски ленты
-     (`--motion`, 180мс): там движение сообщает «объект встал на новое место»,
-     здесь — лишь «курсор здесь», и ждать этого никто не должен. */
+  /* The response to hover and press — one duration for the whole product. A
+     token rather than a number in every rule: the moment one button wrote a
+     value of its own, the response diverged across neighbouring elements of one
+     row — some appeared smoothly, some snapped. This is shorter than a chart
+     bar's move (`--motion`, 180ms): there the movement says "the object has
+     taken a new place", here it only says "the cursor is here", and nobody
+     should have to wait for that. */
   --motion-fast: 140ms;
-  /* Inter приезжает со сборкой (@fontsource-variable/inter, см. App.tsx), а не
-     с CDN: установка самостоятельная, и шрифт обязан работать без интернета. */
+  /* Inter ships with the build (@fontsource-variable/inter, see App.tsx) rather
+     than from a CDN: the installation is self-contained, and the font must work
+     without the internet. */
   --font: "Inter Variable", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-  /* Тёмная поверхность поверх страницы: тост и всплывающая карточка ленты.
-     Она не «инверсия темы», а отдельная роль — сообщение, которое обязано
-     читаться поверх любого содержимого под ним. */
+  /* A dark surface over the page: the toast and the chart's hover card. It is
+     not "an inversion of the theme" but a role of its own — a message that must
+     read over any content beneath it. */
   --overlay: #202838;
   --overlay-text: #ffffff;
   --overlay-muted: #929db0;
@@ -88,22 +91,22 @@
   --overlay-accent: #b8c2ff;
 }
 
-/* --- основа --- */
+/* --- the basics --- */
 
 body { font-size: 14px; line-height: 1.45; background: var(--bg); }
 .app__main { min-height: 100vh; }
 
-/* Кегль заголовка — 25 пикселей, как у названия проекта в макете, и столько же
-   у заголовка любой другой страницы. Прежние 38 остались от макета, у которого
-   заголовок был единственным крупным пятном на пустой странице; здесь под ним
-   стоит плотная лента, и заголовок в полтора раза выше неё читается как
-   объявление, а не как имя раздела. */
+/* The heading's size is 25 pixels, as with the project's name in the mockup, and
+   the same for the heading of any other page. The previous 38 were left over
+   from a mockup where the heading was the only large patch on an empty page;
+   here a dense chart stands beneath it, and a heading half again taller than it
+   reads as an announcement rather than as a section's name. */
 h1 { font-size: 25px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.25; }
 h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
 
-/* Фокус — мягкое широкое кольцо макета вместо жёсткой двухпиксельной рамки:
-   органы управления здесь и так в рамке, и вторая рамка поверх первой читается
-   как ошибка ввода, а не как «вы здесь». */
+/* Focus is the mockup's soft wide ring instead of a hard two-pixel frame: the
+   controls here are in a frame anyway, and a second frame over the first reads
+   as an input error rather than as "you are here". */
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
@@ -114,41 +117,43 @@ a:focus-visible,
   outline-offset: 1px;
 }
 
-/* --- боковая колонка --- */
+/* --- the sidebar --- */
 
-/* Тёмная колонка макета сюда не переносится (см. план, §1): здесь она светлая
-   и просто перекрашена. Колонка значков — 30 пикселей, по квадрату логотипа:
-   иначе подписи разделов не встают под названием организации. Сами пункты при
-   этом набраны мерами страницы (кегль 13, вес 620, рисунок 18): прежние
-   14/600 со значками в 22 пикселя делали колонку о трёх пунктах самым крупным
-   органом экрана — вывеской при странице, которой она служит. */
+/* The mockup's dark sidebar is not carried over here (see the plan, §1): here it
+   is light and merely repainted. The icon column is 30 pixels, by the logo's
+   square: otherwise the section labels do not line up under the organization's
+   name. The items themselves are set in the page's measurements (size 13, weight
+   620, glyph 18): the previous 14/600 with 22-pixel icons made a column of three
+   items the largest control on the screen — a signboard for the page it serves. */
 .sidebar { padding: var(--space-16) var(--space-12) var(--space-12); gap: var(--space-12); background: var(--surface); border-right: 1px solid var(--border); --sidebar-gutter: var(--space-12); --sidebar-mark: 30px; --sidebar-gap: var(--space-12); }
 .sidebar__workspace { padding: 0 var(--sidebar-gutter); }
-/* Буква в квадрате — первая буква организации, и берётся она из разметки, а не
-   рисуется темой. Тема ставила сюда `content: "P"` поверх погашенного
-   `font-size: 0`: у организации «Marsa» квадрат показывал «P», то есть
-   опознавал продукт вместо рабочего пространства — ровно наоборот тому, зачем
-   он заведён (см. Header.tsx). В свёрнутой колонке этот квадрат вдобавок
-   единственное, что от неё остаётся. */
+/* The letter in the square is the organization's first letter, and it comes from
+   the markup rather than being drawn by the theme. The theme used to put
+   `content: "P"` here over a suppressed `font-size: 0`: for the organization
+   "Marsa" the square showed "P", that is, it identified the product instead of
+   the workspace — the exact opposite of what it exists for (see Header.tsx). In a
+   collapsed sidebar this square is additionally all that remains of it. */
 .sidebar__avatar { width: 30px; height: 30px; border-radius: 8px; color: #fff; font-size: 15px; line-height: 1; font-weight: 800; background: linear-gradient(145deg, #7182ff, #4256d8); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%); }
 .sidebar__brand { font-size: 15px; font-weight: 700; color: var(--text); }
 .sidebar__nav { gap: var(--space-4); }
-/* Рост строки — 32, как у переключателя организаций над разделами: колонка —
-   один столбец, и три роста в нём (34, 32 и 35 у дорожки языка) читались как
-   собранные случайно. Не кнопочные 29: пункт — мишень навигации во всю ширину
-   колонки, а не действие при содержимом. Кегль и вес — вкладок и меню (13/620),
-   а не свои 14/600: тот же уровень органа, что «Масштаб» или «Görünüş», и
-   крупнее их пункту колонки быть не за что. */
+/* The row's height is 32, like the organization switcher above the sections: the
+   sidebar is one column, and three heights in it (34, 32 and 35 for the language
+   strip) read as if assembled at random. Not the button's 29: an item is a
+   navigation target spanning the column's full width rather than an action on
+   content. The size and weight are those of tabs and menus (13/620) rather than
+   their own 14/600: the same level of control as "Scale" or "Görünüş", and a
+   sidebar item has no reason to be larger than they are. */
 .sidebar__link { min-height: 32px; padding: 0 var(--sidebar-gutter); border-radius: var(--radius-md); color: var(--text-muted); font-size: 13px; font-weight: 620; }
 .sidebar__link:hover { background: var(--hover); color: var(--text); }
-/* Текущий раздел — та же отметка в три пикселя слева, что и у выбранной строки
-   ленты: одно состояние «вы здесь» на всё приложение, а не два разных. */
+/* The current section gets the same three-pixel mark on the left as a selected
+   chart row: one "you are here" state for the whole application rather than two
+   different ones. */
 .sidebar__link.is-current { background: var(--accent-soft); color: var(--accent); box-shadow: inset 3px 0 var(--accent); }
-/* Ширину значку задаёт колонка (`flex-basis` от `--sidebar-mark`), здесь —
-   только рост рисунка: 18 пикселей в середине колонки шириной с логотип.
-   Прежние 22 растягивали 16-пиксельный оригинал (см. icons.tsx) со штрихом
-   до двух с лишним пикселей — рядом со значками кнопок в 14 колонка выходила
-   вдвое тяжелее страницы. */
+/* The icon's width is set by the column (`flex-basis` from `--sidebar-mark`);
+   here it is only the glyph's height: 18 pixels in the middle of a column as wide
+   as the logo. The previous 22 stretched a 16-pixel original (see icons.tsx) to a
+   stroke of over two pixels — next to the 14-pixel icons on buttons the column
+   came out twice as heavy as the page. */
 .sidebar__icon { height: 18px; color: currentColor; }
 .sidebar__foot { border-top: 1px solid var(--border); gap: var(--space-4); }
 button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-radius: var(--radius-md); font-size: 13px; font-weight: 620; }
@@ -167,35 +172,38 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
 }
 
 .sidebar .locale-switch { align-self: stretch; margin: var(--space-4) var(--sidebar-gutter); }
-/* 24 плюс поля дорожки по 4 — те же 32, что у строк вокруг: нижний блок стоит
-   столбиком, и дорожка языка не должна быть в нём самой высокой строкой.
-   Правило при колонке, а не общее: в шапке публичной страницы кнопки языка
-   стоят без соседей-строк и остаются кнопочного роста. */
+/* 24 plus the strip's 4-pixel padding is the same 32 as the rows around it: the
+   bottom block stands as a column, and the language strip must not be the tallest
+   row in it. The rule sits with the sidebar rather than being general: in the
+   public page's header the language buttons stand with no neighbouring rows and
+   keep the button height. */
 .sidebar .locale-switch button { flex: 1; height: 24px; }
 
-/* --- шапка публичной страницы --- */
+/* --- the public page's header --- */
 
 .header { height: 52px; padding: 0 var(--space-24); background: var(--surface); border-bottom: 1px solid var(--border); }
 
-/* --- шапка проекта --- */
+/* --- the project's header --- */
 
 .screen--wide { padding: 0; }
-/* Тело вкладки рабочей области (смета, скоркард, история) — с полем шапки по
-   бокам: первая буква фильтра или таблицы стоит под первой буквой имени
-   проекта. Лента в эту обёртку не входит намеренно — она идёт от края до
-   края, и поле у неё своё (см. `--gantt-pad`). */
+/* The body of a workspace tab (the budget, the scorecard, the history) has the
+   header's padding at the sides: the first letter of a filter or a table stands
+   under the first letter of the project's name. The chart deliberately does not
+   go into this wrapper — it runs edge to edge and has padding of its own (see
+   `--gantt-pad`). */
 .project__pane { padding: var(--space-24) var(--gutter) var(--space-48); }
-/* Поля шапки умереннее макетных: над лентой и так стоят четыре яруса — шапка,
-   метрики, вкладки, тулбар, — и каждый лишний пиксель здесь умножается на
-   четыре. Содержимому ярусов это не мешает: высоту им задают их органы. */
+/* The header's padding is more modest than the mockup's: four tiers already
+   stand above the chart — the header, the metrics, the tabs, the toolbar — and
+   every extra pixel here is multiplied by four. This does not hamper the tiers'
+   content: their controls set their height. */
 .project-head { margin: 0; padding: var(--space-16) var(--gutter) var(--space-12); background: var(--surface); border-bottom: 1px solid var(--border); gap: 0; }
 .project-head__main { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-20); width: 100%; }
 .project-head__title { font-size: 25px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.25; }
 .project-head__meta { margin-top: var(--space-8); font-size: 13px; color: var(--text-muted); font-style: normal; }
 
-/* Состояние плана — пилюля-бейдж макета с точкой: черновик янтарный,
-   согласованный зелёный. Прежняя прямоугольная плашка была всегда янтарной и
-   тем говорила «требует внимания» даже про согласованный план. */
+/* The plan's state is the mockup's pill badge with a dot: a draft is amber, an
+   agreed one green. The previous rectangular chip was always amber and thereby
+   said "needs attention" even about an agreed plan. */
 .project-head__plan-label {
   display: inline-flex;
   align-items: center;
@@ -223,11 +231,12 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
 .project-head__plan-label[data-state="approved"] { border-color: #bde5ce; background: var(--ok-soft); color: #176842; }
 .project-head__plan-label[data-state="approved"]::before { background: var(--ok); }
 
-/* Расхождение с планом — такая же пилюля, как плашка версии рядом, но в цвете
-   тревоги и с точкой: две плашки в строке читаются парой «состояние плана и
-   что с ним не так». Прежде здесь стоял голый набор, и то, что по нему можно
-   нажать, ничем не сообщалось. Рост общий с соседями по строке — иначе плашки
-   стоят на разных уровнях и строка выглядит собранной случайно. */
+/* The divergence from the plan is the same pill as the version chip next to it,
+   but in the alarm colour and with a dot: two chips in a row read as the pair
+   "the plan's state and what is wrong with it". There used to be a bare set of
+   figures here, and nothing said that it could be clicked. The height is shared
+   with the row's neighbours — otherwise the chips stand at different levels and
+   the row looks assembled at random. */
 .project-head__plan-note {
   display: inline-flex;
   align-items: center;
@@ -252,9 +261,9 @@ button.sidebar__button { height: 32px; padding: 0 var(--sidebar-gutter); border-
   background: var(--danger);
 }
 
-/* Кнопкой она становится только там, где ей есть куда вести: правило
-   опирается на сам элемент, а не на класс-модификатор, — разметка уже сказала
-   всё, что нужно, выбрав `button` вместо `span`. */
+/* It becomes a button only where it has somewhere to lead: the rule leans on the
+   element itself rather than on a modifier class — the markup already said
+   everything needed by choosing `button` over `span`. */
 button.project-head__plan-note {
   cursor: pointer;
   transition: background var(--motion-fast) var(--motion-ease);
@@ -262,58 +271,60 @@ button.project-head__plan-note {
 
 button.project-head__plan-note:hover { background: #ffe3ea; }
 
-/* Уголок мельче подписи и приглушён: он обещает продолжение, а не спорит с
-   числом за внимание. */
+/* The chevron is smaller than the label and muted: it promises a continuation
+   rather than competing with the figure for attention. */
 .project-head__plan-chevron { font-size: 9px; opacity: 0.7; }
 .project-head__actions { gap: var(--space-8); justify-content: flex-end; }
-/* Рамки здесь нет: ссылке-кнопке её край рисует общее правило `.button-link`
-   тем же внутренним контуром, что и тихим кнопкам рядом, — и настоящая рамка
-   поверх него давала «Настройкам» двойной край, заметный ровно теперь, когда
-   три действия стоят в ряд одного роста. */
+/* There is no border here: a link-button's edge is drawn by the shared
+   `.button-link` rule with the same inner outline as the quiet buttons next to
+   it — and a real border over it gave "Settings" a double edge, noticeable
+   precisely now that three actions stand in a row of one height. */
 .project-head__actions a { display: inline-flex; align-items: center; border-radius: var(--radius-md); text-decoration: none; color: var(--text); }
-/* Рост этому ряду больше не задаётся: 29 пикселей при 12-м кегле — теперь
-   общая мера кнопки (`--control-button`), и здесь она получается сама.
-   Прежде правило стояло именно тут, и ряд действий проекта был единственным
-   местом приложения, где кнопка невысока; остальные кнопки шли в полный рост
-   поля, и одно и то же действие в шапке и в окне выглядело разным органом.
+/* This row is no longer given a height of its own: 29 pixels at size 12 is now
+   the shared button measurement (`--control-button`), and here it comes out by
+   itself. The rule used to stand right here, and the project's action row was the
+   one place in the application where a button was short; every other button ran
+   the full height of a field, and one and the same action looked like a different
+   control in the header and in a dialog.
 
-   Значку остался только цвет: меру ему задаёт общее правило `.icon`. */
+   Only the colour is left for the icon: its size is set by the shared `.icon` rule. */
 .project-head__actions .icon { color: var(--text-muted); }
 
-/* --- тулбар ленты --- */
+/* --- the chart's toolbar --- */
 
-/* Высота — от органа управления, а не от собственного числа: с 36-пиксельными
-   кнопками прежние 78 пикселей оставляли над лентой полосу пустоты выше самой
-   шапки ленты. */
+/* The height comes from the control rather than from a number of its own: with
+   36-pixel buttons the previous 78 pixels left a band of emptiness above the
+   chart taller than the chart's own header. */
 .project-toolbar { display: flex; align-items: center; gap: var(--space-8); min-height: 46px; padding: var(--space-4) var(--gutter); border-bottom: 1px solid var(--border); background: var(--surface); }
 .project-toolbar__spacer { flex: 1; }
-/* Меню тулбара — «Масштаб» и «Вид» — одной высоты между собой и со всеми
-   кнопками приложения: своего роста им больше не задаётся, они берут общий.
-   Прежние 36 пикселей поднимали их над переключателем представления, стоящим
-   в том же ряду, и тулбар читался двумя этажами вместо одного. */
-/* Индикатор «Относительный план»: плашка состояния, а не кнопка — до
-   назначения даты старта режим один и переключать нечего. Стоит только у
-   того, кому дату назначить нечем — у читателя в шапке проекта и на
-   публичной странице: рядом с кнопкой «Назначить дату старта» она говорила
-   то же самое второй раз и занимала больше места, чем любая кнопка ряда. */
+/* The toolbar's menus — "Scale" and "View" — are of one height with each other
+   and with every button in the application: they are no longer given a height of
+   their own, they take the shared one. The previous 36 pixels raised them above
+   the view switcher standing in the same row, and the toolbar read as two storeys
+   instead of one. */
+/* The "Relative plan" indicator is a state chip rather than a button — until a
+   start date is assigned there is one mode and nothing to switch. It stands only
+   where there is nothing to assign a date with — for a reader in the project's
+   header and on the public page: next to the "Assign a start date" button it said
+   the same thing a second time and took up more room than any button in the row. */
 .project-toolbar__mode { display: inline-flex; align-items: center; gap: var(--space-4); height: 29px; padding: 0 var(--space-12); border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; white-space: nowrap; cursor: help; }
-/* Знак ⓘ — псевдоэлементом, а не разметкой: он говорит, что у бейджа есть
-   подсказка, и в читалку отдельным словом попадать при этом не должен. */
+/* The ⓘ sign is a pseudo-element rather than markup: it says the badge has a
+   tooltip, and must not reach a screen reader as a separate word while doing so. */
 .project-toolbar__mode::before { content: "ⓘ"; font-weight: 400; }
 
 .project__body { gap: 0; align-items: stretch; }
 
-/* --- шапка рабочего экрана: одна строка --- */
+/* --- the working screen's header: one row --- */
 
-/* Пришла на место четырёх ярусов — шапки, срока, полосы метрик и ряда
-   вкладок, — которые вместе с тулбаром ленты оставляли задачам треть окна.
-   Прежде они складывались по прокрутке ленты; складывание помогало только
-   тому, кто уже прокрутил план, а начинают работу наверху, где шапка как раз
-   и стояла во весь рост (см. ProjectBar).
+/* It came in place of four tiers — the header, the deadline, the metrics strip
+   and the tab row — which together with the chart's toolbar left the tasks a
+   third of the window. They used to fold away as the chart scrolled; folding
+   helped only someone who had already scrolled the plan, while work starts at the
+   top, where the header stood at full height (see ProjectBar).
 
-   Высота — от органа управления, а не от собственного числа: 36 пикселей
-   кнопки плюс поля и есть весь ярус. Строка переносится: в узком окне ей
-   лучше стать двумя, чем обрезать вкладки. */
+   The height comes from the control rather than from a number of its own: the
+   button's 36 pixels plus padding is the whole tier. The row wraps: in a narrow
+   window it is better for it to become two than to crop the tabs. */
 .project-bar {
   display: flex;
   align-items: center;
@@ -325,9 +336,9 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   border-bottom: 1px solid var(--border);
 }
 
-/* Заголовок экрана остался заголовком, но крупным быть перестал: имя проекта
-   в 25 пикселей отвечало на «куда я попал» ровно один раз за визит, а место
-   занимало всегда. */
+/* The screen's heading stayed a heading but stopped being large: the project's
+   name at 25 pixels answered "where have I ended up" exactly once per visit while
+   taking up room the whole time. */
 .project-bar__name {
   margin: 0;
   font-size: 15px;
@@ -336,10 +347,10 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   line-height: 1.2;
 }
 
-/* Вкладки отделены от имени и плашек пустотой, а не чертой: черта в середине
-   строки читалась бы как её конец. Растянуты на весь рост строки — включая
-   её поля, — чтобы подчёркивание выбранной легло на нижнюю черту строки, а
-   не висело над ней. */
+/* The tabs are separated from the name and the chips by emptiness rather than by
+   a rule: a rule in the middle of a row would read as its end. They are stretched
+   to the row's full height — its padding included — so that the selected one's
+   underline lands on the row's bottom rule rather than hanging above it. */
 .project-bar .tabs {
   gap: var(--space-2);
   align-self: stretch;
@@ -347,10 +358,10 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   border-bottom: 0;
 }
 
-/* Выбранная вкладка — подчёркиванием, а не заливкой. Прежняя заливка делала
-   вкладку пилюлей — той же формы, что кнопки и плашки в этой же строке, — и
-   навигация не отличалась от действий. Подчёркнутый текст здесь ни на что
-   больше не похож. */
+/* The selected tab is marked by an underline rather than a fill. The previous
+   fill made a tab a pill — the same shape as the buttons and chips in that same
+   row — and navigation was indistinguishable from actions. Underlined text here
+   resembles nothing else. */
 .project-bar .tabs__link {
   display: inline-flex;
   align-items: center;
@@ -370,8 +381,8 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   color: var(--accent);
 }
 
-/* Правый край строки: слева то, что это за проект, справа то, как на него
-   смотреть и что с ним можно сделать. Тот же порядок, что был в полной шапке. */
+/* The row's right edge: on the left is what this project is, on the right is how
+   to look at it and what can be done with it. The same order as in the full header. */
 .project-bar__end {
   display: flex;
   align-items: center;
@@ -392,23 +403,25 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   background: var(--border);
 }
 
-/* Призрачная кнопка: без рамки и заливки, приглушённой подписью. Для органов
-   вида в шапке проекта: рядом стоят вкладки и дела плана, и третий ряд
-   обведённых плашек спорил бы с ними за внимание — а это второй класс
-   органов, «как смотреть», и выглядеть он обязан тише первого. */
+/* A ghost button: no border, no fill, with a muted label. For the view controls
+   in the project's header: tabs and plan actions stand next to them, and a third
+   row of outlined chips would compete with them for attention — while this is a
+   second class of control, "how to look", and it must look quieter than the first. */
 .button--ghost { background: transparent; color: var(--text-muted); }
 .button--ghost:hover, .button--ghost:disabled:hover { background: var(--hover); color: var(--text); }
 .button--ghost[aria-expanded="true"] { background: var(--hover); color: var(--text); }
 .button--ghost[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 
-/* --- сводка плана: панель у имени проекта --- */
+/* --- the plan summary: a panel by the project's name --- */
 
-/* Уголок вплотную к имени: он про этот проект, и пустота между ними читалась
-   бы как «это про что-то другое». Своей рамки не рисует — обведённая кнопка
-   рядом с заголовком спорила бы с ним за внимание. */
-/* Панель раскрывается вправо от уголка, а не влево: общее правило меню
-   прижимает её к правому краю кнопки — так надо тем меню, что стоят у правого
-   края экрана, — а это стоит у левого, и панель уезжала бы за него. */
+/* The chevron sits flush against the name: it is about this project, and a gap
+   between them would read as "this is about something else". It draws no border
+   of its own — an outlined button next to a heading would compete with it for
+   attention. */
+/* The panel opens to the right of the chevron rather than to the left: the
+   shared menu rule pins it to the button's right edge — that is what menus
+   standing at the screen's right edge need — while this one stands at the left,
+   and the panel would run off it. */
 .project-bar__summary .menu__pop {
   right: auto;
   left: 0;
@@ -446,8 +459,8 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   display: none;
 }
 
-/* Цифры столбцом: в панели место есть, и семь ячеек читаются списком быстрее,
-   чем строкой, которую приходится разбирать глазами на пары. */
+/* The figures in a column: there is room in the panel, and seven cells read as a
+   list faster than as a row one has to break into pairs by eye. */
 .plan-summary__metrics {
   display: flex;
   flex-direction: column;
@@ -465,8 +478,9 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   color: var(--text-muted);
 }
 
-/* Число ярче подписи и одной ширины у всех строк — тем же соотношением, что
-   было в полосе карточек: первой читается цифра, подпись объясняет её. */
+/* The figure is brighter than the label and of one width across every row — by
+   the same ratio as in the card strip: the figure reads first and the label
+   explains it. */
 .plan-summary__value {
   min-width: 26px;
   color: var(--text);
@@ -479,8 +493,8 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   color: var(--danger-strong);
 }
 
-/* Число ярче подписи — тем же соотношением, что было в полосе карточек:
-   первой читается цифра, подпись объясняет её. */
+/* The figure is brighter than the label — by the same ratio as in the card
+   strip: the figure reads first and the label explains it. */
 .plan-summary__value {
   color: var(--text);
   font-weight: 650;
@@ -491,13 +505,13 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   color: var(--danger-strong);
 }
 
-/* --- полноэкранная лента --- */
+/* --- the full-screen chart --- */
 
-/* Слой поверх всего экрана, а не перестройка рамы приложения: колонка и шапка
-   остаются на своих местах под ним, и выход из режима ничего не пересобирает.
-   z-index ниже всплывающих слоёв ленты и окон (меню — 30, окна и тосты —
-   1000+): всё, что открывается из развёрнутой ленты, обязано открываться
-   поверх неё. */
+/* A layer over the whole screen rather than a rebuild of the application's
+   frame: the sidebar and the header stay in their places beneath it, and leaving
+   the mode reassembles nothing. The z-index is below the chart's popup layers and
+   dialogs (menus are 30, dialogs and toasts 1000+): everything that opens from an
+   expanded chart must open over it. */
 .project__body--focus {
   position: fixed;
   inset: 0;
@@ -505,10 +519,10 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   background: var(--bg);
 }
 
-/* Выход из полного экрана — поверх ленты в правом верхнем углу: шапка с
-   кнопкой разворота в этом режиме спрятана, и выход обязан быть на виду там,
-   где его ищут по привычке к видео и картам. Выше закреплённой шапки шкалы
-   (z-index 3), ниже меню (30). */
+/* The exit from full screen sits over the chart in the top right corner: the
+   header with the expand button is hidden in this mode, and the exit must be in
+   plain sight where people look for it out of habit from video players and maps.
+   Above the pinned scale header (z-index 3), below menus (30). */
 .project__focus-exit {
   position: absolute;
   top: 10px;
@@ -516,66 +530,71 @@ button.project-head__plan-note:hover { background: #ffe3ea; }
   z-index: 5;
 }
 
-/* Страница под развёрнутой лентой не прокручивается: её полоса прокрутки
-   двигала бы невидимое содержимое, а высота ленты отмерена от окна
-   (useViewportFit) в предположении, что страница стоит на нуле. */
+/* The page beneath an expanded chart does not scroll: its scrollbar would move
+   invisible content, and the chart's height is measured from the window
+   (useViewportFit) on the assumption that the page stands at zero. */
 body:has(.project__body--focus) {
   overflow: hidden;
 }
 
-/* Колонка приложения и полоска почты прячутся видимостью, а не display: их не
-   должно быть и в порядке табуляции — за непрозрачным слоем фокус уходил бы в
-   невидимые кнопки. Дотянуться до них сверху больше нечем — режим живёт в
-   экране проекта, а они в раме приложения, — поэтому :has, а не класс. */
+/* The application's sidebar and the mail bar are hidden by visibility rather
+   than display: they must be out of the tab order too — behind an opaque layer
+   focus would wander into invisible buttons. There is nothing left to reach them
+   from above — the mode lives in the project's screen while they live in the
+   application's frame — hence :has rather than a class. */
 .app:has(.project__body--focus) .sidebar,
 .app:has(.project__body--focus) .verify-bar {
   visibility: hidden;
 }
 
-/* --- кнопки --- */
+/* --- buttons --- */
 
-/* Кнопка: 29 пикселей (`--control-button`), скругление 8, подпись в 12.
+/* A button: 29 pixels (`--control-button`), a radius of 8, a label at 12.
 
-   Тени и своего наведения здесь нет намеренно. Тень базовое правило вешало на
-   всякую кнопку подряд — включая разрушительную, где синева читалась грязью
-   вокруг алого края, — и тем отменяла её для той одной, ради которой
-   заводилась; теперь она у `.button--primary`. Наведение же тема повторяла за
-   styles.css слово в слово, а лишняя копия правила — второе место, где та же
-   ошибка чинится дважды и по-разному.
+   There are deliberately no shadows and no hover of its own here. The base rule
+   hung a shadow on every button alike — including the destructive one, where the
+   blue read as dirt around a scarlet edge — and thereby cancelled it for the one
+   button it was created for; now it belongs to `.button--primary`. As for hover,
+   the theme repeated it after styles.css word for word, and a redundant copy of a
+   rule is a second place where the same mistake gets fixed twice and differently.
 
-   Заливку голой кнопке по-прежнему даёт styles.css: без класса кнопка здесь
-   главная. Что изменилось — вес её наведения (см. `button:where(:hover)` там
-   же): теперь класс, перекрасивший кнопку, забирает наведение с собой, а не
-   получает поверх себя чужой акцент с нетронутой подписью.
+   The fill for a bare button is still given by styles.css: with no class a button
+   here is the primary one. What changed is the weight of its hover (see
+   `button:where(:hover)` there): now a class that has repainted a button takes the
+   hover with it rather than getting someone else's accent over itself with an
+   untouched label.
 
-   Рост здесь один на все кнопки приложения. Прежде он был 36 — ростом поля, —
-   и невысокой кнопка была ровно в одном месте, в ряду действий шапки проекта;
-   остальные полтора десятка мест шли в полный рост, а пять из них вдобавок
-   писали своё число (24, 28, 32, 34), и один и тот же орган выходил на экран
-   пятью разными размерами. Кнопка ниже поля намеренно: она действие *при*
-   содержимом, а не само содержимое. */
+   The height here is one for every button in the application. It used to be 36 —
+   a field's height — and a button was short in exactly one place, the action row
+   of the project's header; the other dozen and a half places ran at full height,
+   and five of them additionally wrote a number of their own (24, 28, 32, 34), so
+   one and the same control reached the screen in five different sizes. A button
+   is deliberately shorter than a field: it is an action *on* content rather than
+   the content itself. */
 button { height: var(--control-button); padding: 0 var(--space-12); border-radius: var(--radius-md); font-size: 12px; font-weight: 620; }
 
-/* Значок на кнопке — 14 пикселей, а не 16, которые рисует сама разметка
-   (см. icons.tsx): при подписи в 12-м кегле шестнадцатый читается как
-   картинка с подписью, а не как подпись со значком. Правило общее, а не при
-   шапке проекта, где оно завелось: рост кнопки теперь один на всё приложение,
-   и мера значка обязана следовать за ним, а не за местом. */
+/* An icon on a button is 14 pixels rather than the 16 the markup itself draws
+   (see icons.tsx): with a label at size 12 a sixteenth reads as a picture with a
+   caption rather than as a caption with an icon. The rule is general rather than
+   scoped to the project's header where it originated: the button's height is now
+   one for the whole application, and the icon's measure must follow it rather than
+   the place. */
 .icon { width: 14px; height: 14px; }
 
-/* Главная кнопка — единственная залитая на экране и единственное место, где
-   законен `--accent-hover`: он задуман нажатием поверх `--accent`, а не
-   заливкой тихой кнопки. Подпись задана рядом с фоном намеренно — врозь они и
-   расходились. Тень досталась ей одной, ради неё она и заводилась.
+/* The primary button is the only filled one on a screen and the only place where
+   `--accent-hover` is lawful: it is conceived as a press over `--accent` rather
+   than as the fill of a quiet button. The label is set next to the background
+   deliberately — apart, they drifted. The shadow went to this one alone; it is
+   what it was created for.
 
-   Класс был в разметке окна экспорта и не существовал в стилях ни строкой:
-   главное действие окна держалось на заливке, которую styles.css даёт всякой
-   кнопке без класса, — то есть выглядело главным по случайности, а не потому,
-   что его таким назвали. */
+   The class was in the export dialog's markup and did not exist in the styles as
+   a single line: the dialog's primary action rested on the fill styles.css gives
+   every class-less button — that is, it looked primary by accident rather than
+   because it had been named so. */
 .button--primary { background: var(--accent); color: var(--accent-text); box-shadow: 0 2px 5px rgb(83 103 232 / 20%); }
 .button--primary:hover { background: var(--accent-hover); color: var(--accent-text); }
-/* Отключённая не отзывается вовсе — тем же приёмом, что и `.button--danger`:
-   под курсором она остаётся ровно тем, чем была в покое. */
+/* A disabled one does not respond at all — by the same technique as
+   `.button--danger`: under the cursor it stays exactly what it was at rest. */
 .button--primary:disabled:hover { background: var(--accent); color: var(--accent-text); }
 
 .button--quiet { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm); }
@@ -586,11 +605,12 @@ button { height: var(--control-button); padding: 0 var(--space-12); border-radiu
 .button--accent { background: var(--surface); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .button--accent:hover, .button--accent:disabled:hover { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 
-/* Ссылка-кнопка повторяет размеры кнопки темы: стоит с ней в одной строке и
-   обязана совпадать по высоте, иначе пара действий читается лесенкой. Селектор
-   двойной: правило `.screen a` красит ссылки внутри страницы акцентом и весом
-   перебило бы одинокий класс — а кнопка рядом с главным действием обязана
-   оставаться чернильной, иначе синими окажутся обе. */
+/* A link-button repeats the theme's button dimensions: it stands in the same row
+   as one and must match it in height, otherwise a pair of actions reads as a
+   staircase. The selector is doubled: the `.screen a` rule paints links inside a
+   page with the accent colour and weight, and would override a lone class — while
+   a button next to the primary action must stay ink-coloured, otherwise both come
+   out blue. */
 .button-link,
 .screen .button-link,
 .header .button-link { height: var(--control-button); padding: 0 var(--space-12); border-radius: var(--radius-md); font-size: 12px; font-weight: 620; color: var(--text); background: var(--surface); text-decoration: none; box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm); }
@@ -600,7 +620,7 @@ button { height: var(--control-button); padding: 0 var(--space-12); border-radiu
 .locale-switch button { height: 29px; padding: 0 var(--space-12); border-radius: var(--radius-sm); font-size: 12px; font-weight: 650; box-shadow: none; }
 .locale-switch button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(16 24 40 / 13%); }
 
-/* --- поля --- */
+/* --- fields --- */
 
 select,
 textarea,
@@ -622,38 +642,39 @@ textarea:focus {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* Подпись поля — 11 пикселей полужирным приглушённым, как в карточке задачи
-   макета. Мельче значения ровно затем, чтобы читалось значение: подпись
-   человек прочитывает один раз, а возвращается к ней глазами постоянно. */
+/* A field's label is 11 pixels, semibold and muted, as on the task card in the
+   mockup. Smaller than the value for exactly one reason — so that the value
+   reads: a person reads a label once and returns to it with their eyes constantly. */
 .field { gap: var(--space-6); margin-bottom: var(--space-16); }
 .field label, .field > .settings__key, .settings__key { color: var(--text-muted); font-size: 11px; font-weight: 700; }
-/* Пояснение под подписью — мельче значения и крупнее подписи: набранное общим
-   кеглем, оно оказывалось заметнее самой подписи поля. */
+/* The explanation under a label is smaller than the value and larger than the
+   label: set in the common size, it turned out more noticeable than the field's
+   label itself. */
 .field .muted { font-size: 12px; }
 
-/* --- меню --- */
+/* --- menus --- */
 
 .menu__pop { min-width: 220px; padding: var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-md); }
 .menu__item { min-height: 34px; gap: var(--space-8); padding: var(--space-8) var(--space-8); border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; }
 .menu__item:hover { background: var(--hover); }
 .menu__caret { color: var(--text-muted); }
 
-/* --- плашка статуса --- */
+/* --- the status chip --- */
 
-/* Пилюля макета: 23 пикселя высотой, скругление 20, подпись полужирным
-   мелким. Кегль 11, а не 10 как в макете: там пилюля стоит в таблице и несёт
-   одно слово, здесь — целую фразу («3 заблокированы»), и на 10 она перестаёт
-   читаться с расстояния строки списка. */
+/* The mockup's pill: 23 pixels tall, a radius of 20, a small semibold label.
+   Size 11 rather than the mockup's 10: there a pill stands in a table and carries
+   one word, while here it carries a whole phrase ("3 blocked"), and at 10 it stops
+   being readable from the distance of a list row. */
 .status-chip { height: 23px; padding: 0 var(--space-8); border: 0; border-radius: var(--radius-pill); background: var(--tag-gray); color: var(--text-muted); font-size: 11px; font-weight: 700; }
 .status-chip[data-status="in_progress"] { background: var(--accent-soft); color: #4455c1; }
 .status-chip[data-status="done"] { background: var(--ok-soft); color: #187448; }
 .status-chip[data-status="planned"] { background: var(--tag-gray); color: var(--text-muted); }
-/* Заблокированное — тревогой, а не вниманием: в этой палитре янтарный означает
-   просрочку, и два разных состояния одним цветом здесь уже не назвать
-   (см. план, §4.2). */
+/* Blocked uses alarm rather than attention: in this palette amber means being
+   overdue, and two different states can no longer be named by one colour here
+   (see the plan, §4.2). */
 .status-chip[data-status="blocked"] { background: var(--danger-soft); color: #b8365a; }
 
-/* --- сообщения --- */
+/* --- messages --- */
 
 .error,
 .ok {
@@ -668,11 +689,11 @@ textarea:focus {
 .nudge { padding: var(--space-12) var(--space-12); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); }
 .plan__confirm { padding: var(--space-4) var(--space-4) var(--space-4) var(--space-12); border-radius: var(--radius-md); background: var(--danger-soft); }
 
-/* --- тост --- */
+/* --- the toast --- */
 
-/* Снекбар макета: тёмная плашка в 48 пикселей со скруглением 9 и подписью
-   действия в светло-синем. Заливка та же, что у карточки наведения на ленте, —
-   оба говорят поверх страницы и обязаны выглядеть одним голосом. */
+/* The mockup's snackbar: a dark chip 48 pixels tall with a radius of 9 and an
+   action label in light blue. The fill is the same as on the chart's hover card —
+   both speak over the page and must look like one voice. */
 .toast {
   bottom: 24px;
   gap: var(--space-16);
@@ -690,8 +711,8 @@ textarea:focus {
 .toast__check { width: 18px; height: 18px; border-color: rgb(255 255 255 / 45%); font-size: 10px; }
 .toast__message { flex: 1; }
 
-/* Рост и кегль — общие кнопочные: «Вернуть» в плашке остаётся тем же органом,
-   что и кнопка на странице, и своего размера ему не положено. */
+/* The height and size are the shared button ones: "Undo" inside a chip stays the
+   same control as a button on a page, and is not entitled to a size of its own. */
 .toast__action {
   height: var(--control-button);
   padding: 0 var(--space-12);
@@ -703,17 +724,17 @@ textarea:focus {
 
 .toast__action:hover { background: rgb(255 255 255 / 8%); text-decoration: none; }
 
-/* --- окно --- */
+/* --- the dialog --- */
 
 .modal__backdrop { backdrop-filter: blur(5px); }
 .modal { max-width: 480px; padding: var(--space-24); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
-/* Широкое окно: колонка формы рядом с превью. Ширина названа здесь, а не в
-   стилях потребителя, — хрома окна живёт в теме, и второй размер окна тоже
-   её дело. */
+/* A wide dialog: a form column next to a preview. The width is named here rather
+   than in the consumer's styles — a dialog's chrome lives in the theme, and a
+   second dialog size is its business too. */
 .modal--wide { max-width: 940px; }
 .modal__title { margin-bottom: var(--space-20); font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
 
-/* --- страницы --- */
+/* --- pages --- */
 
 /* The original Planora pass focused on the Gantt route. These shared rules
    carry the same information hierarchy through the rest of the product. */
@@ -734,9 +755,9 @@ textarea:focus {
 
 .screen__head h1 { margin-bottom: 0; }
 
-/* Под вкладками заголовок своей линии не рисует: две горизонтали подряд —
-   черта вкладок и черта заголовка — читаются как два разных разделителя там,
-   где раздел один. */
+/* Under tabs a heading draws no rule of its own: two horizontals in a row — the
+   tabs' rule and the heading's rule — read as two different dividers where there
+   is one section. */
 .tabs + .screen__head {
   padding-bottom: 0;
   border-bottom: 0;
@@ -760,8 +781,9 @@ textarea:focus {
 .screen a { color: var(--accent); text-decoration-color: rgb(83 103 232 / 35%); }
 .screen a:hover, .header a:hover { background: transparent; text-decoration-color: var(--accent); }
 
-/* Выбранная вкладка — акцентом, а не чернилами: «вы здесь» во всём остальном
-   приложении говорит синий, и вкладки не повод заводить второй такой знак. */
+/* The selected tab uses the accent colour rather than ink: everywhere else in the
+   application "you are here" is said by blue, and tabs are no reason to introduce a
+   second such sign. */
 .tabs__link, .screen .tabs__link { padding: var(--space-6) var(--space-12); font-size: 13px; font-weight: 620; text-decoration: none; }
 .tabs__link.is-current { border-bottom-color: var(--accent); color: var(--accent); }
 
@@ -772,7 +794,7 @@ button {
     box-shadow var(--motion-fast) var(--motion-ease);
 }
 
-/* --- вход --- */
+/* --- sign-in --- */
 
 /* Authentication reads as a focused product entry point, not a loose form. */
 body:has(.screen--narrow) {
@@ -813,13 +835,13 @@ body:has(.screen--narrow) {
 .screen--narrow .muted:last-child { margin: var(--space-24) 0 0; text-align: center; }
 .screen--narrow form button[type="submit"] { margin-top: var(--space-8); }
 
-/* --- списки --- */
+/* --- lists --- */
 
 .task-list, .report { border-color: var(--border); border-radius: var(--radius-lg); background: var(--surface); }
-/* Ссылка на проект в строке задачи — чернилами, а не акцентом: `.screen a`
-   красит всякую ссылку страницы синим и подчёркивает её, и в списке из
-   двадцати строк это частокол. Открывается по щелчку вся строка, а не
-   подчёркнутое слово в ней. */
+/* A link to a project in a task row is ink-coloured rather than accented:
+   `.screen a` paints every link on a page blue and underlines it, and in a list of
+   twenty rows that is a picket fence. What opens on a click is the whole row rather
+   than the underlined word in it. */
 .screen .task-list__project { color: var(--text-muted); text-decoration: none; }
 .screen .task-list__project:hover { background: transparent; text-decoration: underline; }
 .report thead th { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: var(--text-muted); }
@@ -862,7 +884,7 @@ body:has(.screen--narrow) {
 .members__row { min-height: 52px; padding: var(--space-12) var(--space-16); border-radius: 0; }
 .members li:last-child, .invite:last-child, .members__row:last-child { border-bottom: 0; }
 
-/* --- настройки --- */
+/* --- settings --- */
 
 .settings {
   max-width: 680px;
@@ -895,16 +917,16 @@ body:has(.screen--narrow) {
   line-height: 1.45;
 }
 
-/* --- карточка задачи --- */
+/* --- the task card --- */
 
-/* Облик карточки задачи целиком в task/panel.css: тема здесь не держит ни
-   строки. Прежде она перекрашивала два десятка её селекторов, но собирается
-   раньше panel.css и при равном весе проигрывала ему — половина её правил
-   молча не действовала, а карточка выходила смесью двух замыслов. Правило то
-   же, что и у ленты: один селектор живёт в одном файле, и это проверяет
-   theme-cascade.test.ts. */
+/* The task card's whole appearance lives in task/panel.css: the theme holds not a
+   line of it here. It used to repaint two dozen of its selectors, but it is
+   assembled before panel.css and at equal weight lost to it — half of its rules
+   silently did not apply, and the card came out a mixture of two intentions. The
+   rule is the same as with the chart: one selector lives in one file, and
+   theme-cascade.test.ts checks that. */
 
-/* --- адаптивность --- */
+/* --- responsiveness --- */
 
 @media (max-width: 900px) {
   :root { --gutter: var(--space-20); --gutter-page: var(--space-24); }
@@ -929,19 +951,19 @@ body:has(.screen--narrow) {
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
-  /* В строке сверху равнять подписи не под чем — логотип стоит слева от них,
-     а не над ними, — и колонка значков сжимается до самого рисунка. */
+  /* In the top row there is nothing to align the labels under — the logo stands to
+     their left rather than above them — and the icon column shrinks to the glyph itself. */
   .sidebar { --sidebar-mark: 18px; --sidebar-gap: var(--space-8); }
   .sidebar__workspace { flex: 0 0 auto; padding: 0; }
   .sidebar__avatar { width: 36px; height: 36px; }
   .sidebar__brand { display: none; }
-  /* Нижний блок прежде прятался целиком — и вместе с ним с телефона исчезали
-     «Настройки» (а за ними участники и профиль), «Выйти», выбор языка и
-     переключатель организаций. Замены не было никакой: приглашённый принимал
-     приглашение с телефона — а письма и читают чаще всего с телефона — и
-     оказывался в комнате без дверей. Теперь блок не пропадает, а ложится в ту
-     же верхнюю строку справа: подписи в нём скрыты, остаются значки, и на это
-     хватает места рядом с тремя разделами. */
+  /* The bottom block used to be hidden entirely — and with it "Settings" (and
+     behind them members and the profile), "Sign out", the language choice and the
+     organization switcher vanished from a phone. There was no replacement
+     whatsoever: an invitee accepted an invitation from a phone — and email is most
+     often read on a phone — and ended up in a room with no doors. Now the block does
+     not disappear but lies down in that same top row on the right: its labels are
+     hidden, the icons remain, and there is room for that next to three sections. */
   .sidebar__foot {
     flex-direction: row;
     align-items: center;
@@ -960,9 +982,9 @@ body:has(.screen--narrow) {
     padding: 0 var(--space-12);
   }
   .sidebar__foot .sidebar__icon { flex-basis: 18px; }
-  /* Переключатель организаций подписей не имеет и сжимается сам: он нужен
-     ровно тому, у кого организаций стало две, — то есть принявшему
-     приглашение. */
+  /* The organization switcher has no labels and shrinks by itself: it is needed by
+     exactly whoever has come to have two organizations — that is, by whoever accepted
+     an invitation. */
   .sidebar .org-switch { max-width: 32vw; flex: 0 1 auto; }
   .sidebar__nav { flex-direction: row; gap: var(--space-6); }
   .sidebar__link { min-height: 36px; padding: 0 var(--space-12); }
@@ -978,10 +1000,10 @@ body:has(.screen--narrow) {
 }
 
 @media (max-width: 520px) {
-  /* Верхняя полоса — в одну строку в 56 пикселей, а не в две по 109: подписи
-     разделов уходят (значки с `aria-label` остаются), органы справа сжимаются
-     до значка. Перенос не запрещён — с переключателем организаций строка всё
-     же ляжет в две, — но в обычном случае помещается одна. */
+  /* The top strip is one row of 56 pixels rather than two of 109: the section
+     labels go (the icons with `aria-label` stay) and the controls on the right shrink
+     to an icon. Wrapping is not forbidden — with the organization switcher the row
+     will lie in two after all — but in the ordinary case one fits. */
   .sidebar { padding: var(--space-8) var(--space-16); }
   .sidebar__avatar { width: 32px; height: 32px; }
   .sidebar__nav .sidebar__label { display: none; }
@@ -989,10 +1011,10 @@ body:has(.screen--narrow) {
   .sidebar .locale-switch { margin: 0; }
   .sidebar .locale-switch button { padding: 0 var(--space-6); }
 
-  /* Шапка проекта на телефоне — три строки вместо пяти: имя с плашкой и
-     кнопкой плана, вкладки одной прокручиваемой строкой, органы вида. Вкладки
-     не переносятся на вторую строку, а уезжают вбок — так их четыре и на
-     полосе в 358 пикселей. */
+  /* The project's header on a phone is three rows instead of five: the name with a
+     chip and the plan button, the tabs as a single scrollable row, the view controls.
+     The tabs do not wrap to a second row but ride off sideways — there are four of
+     them even on a 358-pixel strip. */
   .project-bar .tabs {
     flex: 0 0 100%;
     flex-wrap: nowrap;
@@ -1002,10 +1024,10 @@ body:has(.screen--narrow) {
   }
   .project-bar .tabs::-webkit-scrollbar { display: none; }
   .project-bar .tabs__link { flex: 0 0 auto; white-space: nowrap; }
-  /* От плашки состояния плана остаётся точка: слова «План проекта · черновик»
-     занимали половину строки и выталкивали кнопку «Согласовать план» на
-     свою. Цвет точки — тот же знак, что и цвет плашки; текст остаётся в
-     доступном дереве. */
+  /* Of the plan-state chip only the dot remains: the words "Project plan · draft"
+     took up half the row and pushed the "Agree the plan" button onto its own. The
+     dot's colour is the same sign as the chip's colour; the text stays in the
+     accessibility tree. */
   .project-head__plan-label { position: relative; width: 29px; padding: 0; justify-content: center; }
   .project-head__plan-text {
     position: absolute;
@@ -1021,7 +1043,7 @@ body:has(.screen--narrow) {
   .modal { padding: var(--space-24) var(--space-16); }
   .modal__actions { align-items: stretch; flex-direction: column; }
   .modal__actions button { width: 100%; }
-  /* Тост во всю ширину минус поля: 345 пикселей минимальной ширины на узком
-     экране выпирают за край. */
+  /* The toast spans the full width minus the padding: a minimum width of 345
+     pixels sticks out past the edge on a narrow screen. */
   .toast { min-width: 0; width: calc(100vw - 32px); }
 }
