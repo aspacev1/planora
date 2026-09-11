@@ -4,18 +4,16 @@ import type { ReactNode } from "react";
 import { useEscape } from "./useEscape";
 
 /**
- * Кнопка с выпадающей панелью — «Фильтр», «Вид», «⋯» в шапке.
+ * A button with a dropdown panel — "Filter", "View", "⋯" in the header.
  *
- * Панель, а не `role="menu"`: внутри живут не только пункты-действия, но и
- * флажки со списками, а меню по ARIA обязывает каждого потомка быть
- * `menuitem` и ходить по ним стрелками. Обещать эту семантику и не выполнить
- * хуже, чем честная кнопка, раскрывающая область с обычными органами
- * управления, — поэтому здесь `aria-expanded` и `aria-controls`, и всё.
+ * A panel rather than a `role="menu"`: inside live not only action items but checkboxes and lists too,
+ * while a menu by ARIA obliges every child to be a `menuitem` and to be walked with the arrows.
+ * Promising that semantics and not delivering it is worse than an honest button unfolding an area with
+ * ordinary controls — so here there are `aria-expanded` and `aria-controls`, and that is all.
  *
- * Закрывается тремя путями: Esc, щелчок мимо и повторный щелчок по кнопке.
- * Выбор внутри панель не закрывает — в фильтре отмечают несколько флажков
- * подряд, и панель, захлопывающаяся после первого, заставляла бы открывать
- * себя заново на каждый.
+ * It closes in three ways: Esc, a click outside and a repeat click on the button. A choice inside does
+ * not close the panel — in a filter several checkboxes are ticked in a row, and a panel snapping shut
+ * after the first would make you open it again for each.
  */
 export function Menu({
   label,
@@ -28,19 +26,19 @@ export function Menu({
   label: ReactNode;
   children: ReactNode;
   buttonClass?: string;
-  /** Стрелка-подсказка «раскроется вниз». «⋯» она не нужна. */
+/** The "it will unfold downwards" hint arrow. "⋯" does not need it. */
   showCaret?: boolean;
-  /** Точка на кнопке: внутри выбран не-пустой фильтр. */
+/** A dot on the button: a non-empty filter is selected inside. */
   active?: boolean;
-  /** Имя для чтения с экрана, когда видимая подпись — знак вроде «⋯». */
+/** A name for a screen reader, when the visible caption is a sign such as "⋯". */
   buttonLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
   const id = useId();
 
-  // Раскрытая панель — верхний слой: её открыли последней, и Esc обязан снять
-  // сначала её, а не карточку или окно, над которыми она висит.
+  // An unfolded panel is the top layer: it was opened last, and Esc must remove it first rather than
+  // the card or the dialog it hangs over.
   useEscape(() => setOpen(false), open);
 
   useEffect(() => {

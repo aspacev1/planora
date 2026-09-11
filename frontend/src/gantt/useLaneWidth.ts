@@ -2,23 +2,20 @@ import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import type { RefObject } from "react";
 
 /**
- * Ширина видимой части ленты — числом, а не стилем.
+ * The width of the strip's visible part — as a number rather than as a style.
  *
- * Нужна ровно одному расчёту: окну относительного плана. У плана без дат нет
- * ничего, из чего вывести правый край шкалы, — окно строится от константы, и
- * без этой меры оно всегда одной и той же ширины, сколько бы места ни было на
- * экране (см. `weeksAcross` в relative.ts). Календарное окно выводится из дат
- * задач и в мере не нуждается.
+ * Needed by exactly one computation: a relative plan's window. A plan without dates has nothing to
+ * derive the scale's right edge from — the window is built from a constant, and without this measure
+ * it is always the same width however much room there is on screen (see `weeksAcross` in relative.ts).
+ * A calendar window is derived from the tasks' dates and needs no measure.
  *
- * Меряется тем же приёмом, что и высота ленты (см. `useViewportFit`): слоем
- * разметки на каждую отрисовку плюс `resize`, без `ResizeObserver` — он стоил
- * бы полифила ради jsdom, а лента и так перерисовывается на всякую правку
- * плана и на всякую смену раскладки колонок.
+ * It is measured by the same device as the strip's height (see `useViewportFit`): a layout effect on
+ * every render plus `resize`, without a `ResizeObserver` — that would cost a polyfill for the sake of
+ * jsdom, while the strip is repainted on every plan edit and every change of the column layout anyway.
  *
- * Возвращаемое число само вызывает перерисовку — потому и состояние, а не
- * ссылка: по нему строится шкала. Цикла из этого не выходит: ширина окна от
- * ширины шкалы не зависит — за краем видимой части лента прокручивается, а не
- * растягивает своего предка.
+ * The returned number itself causes a repaint — hence state rather than a ref: the scale is built from
+ * it. No cycle comes of that: the window's width does not depend on the scale's width — beyond the
+ * visible part the strip scrolls rather than stretching its parent.
  */
 export function useLaneWidth(box: RefObject<HTMLElement | null>): number {
   const [width, setWidth] = useState(0);
@@ -26,9 +23,9 @@ export function useLaneWidth(box: RefObject<HTMLElement | null>): number {
   const measure = useCallback(() => {
     const node = box.current;
     if (node === null) return;
-    // `clientWidth`, а не ширина прямоугольника: полоса прокрутки места ленте
-    // не даёт, и шкала, построенная вместе с ней, оказывалась бы на десяток
-    // пикселей шире окна — с горизонтальной прокруткой у пустого проекта.
+    // `clientWidth` rather than the rectangle's width: a scrollbar gives the strip no room, and a
+    // scale built together with it would come out a dozen pixels wider than the window — with a
+    // horizontal scroll on an empty project.
     const next = node.clientWidth;
     setWidth((current) => (current === next ? current : next));
   }, [box]);

@@ -10,12 +10,12 @@ import { Modal } from "./Modal";
 import { useToast } from "./toast";
 
 /**
- * Два способа завести проект — обычный и через интервью — одной парой кнопок.
+ * Two ways to create a project — the ordinary one and through an interview — as one pair of buttons.
  *
- * Отдельный компонент, а не разметка внутри экрана: пара живёт в шапке списка
- * проектов и переживёт следующий экран, который начнётся с того же вопроса «а
- * если проекта ещё нет?». Разойтись в подписях или в поведении окна двум её
- * копиям было бы не за что.
+ * A separate component rather than markup inside a screen: the pair lives in the projects list's
+ * header and will outlive the next screen that begins with the same "and what if there is no project
+ * yet?" question. Two copies of it would have nothing to diverge over in captions or in the dialog's
+ * behaviour.
  */
 export function CreateProjectActions() {
   const { t } = useLocale();
@@ -28,14 +28,14 @@ export function CreateProjectActions() {
   const create = useMutation({
     mutationFn: (candidate: string) => createProject(candidate),
     onSuccess: (project) => {
-      // Список инвалидируется, а не дописывается вручную: сервер вернул слаг,
-      // который сам же и построил, и складывать рядом с ним придуманные
-      // клиентом поля значит держать в кэше запись, которой на сервере нет.
+      // The list is invalidated rather than written into by hand: the server returned a slug it built
+      // itself, and putting client-invented fields next to it means keeping a record in the cache that
+      // does not exist on the server.
       void queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
       navigate(`/projects/${project.id}`);
-      // Тост переживает переход: он висит на раме приложения, а не на экране
-      // списка. Пустая диаграмма после нажатия одинаково похожа и на новый
-      // проект, и на промах мимо кнопки — название в тосте различает их.
+      // The toast outlives the navigation: it hangs on the application's frame rather than on the
+      // list's screen. An empty chart after the press looks equally like a new project and like a
+      // stray click — the name in the toast tells them apart.
       showToast({ message: t("projects.created", { name: project.name }) });
     },
   });
@@ -53,15 +53,14 @@ export function CreateProjectActions() {
       <button type="button" onClick={() => setOpen(true)}>
         {t("projects.create")}
       </button>
-      {/* Интервью — только для нового проекта: внутри существующего его
-          запуск в первую версию не входит. Ссылка выглядит кнопкой в рамке:
-          рядом с залитой синей плашкой это второй способ сделать то же самое,
-          а не сноска под ней. */}
+      {/* The interview is only for a new project: launching it inside an existing one is not part of
+          the first version. The link looks like an outlined button: next to a filled blue chip it is
+          a second way to do the same thing rather than a footnote under it. */}
       <Link to="/projects/new/ai" className="button-link">
         {t("projects.create_with_ai")}
       </Link>
-      {/* Импорт из Jira — третий способ завести проект, тем же правилом, что
-          интервью: работает только для нового проекта. */}
+      {/* Import from Jira is a third way to create a project, by the same rule as the interview: it
+          only works for a new project. */}
       <Link to="/projects/new/jira" className="button-link">
         {t("projects.create_from_jira")}
       </Link>

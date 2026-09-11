@@ -13,7 +13,7 @@ import {
 } from "./relative";
 import { buildScale } from "./timescale";
 
-/** Минимум состояния, который читает relativeWindow. */
+/** The minimum state relativeWindow reads. */
 function state(partial: Partial<ProjectState>): ProjectState {
   return {
     id: "p1",
@@ -52,10 +52,10 @@ describe("относительная ось", () => {
   });
 
   it("окно занимает всю отведённую ширину целыми неделями", () => {
-    // 1000 пикселей при дне в 18 (масштаб «Месяц») — семь целых недель и
-    // остаток в 118 пикселей, который недели не набирает. Остаток закрывает
-    // полоса «вне плана», а не восьмая неполная неделя: шапка режется по
-    // неделям, и половина недели в её конце читалась бы обрывом.
+    // 1000 pixels with a day at 18 (the "Month" scale) is seven whole weeks and a remainder of 118
+    // pixels, which does not add up to a week. The remainder is covered by the "beyond the plan" band
+    // rather than by an eighth incomplete week: the header is cut by weeks, and half a week at its end
+    // would read as a break.
     expect(weeksAcross(1000, 18)).toBe(7);
     expect(relativeWindow(state({}), RELATIVE_EPOCH, weeksAcross(1000, 18))).toEqual({
       from: "2001-01-01",
@@ -64,8 +64,8 @@ describe("относительная ось", () => {
   });
 
   it("узкое окно не сжимает шкалу меньше «Месяца 1»", () => {
-    // Ширины ещё нет (первая отрисовка, jsdom) или её хватает на неделю —
-    // пустой проект всё равно показывает месяц целиком.
+    // There is no width yet (the first render, jsdom) or it is enough for a week — an empty project
+    // still shows the whole month.
     expect(weeksAcross(0, 18)).toBe(4);
     expect(weeksAcross(200, 18)).toBe(4);
     expect(relativeWindow(state({}), RELATIVE_EPOCH, weeksAcross(200, 18))).toEqual({
@@ -75,8 +75,8 @@ describe("относительная ось", () => {
   });
 
   it("задачи за краем окна тянут его дальше отведённой ширины", () => {
-    // Ширина экрана — нижняя граница окна, а не его край: план, уходящий
-    // дальше, показывается целиком и прокручивается.
+    // The screen's width is the window's lower bound rather than its edge: a plan going further is
+    // shown in full and scrolls.
     const long = state({ project_end: "2001-04-30" });
     expect(relativeWindow(long, RELATIVE_EPOCH, weeksAcross(500, 18)).to).toBe("2001-05-06");
   });
@@ -86,7 +86,7 @@ describe("относительная ось", () => {
       project_end: "2001-02-09",
       tasks: [],
     });
-    // 9 февраля — день 40, шестая неделя; окно кончается её последним днём.
+    // 9 February is day 40, the sixth week; the window ends on its last day.
     expect(relativeWindow(withTask)).toEqual({ from: "2001-01-01", to: "2001-02-11" });
   });
 
@@ -105,16 +105,16 @@ describe("относительная ось", () => {
     const months = relativeMonths(scale);
     expect(months).toHaveLength(2);
     expect(months[0]).toEqual({ number: 1, x: 0, width: 280 });
-    // Обрезанный последний «месяц» — две недели: окно круглится до недель,
-    // а не до месяцев, как в макете, где месяц 2 начат пятой неделей.
+    // The truncated last "month" is two weeks: the window rounds to weeks rather than to months, as in
+    // the mockup, where month 2 begins with the fifth week.
     expect(months[1]).toEqual({ number: 2, x: 280, width: 140 });
   });
 });
 
 describe("relativeWeekEnd", () => {
   it("округляет вверх до конца недели — тем же правилом, что и окно", () => {
-    expect(relativeWeekEnd("2001-01-01")).toBe("2001-01-07"); // День 1 → конец недели 1
-    expect(relativeWeekEnd("2001-01-07")).toBe("2001-01-07"); // День 7 — уже конец
-    expect(relativeWeekEnd("2001-01-08")).toBe("2001-01-14"); // День 8 → конец недели 2
+    expect(relativeWeekEnd("2001-01-01")).toBe("2001-01-07"); // Day 1 → the end of week 1
+    expect(relativeWeekEnd("2001-01-07")).toBe("2001-01-07"); // Day 7 is already the end
+    expect(relativeWeekEnd("2001-01-08")).toBe("2001-01-14"); // Day 8 → the end of week 2
   });
 });
