@@ -983,7 +983,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Выгрузить проект документом PDF */
+        /** Export the project as a PDF document */
         get: operations["export_project_pdf_api_projects__project_id__export_pdf_get"];
         put?: never;
         post?: never;
@@ -1000,7 +1000,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Выгрузить проект книгой Excel */
+        /** Export the project as an Excel workbook */
         get: operations["export_project_xlsx_api_projects__project_id__export_xlsx_get"];
         put?: never;
         post?: never;
@@ -1018,7 +1018,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Что в проекте есть для выгрузки
+         * What the project holds for export
          * @description What the sections contain — so that the dialog does not offer empty ones.
          *
          *     A separate route rather than fields in the project's state: these numbers are
@@ -1281,7 +1281,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Скачать коммерческое предложение документом для клиента
+         * Download the commercial proposal as a document for the client
          * @description The whole proposal as one file — the one that will go to the client.
          *
          *     Not a section of the general export but a document of its own: it has a
@@ -1760,7 +1760,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Выгрузить проект по публичной ссылке документом PDF */
+        /** Export the project through a public link as a PDF document */
         get: operations["public_export_pdf_api_public__org_slug___project_slug__export_pdf_get"];
         put?: never;
         post?: never;
@@ -1777,7 +1777,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Выгрузить проект по публичной ссылке книгой Excel */
+        /** Export the project through a public link as an Excel workbook */
         get: operations["public_export_xlsx_api_public__org_slug___project_slug__export_xlsx_get"];
         put?: never;
         post?: never;

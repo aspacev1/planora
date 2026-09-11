@@ -221,7 +221,7 @@ FILE_RESPONSES = {
 }
 
 
-@router.get("/{project_id}/export/facts", summary="Что в проекте есть для выгрузки")
+@router.get("/{project_id}/export/facts", summary="What the project holds for export")
 def export_facts(
     context: ProjectContext = Depends(project_context),
     db: DbSession = Depends(get_db),
@@ -338,7 +338,7 @@ router.add_api_route(
     "/{project_id}/export.xlsx",
     _export("xlsx"),
     methods=["GET"],
-    summary="Выгрузить проект книгой Excel",
+    summary="Export the project as an Excel workbook",
     responses=FILE_RESPONSES["xlsx"],
     response_class=Response,
 )
@@ -346,7 +346,7 @@ router.add_api_route(
     "/{project_id}/export.pdf",
     _export("pdf"),
     methods=["GET"],
-    summary="Выгрузить проект документом PDF",
+    summary="Export the project as a PDF document",
     responses=FILE_RESPONSES["pdf"],
     response_class=Response,
 )
@@ -354,7 +354,7 @@ router.add_api_route(
 
 @router.get(
     "/{project_id}/proposal/export.pdf",
-    summary="Скачать коммерческое предложение документом для клиента",
+    summary="Download the commercial proposal as a document for the client",
     responses=FILE_RESPONSES["pdf"],
     response_class=Response,
 )

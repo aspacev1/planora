@@ -6086,7 +6086,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Выгрузить проект документом PDF",
+        "summary": "Export the project as a PDF document",
         "tags": [
           "export"
         ]
@@ -6208,7 +6208,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Выгрузить проект книгой Excel",
+        "summary": "Export the project as an Excel workbook",
         "tags": [
           "export"
         ]
@@ -6270,7 +6270,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Что в проекте есть для выгрузки",
+        "summary": "What the project holds for export",
         "tags": [
           "export"
         ]
@@ -7253,7 +7253,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Скачать коммерческое предложение документом для клиента",
+        "summary": "Download the commercial proposal as a document for the client",
         "tags": [
           "export"
         ]
@@ -9095,7 +9095,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Выгрузить проект по публичной ссылке документом PDF",
+        "summary": "Export the project through a public link as a PDF document",
         "tags": [
           "public"
         ]
@@ -9157,7 +9157,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Выгрузить проект по публичной ссылке книгой Excel",
+        "summary": "Export the project through a public link as an Excel workbook",
         "tags": [
           "public"
         ]

@@ -242,7 +242,7 @@ def _enum_param(request: Request, name: str, enum):
 
 @router.get(
     "/{org_slug}/{project_slug}/export.xlsx",
-    summary="Выгрузить проект по публичной ссылке книгой Excel",
+    summary="Export the project through a public link as an Excel workbook",
     responses=export_routes.FILE_RESPONSES["xlsx"],
     response_class=Response,
 )
@@ -256,7 +256,7 @@ def public_export_xlsx(
 
 @router.get(
     "/{org_slug}/{project_slug}/export.pdf",
-    summary="Выгрузить проект по публичной ссылке документом PDF",
+    summary="Export the project through a public link as a PDF document",
     responses=export_routes.FILE_RESPONSES["pdf"],
     response_class=Response,
 )
