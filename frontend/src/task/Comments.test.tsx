@@ -24,11 +24,11 @@ const THREAD = [
 ];
 
 /**
- * Открывает карточку и отдаёт саму ветку обсуждения, а не карточку целиком.
+ * Opens the card and gives back the discussion thread itself rather than the whole card.
  *
- * Границы важны: имя «Мария» есть и среди исполнителей на той же карточке, и
- * поиск по всей карточке нашёл бы двух — то есть проверял бы не подпись под
- * репликой, а совпадение имён.
+ * The bounds matter: the name "Мария" is also among the assignees on the same card, and a search
+ * across the whole card would find two — that is, it would be checking a coincidence of names rather
+ * than the signature under a reply.
  */
 async function openCard() {
   renderProject();
@@ -38,8 +38,8 @@ async function openCard() {
 
 async function openThread() {
   const panel = await openCard();
-  // Обсуждение — на своей вкладке: свойства задачи открываются первыми, а
-  // ветка разговора появляется по щелчку.
+  // The discussion is on its own tab: the task's properties open first, and the conversation thread
+  // appears on a click.
   await userEvent.click(within(panel).getByRole("tab", { name: "Комментарии" }));
   return within(panel).getByRole("region", { name: "Комментарии" });
 }
@@ -63,7 +63,7 @@ describe("обсуждение задачи", () => {
   });
 
   it("датирует реплику по часам читателя, а не по UTC", async () => {
-    // Браузер в Баку (UTC+4): реплика в 22:30 по Гринвичу — это уже 6 марта.
+    // The browser is in Baku (UTC+4): a reply at 22:30 Greenwich is already 6 March.
     vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
       locale: "ru",
       calendar: "gregory",
@@ -88,16 +88,16 @@ describe("обсуждение задачи", () => {
     const thread = await openThread();
     const guest = await within(thread).findByText("Нигяр");
 
-    // Пометка рядом с именем, а не вместо него: гостя зовут по имени, но
-    // читатель обязан видеть, что аккаунта за ним нет.
+    // The mark is next to the name rather than instead of it: a guest is called by name, but a reader
+    // must see that there is no account behind them.
     expect(guest.parentElement?.textContent).toMatch(/гость/i);
   });
 
   it("отправляет реплику и показывает её после ответа сервера", async () => {
     const sent: unknown[] = [];
-    // Заглушка помнит отправленное: без этого перезапрос после успеха вернул
-    // бы прежнюю ветку, и тест проверял бы не появление реплики, а то, что
-    // она успела мелькнуть.
+    // The stub remembers what was sent: without that a refetch after a success would return the
+    // previous thread, and the test would be checking not that the reply appeared but that it managed
+    // to flash by.
     let stored = [...THREAD];
     server.use(
       http.get("/api/projects/p1/comments", () => HttpResponse.json(stored)),
@@ -163,8 +163,8 @@ describe("обсуждение задачи", () => {
     await userEvent.click(within(thread).getByRole("button", { name: /Отправить/i }));
 
     expect(await within(thread).findByRole("alert")).toHaveTextContent(/пуст/i);
-    // Текст остаётся в поле: отказ — повод исправить реплику, а не набрать
-    // её заново.
+    // The text stays in the field: a refusal is a reason to correct the reply rather than to type it
+    // anew.
     expect(field).toHaveValue("слишком длинно");
   });
 
@@ -175,15 +175,15 @@ describe("обсуждение задачи", () => {
       ),
     );
 
-    // Карточка целиком, а не ветка: блока обсуждения здесь нет вовсе, и
-    // искать поле внутри него было бы нечем.
+    // The whole card rather than the thread: there is no discussion block here at all, and there would
+    // be nothing to look for a field inside.
     const panel = await openCard();
     await userEvent.click(within(panel).getByRole("tab", { name: "Комментарии" }));
 
     await waitFor(() =>
       expect(within(panel).queryByRole("region", { name: "Комментарии" })).not.toBeInTheDocument(),
     );
-    // Свойства задачи на своей вкладке работают как работали.
+    // The task's properties on their own tab work as they worked.
     await userEvent.click(within(panel).getByRole("tab", { name: "Свойства" }));
     expect(within(panel).getByLabelText("Название")).toBeInTheDocument();
   });

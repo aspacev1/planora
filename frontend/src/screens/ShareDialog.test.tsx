@@ -18,10 +18,9 @@ const PUBLISHED = {
 const UNPUBLISHED = { allowed: true, url: null, comments_enabled: true, created_at: null };
 
 async function openDialog() {
-  // Кнопка появляется вместе с экраном проекта, то есть после ответа
-  // сервера: искать её сразу — значит проверять скорость сети. Живёт она под
-  // «⋯» в шапке — публикацию открывают редко, и постоянной кнопки ей не
-  // отводится.
+  // The button appears together with the project screen, that is, after the server's answer: looking
+  // for it straight away means checking the network's speed. It lives under "⋯" in the header —
+  // publishing is opened rarely, and no permanent button is allotted to it.
   await userEvent.click(await screen.findByRole("button", { name: "Ещё действия" }));
   await userEvent.click(screen.getByRole("button", { name: "Поделиться" }));
 }
@@ -46,7 +45,7 @@ describe("публичная ссылка проекта", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Опубликовать" }));
 
-    // Адрес приходит с сервера целиком: домен установки знает только он.
+    // The address arrives from the server whole: only it knows the install's domain.
     expect(await screen.findByLabelText("Адрес ссылки")).toHaveValue(URL);
   });
 
@@ -65,8 +64,8 @@ describe("публичная ссылка проекта", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Перевыпустить" }));
 
-    // Первое нажатие ничего не ломает: адрес, уже отправленный клиенту, живёт
-    // ровно до ответа на вопрос.
+    // The first press breaks nothing: an address already sent to the client lives exactly until the
+    // question is answered.
     expect(rotated).toBe(false);
     expect(
       screen.getByText(
@@ -139,8 +138,8 @@ describe("публичная ссылка проекта", () => {
     await openDialog();
 
     await userEvent.click(await screen.findByRole("button", { name: "Закрыть ссылку" }));
-    // Одного нажатия мало: снятие публикации спрашивает так же, как удаление
-    // проекта, — вернуть прежний адрес нельзя.
+    // One press is not enough: unpublishing asks the same way deleting a project does — the previous
+    // address cannot be brought back.
     expect(revoked).toBe(false);
     await userEvent.click(screen.getByRole("button", { name: "Да, закрыть ссылку" }));
 
@@ -158,8 +157,7 @@ describe("публичная ссылка проекта", () => {
     renderProject();
     await openDialog();
 
-    // Кнопка, которая кончится отказом, — хуже её отсутствия: причина
-    // названа словами.
+    // A button that will end in a refusal is worse than its absence: the reason is named in words.
     expect(
       await screen.findByText(
         "Публичные ссылки выключены: установкой или настройкой организации",
@@ -183,8 +181,7 @@ describe("публичная ссылка проекта", () => {
         calls.push("rotate");
         return HttpResponse.json(PUBLISHED);
       }),
-      // Повторное создание сервер встречает отказом: сюда перевыпуск ходить
-      // не должен вовсе.
+      // The server meets a repeat creation with a refusal: a reissue must not come here at all.
       http.post("/api/projects/p1/share", () => {
         calls.push("issue");
         return new HttpResponse(null, { status: 409 });
@@ -202,10 +199,10 @@ describe("публичная ссылка проекта", () => {
 });
 
 /**
- * Настройки проекта показывают то же тело, что и окно. Раньше это были два
- * компонента, и настройки отстали: без «Копировать», без проверки `allowed` и
- * с перевыпуском через повторное создание. Тесты идут через настройки, потому
- * что расходится всегда именно эта, вторая точка входа.
+ * The project's settings show the same body as the dialog. These used to be two components, and the
+ * settings fell behind: without "Copy", without the `allowed` check and with a reissue through a
+ * repeat creation. The tests go through the settings, because it is always this second entry point
+ * that diverges.
  */
 describe("та же ссылка из настроек проекта", () => {
   beforeEach(() => projectFixtures());

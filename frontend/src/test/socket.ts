@@ -1,15 +1,14 @@
 /**
- * Сокет, которым управляет тест.
+ * A socket the test drives.
  *
- * Ставится глобально для всего набора (см. setup.ts), и не ради удобства:
- * настоящий `WebSocket` из jsdom полез бы в сеть на каждом тесте, который
- * открывает экран проекта, — за ответом, которого никто не даёт. Тесты стали
- * бы зависеть от того, слушает ли что-нибудь порт под ними.
+ * Installed globally for the whole suite (see setup.ts), and not for convenience: a real `WebSocket`
+ * from jsdom would reach for the network on every test that opens a project screen — for an answer
+ * nobody gives. The tests would come to depend on whether anything is listening on the port beneath
+ * them.
  *
- * Реализовано ровно то, чем пользуется useProjectLive: конструктор,
- * три обработчика, close(). Пустой класс-заглушка на месте платформенного
- * API — плохая идея вообще, но здесь поверхность известна и мала, а
- * альтернатива — реальная сеть в юнит-тестах.
+ * What is implemented is exactly what useProjectLive uses: the constructor, three handlers, close().
+ * An empty stub class in place of a platform API is a bad idea in general, but here the surface is
+ * known and small, while the alternative is real networking in unit tests.
  */
 export class FakeWebSocket {
   static readonly CONNECTING = 0;
@@ -17,7 +16,7 @@ export class FakeWebSocket {
   static readonly CLOSING = 2;
   static readonly CLOSED = 3;
 
-  /** Все созданные за тест, в порядке создания: переподключение — новый экземпляр. */
+  /** All created during a test, in creation order: a reconnection is a new instance. */
   static instances: FakeWebSocket[] = [];
 
   readyState: number = FakeWebSocket.CONNECTING;
@@ -25,7 +24,7 @@ export class FakeWebSocket {
   onmessage: ((event: { data: string }) => void) | null = null;
   onclose: ((event: { code: number }) => void) | null = null;
   onerror: (() => void) | null = null;
-  /** Всё, что приложение отправило в сокет. Обязано остаться пустым: он слушающий. */
+  /** Everything the application sent into the socket. It must stay empty: the socket is a listening one. */
   readonly sent: string[] = [];
 
   readonly url: string;
@@ -45,26 +44,26 @@ export class FakeWebSocket {
     this.onclose?.({ code });
   }
 
-  // --- то, чем сокет двигает тест -------------------------------------------
+  // --- what the test drives the socket with --------------------------------
 
-  /** Сервер принял подключение. */
+  /** The server accepted the connection. */
   accept() {
     this.readyState = FakeWebSocket.OPEN;
     this.onopen?.();
   }
 
-  /** Сервер прислал сообщение. */
+  /** The server sent a message. */
   emit(message: unknown) {
     this.onmessage?.({ data: JSON.stringify(message) });
   }
 
-  /** Связь оборвалась сама: вырванный кабель, уснувший сервер. */
+  /** The connection dropped by itself: a pulled cable, a server that fell asleep. */
   drop(code = 1006) {
     this.close(code);
   }
 }
 
-/** Последний открытый сокет. Их больше одного там, где было переподключение. */
+/** The last opened socket. There is more than one where there was a reconnection. */
 export function lastSocket(): FakeWebSocket {
   const socket = FakeWebSocket.instances.at(-1);
   if (!socket) throw new Error("приложение не открыло ни одного сокета");
@@ -73,8 +72,8 @@ export function lastSocket(): FakeWebSocket {
 
 export function installFakeWebSocket() {
   FakeWebSocket.instances = [];
-  // defineProperty, а не присваивание: jsdom объявляет WebSocket свойством
-  // только для чтения, и простое присваивание падает.
+  // defineProperty rather than an assignment: jsdom declares WebSocket a read-only property, and a
+  // plain assignment fails.
   Object.defineProperty(globalThis, "WebSocket", {
     value: FakeWebSocket,
     configurable: true,
