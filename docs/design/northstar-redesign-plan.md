@@ -1,4 +1,4 @@
-# План редизайна фронтенда по макету Northstar
+# Frontend redesign plan for the Northstar mockup
 
 > **Historical, executed.** This redesign plan has been fully carried out —
 > the color tokens, metrics strip, and other concrete deliverables it
@@ -7,390 +7,406 @@
 > (its name at the time this was written); it shipped as
 > `frontend/src/northstar-theme.css`. Kept as a design-history record.
 
-Рабочий план перевода интерфейса на визуальный язык макета
-`northstar-gantt-mockup.html` (разбор — `northstar-gantt-mockup.md`).
+A working plan for moving the interface onto the visual language of the
+`northstar-gantt-mockup.html` mockup (the analysis is in `northstar-gantt-mockup.md`).
 
-Источник правды по внешнему виду — зона Ганта макета: шапка проекта, тулбар,
-таблица задач и лента. Тёмный сайдбар макета в эту зону не входит и не
-переносится — сайдбар остаётся светлым и просто перекрашивается в новую
-палитру.
+The source of truth for the look is the mockup's Gantt zone: the project header,
+the toolbar, the task table and the timeline. The mockup's dark sidebar is not
+part of that zone and is not carried over — the sidebar stays light and is simply
+repainted in the new palette.
 
 ---
 
-## 1. Что именно меняется, а что нет
+## 1. What exactly changes, and what does not
 
-Работа делится надвое: перекраска существующего и два новых блока.
+The work splits in two: repainting what exists, and two new blocks.
 
-**Перекраска.** Палитра, формы, размеры, отступы и типографика по всему
-фронтенду. Состав экранов и поведение не меняются.
+**Repainting.** The palette, shapes, sizes, spacing and typography across the
+whole frontend. The set of screens and the behaviour do not change.
 
-**Два новых блока:** полоса метрик в шапке проекта (§5) и тултип при наведении
-на полоску (§6).
+**Two new blocks:** the metrics bar in the project header (§5) and the tooltip on
+hovering a bar (§6).
 
-Решения, принятые до начала работ, — чтобы не пересматривать их по ходу:
+Decisions taken before the work starts, so they are not revisited along the way:
 
-| Вопрос | Решение |
+| Question | Decision |
 |---|---|
-| Тулбар ленты | Состав не меняется. Остаются «Категория», «+ Задача», меню «Масштаб» и «Вид». Сегменты Day/Week/Month, «Today», «‹ месяц ›» и «Filter» из макета **не возвращаются** — они убраны намеренно в PR #48 |
-| Колонки таблицы задач | Колонка одна, с названием. Owner и Status из макета **не добавляются** |
-| Панель задачи | Остаётся третьей колонкой, а не оверлеем: оверлей — перекомпоновка, а не перекраска |
-| Сайдбар | Светлый, перекрашивается. Тёмный сайдбар макета не переносится |
-| Надстрочник «PROJECT PLAN» | Не добавляется: его роль уже играет строка «План проекта · черновик», которая станет бейджем Draft/Approved |
-| Адаптивность ленты | Приём макета — переопределение мер в медиазапросах — **берётся** (§4.3). Сейчас у ленты адаптивности нет вовсе, а колонка задач растёт с 220 до 300px: без медиазапросов на узком экране канва останется уже колонки |
-| Чем красится полоска | Заливка — статус, и только он. Критичность и просрочка ложатся поверх накладками (§4.2) |
+| The timeline toolbar | Its contents do not change. "Category", "+ Task", the "Scale" and "View" menus stay. The Day/Week/Month segments, "Today", "‹ month ›" and "Filter" from the mockup are **not brought back** — they were removed deliberately in PR #48 |
+| The task table's columns | There is one column, with the name. Owner and Status from the mockup are **not added** |
+| The task panel | Stays a third column rather than an overlay: an overlay is a re-layout, not a repaint |
+| The sidebar | Light, repainted. The mockup's dark sidebar is not carried over |
+| The "PROJECT PLAN" eyebrow | Not added: its role is already played by the "Project plan · draft" line, which will become a Draft/Approved badge |
+| Timeline responsiveness | The mockup's device — overriding the measurements in media queries — is **taken** (§4.3). Today the timeline has no responsiveness at all, and the task column grows from 220 to 300px: without media queries the canvas on a narrow screen would end up narrower than the column |
+| What colours a bar | The fill is the status, and only the status. Criticality and slippage are laid over it as overlays (§4.2) |
 
-**Что в эту работу не входит.** Пункты 9–11 разбора — поведение ручек
-растягивания, протяжка связей мышью и правило, по которому связь считается
-нарушенной, — остаются открытыми. Это проектирование механик, а не перекраска;
-макет их только рисует, но не задаёт (§5 разбора). Ручки и точки протяжки
-перекрашиваются как есть, новых обещаний не дают.
+**What this work does not include.** Points 9-11 of the analysis — the behaviour
+of the resize handles, dragging a dependency with the mouse, and the rule by
+which a dependency counts as violated — stay open. That is designing mechanics,
+not repainting; the mockup only draws them and does not define them (§5 of the
+analysis). The handles and the drag points are repainted as they are and make no
+new promises.
 
 ---
 
-## 2. Техническая находка, определяющая архитектуру правки
+## 2. The technical finding that determines the shape of the change
 
-**Гантовская часть `broadsheet-theme.css` сейчас не действует вовсе.**
+**The Gantt part of `broadsheet-theme.css` currently has no effect at all.**
 
-В собранном бандле `gantt.css` идёт после файла темы при равной
-специфичности, поэтому побеждает последний. Проверено по конкретным правилам
-в `dist/assets/*.css`:
+In the built bundle `gantt.css` comes after the theme file at equal specificity,
+so the later one wins. Verified against specific rules in `dist/assets/*.css`:
 
-| Правило | Тема | `gantt.css` | Кто побеждает |
+| Rule | Theme | `gantt.css` | Who wins |
 |---|---|---|---|
-| `.gantt__bar { height }` | 36px (поз. 28740) | 22px (поз. 43611) | `gantt.css` |
-| `.gantt { --gantt-label }` | 320px (поз. 27116) | 220px (поз. 37066) | `gantt.css` |
-| `.gantt { --gantt-row }` | 72px | 42px | `gantt.css` (и поверх — инлайн из `Gantt.tsx`) |
-| `.gantt__grid-day` | пунктир `#dfe5ee` | сплошная `--border` | `gantt.css` |
+| `.gantt__bar { height }` | 36px (pos. 28740) | 22px (pos. 43611) | `gantt.css` |
+| `.gantt { --gantt-label }` | 320px (pos. 27116) | 220px (pos. 37066) | `gantt.css` |
+| `.gantt { --gantt-row }` | 72px | 42px | `gantt.css` (and over it, the inline value from `Gantt.tsx`) |
+| `.gantt__grid-day` | dashed `#dfe5ee` | solid `--border` | `gantt.css` |
 
-Около шестидесяти строк темы не влияют ни на что. Причина в порядке модулей:
-`App.tsx` импортирует тему у корня графа (строки 7 и 10), а `gantt.css`
-подтягивается глубже, из `Gantt.tsx:20`, и потому эмитится позже.
+About sixty lines of the theme affect nothing. The cause is the module order:
+`App.tsx` imports the theme at the root of the graph (lines 7 and 10), while
+`gantt.css` is pulled in deeper, from `Gantt.tsx:20`, and is therefore emitted later.
 
-Адаптивные ширины колонки в медиазапросах темы (строки 430 и 467) мертвы по той
-же причине, и это стоит проговорить отдельно: медиазапрос специфичности не
-добавляет, поэтому базовое правило `.gantt { --gantt-label: 220px }` из более
-позднего файла перебивает `.gantt { --gantt-label: 180px }` из медиазапроса
-более раннего. Своих `@media` у `gantt.css` нет ни одного — то есть **сегодня
-лента не адаптивна вовсе**, хотя по коду темы выглядит адаптивной.
+The responsive column widths in the theme's media queries (lines 430 and 467) are
+dead for the same reason, and that is worth spelling out separately: a media
+query adds no specificity, so the base rule `.gantt { --gantt-label: 220px }` from
+the later file beats `.gantt { --gantt-label: 180px }` from a media query in the
+earlier one. `gantt.css` has no `@media` of its own at all — meaning **today the
+timeline is not responsive in the slightest**, even though by the theme's code it
+looks responsive.
 
-Отсюда правило для всей правки: **оформление ленты кладётся в `gantt.css`, а в
-файл темы уходят только токены и хрома остальных экранов**. Формулировать его
-надо именно так, а не через «`gantt.css` — последнее слово в каскаде»: порядок
-эмиссии здесь не закон, а следствие текущего графа импортов. Ленивая загрузка
-маршрута проекта отправит `gantt.css` в отдельный чанк, и порядок сменится молча
-— ни один тест этого не поймает. После чистки темы порядок вообще перестанет
-что-либо решать, и это и есть цель: **один селектор не живёт в двух файлах**.
-Токенов правило не касается — пользовательские свойства разрешаются на
-вычислении значения, а не по месту объявления, и `var(--border)` в `gantt.css`
-работает независимо от того, кто эмитится раньше.
+Hence the rule for the whole change: **the timeline's styling goes into
+`gantt.css`, and only the tokens and the chrome of the other screens go into the
+theme file**. It has to be phrased exactly that way and not as "`gantt.css` is the
+last word in the cascade": the emission order here is not a law but a consequence
+of the current import graph. Lazy-loading the project route will send `gantt.css`
+into a separate chunk and the order will change silently — no test would catch
+that. Once the theme is cleaned up the order will stop deciding anything at all,
+and that is the goal: **one selector does not live in two files**. The rule does
+not touch tokens — custom properties are resolved when the value is computed, not
+where they are declared, and `var(--border)` in `gantt.css` works regardless of
+who is emitted first.
 
-Тема переименовывается в `northstar-theme.css` (единственный импорт —
-`App.tsx:10`; там же комментарий, называющий тему Broadsheet, — его переписать).
-Переименование идёт **отдельным коммитом, без правок содержимого**: иначе диффом
-перекраски 488 строк воспользоваться не получится.
+The theme is renamed to `northstar-theme.css` (its only import is `App.tsx:10`;
+the comment there naming the theme Broadsheet must be rewritten too). The rename
+goes as **a separate commit with no content edits**: otherwise the 488-line
+repaint diff will be unusable.
 
 ---
 
-## 3. Токены
+## 3. Tokens
 
-Палитра и меры берутся из `:root` макета целиком.
+The palette and the measurements are taken from the mockup's `:root` wholesale.
 
-| Роль | Значение |
+| Role | Value |
 |---|---|
-| Фон приложения | `#f5f7fb` |
-| Поверхность | `#ffffff` |
-| Чернила | `#172033` |
-| Приглушённый текст | `#667085` |
-| Ещё тише (капитель, подписи) | `#98a2b3` |
-| Линии | `#e5e9f0`, усиленная `#d8dee9` |
-| Акцент | `#5367e8`, тёмный `#3f51cf`, мягкий `#eef0ff` |
-| Готово | `#29a36a` на `#e9f8f0` |
-| Внимание (черновик, просрочка) | `#e69a2d` на `#fff6e7` |
-| Тревога (блокировка, срыв срока) | `#d94c71` на `#fff0f4` |
-| Тревога тёмная (цифры метрик, критичность) | `#bd4263` |
-| Выходные | `rgba(36, 48, 68, .035)` |
-| Тень | `0 12px 36px rgba(16, 24, 40, .13)` |
+| Application background | `#f5f7fb` |
+| Surface | `#ffffff` |
+| Ink | `#172033` |
+| Muted text | `#667085` |
+| Quieter still (small caps, captions) | `#98a2b3` |
+| Lines | `#e5e9f0`, strong `#d8dee9` |
+| Accent | `#5367e8`, dark `#3f51cf`, soft `#eef0ff` |
+| Done | `#29a36a` on `#e9f8f0` |
+| Warning (draft, slip) | `#e69a2d` on `#fff6e7` |
+| Danger (blocked, missed deadline) | `#d94c71` on `#fff0f4` |
+| Danger dark (metric figures, criticality) | `#bd4263` |
+| Weekends | `rgba(36, 48, 68, .035)` |
+| Shadow | `0 12px 36px rgba(16, 24, 40, .13)` |
 
-Скругления 5 / 7 / 8 / 10 и 20 у пилюль. Высота органов управления 36px.
-Шрифт — Inter 14px/1.45; он уже в сборке (`@fontsource-variable/inter`),
-менять надо только кегль: сейчас тема ставит 15px.
+Corner radii 5 / 7 / 8 / 10, and 20 on pills. Control height 36px. The font is
+Inter 14px/1.45; it is already in the build (`@fontsource-variable/inter`), only
+the size needs changing: the theme currently sets 15px.
 
-Тема остаётся только светлой, как и сейчас.
+The theme stays light-only, as it is now.
 
 ---
 
-## 4. Лента
+## 4. The timeline
 
-### 4.1. Меры
+### 4.1. Measurements
 
-Из макета; четыре числа живут в `gantt/scale.ts`, а не в стилях, и меняются там:
-высота строки и три ширины дня.
+From the mockup; four of the numbers live in `gantt/scale.ts` rather than in the
+styles and are changed there: the row height and the three day widths.
 
-| Величина | Было | Станет | Где |
+| Value | Was | Becomes | Where |
 |---|---|---|---|
-| Высота строки | 42px | 48px | `ROW_HEIGHT` |
-| Ширина дня, «День» | 42px | 52px | `DAY_WIDTH.day` |
-| Ширина дня, «Неделя» | 27px | 30px | `DAY_WIDTH.week` |
-| Ширина дня, «Месяц» | 14px | 18px | `DAY_WIDTH.month` |
-| Шапка ленты | 80px | 68px = месяц 27 + дни 41 | `gantt.css` |
-| Колонка задач | 220px | 300px | `--gantt-label` |
-| Отступ задачи внутри категории | — | 28px | `gantt.css` |
-| Полоска | 22px | 28px, скругление 7 | `gantt.css` |
+| Row height | 42px | 48px | `ROW_HEIGHT` |
+| Day width, "Day" | 42px | 52px | `DAY_WIDTH.day` |
+| Day width, "Week" | 27px | 30px | `DAY_WIDTH.week` |
+| Day width, "Month" | 14px | 18px | `DAY_WIDTH.month` |
+| Timeline header | 80px | 68px = month 27 + days 41 | `gantt.css` |
+| Task column | 220px | 300px | `--gantt-label` |
+| Task indent inside a category | — | 28px | `gantt.css` |
+| Bar | 22px | 28px, radius 7 | `gantt.css` |
 
-Ширины дня для недели и месяца **не пропорциональны** дневной. Пропорция дала бы
-33.43 и 17.33: дробная ширина дня разводит сетку, которая рисуется повторяющимся
-градиентом от этой величины, и полоски, которые считаются через `scale.xOf`, —
-расхождение копится к правому краю ленты. Это ровно тот дефект, за который разбор
-критикует макет (§3.1). Взяты целые числа из самого макета: его кнопки масштаба
-переключают `--day` между 52, 30 и 18.
+The day widths for week and month are **not proportional** to the day one. A
+proportion would give 33.43 and 17.33: a fractional day width pulls apart the
+grid, which is drawn by a gradient repeating at that value, and the bars, which
+are computed through `scale.xOf` — the divergence accumulates towards the right
+edge of the timeline. That is exactly the defect the analysis criticises the
+mockup for (§3.1). The whole numbers are taken from the mockup itself: its scale
+buttons switch `--day` between 52, 30 and 18.
 
-Шапка ленты — не одна переменная. Полоса месяцев зашита литералом в двух местах
-(`gantt.css:160` `height: 26px` и `gantt.css:165`
-`calc(var(--gantt-head) - 26px)`); при переходе на 68 = 27 + 41 оба литерала
-меняются на 27, иначе дням достанется 42 вместо 41.
+The timeline header is not one variable. The month strip is hard-coded as a
+literal in two places (`gantt.css:160` `height: 26px` and `gantt.css:165`
+`calc(var(--gantt-head) - 26px)`); on the move to 68 = 27 + 41 both literals
+change to 27, otherwise the days get 42 instead of 41.
 
-Смена `ROW_HEIGHT` и `DAY_WIDTH` безопасна для тестов: они ссылаются на
-константы по имени, а не на пиксельные литералы (`Gantt.test.tsx:70,78,110`).
+Changing `ROW_HEIGHT` and `DAY_WIDTH` is safe for the tests: they refer to the
+constants by name, not to pixel literals (`Gantt.test.tsx:70,78,110`).
 
-### 4.2. Чем красится полоска
+### 4.2. What colours a bar
 
-Разбор (§2) насчитал в макете пять состояний, четыре представления и три разных
-набора и потребовал свести их к одному источнику. В коде состояний на самом деле
-больше, чем в макете: кроме статуса полоску красит `data-criticality`
-(`gantt.css:622`), у которого своя плашка в легенде (`Gantt.tsx:334`), и флаг
-`is-late`. Сегодня все три пишут в один и тот же фон, побеждает последний по
-порядку в файле — то есть цвет полоски определяется не смыслом, а вёрсткой.
+The analysis (§2) counted five states, four representations and three different
+sets in the mockup, and demanded they be reduced to one source. In the code there
+are in fact more states than in the mockup: besides the status, the bar is
+coloured by `data-criticality` (`gantt.css:622`), which has its own chip in the
+legend (`Gantt.tsx:334`), and by the `is-late` flag. Today all three write into
+the same background and the last one in file order wins — that is, the bar's
+colour is determined by the stylesheet rather than by meaning.
 
-Правило, которое это закрывает: **заливка означает статус и только статус;
-критичность и просрочка ложатся поверх накладками.** Оно же снимает противоречие
-с §5, где просрочка объявлена флагом поверх статуса, а не шестым статусом.
+The rule that closes this: **the fill means the status and only the status;
+criticality and slippage are laid over it as overlays.** It also removes the
+contradiction with §5, where a slip is declared a flag on top of the status
+rather than a sixth status.
 
-Заливка — четыре значения `status`, взаимоисключающие:
+The fill is four mutually exclusive `status` values:
 
-| Статус | Заливка |
+| Status | Fill |
 |---|---|
-| `in_progress` | `#6274e7`, заливка прогресса `#4358d6` (существующий `.gantt__progress`) |
-| `planned` | `#e9eef5`, пунктирная рамка `#8ea0be`, текст `#40506b` |
-| `done` | `#29a36a` с галочкой (существующий `.gantt__check`) |
-| `blocked` | диагональная штриховка `#d94c71` / `#c83e62` |
+| `in_progress` | `#6274e7`, progress fill `#4358d6` (the existing `.gantt__progress`) |
+| `planned` | `#e9eef5`, dashed border `#8ea0be`, text `#40506b` |
+| `done` | `#29a36a` with a tick (the existing `.gantt__check`) |
+| `blocked` | diagonal hatching `#d94c71` / `#c83e62` |
 
-Накладки — поверх любой заливки, обе сразу тоже:
+The overlays go over any fill, and over both at once too:
 
-| Флаг | Накладка |
+| Flag | Overlay |
 |---|---|
-| просрочка (`is-late`) | рамка по контуру 1.5px `#e69a2d` — токен «внимание», как и записано в §3 |
-| `criticality === "critical"` | левая грань 3px `#bd4263` |
+| slip (`is-late`) | a 1.5px outline `#e69a2d` — the "warning" token, as written down in §3 |
+| `criticality === "critical"` | a 3px left edge `#bd4263` |
 
-Цвета `#df9130` здесь больше нет: его не было в таблице токенов, а роль
-«просрочка» токеном уже занята. Накладки складываются одним `box-shadow`
-(`inset 0 0 0 1.5px …, inset 3px 0 0 …`) — правило на сочетание пишется явно, а
-не оставляется каскаду. Остальные три уровня критичности (`low`, `normal`,
-`high`) полоску по-прежнему не красят.
+The colour `#df9130` is gone from here: it was not in the token table, and the
+"slip" role is already taken by a token. The overlays are composed with a single
+`box-shadow` (`inset 0 0 0 1.5px …, inset 3px 0 0 …`) — the rule for the
+combination is written explicitly rather than left to the cascade. The other
+three criticality levels (`low`, `normal`, `high`) still do not colour the bar.
 
-Одно следствие стоит принять сознательно: нынешнее правило «готовый блокер
-никого не держит» (`gantt.css:628`) исчезает вместе с борьбой заливок. Готовая
-критическая задача получит зелёную заливку и красную грань — то есть скажет и
-«сделано», и «это было узкое место». Прежняя запись говорила только первое,
-потому что иначе цвета дрались за фон; теперь драки нет.
+One consequence is worth accepting deliberately: the current rule that "a
+finished blocker holds nobody up" (`gantt.css:628`) disappears along with the
+fight between fills. A finished critical task will get a green fill and a red
+edge — that is, it will say both "done" and "this was a bottleneck". The old rule
+said only the first, because otherwise the colours fought over the background;
+now there is no fight.
 
-Легенда (`Gantt.tsx:323-347`) — единственное место, где состояния перечислены
-списком, и после этой правки она перечисляет не одно, а два: четыре заливки и две
-накладки. Плашки накладок показывают именно рамку и грань на нейтральной
-заливке, а не сплошной цвет, иначе легенда снова обещает пятый и шестой статус.
+The legend (`Gantt.tsx:323-347`) is the only place where the states are listed
+out, and after this change it lists not one thing but two: four fills and two
+overlays. The overlay chips show exactly the outline and the edge over a neutral
+fill rather than a solid colour, otherwise the legend promises a fifth and a
+sixth status again.
 
-### 4.3. Адаптивность
+### 4.3. Responsiveness
 
-Медиазапросы переезжают из темы в `gantt.css` — вместе со всем остальным
-оформлением ленты (§2). Точки те же, что у остального приложения:
+The media queries move from the theme into `gantt.css`, along with the rest of
+the timeline's styling (§2). The breakpoints are the same as the rest of the application's:
 
-| Ширина экрана | `--gantt-label` | Отступ задачи |
+| Screen width | `--gantt-label` | Task indent |
 |---|---|---|
-| базовая | 300px | 28px |
+| base | 300px | 28px |
 | ≤ 900px | 240px | 28px |
 | ≤ 520px | 180px | 18px |
 
-Без этого правка ухудшает то, что чинит: колонка растёт с 220 до 300px, и на
-экране 520px имени достаётся 300px против 220px канвы.
+Without this the change makes worse what it is fixing: the column grows from 220
+to 300px, and on a 520px screen the name gets 300px against 220px of canvas.
 
-### 4.4. Прочее
+### 4.4. The rest
 
-Засечка дедлайна и бейдж отклонения, которые в коде уже есть
-(`.gantt__mark`, `.gantt__deviation`), ложатся один в один на `.deadline` и
-`.slip-label` макета: красная вертикаль с ромбом сверху и розовая пилюля
-`#fff0f4` с рамкой `#f4b7c8`. Новой разметки для них не нужно.
+The deadline notch and the deviation badge, which already exist in the code
+(`.gantt__mark`, `.gantt__deviation`), map one to one onto the mockup's
+`.deadline` and `.slip-label`: a red vertical with a diamond on top and a pink
+`#fff0f4` pill with an `#f4b7c8` border. They need no new markup.
 
-Сетка дней — сплошные линии `--line` вместо нынешнего пунктира; шапка
-колонки задач `#f9fafc` с капителью 10px; сегодняшнее число — белым в синем
-круге 22px; линия «сегодня» 2px `rgba(83,103,232,.68)` с точкой сверху;
-выделенная строка `#eef0ff` с полосой `inset 3px 0` акцентом, наведение
-`#f5f7ff`. Стрелки связей — `#7d879c` 1.5px, нарушенная — красный пунктир 2px
-с кружком «!».
+The day grid becomes solid `--line` lines instead of the current dashes; the task
+column header is `#f9fafc` with 10px small caps; today's date is white in a 22px
+blue circle; the "today" line is 2px `rgba(83,103,232,.68)` with a dot on top;
+the selected row is `#eef0ff` with an `inset 3px 0` accent stripe, and hover is
+`#f5f7ff`. Dependency arrows are `#7d879c` 1.5px, a violated one a 2px red dash
+with a "!" circle.
 
 ---
 
-## 5. Полоса метрик
+## 5. The metrics bar
 
-Семь ячеек в шапке проекта. В модели статус — одно поле из четырёх значений
-(`planned`, `in_progress`, `done`, `blocked`), поэтому две метрики выводятся
-из других полей:
+Seven cells in the project header. In the model the status is a single field with
+four values (`planned`, `in_progress`, `done`, `blocked`), so two of the metrics
+are derived from other fields:
 
-| Ячейка | Расчёт |
+| Cell | Computation |
 |---|---|
-| Total tasks | число задач |
+| Total tasks | the number of tasks |
 | In progress | `status === "in_progress"` |
 | Blocked | `status === "blocked"` |
-| Overdue | `end_date > deadline` — тот же расчёт, которым лента уже ставит «!» (`Gantt.tsx:123`) |
+| Overdue | `end_date > deadline` — the same computation the timeline already uses to place the "!" (`Gantt.tsx:123`) |
 | Not started | `status === "planned"` |
-| Not planned | `isBeyondPlan(state, task)` — задача добавлена после согласования плана и базового плана не имеет; лента уже помечает её плюсом |
+| Not planned | `isBeyondPlan(state, task)` — the task was added after the plan was approved and has no baseline; the timeline already marks it with a plus |
 | Completed | `status === "done"` |
 
-Арифметика получается связная — в отличие от самого макета, где метрики не
-сходятся (см. §4.1 разбора): четыре статуса не пересекаются и в сумме дают
-Total, а Overdue и Not planned — флаги поверх статуса и в сумму не входят.
+The arithmetic comes out coherent — unlike in the mockup itself, where the
+metrics do not add up (see §4.1 of the analysis): the four statuses do not
+overlap and sum to Total, while Overdue and Not planned are flags on top of the
+status and are not part of the sum.
 
-Из «флага поверх статуса» следует то, что стоит сказать вслух, иначе цифру
-прочтут как ошибку: **завершённая задача тоже попадает в Overdue**, если
-кончилась позже дедлайна. Completed и Overdue пересекаются, и это не сбой счёта,
-а разные вопросы — «сделано ли» и «в срок ли».
+From "a flag on top of the status" follows something worth saying out loud, or
+the figure will be read as an error: **a completed task also counts as Overdue**
+if it ended after the deadline. Completed and Overdue overlap, and that is not a
+counting bug but two different questions — "is it done" and "was it on time".
 
-Второе, что надо назвать явно: **Overdue меряется дедлайном проекта, а не
-задачи.** Дедлайн в модели один на проект (`state.deadline`), тогда как макет
-считает просрочку отклонением от собственного baseline задачи. Переиспользовать
-существующий расчёт правильно — иначе на одном экране появятся два разных
-«просрочено», — но рядом в той же ленте живёт бейдж `+2 дн.`, который меряет
-именно отклонение от baseline. Подпись ячейки обязана различать их: «После
-дедлайна проекта», а не просто «Просрочено».
+The second thing to name explicitly: **Overdue is measured against the project's
+deadline, not the task's.** In the model there is one deadline per project
+(`state.deadline`), whereas the mockup counts a slip as a deviation from the
+task's own baseline. Reusing the existing computation is right — otherwise one
+screen would carry two different "overdue"s — but right next to it in the same
+timeline lives the `+2 d.` badge, which measures exactly the deviation from the
+baseline. The cell's caption must tell them apart: "Past the project deadline",
+not simply "Overdue".
 
-Красным (`#bd4263`, как в макете) помечаются только Blocked и Overdue.
-«Вне плана» тревогой не набирается: добавлять работу нормально — тревожен
-скрытый перенос сроков, и это уже говорит бейдж отклонения.
+Only Blocked and Overdue are set in red (`#bd4263`, as in the mockup). "Beyond
+the plan" is not typeset as an alarm: adding work is normal — what is alarming is
+a hidden shift of dates, and the deviation badge already says that.
 
-Форма из макета: рамка `#e5e9f0`, скругление 10, фон `#fbfcfe`, ячейки от
-120px с разделителями, число 15px, подпись 11px приглушённым; на узком экране
-полоса прокручивается вбок.
+The shape from the mockup: an `#e5e9f0` border, radius 10, background `#fbfcfe`,
+cells from 120px with separators, the figure at 15px, the caption at 11px in
+muted; on a narrow screen the bar scrolls sideways.
 
-Живёт в `project/ProjectHead.tsx`, то есть показывается и на публичной
-странице по ссылке — кроме ячейки «Not planned»: версия плана и расхождения с
-ним туда сознательно не выводятся (`showPlan`), и это правило не ломается.
+It lives in `project/ProjectHead.tsx`, meaning it is shown on the public page
+behind a link too — except for the "Not planned" cell: the plan version and the
+discrepancies against it are deliberately not exposed there (`showPlan`), and
+that rule is not broken.
 
-Новые ключи перевода: `project.metrics.*` — семь подписей плюс имя полосы для
-чтения с экрана, в `ru`, `en`, `az`.
-
----
-
-## 6. Тултип на полоске
-
-Тёмная карточка `#202838`, ширина 235px, скругление 8, тень `0 12px 36px`,
-текст 11px: название полужирным 12px, под ним сетка `72px 1fr` — слева
-приглушённые `#929db0`, справа светлые полужирные `#d5dae5`. Четыре значения:
-
-1. статус (с «⚠» у заблокированной),
-2. даты «12 авг → 14 авг»,
-3. исполнители,
-4. процент готовности.
-
-Строка исполнителей — не «имя исполнителя»: в модели это `assignee_ids: string[]`
-(`api/projects.ts:63`), а не одно поле, как рисует макет. Правило: одного зовут
-по имени, нескольких — «первый + ещё N», ни одного — строки нет вовсе. Карточка
-шириной 235px перечисления не выдержит, а «+2» отвечает на вопрос «одна ли это
-работа» не хуже трёх имён.
-
-Идёт за курсором с отступом 14px и переворачивается у краёв экрана.
-Появляется и по фокусу с клавиатуры — тогда встаёт у самой полоски, а не у
-курсора. Гасится вместе со всеми переходами при `prefers-reduced-motion`.
-
-**Во время перетаскивания тултипа нет.** Полоска таскается мышью
-(`useDragDates`), и карточка, идущая за курсором, закрывала бы ровно ту сетку
-дней, по которой человек целится; поверх ещё встаёт окно причины сдвига
-(`ShiftReason`). Гасится по `pointerdown` и не возвращается, пока кнопку не
-отпустят и указатель не войдёт в полоску заново.
-
-Четыре решения по устройству:
-
-**Нативный `title` с полоски снимается.** Иначе поверх тултипа через секунду
-вылезал бы второй, браузерный. `aria-label` остаётся нетронутым — и чтение с
-экрана, и тесты (полоски ищутся по `aria-label`, не по `title`) работают
-как работали. Сам тултип помечается `aria-hidden`: он дублирует уже названное.
-
-**Состав участников за данными не ходит — имена приходят пропсом.** Запрос
-убрали в PR #48 вместе с фильтром, и вернуть его внутрь `Gantt` — соблазн,
-которому поддаваться не стоит: тогда лента снова становится местом, которое
-само решает, у кого что спрашивать. Спрашивает экран, `Gantt` получает готовые
-имена. Причина не в чистоте: **признака «это публичная страница» у `Gantt`
-нет и заводить его не за чем.** Единственное, что есть, — `canWrite`
-(`Gantt.tsx:41-48`), и гейт по нему ошибётся дважды: у роли-читателя внутри
-организации, которая аутентифицирована и состав видит, и в офлайне, где
-`Project.tsx:86` считает `editable = canWrite && !offline`. `Project.tsx`
-запрашивает состав (только чтение, `staleTime: Infinity`) и передаёт вниз;
-`PublicProject.tsx` не передаёт ничего и никуда не ходит — сервер состав гостю
-и не отдаёт. Если имён нет, строка исполнителей не рисуется, а тултип остаётся.
-
-**Причина блокировки не воспроизводится.** В макете у заблокированной задачи
-в четвёртой ячейке стоит текст «Waiting for design system», но поля «причина
-блокировки» в модели нет, а выдумывать текст на ленте нельзя. У заблокированной
-там будет процент, как у остальных.
-
-Реализация — контекстом (`BarTipProvider` в `Gantt`, потребитель в `Row`),
-как уже устроены тосты, `ShiftReason` и `DependencyNudge`: иначе через строку
-пришлось бы протаскивать пять новых пропсов. Имена участников — единственное,
-что входит в `Gantt` пропсом: это данные, а не состояние наведения, и они одни
-на всю ленту. Узел тултипа один на всю ленту, а не по одному на полоску — на
-сотне задач это сто скрытых узлов ни за чем.
-
-Из переводов нужен один ключ — «ещё N» для второго и последующих исполнителей,
-со счётной формой; статус берётся из `task.status.*`, даты — из `formatDate`,
-процент — число.
+New translation keys: `project.metrics.*` — seven captions plus the bar's name
+for screen readers, in `ru`, `en` and `az`.
 
 ---
 
-## 7. Остальные экраны
+## 6. The bar tooltip
 
-Кнопки, поля, меню, модальные окна, тост, списки проектов, состав участников,
-настройки и вход — на те же токены, формы и размеры, чтобы ничего не выглядело
-чужим рядом с лентой. Тост подгоняется под снекбар макета: `#202838`, высота
-48, скругление 9, действие `#b8c2ff`. Карточка задачи: ширина 404px, подписи
-полей 11px/700 приглушённым, поля 36px со скруглением 7, блок прогресса в
-рамке `#e5e9f0` на `#fafbfc`.
+A dark `#202838` card, 235px wide, radius 8, shadow `0 12px 36px`, text at 11px:
+the name in 12px semibold, and under it a `72px 1fr` grid — muted `#929db0` on
+the left, light semibold `#d5dae5` on the right. Four values:
+
+1. the status (with a "⚠" on a blocked one),
+2. the dates "12 Aug → 14 Aug",
+3. the assignees,
+4. the completion percentage.
+
+The assignees line is not "the assignee's name": in the model this is
+`assignee_ids: string[]` (`api/projects.ts:63`), not a single field as the mockup
+draws it. The rule: one person is named, several are "the first + N more", none
+means no line at all. A 235px-wide card will not survive an enumeration, and "+2"
+answers the question "is this one person's work" no worse than three names.
+
+It follows the cursor with a 14px offset and flips at the screen edges. It also
+appears on keyboard focus — and then stands next to the bar itself rather than
+next to the cursor. It is switched off along with every other transition under
+`prefers-reduced-motion`.
+
+**There is no tooltip while dragging.** A bar is dragged with the mouse
+(`useDragDates`), and a card following the cursor would cover exactly the day
+grid the person is aiming at; on top of that the shift-reason window
+(`ShiftReason`) appears. It is dismissed on `pointerdown` and does not come back
+until the button is released and the pointer enters the bar again.
+
+Four decisions about how it is built:
+
+**The native `title` is removed from the bar.** Otherwise a second, browser one
+would pop up over the tooltip a second later. `aria-label` is left untouched — so
+both screen reading and the tests (bars are found by `aria-label`, not by `title`)
+work as they did. The tooltip itself is marked `aria-hidden`: it duplicates what
+is already named.
+
+**The member roster does not go fetch data — the names arrive as a prop.** The
+query was removed in PR #48 along with the filter, and bringing it back inside
+`Gantt` is a temptation not to give in to: the timeline would again become a
+place that decides for itself who to ask for what. The screen asks, and `Gantt`
+receives ready names. The reason is not purity: **`Gantt` has no "this is the
+public page" flag and there is no point in introducing one.** The only thing it
+has is `canWrite` (`Gantt.tsx:41-48`), and a gate on that would be wrong twice:
+for a reader role inside the organization, which is authenticated and does see
+the roster, and offline, where `Project.tsx:86` computes
+`editable = canWrite && !offline`. `Project.tsx` requests the roster (read-only,
+`staleTime: Infinity`) and passes it down; `PublicProject.tsx` passes nothing and
+goes nowhere — the server does not serve the roster to a guest anyway. If there
+are no names, the assignees line is not drawn and the tooltip stays.
+
+**The reason for a block is not reproduced.** In the mockup a blocked task has
+the text "Waiting for design system" in the fourth cell, but there is no "block
+reason" field in the model, and inventing text on the timeline is not allowed. A
+blocked task will have the percentage there, like the rest.
+
+The implementation goes through context (`BarTipProvider` in `Gantt`, the
+consumer in `Row`), the way toasts, `ShiftReason` and `DependencyNudge` are
+already built: otherwise five new props would have to be threaded through the
+row. The member names are the only thing that enters `Gantt` as a prop: they are
+data rather than hover state, and there is one set of them for the whole
+timeline. There is one tooltip node for the whole timeline rather than one per
+bar — with a hundred tasks that would be a hundred hidden nodes for nothing.
+
+From the translations only one key is needed — "N more" for the second and
+subsequent assignees, with a count form; the status comes from `task.status.*`,
+the dates from `formatDate`, and the percentage is a number.
 
 ---
 
-## 8. Где план сознательно расходится с макетом
+## 7. The other screens
 
-**Строки категорий остаются высотой 48, как и задачи, а не 44.** Именно этот
-разнобой уводит стрелки макета на 20 и 64 пикселя (§3.2 разбора). В коде
-высота строки — одна константа `ROW_HEIGHT`, по которой стрелки и считаются;
-второй высоты здесь заводить нельзя.
-
-**Сводная полоса категории сохраняет цвет категории.** Макет красит все
-категории одним серым, но цвет категории — существующая функция с палитрой в
-форме создания. Из макета берётся форма: 7px со стрелочными засечками по краям.
-
-**Слово «Сегодня» в шапке дня остаётся в разметке скрытым для диктора.**
-Визуально его роль играет круг вокруг числа, как в макете, но выбрасывать
-доступное имя ради этого не стоит.
+Buttons, fields, menus, modal windows, the toast, the project lists, the member
+roster, the settings and sign-in move onto the same tokens, shapes and sizes, so
+that nothing looks foreign next to the timeline. The toast is fitted to the
+mockup's snackbar: `#202838`, height 48, radius 9, action `#b8c2ff`. The task
+card: 404px wide, field captions 11px/700 in muted, fields 36px with radius 7,
+and the progress block in an `#e5e9f0` border on `#fafbfc`.
 
 ---
 
-## 9. Порядок работ и проверка
+## 8. Where the plan deliberately diverges from the mockup
 
-0. Переименование темы в `northstar-theme.css` — отдельным коммитом, без единой
-   правки содержимого (§2).
-1. Токены и файл темы; оттуда же вычищается мёртвый гантовский блок —
-   `--gantt-label`, `--gantt-row`, `--gantt-head`, `--gantt-today-chip`,
-   правила полосок и оба медиазапроса.
-2. Лента: `gantt.css` (включая медиазапросы, §4.3) + четыре числа в `scale.ts`.
-3. Полоса метрик: `ProjectHead.tsx` + переводы.
-4. Тултип: `gantt/BarTip.tsx`, подключение в `Gantt.tsx` и `Row.tsx`; состав
-   участников — пропсом из `Project.tsx`.
-5. Остальные экраны и карточка задачи.
+**Category rows stay 48 tall, like tasks, not 44.** That very mismatch is what
+pushes the mockup's arrows off by 20 and 64 pixels (§3.2 of the analysis). In the
+code the row height is a single `ROW_HEIGHT` constant, and the arrows are
+computed from it; a second height must not be introduced here.
 
-**Шаги 1 и 2 едут одним коммитом.** Между ними лента остаётся на старых мерах
-с новыми токенами — состояние, в котором `main` показывать нельзя.
+**A category's summary bar keeps the category's colour.** The mockup paints every
+category in one grey, but the category colour is an existing feature with a
+palette in the creation form. What is taken from the mockup is the shape: 7px
+with arrow notches at the ends.
 
-Проверка: существующие тесты (262) должны остаться зелёными — пиксельных
-литералов в них нет, меры берутся из `DAY_WIDTH` по имени, так что смена мер
-их не задевает. К новым блокам дописываются свои: на подсчёт семи метрик,
-включая пересечение Completed и Overdue, на «первого + ещё N» в тултипе и на то,
-что публичная страница за составом участников не ходит. Дальше `npm run build`
-и `oxlint`, и визуальная сверка — экран проекта на тестовых фикстурах в
-Chromium, на трёх ширинах из §4.3.
+**The word "Today" in the day header stays in the markup, hidden from the
+narrator.** Visually its role is played by the circle around the number, as in
+the mockup, but throwing away the accessible name for that is not worth it.
+
+---
+
+## 9. The order of the work, and verification
+
+0. Renaming the theme to `northstar-theme.css` — as a separate commit, without a
+   single content edit (§2).
+1. The tokens and the theme file; the dead Gantt block is cleared out of it at the
+   same time — `--gantt-label`, `--gantt-row`, `--gantt-head`,
+   `--gantt-today-chip`, the bar rules and both media queries.
+2. The timeline: `gantt.css` (media queries included, §4.3) + four numbers in `scale.ts`.
+3. The metrics bar: `ProjectHead.tsx` + translations.
+4. The tooltip: `gantt/BarTip.tsx`, wiring it into `Gantt.tsx` and `Row.tsx`; the
+   member roster as a prop from `Project.tsx`.
+5. The other screens and the task card.
+
+**Steps 1 and 2 ride in one commit.** Between them the timeline would be left on
+the old measurements with the new tokens — a state `main` must not be shown in.
+
+Verification: the existing tests (262) must stay green — there are no pixel
+literals in them, the measurements are taken from `DAY_WIDTH` by name, so
+changing them does not touch the tests. The new blocks get tests of their own:
+for the count of the seven metrics, including the overlap of Completed and
+Overdue, for "the first + N more" in the tooltip, and for the public page not
+going after the member roster. After that `npm run build` and `oxlint`, and a
+visual check — the project screen on the test fixtures in Chromium, at the three
+widths from §4.3.
