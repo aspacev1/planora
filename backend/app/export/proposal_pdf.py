@@ -160,7 +160,7 @@ def build_document(
                 _Group(name=category["name"], description=category["description"], lines=lines)
             )
     if not groups:
-        raise ExportError("proposal_empty", "в предложении нет ни одной строки")
+        raise ExportError("proposal_empty", "the proposal has no rows at all")
 
     return ProposalDocument(
         labels=Labels(locale),

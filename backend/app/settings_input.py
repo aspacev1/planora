@@ -45,14 +45,14 @@ def check_timezone(value: str) -> str:
     try:
         ZoneInfo(value)
     except (ZoneInfoNotFoundError, ValueError, KeyError):
-        raise ValueError("неизвестный часовой пояс")
+        raise ValueError("unknown time zone")
     return value
 
 
 def check_locale(value: str) -> str:
     supported = get_settings().locales
     if value not in supported:
-        raise ValueError(f"язык вне списка поддерживаемых: {', '.join(supported)}")
+        raise ValueError(f"the language is not among the supported ones: {', '.join(supported)}")
     return value
 
 
@@ -66,17 +66,17 @@ def check_dates(value: list) -> list[str]:
     parsed: set[date] = set()
     for item in value:
         if not isinstance(item, str):
-            raise ValueError("дата должна быть строкой в формате ГГГГ-ММ-ДД")
+            raise ValueError("the date must be a string in YYYY-MM-DD form")
         try:
             parsed.add(date.fromisoformat(item))
         except ValueError:
-            raise ValueError(f"непригодная дата: {item!r}")
+            raise ValueError(f"unusable date: {item!r}")
     return [day.isoformat() for day in sorted(parsed)]
 
 
 def check_working_days(value: int) -> int:
     if not MIN_WORKING_DAYS <= value <= MAX_WORKING_DAYS:
-        raise ValueError("маска рабочих дней вне диапазона или пуста")
+        raise ValueError("the working-days mask is out of range or empty")
     return value
 
 
@@ -113,14 +113,14 @@ class OrganizationSettingsIn(SettingsInput):
     @classmethod
     def _week_start(cls, value: int | None) -> int | None:
         if value is not None and not 0 <= value <= 6:
-            raise ValueError("первый день недели вне 0..6")
+            raise ValueError("the first day of the week is outside 0..6")
         return value
 
     @field_validator("default_shift_threshold_days")
     @classmethod
     def _threshold(cls, value: int | None) -> int | None:
         if value is not None and value < 0:
-            raise ValueError("порог не может быть отрицательным")
+            raise ValueError("the threshold cannot be negative")
         return value
 
     @field_validator("holiday_calendar")
@@ -149,7 +149,7 @@ class OrganizationSettingsIn(SettingsInput):
             return None
         stripped = value.strip()
         if not stripped:
-            raise ValueError("значение не может быть пустым")
+            raise ValueError("the value cannot be empty")
         return stripped
 
 
@@ -191,7 +191,7 @@ class ProjectSettingsIn(SettingsInput):
     @classmethod
     def _threshold(cls, value: int | None) -> int | None:
         if value is not None and value < 0:
-            raise ValueError("порог не может быть отрицательным")
+            raise ValueError("the threshold cannot be negative")
         return value
 
     @field_validator("slug")
@@ -219,7 +219,7 @@ class ProjectSettingsIn(SettingsInput):
             return None
         stripped = value.strip()
         if not stripped:
-            raise ValueError("значение не может быть пустым")
+            raise ValueError("the value cannot be empty")
         return stripped
 
 

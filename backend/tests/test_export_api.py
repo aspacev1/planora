@@ -271,8 +271,8 @@ def test_the_proposal_totals_are_formulas_so_a_rate_can_be_edited(authed):
         for cell in row
         if isinstance(cell.value, str) and cell.value.startswith("=")
     ]
-    assert any("*" in formula for formula in formulas), "цена строки — формула"
-    assert any("+" in formula for formula in formulas), "итог — формула"
+    assert any("*" in formula for formula in formulas), "a row's price is a formula"
+    assert any("+" in formula for formula in formulas), "the total is a formula"
 
 
 # --- the PDF document ----------------------------------------------------------
@@ -873,7 +873,7 @@ def test_every_language_has_every_label():
         actual = {
             (group, key) for group, keys in dictionary(locale).items() for key in keys
         }
-        assert actual == reference, f"словарь {locale} разошёлся: {reference ^ actual}"
+        assert actual == reference, f"the {locale} dictionary has drifted: {reference ^ actual}"
 
 
 def test_every_mutation_has_a_name_in_the_history_dictionary():
@@ -884,10 +884,10 @@ def test_every_mutation_has_a_name_in_the_history_dictionary():
 
     source = Path(__file__).resolve().parents[1] / "app" / "mutations.py"
     declared = set(re.findall(r'type: Literal\["([a-z_]+)"\]', source.read_text()))
-    assert declared, "не удалось вычитать список операций из mutations.py"
+    assert declared, "could not read the list of operations out of mutations.py"
 
     named = set(dictionary("ru")["event"]) - {"unknown"}
-    assert declared <= named, f"нет подписи для операций: {sorted(declared - named)}"
+    assert declared <= named, f"no label for the operations: {sorted(declared - named)}"
 
 
 def test_the_embedded_font_covers_all_three_languages():
@@ -899,4 +899,4 @@ def test_the_embedded_font_covers_all_three_languages():
     for file in ("Inter-Regular.ttf", "Inter-SemiBold.ttf", "Inter-Bold.ttf"):
         face = TTFont("probe", str(fonts / file)).face
         missing = [ch for ch in "АБВЯабвяəğşıİçöüÇÖÜ0123456789№◆·—" if ord(ch) not in face.charToGlyph]
-        assert missing == [], f"{file} не покрывает {missing}"
+        assert missing == [], f"{file} does not cover {missing}"

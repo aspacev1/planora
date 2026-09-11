@@ -65,7 +65,7 @@ class Summary(BaseModel):
         limit = get_settings().max_text_len
         for thesis in value:
             if len(thesis) > limit:
-                raise ValueError(f"тезис длиннее потолка в {limit} символов")
+                raise ValueError(f"the thesis is longer than the ceiling of {limit} characters")
         return value
 
 
@@ -126,7 +126,7 @@ class DraftTask(BaseModel):
         # model must not be wider than the path through the form.
         limit = get_settings().max_text_len
         if len(value) > limit:
-            raise ValueError(f"длиннее потолка в {limit} символов")
+            raise ValueError(f"longer than the ceiling of {limit} characters")
         return value
 
 
@@ -194,4 +194,4 @@ def parse(model: type[BaseModel], payload: dict):
     try:
         return model.model_validate(payload)
     except ValidationError as error:
-        raise LlmError("llm_schema_mismatch", f"ответ не по схеме: {error.error_count()} ошибок")
+        raise LlmError("llm_schema_mismatch", f"the answer does not match the schema: {error.error_count()} errors")

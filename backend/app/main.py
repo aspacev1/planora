@@ -97,9 +97,9 @@ def refuse_a_multi_worker_start() -> None:
         value = os.getenv(name, "")
         if value.isdigit() and int(value) > 1:
             raise RuntimeError(
-                f"{name}={value}: рассылка живой ленты живёт в памяти одного "
-                "процесса, несколько воркеров молча потеряют события. "
-                "Убери переменную или оставь одного воркера."
+                f"{name}={value}: the live feed broadcast lives in the memory of a "
+                "single process, and several workers will silently lose events. "
+                "Remove the variable or keep a single worker."
             )
 
 
@@ -109,8 +109,8 @@ def warn_about_a_default_public_base_url() -> None:
     silence either: a production installation must see this in the log."""
     if get_settings().public_base_url == "http://localhost:8000":
         logger.warning(
-            "PUBLIC_BASE_URL не задан: ссылки в письмах и публичные адреса "
-            "будут указывать на localhost. Для боевой установки задай его в .env."
+            "PUBLIC_BASE_URL is not set: links in emails and public addresses "
+            "will point at localhost. Set it in .env for a production install."
         )
 
 
@@ -256,7 +256,7 @@ def readiness():
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
     except Exception:
-        logger.exception("readiness: база недоступна")
+        logger.exception("readiness: the database is unreachable")
         return JSONResponse(status_code=503, content={"status": "unavailable"})
     return {"status": "ready"}
 

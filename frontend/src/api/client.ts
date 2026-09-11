@@ -19,7 +19,7 @@ export class ApiError extends Error {
   readonly hints: Record<string, number>;
 
   constructor(code: string, status: number, hints: Record<string, number> = {}) {
-    super(`запрос завершился со статусом ${status}`);
+    super(`the request finished with status ${status}`);
     this.name = "ApiError";
     this.code = code;
     this.status = status;

@@ -86,7 +86,7 @@ class ReasonRequired(MutationError):
     def __init__(self, deviation_days: int, threshold_days: int):
         super().__init__(
             "reason_required",
-            f"отклонение {deviation_days} дн. при пороге {threshold_days} дн. требует причины",
+            f"a deviation of {deviation_days} d. against a threshold of {threshold_days} d. needs a reason",
         )
         self.deviation_days = deviation_days
         self.threshold_days = threshold_days
@@ -503,7 +503,7 @@ class _Wire(BaseModel):
         # the first import (in tests that also rendered monkeypatch powerless).
         limit = get_settings().max_text_len
         if len(value) > limit:
-            raise ValueError(f"длиннее потолка в {limit} символов")
+            raise ValueError(f"longer than the ceiling of {limit} characters")
         return value
 
 
@@ -713,14 +713,14 @@ def _next_seq(db: DbSession, project: Project) -> int:
 def _require_task(db: DbSession, project: Project, task_id: uuid.UUID) -> Task:
     task = db.get(Task, task_id)
     if task is None or task.project_id != project.id:
-        raise NotFoundInProject("task_not_found", "задача не найдена в этом проекте")
+        raise NotFoundInProject("task_not_found", "the task was not found in this project")
     return task
 
 
 def _require_category(db: DbSession, project: Project, category_id: uuid.UUID) -> Category:
     category = db.get(Category, category_id)
     if category is None or category.project_id != project.id:
-        raise NotFoundInProject("category_not_found", "категория не найдена в этом проекте")
+        raise NotFoundInProject("category_not_found", "the category was not found in this project")
     return category
 
 
@@ -875,25 +875,25 @@ def _add_task(db: DbSession, project: Project, op: CreateTask) -> Task:
     rows have been created (see _restore_task_links).
     """
     if op.duration_days < 1:
-        raise InvalidOperation("duration_too_short", "длительность должна быть не меньше одного дня")
+        raise InvalidOperation("duration_too_short", "the duration must be at least one day")
     # The same check as in set_criticality/set_progress: the internal model arrives
     # not only from the wire (where the public one holds the bounds) but also from
     # the journal — and must not be able to store a row the CHECK in the database
     # would reject with a 500 anyway.
     if op.criticality not in CRITICALITY_LEVELS:
-        raise InvalidOperation("unknown_criticality", f"неизвестный уровень: {op.criticality}")
+        raise InvalidOperation("unknown_criticality", f"unknown level: {op.criticality}")
     if not 0 <= op.progress_pct <= 100:
         raise InvalidOperation(
-            "progress_out_of_range", f"процент вне 0..100: {op.progress_pct}"
+            "progress_out_of_range", f"percentage outside 0..100: {op.progress_pct}"
         )
     if op.status not in TASK_STATUSES:
-        raise InvalidOperation("unknown_status", f"неизвестный статус: {op.status}")
+        raise InvalidOperation("unknown_status", f"unknown status: {op.status}")
     if op.milestone and op.duration_days != 1:
         # The same constraint the database holds: a milestone is a point on the
         # scale. The check is here rather than only in the CHECK so that the refusal
         # is an honest operation code rather than a 500 on a constraint violation.
         raise InvalidOperation(
-            "milestone_has_duration", "у вехи длительность ровно один день"
+            "milestone_has_duration", "a milestone lasts exactly one day"
         )
     # A foreign key guarantees only that the category exists somewhere — not that it
     # belongs to this project. Without an explicit check a task can quietly end up
@@ -907,7 +907,7 @@ def _add_task(db: DbSession, project: Project, op: CreateTask) -> Task:
     )
     if existing >= limit:
         raise InvalidOperation(
-            "task_limit_reached", f"в проекте уже {existing} задач при потолке {limit}"
+            "task_limit_reached", f"the project already holds {existing} tasks against a ceiling of {limit}"
         )
     # The same principle as for categories: the greatest taken position + 1 rather
     # than COUNT(*) — otherwise the number freed by a deletion goes to the very next
@@ -1163,14 +1163,14 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
     if isinstance(op, ResizeTask):
         if op.duration_days < 1:
-            raise InvalidOperation("duration_too_short", "длительность должна быть не меньше одного дня")
+            raise InvalidOperation("duration_too_short", "the duration must be at least one day")
         task = _require_task(db, project, op.task_id)
         if task.milestone:
             # A milestone has no edges to drag: it is a point. The reason is the
             # same as for set_duration — the flag was set by a person, and clearing
             # it is theirs to do as well.
             raise InvalidOperation(
-                "task_is_milestone", "у вехи длительность не меняется: сначала снимите признак"
+                "task_is_milestone", "a milestone's duration does not change: clear the flag first"
             )
         # Both bounds as a pair of dicts, as with set_task_fields: the operation
         # changes two fields at once and must read as one change.
@@ -1199,13 +1199,13 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             # there zero means "put it back on the previous date", and it is still a
             # gesture on a single task. Here zero shifts a whole category — that is,
             # shifts nothing.
-            raise InvalidOperation("empty_shift", "сдвиг на ноль дней ничего не меняет")
+            raise InvalidOperation("empty_shift", "a shift of zero days changes nothing")
         category = _require_category(db, project, op.category_id)
         tasks = db.scalars(
             select(Task).where(Task.category_id == category.id).order_by(Task.position, Task.id)
         ).all()
         if not tasks:
-            raise InvalidOperation("category_empty", "в категории нет задач: двигать нечего")
+            raise InvalidOperation("category_empty", "the category has no tasks: there is nothing to move")
         shift = timedelta(days=op.days)
         for task in tasks:
             moved = task.start_date + shift
@@ -1214,7 +1214,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
                 # able to store a date in the database that the wire would not have
                 # accepted.
                 raise InvalidOperation(
-                    "date_out_of_range", f"сдвиг уводит «{task.name}» за границу дат"
+                    "date_out_of_range", f"the shift takes \"{task.name}\" past the date boundary"
                 )
             task.start_date = moved
         db.flush()
@@ -1275,14 +1275,14 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
     if isinstance(op, SetDuration):
         if op.duration_days < 1:
-            raise InvalidOperation("duration_too_short", "длительность должна быть не меньше одного дня")
+            raise InvalidOperation("duration_too_short", "the duration must be at least one day")
         task = _require_task(db, project, op.task_id)
         if task.milestone and op.duration_days != 1:
             # A milestone has no duration. This operation is not entitled to turn it
             # silently back into a segment: the milestone flag was set by a person,
             # and clearing it is their decision too (set_milestone).
             raise InvalidOperation(
-                "task_is_milestone", "у вехи длительность не меняется: сначала снимите признак"
+                "task_is_milestone", "a milestone's duration does not change: clear the flag first"
             )
         previous = task.duration_days
         task.duration_days = op.duration_days
@@ -1323,7 +1323,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
     if isinstance(op, SetCriticality):
         if op.criticality not in CRITICALITY_LEVELS:
             raise InvalidOperation(
-                "unknown_criticality", f"неизвестный уровень: {op.criticality}"
+                "unknown_criticality", f"unknown level: {op.criticality}"
             )
         task = _require_task(db, project, op.task_id)
         forward = {
@@ -1338,7 +1338,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
     if isinstance(op, SetRisk):
         if op.risk not in RISK_FLAGS:
-            raise InvalidOperation("unknown_risk", f"неизвестный флаг риска: {op.risk}")
+            raise InvalidOperation("unknown_risk", f"unknown risk flag: {op.risk}")
         task = _require_task(db, project, op.task_id)
         forward = {
             "type": "set_risk",
@@ -1354,10 +1354,10 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
     if isinstance(op, SetProgress):
         if not 0 <= op.progress_pct <= 100:
             raise InvalidOperation(
-                "progress_out_of_range", f"процент вне 0..100: {op.progress_pct}"
+                "progress_out_of_range", f"percentage outside 0..100: {op.progress_pct}"
             )
         if op.status is not None and op.status not in TASK_STATUSES:
-            raise InvalidOperation("unknown_status", f"неизвестный статус: {op.status}")
+            raise InvalidOperation("unknown_status", f"unknown status: {op.status}")
         task = _require_task(db, project, op.task_id)
         previous_status = task.status
         forward = {
@@ -1393,10 +1393,10 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
     if isinstance(op, SetStatus):
         if op.status not in TASK_STATUSES:
-            raise InvalidOperation("unknown_status", f"неизвестный статус: {op.status}")
+            raise InvalidOperation("unknown_status", f"unknown status: {op.status}")
         if op.progress_pct is not None and not 0 <= op.progress_pct <= 100:
             raise InvalidOperation(
-                "progress_out_of_range", f"процент вне 0..100: {op.progress_pct}"
+                "progress_out_of_range", f"percentage outside 0..100: {op.progress_pct}"
             )
         task = _require_task(db, project, op.task_id)
         previous_progress = task.progress_pct
@@ -1460,9 +1460,9 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             )
         )
         if member is None:
-            raise InvalidOperation("user_not_in_organization", "пользователь не в этой организации")
+            raise InvalidOperation("user_not_in_organization", "the user is not in this organization")
         if _find_assignment(db, task.id, op.user_id) is not None:
-            raise InvalidOperation("already_assigned", "этот человек уже назначен")
+            raise InvalidOperation("already_assigned", "this person is already assigned")
         db.add(TaskAssignee(task_id=task.id, user_id=op.user_id))
         db.flush()
         pair = {"task_id": str(task.id), "user_id": str(op.user_id)}
@@ -1475,7 +1475,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         task = _require_task(db, project, op.task_id)
         assignment = _find_assignment(db, task.id, op.user_id)
         if assignment is None:
-            raise NotFoundInProject("assignment_not_found", "назначение не найдено")
+            raise NotFoundInProject("assignment_not_found", "the assignment was not found")
         db.delete(assignment)
         db.flush()
         pair = {"task_id": str(task.id), "user_id": str(op.user_id)}
@@ -1486,13 +1486,13 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         # rule of computation: dates are not recomputed from them. But garbage must
         # not be allowed into them.
         if op.from_task_id == op.to_task_id:
-            raise InvalidOperation("self_dependency", "задача не может зависеть от себя")
+            raise InvalidOperation("self_dependency", "a task cannot depend on itself")
         # Both sides through _require_task: a dependency on a task from another
         # project is cut off by the same mechanism as everything else.
         _require_task(db, project, op.from_task_id)
         _require_task(db, project, op.to_task_id)
         if _find_dependency(db, project, op.from_task_id, op.to_task_id) is not None:
-            raise InvalidOperation("dependency_exists", "такая связь уже есть")
+            raise InvalidOperation("dependency_exists", "that dependency already exists")
         # A cycle is garbage too, even for "just arrows": the chart draws them as
         # edges, and a ring A->B->A reads as a plan that will never begin. The check
         # is a walk from to towards from over the existing edges: if from is
@@ -1507,7 +1507,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         while frontier:
             node = frontier.pop()
             if node == op.from_task_id:
-                raise InvalidOperation("dependency_cycle", "связь замыкает кольцо")
+                raise InvalidOperation("dependency_cycle", "the dependency closes a cycle")
             if node in seen:
                 continue
             seen.add(node)
@@ -1536,7 +1536,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         _require_task(db, project, op.to_task_id)
         dependency = _find_dependency(db, project, op.from_task_id, op.to_task_id)
         if dependency is None:
-            raise NotFoundInProject("dependency_not_found", "связь не найдена в этом проекте")
+            raise NotFoundInProject("dependency_not_found", "the dependency was not found in this project")
         db.delete(dependency)
         db.flush()
         ends = {"from_task_id": str(op.from_task_id), "to_task_id": str(op.to_task_id)}
@@ -1552,7 +1552,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
     if isinstance(op, ReorderTask):
         if op.position < 0:
-            raise InvalidOperation("negative_position", "позиция не может быть отрицательной")
+            raise InvalidOperation("negative_position", "a position cannot be negative")
         task = _require_task(db, project, op.task_id)
         _require_category(db, project, op.category_id)
 
@@ -1606,7 +1606,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
 
     if isinstance(op, ReorderCategory):
         if op.position < 0:
-            raise InvalidOperation("negative_position", "позиция не может быть отрицательной")
+            raise InvalidOperation("negative_position", "a position cannot be negative")
         category = _require_category(db, project, op.category_id)
 
         # The order is read by the same key the chart reads it by: the position,
@@ -1674,7 +1674,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
             if target_category is None:
                 raise InvalidOperation(
                     "positions_categories_mismatch",
-                    f"в карте категорий нет задачи {raw_id}",
+                    f"the category map has no task {raw_id}",
                 )
             # The category may have been deleted since: an insert into it would fail
             # on a foreign key — a 500 as well, even though this is an ordinary
@@ -1756,7 +1756,7 @@ def _apply(db: DbSession, project: Project, op) -> tuple[dict, dict]:
         db.flush()
         return ({"type": "delete_task", "task_id": str(op.task_id)}, snapshot)
 
-    raise InvalidOperation("unknown_operation", f"неизвестная операция: {op!r}")
+    raise InvalidOperation("unknown_operation", f"unknown operation: {op!r}")
 
 
 def _guard_shift_threshold(db: DbSession, project: Project, op, reason: str | None) -> None:
@@ -1962,7 +1962,7 @@ def undo(
     # this check that is a cross-tenant write exactly: someone else's revision would
     # be applied to one's own project.
     if revision.project_id != project.id:
-        raise NotFoundInProject("revision_not_found", "ревизия не найдена в этом проекте")
+        raise NotFoundInProject("revision_not_found", "the revision was not found in this project")
     return apply_op(
         db,
         project,
@@ -2003,11 +2003,11 @@ def undo_last(
     db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
     revision = last_undoable(db, project)
     if revision is None:
-        raise NotFoundInProject("nothing_to_undo", "отменять нечего")
+        raise NotFoundInProject("nothing_to_undo", "there is nothing to undo")
     if expected_seq is not None and revision.seq != expected_seq:
         raise UndoConflict(
             "undo_conflict",
-            f"наверху журнала ревизия {revision.seq}, а отменить просят {expected_seq}",
+            f"the journal's top revision is {revision.seq}, but {expected_seq} was asked to be undone",
         )
     applied = undo(db, project, revision, actor_id=actor_id, reason=reason)
     return applied, revision
@@ -2080,7 +2080,7 @@ def undo_batch(
     ).all()
 
     if not revisions:
-        raise NotFoundInProject("batch_not_found", "пачка не найдена в этом проекте")
+        raise NotFoundInProject("batch_not_found", "the batch was not found in this project")
 
     undo_batch_id = uuid.uuid4()
     return [

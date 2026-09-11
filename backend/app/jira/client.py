@@ -118,11 +118,11 @@ class HttpJiraClient:
         except urllib.error.HTTPError as error:
             if error.code in (401, 403):
                 raise JiraError(
-                    "jira_unauthorized", f"Jira отказала в доступе ({error.code})"
+                    "jira_unauthorized", f"Jira refused access ({error.code})"
                 ) from error
             if error.code == 404:
-                raise JiraError("jira_not_found", "Jira ответила 404") from error
-            raise JiraError("jira_refused", f"Jira ответила {error.code}") from error
+                raise JiraError("jira_not_found", "Jira answered 404") from error
+            raise JiraError("jira_refused", f"Jira answered {error.code}") from error
         except (urllib.error.URLError, OSError) as error:
             raise JiraError("jira_unreachable", str(error)) from error
 
@@ -131,7 +131,7 @@ class HttpJiraClient:
         try:
             return json.loads(raw)
         except json.JSONDecodeError as error:
-            raise JiraError("jira_bad_json", "ответ Jira не разобрать как JSON") from error
+            raise JiraError("jira_bad_json", "Jira's answer cannot be parsed as JSON") from error
 
     def list_projects(self) -> list[dict]:
         projects: list[dict] = []
@@ -228,7 +228,7 @@ class RecordedJiraClient:
     def update_issue_due_date(self, issue_key: str, due_date: date) -> None:
         self.due_date_calls.append((issue_key, due_date))
         if issue_key in self._due_date_failures:
-            raise JiraError("jira_refused", f"Jira отклонила срок для {issue_key}")
+            raise JiraError("jira_refused", f"Jira rejected the date for {issue_key}")
 
 
 __all__ = ["JiraClient", "HttpJiraClient", "RecordedJiraClient", "JiraError", "ISSUE_FIELDS"]

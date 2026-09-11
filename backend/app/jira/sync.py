@@ -529,7 +529,7 @@ def sync_project(
     """
     link = db.scalar(select(JiraProjectLink).where(JiraProjectLink.project_id == project.id))
     if link is None:
-        raise JiraError("jira_not_linked", "проект не заведён из Jira")
+        raise JiraError("jira_not_linked", "the project was not created from Jira")
     client = client_factory()
 
     existing_categories = {
@@ -543,7 +543,7 @@ def sync_project(
         for row in db.scalars(select(JiraTaskLink).where(JiraTaskLink.project_id == project.id))
     }
 
-    reason = f"Синхронизация с Jira ({link.jira_project_key})"
+    reason = f"Jira sync ({link.jira_project_key})"
     result, batch_id = _sync(
         db,
         project,
@@ -588,7 +588,7 @@ def push_project(
     """
     link = db.scalar(select(JiraProjectLink).where(JiraProjectLink.project_id == project.id))
     if link is None:
-        raise JiraError("jira_not_linked", "проект не заведён из Jira")
+        raise JiraError("jira_not_linked", "the project was not created from Jira")
     client = client_factory()
     calendar = project_calendar(project, org)
 

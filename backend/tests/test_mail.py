@@ -73,7 +73,7 @@ def test_every_language_has_every_template():
             for template, fields in dictionary(locale).items()
             for field in fields
         }
-        assert keys == reference, f"словарь писем {locale} разошёлся с az"
+        assert keys == reference, f"the {locale} mail dictionary has drifted from az"
 
 
 def test_missing_substitution_data_does_not_reach_the_recipient():
@@ -234,7 +234,7 @@ def test_the_scheme_decides_the_default_port(fake_smtp, url: str, expected_port:
 def test_a_password_is_never_sent_over_a_plaintext_connection(fake_smtp, monkeypatch):
     monkeypatch.setattr(fake_smtp, "advertise_starttls", False)
 
-    with pytest.raises(MailError, match="незашифрованному"):
+    with pytest.raises(MailError, match="unencrypted"):
         SmtpTransport("smtp://user:secret@mail.example.com", sender="a@b.c").deliver(_letter())
 
     assert fake_smtp.instances[-1].login_args is None
@@ -339,7 +339,7 @@ def test_an_unreachable_api_becomes_a_mail_error(monkeypatch):
 def test_send_reports_a_failure_instead_of_raising(monkeypatch, caplog):
     class Broken:
         def deliver(self, letter):
-            raise MailError("почтовый сервер лежит")
+            raise MailError("the mail server is down")
 
     monkeypatch.setattr(mail, "build_transport", lambda settings: Broken())
 
@@ -354,7 +354,7 @@ def test_send_reports_a_failure_instead_of_raising(monkeypatch, caplog):
     # The action the message was sent for has already happened — an exception from here
     # would roll it back entirely.
     assert delivered is False
-    assert "не ушло" in caplog.text
+    assert "did not go out" in caplog.text
 
 
 def test_send_hands_the_rendered_letter_to_the_transport(mailbox):

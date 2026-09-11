@@ -57,7 +57,7 @@ def _next_day(d: date) -> date:
     except OverflowError:
         raise CalendarError(
             "calendar_date_out_of_range",
-            "дата вышла за край поддерживаемого календаря",
+            "the date fell outside the supported calendar",
         ) from None
 
 
@@ -68,7 +68,7 @@ def _first_working_on_or_after(start: date, cal: Calendar) -> date:
             return d
         d = _next_day(d)
     raise CalendarError(
-        "calendar_has_no_working_days", "календарь не содержит ни одного рабочего дня"
+        "calendar_has_no_working_days", "the calendar contains no working days at all"
     )
 
 
@@ -107,7 +107,7 @@ def count_working_days(start: date, end: date, cal: Calendar) -> int:
     depend on the length of the range.
     """
     if end < start:
-        raise ValueError("конец отрезка раньше начала")
+        raise ValueError("the end of the span is earlier than its start")
 
     total = _mask_days_between(start, end, cal.working_days)
     for holiday in cal.holidays:
@@ -133,7 +133,7 @@ def end_date(start: date, duration_days: int, cal: Calendar) -> date:
     thousands of iterations.
     """
     if duration_days < 1:
-        raise ValueError("длительность должна быть не меньше одного дня")
+        raise ValueError("the duration must be at least one day")
 
     first = _first_working_on_or_after(start, cal)
 
@@ -143,7 +143,7 @@ def end_date(start: date, duration_days: int, cal: Calendar) -> date:
         if len(ahead) < duration_days:
             raise CalendarError(
                 "calendar_too_few_working_days",
-                "календарь не содержит достаточного количества рабочих дней для такой длительности",
+                "the calendar does not contain enough working days for such a duration",
             )
         return ahead[duration_days - 1]
 
@@ -159,12 +159,12 @@ def end_date(start: date, duration_days: int, cal: Calendar) -> date:
         if (high - first).days > _MAX_SEARCH_DAYS:
             raise CalendarError(
                 "calendar_too_few_working_days",
-                "календарь не содержит достаточного количества рабочих дней для такой длительности",
+                "the calendar does not contain enough working days for such a duration",
             )
         if high == date.max:
             raise CalendarError(
                 "calendar_date_out_of_range",
-                "дата вышла за край поддерживаемого календаря",
+                "the date fell outside the supported calendar",
             )
         try:
             high = high + timedelta(weeks=8)
@@ -182,6 +182,6 @@ def end_date(start: date, duration_days: int, cal: Calendar) -> date:
     if (low - first).days > _MAX_SEARCH_DAYS:
         raise CalendarError(
             "calendar_too_few_working_days",
-            "календарь не содержит достаточного количества рабочих дней для такой длительности",
+            "the calendar does not contain enough working days for such a duration",
         )
     return low

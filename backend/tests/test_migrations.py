@@ -53,7 +53,7 @@ def migrations_db_url():
     admin_url = make_url(get_settings().database_url)
     db_name = f"{admin_url.database}_migrations_test"
     if not db_name.endswith("_migrations_test") or db_name == admin_url.database:
-        raise RuntimeError(f"отказ сносить базу с подозрительным именем {db_name!r}")
+        raise RuntimeError(f"refusing to drop a database with the suspicious name {db_name!r}")
 
     admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
     with admin_engine.connect() as conn:

@@ -99,7 +99,7 @@ export function LocaleProvider({
 export function useLocale(): LocaleContextValue {
   const value = useContext(LocaleContext);
   if (value === null) {
-    throw new Error("useLocale вызван вне LocaleProvider");
+    throw new Error("useLocale was called outside LocaleProvider");
   }
   return value;
 }

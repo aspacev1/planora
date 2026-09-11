@@ -98,6 +98,6 @@ def send(*, to: str, template: str, params: Mapping[str, object], locale: str) -
         # the very bottom of the chain (the socket, TLS, the service's answer),
         # and without a stack one is left guessing which of the three transports
         # stumbled and on what.
-        logger.exception("письмо %r на %s не ушло", template, to)
+        logger.exception("the %r message to %s did not go out", template, to)
         return False
     return True

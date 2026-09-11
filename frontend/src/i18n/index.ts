@@ -82,12 +82,12 @@ export function translate(locale: Locale, key: string, params?: Params): string 
   const own = pick(lookup(DICTIONARIES[locale], key), locale, params);
   if (own !== undefined) return interpolate(own, params);
 
-  console.warn(`i18n: ключ «${key}» отсутствует в словаре «${locale}»`);
+  console.warn(`i18n: key "${key}" is missing from the "${locale}" dictionary`);
 
   const fallback = pick(lookup(DICTIONARIES[DEFAULT_LOCALE], key), DEFAULT_LOCALE, params);
   if (fallback !== undefined) return interpolate(fallback, params);
 
-  console.warn(`i18n: ключ «${key}» отсутствует во всех словарях`);
+  console.warn(`i18n: key "${key}" is missing from every dictionary`);
   return key;
 }
 

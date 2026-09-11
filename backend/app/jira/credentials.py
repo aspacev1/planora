@@ -28,7 +28,7 @@ def save_credential(
     existing = db.scalar(select(JiraConnection).where(JiraConnection.org_id == org.id))
     if existing is None:
         if not api_token:
-            raise ValueError("токен обязателен при первом подключении")
+            raise ValueError("the token is required on the first connection")
         existing = JiraConnection(org_id=org.id, encrypted_token=encrypt(api_token))
         db.add(existing)
 
@@ -57,7 +57,7 @@ def client_for(db: DbSession, org: Organization) -> JiraClient:
     state, not a breakage."""
     row = credential(db, org)
     if row is None:
-        raise JiraError("jira_not_configured", "подключение Jira не настроено")
+        raise JiraError("jira_not_configured", "the Jira connection is not configured")
     try:
         token = decrypt(row.encrypted_token)
     except DecryptionError as error:

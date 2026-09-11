@@ -63,11 +63,11 @@ def term(group: str, key: str, locale: str) -> str:
             continue
         if candidate != locale:
             logger.warning(
-                "нет подписи %s.%s на языке %r, беру %r", group, key, locale, candidate
+                "no %s.%s label in the %r language, taking %r", group, key, locale, candidate
             )
         return text
     raise ExportError(
-        "export_label_missing", f"нет подписи {group}.{key} ни на одном языке"
+        "export_label_missing", f"no {group}.{key} label in any language"
     )
 
 

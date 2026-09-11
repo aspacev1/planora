@@ -139,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextValue {
   const value = useContext(AuthContext);
   if (value === null) {
-    throw new Error("useAuth вызван вне AuthProvider");
+    throw new Error("useAuth was called outside AuthProvider");
   }
   return value;
 }

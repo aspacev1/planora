@@ -179,7 +179,7 @@ def test_an_undelivered_letter_still_leaves_a_usable_token(db, user, monkeypatch
 
     class Broken:
         def deliver(self, letter):
-            raise mail_module.MailError("почтовый сервер лежит")
+            raise mail_module.MailError("the mail server is down")
 
     monkeypatch.setattr(mail_module, "build_transport", lambda settings: Broken())
 
@@ -224,7 +224,7 @@ def test_registration_survives_a_dead_mail_server(client, monkeypatch):
 
     class Broken:
         def deliver(self, letter):
-            raise mail_module.MailError("почтовый сервер лежит")
+            raise mail_module.MailError("the mail server is down")
 
     monkeypatch.setattr(mail_module, "build_transport", lambda settings: Broken())
 
@@ -338,7 +338,7 @@ def test_a_letter_that_never_went_out_does_not_lock_the_button(client, db, monke
 
     class Broken:
         def deliver(self, letter):
-            raise mail_module.MailError("почтовый сервер лежит")
+            raise mail_module.MailError("the mail server is down")
 
     monkeypatch.setattr(mail_module, "build_transport", lambda settings: Broken())
 
@@ -376,7 +376,7 @@ def test_resend_says_so_when_the_letter_did_not_go_out(client, db, monkeypatch, 
 
     class Broken:
         def deliver(self, letter):
-            raise mail_module.MailError("почтовый сервер лежит")
+            raise mail_module.MailError("the mail server is down")
 
     monkeypatch.setattr(mail_module, "build_transport", lambda settings: Broken())
 

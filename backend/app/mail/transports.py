@@ -79,7 +79,7 @@ class SmtpTransport:
         parsed = urlsplit(url)
         if parsed.scheme not in ("smtp", "smtps") or not parsed.hostname:
             raise MailError(
-                "SMTP_URL должен выглядеть как smtp://user:pass@host:587 или smtps://host:465"
+                "SMTP_URL must look like smtp://user:pass@host:587 or smtps://host:465"
             )
         self._implicit_tls = parsed.scheme == "smtps"
         self._host = parsed.hostname
@@ -110,7 +110,7 @@ class SmtpTransport:
                     smtp.ehlo()
                 self._hand_over(smtp, message, encrypted=encrypted)
         except (smtplib.SMTPException, OSError) as exc:
-            raise MailError(f"SMTP-сервер {self._host}:{self._port} не принял письмо: {exc}") from exc
+            raise MailError(f"the SMTP server {self._host}:{self._port} did not accept the message: {exc}") from exc
 
     def _hand_over(self, smtp: smtplib.SMTP, message: EmailMessage, *, encrypted: bool) -> None:
         if self._user:
@@ -120,8 +120,8 @@ class SmtpTransport:
                 # warning in the log. A local relay with no password (mailhog,
                 # postfix on the same machine) keeps working regardless.
                 raise MailError(
-                    "отказ передавать пароль SMTP по незашифрованному соединению: "
-                    "нужен smtps:// или сервер с поддержкой STARTTLS"
+                    "refusing to send the SMTP password over an unencrypted connection: "
+                    "smtps:// or a server supporting STARTTLS is required"
                 )
             smtp.login(self._user, self._password)
         smtp.send_message(message)
@@ -168,9 +168,9 @@ class ApiTransport:
             # kilobyte-long page, while the log needs the code and the first line
             # of the explanation.
             detail = exc.read(200).decode("utf-8", "replace").strip()
-            raise MailError(f"почтовый API ответил {exc.code}: {detail}") from exc
+            raise MailError(f"the mail API answered {exc.code}: {detail}") from exc
         except (URLError, OSError) as exc:
-            raise MailError(f"почтовый API недоступен: {exc}") from exc
+            raise MailError(f"the mail API is unreachable: {exc}") from exc
 
 
 # Tokens in messages are base64/hex strings of twenty characters or more;
@@ -205,7 +205,7 @@ class LogTransport:
     def deliver(self, letter: Letter) -> None:
         body = letter.body if self._reveal_secrets else _mask_secrets(letter.body)
         logger.info(
-            "почта в журнал (MAIL_TRANSPORT=%s), письмо осталось здесь:\n"
+            "mail goes to the log (MAIL_TRANSPORT=%s), the message stayed here:\n"
             "From: %s\nTo: %s\nSubject: %s\n\n%s",
             "log" if self._reveal_secrets else "none",
             self._sender or "—",

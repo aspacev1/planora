@@ -158,7 +158,7 @@ def require(
     role: Role | None, action: Action, *, project_granted: bool = False, scoped: bool = False
 ) -> None:
     if not can(role, action, project_granted=project_granted, scoped=scoped):
-        raise PermissionError(f"{role or 'guest'} не может выполнить {action}")
+        raise PermissionError(f"{role or 'guest'} cannot perform {action}")
 
 
 # Journal fields that not everyone is entitled to see. Today there is exactly one

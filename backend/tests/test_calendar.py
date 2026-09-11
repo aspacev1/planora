@@ -71,7 +71,7 @@ def test_end_date_rejects_insufficient_working_days():
     """A calendar without enough working days must raise an error rather than hang."""
     cal = Calendar(working_days=0, extra_workdays=frozenset({date(2026, 3, 6)}))
     # Only one working date (6 March), but we require 2 days
-    with pytest.raises(ValueError, match="достаточного количества рабочих дней"):
+    with pytest.raises(ValueError, match="enough working days"):
         end_date(date(2026, 3, 6), 2, cal)
 
 

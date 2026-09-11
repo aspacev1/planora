@@ -16,10 +16,10 @@ from app.main import app
 SNAPSHOT = Path(__file__).resolve().parents[1] / "openapi.json"
 
 HOW_TO_UPDATE = (
-    "контракт API изменился. Если это задумано:\n"
+    "the API contract has changed. If that is intended:\n"
     "  UPDATE_OPENAPI_SNAPSHOT=1 uv run pytest tests/test_openapi_contract.py\n"
     "  cd ../frontend && npm run gen:api\n"
-    "и закоммить оба файла (backend/openapi.json, frontend/src/api/schema.d.ts)."
+    "and commit both files (backend/openapi.json, frontend/src/api/schema.d.ts)."
 )
 
 
@@ -36,5 +36,5 @@ def test_openapi_matches_snapshot():
     if os.environ.get("UPDATE_OPENAPI_SNAPSHOT") == "1":
         SNAPSHOT.write_text(current, encoding="utf-8")
 
-    assert SNAPSHOT.exists(), f"снимка {SNAPSHOT} нет. {HOW_TO_UPDATE}"
+    assert SNAPSHOT.exists(), f"there is no {SNAPSHOT} snapshot. {HOW_TO_UPDATE}"
     assert SNAPSHOT.read_text(encoding="utf-8") == current, HOW_TO_UPDATE

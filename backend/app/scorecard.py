@@ -160,7 +160,7 @@ def project_tz(project: Project, org: Organization) -> ZoneInfo:
     try:
         return ZoneInfo(name)
     except (KeyError, ValueError):
-        logger.warning("непригодная таймзона %r, скоркард считает в UTC", name)
+        logger.warning("unusable time zone %r, the scorecard counts in UTC", name)
         return ZoneInfo("UTC")
 
 
@@ -475,7 +475,7 @@ def _compute_scope(
         try:
             task_id = uuid.UUID(op["task_id"])
         except (KeyError, TypeError, ValueError):
-            logger.warning("непригодная запись журнала при счёте объёма")
+            logger.warning("unusable journal entry while counting scope")
             continue
         task = tasks_by_id.get(task_id)
         if task is not None:
@@ -534,7 +534,7 @@ def _shift_delta(op: dict) -> int:
     except (KeyError, TypeError, ValueError):
         # The journal of old versions may have written the fields differently; an
         # unintelligible entry is not a shift rather than a crash of the scorecard read.
-        logger.warning("непригодная запись журнала при счёте сдвигов: %r", kind)
+        logger.warning("unusable journal entry while counting shifts: %r", kind)
     return 0
 
 
@@ -1322,7 +1322,7 @@ def _create_rule_task(
     )
     if category_id is None:
         logger.warning(
-            "правило скоркарда: в проекте %s нет категорий, задача не создана",
+            "scorecard rule: project %s has no categories, the task was not created",
             project.id,
         )
         return None
@@ -1344,7 +1344,7 @@ def _create_rule_task(
     except MutationError as error:
         # A ceiling on tasks, a degenerate calendar — the rule is not entitled to
         # bring down a scorecard read; the trace stays in the application log.
-        logger.warning("правило скоркарда: задача не создана (%s)", error.code)
+        logger.warning("scorecard rule: the task was not created (%s)", error.code)
         return None
     task_id = uuid.UUID(revision.op["task_id"])
     if config.owner_user_id is not None:
@@ -1359,7 +1359,7 @@ def _create_rule_task(
         except InvalidOperation:
             # The owner has left the organization in the meantime — the task stays
             # unassigned, just as the metric stays without an owner.
-            logger.warning("правило скоркарда: владелец метрики вне организации")
+            logger.warning("scorecard rule: the metric owner is outside the organization")
     return db.get(Task, task_id)
 
 
@@ -1925,7 +1925,7 @@ def patch_metric(
     refusal.
     """
     if key not in _DEFS:
-        raise ScorecardError("metric_not_found", f"неизвестная метрика: {key}")
+        raise ScorecardError("metric_not_found", f"unknown metric: {key}")
     ensure_metrics(db, project)
     config = db.scalar(
         select(ScorecardMetric).where(
@@ -1944,13 +1944,13 @@ def patch_metric(
             )
             if member is None:
                 raise ScorecardError(
-                    "user_not_in_organization", "владелец метрики не в этой организации"
+                    "user_not_in_organization", "the metric owner is not in this organization"
                 )
         config.owner_user_id = owner_id
     if "target_value" in changes:
         target = Decimal(str(changes["target_value"]))
         if target < 0:
-            raise ScorecardError("target_out_of_range", "цель не бывает отрицательной")
+            raise ScorecardError("target_out_of_range", "a target is never negative")
         config.target_value = target.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
     if "enabled" in changes:
         config.enabled = bool(changes["enabled"])
@@ -1963,13 +1963,13 @@ def metric_tasks(
     """A metric's drill-down for a week: past weeks come from the snapshot's
     details (the chronicle), the current one is a live computation without a write."""
     if key not in _DEFS:
-        raise ScorecardError("metric_not_found", f"неизвестная метрика: {key}")
+        raise ScorecardError("metric_not_found", f"unknown metric: {key}")
     tz = project_tz(project, org)
     today = datetime.now(tz).date()
     current_week = week_start_of(today)
     week_start = week_start_of(week) if week is not None else current_week
     if week_start > current_week:
-        raise ScorecardError("week_in_future", "неделя ещё не наступила")
+        raise ScorecardError("week_in_future", "the week has not arrived yet")
 
     if week_start == current_week:
         configs = {c.metric_key: c for c in ensure_metrics(db, project)}

@@ -22,7 +22,7 @@ def _dates(raw: list[str] | None) -> frozenset[date]:
         try:
             parsed.add(date.fromisoformat(item))
         except (TypeError, ValueError):
-            logger.warning("непригодная дата в календаре пропущена: %r", item)
+            logger.warning("an unusable date in the calendar was skipped: %r", item)
     return frozenset(parsed)
 
 

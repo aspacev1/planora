@@ -49,9 +49,9 @@ def _safe_test_database_url() -> str:
 
     if test_db == prod_db or not test_db.endswith("_test"):
         raise RuntimeError(
-            "отказ выполнять drop_all/create_all: выведенное имя тестовой базы "
-            f"{test_db!r} совпадает с боевым DATABASE_URL ({prod_db!r}) или не "
-            "оканчивается на '_test'. Тесты никогда не должны трогать базу из "
+            "refusing to run drop_all/create_all: the derived test database name "
+            f"{test_db!r} matches the production DATABASE_URL ({prod_db!r}) or does not "
+            "end in '_test'. Tests must never touch the database from "
             "DATABASE_URL."
         )
     # render_as_string(hide_password=False): str(url) masks the password with
@@ -70,14 +70,14 @@ def engine():
     except OperationalError as exc:
         url = make_url(test_url)
         raise RuntimeError(
-            f"тестовая база {url.database!r} недоступна "
+            f"the test database {url.database!r} is unreachable "
             f"({url.render_as_string(hide_password=True)}).\n"
-            "Если её ещё нет, создай её — Postgres поднят через docker compose, "
-            "сервис 'db':\n"
+            "If it does not exist yet, create it — Postgres is brought up by docker compose, "
+            "service 'db':\n"
             f"  docker compose exec db createdb -U {url.username} {url.database}\n"
-            "или, если Postgres не в докере:\n"
+            "or, if Postgres is not in Docker:\n"
             f"  createdb -h {url.host} -p {url.port} -U {url.username} {url.database}\n"
-            f"Исходная ошибка: {exc}"
+            f"Original error: {exc}"
         ) from exc
 
     Base.metadata.drop_all(engine)

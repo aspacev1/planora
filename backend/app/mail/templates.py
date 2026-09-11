@@ -53,14 +53,14 @@ def _lookup(template: str, field: str, locale: str) -> str:
             continue
         if candidate != locale:
             logger.warning(
-                "нет шаблона письма %s.%s на языке %r, отправляю на %r",
+                "no %s.%s mail template in the %r language, sending in %r instead",
                 template,
                 field,
                 locale,
                 candidate,
             )
         return text
-    raise MailError(f"нет шаблона письма {template}.{field} ни на одном языке")
+    raise MailError(f"no {template}.{field} mail template in any language")
 
 
 def term(group: str, key: str, locale: str) -> str:
@@ -85,4 +85,4 @@ def _fill(text: str, params: Mapping[str, object]) -> str:
     try:
         return text.format_map(params)
     except (KeyError, IndexError) as exc:
-        raise MailError(f"в шаблоне письма нет данных для подстановки {exc}") from exc
+        raise MailError(f"the mail template has no data to substitute for {exc}") from exc

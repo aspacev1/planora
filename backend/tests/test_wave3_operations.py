@@ -125,7 +125,7 @@ def test_readiness_asks_the_database(client, monkeypatch):
 
     class _DeadEngine:
         def connect(self):
-            raise ConnectionError("база лежит")
+            raise ConnectionError("the database is down")
 
     monkeypatch.setattr(db_module, "engine", _DeadEngine())
     assert client.get("/api/health/ready").status_code == 503
@@ -151,14 +151,14 @@ def test_vercel_requirements_match_uv_lock():
         if not line or line.startswith("#"):
             continue
         match = re.fullmatch(r"([A-Za-z0-9_.\[\]-]+)==([A-Za-z0-9_.]+)", line)
-        assert match, f"строка не разбирается как пин: {line!r}"
+        assert match, f"the line does not parse as a pin: {line!r}"
         name = match.group(1).split("[")[0].lower().replace("_", "-")
         version = match.group(2)
         if locked.get(name) != version:
             mismatches.append(f"{name}: requirements.txt={version}, uv.lock={locked.get(name)}")
 
     assert mismatches == [], (
-        "requirements.txt разошёлся с backend/uv.lock:\n" + "\n".join(mismatches)
+        "requirements.txt has drifted from backend/uv.lock:\n" + "\n".join(mismatches)
     )
 
 

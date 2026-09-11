@@ -92,7 +92,7 @@ def _sections(raw: list[str] | None, *, client_copy: bool) -> frozenset[ExportSe
     sections they did not ask for.
     """
     if not raw:
-        raise ExportError("export_empty_selection", "не выбран ни один раздел")
+        raise ExportError("export_empty_selection", "no section was selected")
     try:
         sections = frozenset(ExportSection(value) for value in raw)
     except ValueError as error:
@@ -100,13 +100,13 @@ def _sections(raw: list[str] | None, *, client_copy: bool) -> frozenset[ExportSe
         # section arrives here as a live value. For a member the same thing is cut
         # off by the FastAPI schema — but relying on that alone will not do: a
         # refusal must have one code for both entrances.
-        raise ExportError("validation_error", f"неизвестный раздел: {error}") from error
+        raise ExportError("validation_error", f"unknown section: {error}") from error
     if client_copy:
         # Internal sections are not a refusal but a deduction: a client who asked
         # for the edit history gets a file without it rather than an empty answer.
         sections -= INTERNAL_SECTIONS
     if not sections:
-        raise ExportError("export_empty_selection", "все выбранные разделы недоступны")
+        raise ExportError("export_empty_selection", "every selected section is unavailable")
     return sections
 
 
@@ -192,7 +192,7 @@ def build(
     if len(document.tasks) > MAX_TASKS:
         raise ExportError(
             "export_too_large",
-            f"{len(document.tasks)} задач при потолке {MAX_TASKS}",
+            f"{len(document.tasks)} tasks against a ceiling of {MAX_TASKS}",
         )
     return document
 

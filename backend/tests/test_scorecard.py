@@ -513,7 +513,7 @@ def test_rule_creates_task_once_per_risk_series(authed, db):
             Task.name.like("Araşdır: Gecikmiş%"),
         )
     ).all()
-    assert len(created) == 1, "повтор внутри серии обязан подавляться"
+    assert len(created) == 1, "a repeat inside a streak must be suppressed"
     rule_alerts = [
         a
         for a in state["alerts"]

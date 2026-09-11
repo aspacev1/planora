@@ -151,7 +151,7 @@ def test_two_simultaneous_undos_do_not_double_undo(engine):
         rival.start()
         # The rival must stand at the lock until the first transaction is closed.
         rival.join(timeout=0.5)
-        assert rival.is_alive(), "вторая отмена не ждала замок проекта"
+        assert rival.is_alive(), "the second undo did not wait for the project lock"
 
         first.commit()
         rival.join(timeout=10)

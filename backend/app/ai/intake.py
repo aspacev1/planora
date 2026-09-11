@@ -67,9 +67,9 @@ def _system(session: AiSession) -> dict:
     return {
         "role": "system",
         "content": (
-            "Ты помогаешь составить план проекта. Задавай по одному вопросу. "
-            f"Язык вопросов и всех значений в ответах: {session.locale}. "
-            "Ключи полей в JSON остаются английскими."
+            "You are helping to put together a project plan. Ask one question at a time. "
+            f"The language of the questions and of every value in the answers: {session.locale}. "
+            "The field keys in the JSON stay English."
         ),
     }
 
@@ -123,21 +123,21 @@ def ask(db: DbSession, session: AiSession, provider: LlmProvider) -> str:
     itself — that is not a refusal but a move to the next step.
     """
     if session.status != "interview":
-        raise IntakeError("wrong_step", "интервью уже закончено")
+        raise IntakeError("wrong_step", "the interview is already over")
 
     asked = len(session.transcript)
     if asked >= get_settings().ai_max_questions:
-        raise IntakeError("interview_exhausted", "вопросы кончились, пора к конспекту")
+        raise IntakeError("interview_exhausted", "the questions have run out, time for the summary")
 
     remaining = _remaining(session)
     if remaining:
         instruction = (
-            "Осталось выяснить: "
+            "Still to find out: "
             + "; ".join(topic["prompt"] for topic in remaining)
-            + ". Задай один следующий вопрос."
+            + ". Ask one next question."
         )
     else:
-        instruction = "Все темы закрыты. Задай последний уточняющий вопрос."
+        instruction = "Every topic is covered. Ask one last clarifying question."
 
     messages = [*_history(session), {"role": "user", "content": instruction}]
 
@@ -159,9 +159,9 @@ def ask(db: DbSession, session: AiSession, provider: LlmProvider) -> str:
 def answer(db: DbSession, session: AiSession, text: str, provider: LlmProvider) -> str | None:
     """A person's answer and the next question — or `None` if it is time for the summary."""
     if session.status != "interview":
-        raise IntakeError("wrong_step", "интервью уже закончено")
+        raise IntakeError("wrong_step", "the interview is already over")
     if not session.transcript:
-        raise IntakeError("nothing_asked", "вопрос ещё не задан")
+        raise IntakeError("nothing_asked", "no question has been asked yet")
 
     turns = [dict(turn) for turn in session.transcript]
     turns[-1]["answer"] = text
@@ -183,7 +183,7 @@ def make_summary(db: DbSession, session: AiSession, provider: LlmProvider) -> li
     messages.append(
         {
             "role": "user",
-            "content": "Сформулируй тезисы: что ты понял про проект. Коротко, по одному факту.",
+            "content": "State the theses: what you understood about the project. Briefly, one fact each.",
         }
     )
     result = parse(Summary, _generate(session, provider, messages, SUMMARY_SCHEMA))
@@ -196,7 +196,7 @@ def make_summary(db: DbSession, session: AiSession, provider: LlmProvider) -> li
 def edit_summary(db: DbSession, session: AiSession, theses: list[str]) -> list[str]:
     """A person's edit of the summary. A gate is a gate precisely because things are edited through it."""
     if session.status not in {"summary", "draft"}:
-        raise IntakeError("wrong_step", "конспекта ещё нет")
+        raise IntakeError("wrong_step", "there is no summary yet")
     session.summary = [thesis.strip() for thesis in theses if thesis.strip()]
     db.flush()
     return session.summary
@@ -211,17 +211,17 @@ def make_draft(db: DbSession, session: AiSession, provider: LlmProvider) -> dict
     everything established are still there.
     """
     if session.status not in {"summary", "draft"}:
-        raise IntakeError("wrong_step", "сначала конспект")
+        raise IntakeError("wrong_step", "the summary comes first")
 
     messages = _history(session)
     messages.append(
         {
             "role": "user",
             "content": (
-                "Вот утверждённые тезисы: "
+                "Here are the approved theses: "
                 + "; ".join(session.summary)
-                + ". Составь категории и задачи. Даты — в формате ГГГГ-ММ-ДД, "
-                "длительность в рабочих днях."
+                + ". Compose the categories and tasks. Dates in YYYY-MM-DD form, "
+                "durations in working days."
             ),
         }
     )
@@ -249,7 +249,7 @@ def make_draft(db: DbSession, session: AiSession, provider: LlmProvider) -> dict
 def edit_draft(db: DbSession, session: AiSession, draft: dict) -> dict:
     """A person's edit of the draft: nothing has been written into the project."""
     if session.status != "draft":
-        raise IntakeError("wrong_step", "черновика ещё нет")
+        raise IntakeError("wrong_step", "there is no draft yet")
     parsed = parse(Draft, draft)
     session.draft = parsed.model_dump(mode="json")
     db.flush()
@@ -270,9 +270,9 @@ def apply_draft(
     # status is not draft either, and a generic refusal would tell the person
     # something other than what happened.
     if session.applied_batch_id is not None:
-        raise IntakeError("already_applied", "черновик уже применён")
+        raise IntakeError("already_applied", "the draft has already been applied")
     if session.status != "draft":
-        raise IntakeError("wrong_step", "черновика ещё нет")
+        raise IntakeError("wrong_step", "there is no draft yet")
 
     draft = parse(Draft, session.draft)
     project = create_project(db, org_id=session.org_id, name=name)
@@ -337,16 +337,16 @@ def propose_split(
         {
             "role": "system",
             "content": (
-                "Ты помогаешь разбить задачу на части. "
-                f"Язык значений: {locale}. Ключи полей остаются английскими."
+                "You are helping to split a task into parts. "
+                f"The language of the values: {locale}. The field keys stay English."
             ),
         },
         {
             "role": "user",
             "content": (
-                f"Задача «{task.name}» длится {task.duration_days} рабочих дней. "
-                f"Описание: {task.description or '—'}. "
-                "Разбей её на 3–5 частей с поделёнными сроками."
+                f"The task \"{task.name}\" lasts {task.duration_days} working days. "
+                f"Description: {task.description or '—'}. "
+                "Split it into 3-5 parts with the dates divided between them."
             ),
         },
     ]

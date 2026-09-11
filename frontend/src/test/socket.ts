@@ -66,7 +66,7 @@ export class FakeWebSocket {
 /** The last opened socket. There is more than one where there was a reconnection. */
 export function lastSocket(): FakeWebSocket {
   const socket = FakeWebSocket.instances.at(-1);
-  if (!socket) throw new Error("приложение не открыло ни одного сокета");
+  if (!socket) throw new Error("the application opened no socket at all");
   return socket;
 }
 

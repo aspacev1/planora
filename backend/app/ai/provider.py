@@ -101,22 +101,22 @@ class HttpProvider:
             with _opener.open(request, timeout=self._timeout) as response:
                 body = json.loads(response.read())
         except urllib.error.HTTPError as error:
-            raise LlmError("llm_refused", f"модель ответила {error.code}") from error
+            raise LlmError("llm_refused", f"the model answered {error.code}") from error
         except (urllib.error.URLError, OSError) as error:
             raise LlmError("llm_unreachable", str(error)) from error
         except json.JSONDecodeError as error:
-            raise LlmError("llm_bad_json", "ответ не разобрать как JSON") from error
+            raise LlmError("llm_bad_json", "the answer cannot be parsed as JSON") from error
 
         try:
             content = body["choices"][0]["message"]["content"]
             tokens = int(body.get("usage", {}).get("total_tokens", 0))
         except (KeyError, IndexError, TypeError, ValueError) as error:
-            raise LlmError("llm_bad_shape", "в ответе нет ожидаемых полей") from error
+            raise LlmError("llm_bad_shape", "the answer has none of the expected fields") from error
 
         try:
             return json.loads(content), tokens
         except json.JSONDecodeError as error:
-            raise LlmError("llm_bad_json", "модель вернула не JSON") from error
+            raise LlmError("llm_bad_json", "the model returned something other than JSON") from error
 
 
 class RecordedProvider:
@@ -135,7 +135,7 @@ class RecordedProvider:
     def generate(self, messages: list[dict], schema: dict) -> tuple[dict, int]:
         self.calls.append(messages)
         if not self._responses:
-            raise AssertionError("записанные ответы модели кончились")
+            raise AssertionError("the recorded model answers have run out")
         answer = self._responses.pop(0)
         if isinstance(answer, Exception):
             raise answer

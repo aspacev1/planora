@@ -34,7 +34,7 @@ def save_credential(
     existing = db.scalar(select(OrgLlmCredential).where(OrgLlmCredential.org_id == org.id))
     if existing is None:
         if not api_key:
-            raise ValueError("ключ обязателен при первом подключении")
+            raise ValueError("the key is required on the first connection")
         existing = OrgLlmCredential(org_id=org.id, encrypted_key=encrypt(api_key))
         db.add(existing)
 
@@ -60,7 +60,7 @@ def provider_for(db: DbSession, org: Organization) -> LlmProvider:
     """
     row = credential(db, org)
     if row is None:
-        raise LlmError("llm_not_configured", "подключение LLM не настроено")
+        raise LlmError("llm_not_configured", "the LLM connection is not configured")
     try:
         api_key = decrypt(row.encrypted_key)
     except DecryptionError as error:

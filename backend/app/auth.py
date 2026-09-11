@@ -69,7 +69,7 @@ def register(
     """
     normalized = normalize_email(email)
     if db.scalar(select(User).where(User.email == normalized)) is not None:
-        raise ValueError("адрес уже занят")
+        raise ValueError("that address is already taken")
 
     settings = get_settings()
     user = User(
@@ -90,7 +90,7 @@ def register(
             db.add(user)
             db.flush()
     except IntegrityError as exc:
-        raise ValueError("адрес уже занят") from exc
+        raise ValueError("that address is already taken") from exc
 
     if invitation is not None:
         accept_invitation(db, invitation, user=user, now=datetime.now(timezone.utc))
@@ -179,7 +179,7 @@ def change_password(db: DbSession, user: User, *, current: str, new: str) -> Non
     the strength of a session alone. ValueError means a wrong previous password.
     """
     if not verify_password(current, user.password_hash):
-        raise ValueError("прежний пароль не подошёл")
+        raise ValueError("the previous password did not match")
     user.password_hash = hash_password(new)
     db.flush()
 

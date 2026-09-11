@@ -10,16 +10,16 @@
 #          language.
 topics:
   - key: goal
-    prompt: Цель проекта — какой результат считается успехом
+    prompt: The project goal — what result counts as success
   - key: scope
-    prompt: Объём работ — что именно предстоит сделать
+    prompt: The scope of work — what exactly has to be done
   - key: deadline
-    prompt: Сроки и целевая дата
+    prompt: The timeline and the target date
   - key: people
-    prompt: Кто участвует и кто за что отвечает
+    prompt: Who takes part and who is responsible for what
   - key: constraints
-    prompt: Ограничения — бюджет, технологии, согласования, зависимости от других
+    prompt: Constraints — budget, technology, approvals, dependencies on others
   - key: done
-    prompt: Что уже готово или начато
+    prompt: What is already done or started
   - key: out_of_scope
-    prompt: Что в проект точно не входит
+    prompt: What is definitely outside the project

@@ -60,7 +60,7 @@ def test_registration_rejects_a_duplicate_email_regardless_of_case(db):
     register(db, name="Alex", email="alex@example.com", password="s3cret-pass")
     db.flush()
 
-    with pytest.raises(ValueError, match="занят"):
+    with pytest.raises(ValueError, match="already taken"):
         register(db, name="Other", email="ALEX@example.com", password="other-pass")
 
 

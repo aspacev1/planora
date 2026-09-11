@@ -43,4 +43,4 @@ def decrypt(value: str) -> str:
     try:
         return Fernet(_key()).decrypt(value.encode()).decode()
     except InvalidToken as error:
-        raise DecryptionError("значение не расшифровывается текущим APP_SECRET") from error
+        raise DecryptionError("the value does not decrypt with the current APP_SECRET") from error

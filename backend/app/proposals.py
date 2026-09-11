@@ -88,14 +88,14 @@ def require_category(
     # one — by the same principle as tasks in the mutation routes.
     category = db.get(ProposalCategory, category_id)
     if category is None or category.proposal_id != proposal.id:
-        raise ProposalError("proposal_category_not_found", "раздел не найден в этом предложении")
+        raise ProposalError("proposal_category_not_found", "the section was not found in this proposal")
     return category
 
 
 def require_task(db: DbSession, proposal: Proposal | None, task_id: uuid.UUID) -> ProposalTask:
     task = db.get(ProposalTask, task_id)
     if task is None or proposal is None or task.proposal_id != proposal.id:
-        raise ProposalError("proposal_task_not_found", "строка не найдена в этом предложении")
+        raise ProposalError("proposal_task_not_found", "the row was not found in this proposal")
     return task
 
 
@@ -176,7 +176,7 @@ def set_stage(proposal: Proposal, stage: str, *, now: datetime | None = None) ->
         proposal.sent_at = proposal.sent_at or at
         proposal.agreed_at = proposal.agreed_at or at
     else:
-        raise ProposalError("proposal_stage_invalid", f"неизвестный этап {stage!r}")
+        raise ProposalError("proposal_stage_invalid", f"unknown stage {stage!r}")
     proposal.status = stage
 
 
@@ -233,7 +233,7 @@ def convert_unit(db: DbSession, proposal: Proposal, unit: str) -> None:
         rate = rate.quantize(_CENT, rounding=ROUND_HALF_UP)
         if effort > MAX_EFFORT or rate > MAX_RATE:
             raise ProposalError(
-                "proposal_value_out_of_range", "пересчёт не помещается в колонку"
+                "proposal_value_out_of_range", "the recomputed value does not fit the column"
             )
         converted.append((row, effort, rate))
     for row, effort, rate in converted:
@@ -260,7 +260,7 @@ def add_task_comment(
     task = require_task(db, proposal, task_id)
     text = body.strip()
     if not text:
-        raise ProposalError("comment_empty", "пустой комментарий")
+        raise ProposalError("comment_empty", "an empty comment")
     comment = ProposalComment(proposal_task_id=task.id, author_user_id=author.id, body=text)
     db.add(comment)
     db.flush()
@@ -481,13 +481,13 @@ def build_from_plan(db: DbSession, project: Project, proposal: Proposal) -> dict
         .where(ProposalTask.proposal_id == proposal.id)
     )
     if lines:
-        raise ProposalError("proposal_not_empty", "в предложении уже есть строки")
+        raise ProposalError("proposal_not_empty", "the proposal already has rows")
 
     tasks = db.scalars(
         select(Task).where(Task.project_id == project.id).order_by(Task.position, Task.id)
     ).all()
     if not tasks:
-        raise ProposalError("plan_empty", "в плане нет ни одной задачи")
+        raise ProposalError("plan_empty", "the plan has no tasks at all")
 
     by_category: dict[uuid.UUID, list[Task]] = {}
     for task in tasks:
@@ -715,7 +715,7 @@ def push_to_plan(
     proposal = get_proposal(db, project)
     rows = _proposal_rows(db, proposal)
     if not rows:
-        raise ProposalError("proposal_empty", "в предложении нет ни одной строки")
+        raise ProposalError("proposal_empty", "the proposal has no rows at all")
 
     wanted = set(task_ids or ())
     if wanted:
@@ -723,13 +723,13 @@ def push_to_plan(
         if wanted - known:
             # A foreign or nonexistent row is indistinguishable from a missing one
             # — by the same principle as in require_task.
-            raise ProposalError("proposal_task_not_found", "строка не найдена в этом предложении")
+            raise ProposalError("proposal_task_not_found", "the row was not found in this proposal")
         chosen = [row for row in rows if row.id in wanted and row.plan_task_id is None]
     else:
         chosen = [row for row in rows if _pushable(row)]
     if not chosen:
         raise ProposalError(
-            "proposal_nothing_to_push", "все выбранные строки уже в плане или без оценки"
+            "proposal_nothing_to_push", "every selected row is already in the plan or has no estimate"
         )
 
     by_category: dict[uuid.UUID, list[ProposalTask]] = {}

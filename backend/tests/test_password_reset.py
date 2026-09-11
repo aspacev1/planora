@@ -152,7 +152,7 @@ def test_an_undelivered_letter_still_leaves_a_usable_token(db, user, monkeypatch
 
     class Broken:
         def deliver(self, letter):
-            raise mail_module.MailError("почтовый сервер лежит")
+            raise mail_module.MailError("the mail server is down")
 
     monkeypatch.setattr(mail_module, "build_transport", lambda settings: Broken())
 
@@ -220,7 +220,7 @@ def test_the_form_survives_a_dead_mail_server(client, user, monkeypatch):
 
     class Broken:
         def deliver(self, letter):
-            raise mail_module.MailError("почтовый сервер лежит")
+            raise mail_module.MailError("the mail server is down")
 
     monkeypatch.setattr(mail_module, "build_transport", lambda settings: Broken())
 

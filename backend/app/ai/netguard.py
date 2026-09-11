@@ -34,15 +34,15 @@ def ensure_public_https(url: str) -> None:
 
     parsed = urlsplit(url)
     if parsed.scheme != "https":
-        raise LlmError("llm_url_not_https", f"адрес LLM обязан быть https, а не {parsed.scheme!r}")
+        raise LlmError("llm_url_not_https", f"the LLM address must be https, not {parsed.scheme!r}")
     host = parsed.hostname
     if not host:
-        raise LlmError("llm_url_invalid", "в адресе LLM нет хоста")
+        raise LlmError("llm_url_invalid", "the LLM address has no host")
 
     try:
         infos = socket.getaddrinfo(host, parsed.port or 443, proto=socket.IPPROTO_TCP)
     except OSError as error:
-        raise LlmError("llm_unreachable", f"хост {host!r} не резолвится: {error}") from error
+        raise LlmError("llm_unreachable", f"the host {host!r} does not resolve: {error}") from error
 
     for *_, sockaddr in infos:
         address = ipaddress.ip_address(sockaddr[0])
@@ -51,5 +51,5 @@ def ensure_public_https(url: str) -> None:
         if not address.is_global:
             raise LlmError(
                 "llm_url_private",
-                f"хост {host!r} резолвится в непубличный адрес {address}",
+                f"the host {host!r} resolves to the non-public address {address}",
             )

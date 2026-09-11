@@ -523,7 +523,7 @@ def update_project(
         # journal is the history of the plan, not of the settings, but a trace of
         # "who changed what" must remain.
         logger.info(
-            "настройки проекта %s изменил %s: %s",
+            "project %s settings were changed by %s: %s",
             project.id,
             context.user.id,
             ", ".join(sorted(updates)),
@@ -631,7 +631,7 @@ def assign_schedule(
     # The trace goes into the application log, as with a settings edit: this action
     # has no entry in the revision journal.
     logger.info(
-        "дата старта проекта %s назначена %s: %s",
+        "the start date of project %s was set by %s: %s",
         project.id,
         context.user.id,
         plan.start_date.isoformat(),
@@ -671,7 +671,7 @@ def delete_project(
 
     # A trace in the application log — as with a settings edit: this action has no
     # entry in the revision journal and cannot have one.
-    logger.info("проект %s удалил %s", project.id, context.user.id)
+    logger.info("project %s was deleted by %s", project.id, context.user.id)
 
     db.delete(project)
     # Neighbouring tabs learn the project's fate the same way they learn about any

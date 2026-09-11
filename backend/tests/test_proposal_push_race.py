@@ -89,7 +89,7 @@ def test_two_simultaneous_pushes_do_not_double_the_plan(engine):
         rival.start()
         # The rival must stand at the lock until the first transaction is closed.
         rival.join(timeout=0.5)
-        assert rival.is_alive(), "второй перенос не ждал замок проекта"
+        assert rival.is_alive(), "the second push did not wait for the project lock"
 
         first.commit()
         rival.join(timeout=10)

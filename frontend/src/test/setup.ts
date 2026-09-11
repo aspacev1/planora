@@ -42,7 +42,7 @@ afterEach(() => {
 
   const seen = undeclared.splice(0);
   if (seen.length > 0) {
-    throw new Error(`тест не описал запросы: ${seen.join(", ")}`);
+    throw new Error(`the test did not describe these requests: ${seen.join(", ")}`);
   }
 });
 

@@ -29,16 +29,16 @@ def ensure_public_https(url: str) -> None:
     parsed = urlsplit(url)
     if parsed.scheme != "https":
         raise JiraError(
-            "jira_url_not_https", f"адрес Jira обязан быть https, а не {parsed.scheme!r}"
+            "jira_url_not_https", f"the Jira address must be https, not {parsed.scheme!r}"
         )
     host = parsed.hostname
     if not host:
-        raise JiraError("jira_url_invalid", "в адресе Jira нет хоста")
+        raise JiraError("jira_url_invalid", "the Jira address has no host")
 
     try:
         infos = socket.getaddrinfo(host, parsed.port or 443, proto=socket.IPPROTO_TCP)
     except OSError as error:
-        raise JiraError("jira_unreachable", f"хост {host!r} не резолвится: {error}") from error
+        raise JiraError("jira_unreachable", f"the host {host!r} does not resolve: {error}") from error
 
     for *_, sockaddr in infos:
         address = ipaddress.ip_address(sockaddr[0])
@@ -47,5 +47,5 @@ def ensure_public_https(url: str) -> None:
         if not address.is_global:
             raise JiraError(
                 "jira_url_private",
-                f"хост {host!r} резолвится в непубличный адрес {address}",
+                f"the host {host!r} resolves to the non-public address {address}",
             )

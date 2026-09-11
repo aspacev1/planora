@@ -22,7 +22,7 @@ import type { ShiftRequest } from "./baseline";
 /** The person's refusal to explain a shift. Not an error: the gesture simply did not happen. */
 export class ShiftCancelled extends Error {
   constructor() {
-    super("сдвиг отменён: причина не введена");
+    super("the shift was cancelled: no reason was entered");
     this.name = "ShiftCancelled";
   }
 }

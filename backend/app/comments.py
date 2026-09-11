@@ -35,16 +35,16 @@ class CommentRejected(Exception):
 def _clean_body(raw: str) -> str:
     body = raw.strip()
     if not body:
-        raise CommentRejected("comment_empty", "пустой комментарий")
+        raise CommentRejected("comment_empty", "an empty comment")
     if len(body) > get_settings().max_text_len:
-        raise CommentRejected("comment_too_long", "комментарий длиннее допустимого")
+        raise CommentRejected("comment_too_long", "the comment is longer than allowed")
     return body
 
 
 def _clean_guest_name(raw: str) -> str:
     name = raw.strip()
     if not name:
-        raise CommentRejected("guest_name_required", "гость не назвал имени")
+        raise CommentRejected("guest_name_required", "the guest gave no name")
     return name[:MAX_GUEST_NAME_LEN]
 
 
@@ -56,7 +56,7 @@ def _resolve_task(db: DbSession, project: Project, task_id: uuid.UUID | None) ->
     # one — by the same principle as in the routes: otherwise a comment becomes
     # a way of checking whether a task exists in another organization.
     if task is None or task.project_id != project.id:
-        raise CommentRejected("task_not_found", "задача не найдена в этом проекте")
+        raise CommentRejected("task_not_found", "the task was not found in this project")
     return task.id
 
 
@@ -81,9 +81,9 @@ def add_comment(
     calling code: the public route does not accept the flag at all.
     """
     if (author is None) == (guest_name is None):
-        raise ValueError("у комментария должен быть ровно один автор: участник или гость")
+        raise ValueError("a comment must have exactly one author: a member or a guest")
     if internal and author is None:
-        raise ValueError("внутренняя реплика не может быть гостевой")
+        raise ValueError("an internal reply cannot be a guest one")
 
     comment = Comment(
         project_id=project.id,
@@ -139,7 +139,7 @@ def list_comments(
     if before is not None:
         anchor = db.get(Comment, before)
         if anchor is None or anchor.project_id != project.id:
-            raise CommentRejected("comment_not_found", "курсор не найден в этом проекте")
+            raise CommentRejected("comment_not_found", "the cursor was not found in this project")
         query = query.where(
             tuple_(Comment.created_at, Comment.id) < tuple_(anchor.created_at, anchor.id)
         )

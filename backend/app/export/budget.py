@@ -190,7 +190,7 @@ def resolve_window(period: Period, whole: Window, today: date, *, dated: bool) -
     if period in DATED_PERIODS and not dated:
         raise ExportError(
             "export_period_undated",
-            f"период {period} требует дат, а план проекта относительный",
+            f"the {period} period needs dates, but the project plan is relative",
         )
 
     if period is Period.ALL:
@@ -236,7 +236,7 @@ def require_within_budget(window: Window, zoom: Zoom, orientation: Orientation) 
         pages = page_count(window.days, zoom, orientation)
         raise ExportError(
             "export_scale_too_wide",
-            f"масштаб {zoom} на окне в {window.days} дн. даёт {pages} страниц ленты",
+            f"the {zoom} scale over a window of {window.days} d. gives {pages} timeline pages",
         )
 
 
@@ -245,5 +245,5 @@ def require_within_xlsx_budget(window: Window, zoom: Zoom) -> None:
     if columns > MAX_XLSX_COLUMNS:
         raise ExportError(
             "export_scale_too_wide",
-            f"масштаб {zoom} на окне в {window.days} дн. даёт {columns} колонок",
+            f"the {zoom} scale over a window of {window.days} d. gives {columns} columns",
         )

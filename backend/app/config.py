@@ -148,11 +148,11 @@ class Settings(BaseSettings):
         """
         if value == "change-me-to-a-long-random-string":
             raise ValueError(
-                "APP_SECRET остался значением из .env.example — задай свой: "
+                "APP_SECRET is still the value from .env.example — set your own: "
                 "openssl rand -hex 32"
             )
         if len(value) < 16:
-            raise ValueError("APP_SECRET короче 16 символов — задай длиннее: openssl rand -hex 32")
+            raise ValueError("APP_SECRET is shorter than 16 characters — set a longer one: openssl rand -hex 32")
         return value
 
     @field_validator("director_email")
@@ -169,11 +169,11 @@ class Settings(BaseSettings):
         stripped = value.strip()
         if not stripped:
             raise ValueError(
-                "DIRECTOR_EMAIL не задан — без него роль директора не достаётся никому."
+                "DIRECTOR_EMAIL is not set — without it nobody gets the director role."
             )
         if stripped == "change-me-to-your-email@example.com":
             raise ValueError(
-                "DIRECTOR_EMAIL остался значением из .env.example — задай свой адрес."
+                "DIRECTOR_EMAIL is still the value from .env.example — set your own address."
             )
         return stripped
 
@@ -212,7 +212,7 @@ class Settings(BaseSettings):
         transport requires.
         """
         if value not in SIGNUP_MODES:
-            raise ValueError(f"допустимые значения: {', '.join(SIGNUP_MODES)}")
+            raise ValueError(f"allowed values: {', '.join(SIGNUP_MODES)}")
         return value
 
     @model_validator(mode="after")
@@ -257,7 +257,7 @@ class Settings(BaseSettings):
         """
         if self.mail_transport not in MAIL_TRANSPORTS:
             raise ValueError(
-                f"MAIL_TRANSPORT={self.mail_transport!r}: допустимы "
+                f"MAIL_TRANSPORT={self.mail_transport!r}: allowed are "
                 f"{', '.join(MAIL_TRANSPORTS)}"
             )
 
@@ -268,7 +268,7 @@ class Settings(BaseSettings):
         ]
         if missing:
             raise ValueError(
-                f"MAIL_TRANSPORT={self.mail_transport}, но не задано: {', '.join(missing)}"
+                f"MAIL_TRANSPORT={self.mail_transport}, but these are not set: {', '.join(missing)}"
             )
         return self
 
