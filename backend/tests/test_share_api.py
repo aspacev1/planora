@@ -9,8 +9,8 @@ from app.main import app
 
 @pytest.fixture
 def client(db):
-    """Тот же паттерн, что в tests/test_project_api.py: get_db отдаёт сессию
-    фикстуры `db` и не делает commit."""
+    """The same pattern as in tests/test_project_api.py: get_db returns the `db`
+    fixture's session and does not commit."""
 
     def _override_get_db():
         yield db
@@ -61,9 +61,9 @@ def test_an_unpublished_project_says_so_without_pretending_it_is_forbidden(authe
     body = authed.get(f"/api/projects/{project_id}/share").json()
 
     assert body["url"] is None
-    # Интерфейс обязан отличать «ещё не опубликован» от «публикация
-    # запрещена установкой»: иначе кнопка обещает действие, которое
-    # кончится отказом.
+    # The interface must distinguish "not published yet" from "publishing is
+    # forbidden by the installation": otherwise the button promises an action that
+    # will end in a refusal.
     assert body["allowed"] is True
     assert body["comments_enabled"] is True
 
@@ -79,8 +79,8 @@ def test_publishing_returns_a_readable_address(authed, project_id, monkeypatch):
 
 
 def test_reissuing_changes_the_address_and_kills_the_old_one(authed, project_id):
-    # Перевыпуск — отдельный маршрут (волна 4.6): повтор POST /share больше
-    # не убивает разосланный адрес, а отвечает 409.
+    # Reissuing is a separate route (wave 4.6): a repeated POST /share no longer
+    # kills the distributed address but answers 409.
     first = authed.post(f"/api/projects/{project_id}/share").json()["url"]
     second = authed.post(f"/api/projects/{project_id}/share/rotate").json()["url"]
 
@@ -106,8 +106,8 @@ def test_comments_are_switched_without_reissuing_the_link(authed, project_id):
 
     assert patched.status_code == 200
     assert patched.json()["comments_enabled"] is False
-    # Адрес прежний: выключить комментарии и перевыпустить ссылку — разные
-    # действия, и первое не должно ломать уже разосланный адрес.
+    # The address is unchanged: turning comments off and reissuing the link are
+    # different actions, and the first must not break an address already distributed.
     assert patched.json()["url"] == url
     assert authed.get(_public_path(url)).json()["comments_enabled"] is False
 
@@ -150,10 +150,10 @@ def test_the_share_route_hides_a_foreign_project(authed, db):
 
 
 def _public_path(url: str) -> str:
-    """Адрес публичной страницы в виде, пригодном для TestClient.
+    """The public page's address in a form usable by TestClient.
 
-    Ссылка собирается из PUBLIC_BASE_URL, то есть с доменом, которого в тесте
-    не существует; сервер же знает её как путь API.
+    The link is assembled from PUBLIC_BASE_URL, that is, with a domain that does not
+    exist in the test; the server, meanwhile, knows it as an API path.
     """
     path, _, query = url.partition("?")
     slugs = path.split("/p/", 1)[1]

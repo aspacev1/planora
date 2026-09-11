@@ -1,8 +1,8 @@
-"""Слаги при вставке: длина колонки и живучесть транзакции (волна 1.3).
+"""Slugs on insert: the column's length and the transaction's survival (wave 1.3).
 
-Уникальность через SAVEPOINT покрыта тестами API; здесь — то, что раньше
-кончалось пятисоткой: слаг длиннее колонки и DataError, оставлявший всю
-транзакцию сессии прерванной.
+Uniqueness through a SAVEPOINT is covered by the API tests; here is what used to end
+in a 500: a slug longer than the column, and a DataError that left the session's
+whole transaction aborted.
 """
 
 import pytest
@@ -29,17 +29,17 @@ def test_insert_with_a_long_name_fits_the_column(db):
 
 
 def test_the_uniqueness_suffix_never_pushes_the_slug_past_the_column(db):
-    long_name = "redizayn " * 20  # база упрётся в потолок ещё до суффикса
+    long_name = "redizayn " * 20  # the base hits the ceiling before the suffix
 
     org = insert_with_unique_slug(
         db,
         lambda slug: Organization(name=long_name, slug=slug),
         name=long_name,
-        is_taken=lambda _slug: True,  # первая попытка «занята» → пришивается суффикс
+        is_taken=lambda _slug: True,  # the first attempt is "taken" -> a suffix is attached
         fallback="org",
     )
     assert len(org.slug) <= SLUG_MAX_LEN
-    # Суффикс — гарантия уникальности, урезается база, а не он.
+    # The suffix is the guarantee of uniqueness; the base is trimmed, not it.
     assert org.slug[-7] == "-"
 
 
@@ -51,25 +51,25 @@ def test_suggested_slugs_fit_the_column_too():
 
 
 def test_a_data_error_rolls_back_to_the_savepoint_and_surfaces(db):
-    """DataError по чужому полю не превращается в прерванную транзакцию.
+    """A DataError on another field does not turn into an aborted transaction.
 
-    Слаг обрезан, но у сущности есть и другие строковые колонки. До
-    исправления DataError вылетал из insert_with_unique_slug без отката до
-    SAVEPOINT, и любое следующее обращение сессии отвечало InFailedSqlTransaction
-    — то есть одна ошибка формы валила весь запрос целиком.
+    The slug is truncated, but the entity has other string columns too. Before the
+    fix, a DataError escaped insert_with_unique_slug without a rollback to the
+    SAVEPOINT, and any subsequent use of the session answered InFailedSqlTransaction
+    — that is, one form error brought the whole request down.
     """
     with pytest.raises(DataError):
         insert_with_unique_slug(
             db,
-            # name длиннее varchar(200) — усечение, ловить которое должен
-            # тот же SAVEPOINT, что и коллизию слага.
+            # a name longer than varchar(200) — a truncation, which the same SAVEPOINT
+            # that catches a slug collision must catch.
             lambda slug: Organization(name="x" * 300, slug=slug),
             name="Acme",
             is_taken=_taken_none,
             fallback="org",
         )
 
-    # Сессия жива: SAVEPOINT откатился, транзакция не прервана.
+    # The session is alive: the SAVEPOINT rolled back and the transaction is not aborted.
     survivor = insert_with_unique_slug(
         db,
         lambda slug: Organization(name="Acme", slug=slug),

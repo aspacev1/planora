@@ -7,11 +7,11 @@ from app.main import app
 
 @pytest.fixture
 def client(db):
-    """TestClient, у которого get_db переопределён на сессию фикстуры `db`.
+    """A TestClient whose get_db is overridden with the `db` fixture's session.
 
-    Тот же паттерн, что и в tests/test_project_api.py: переопределение отдаёт
-    ровно ту же сессию и не делает commit, иначе внешняя транзакция фикстуры
-    закрылась бы раньше времени.
+    The same pattern as in tests/test_project_api.py: the override returns exactly
+    the same session and does not commit, otherwise the fixture's outer transaction
+    would close ahead of time.
     """
 
     def _override_get_db():
@@ -73,9 +73,9 @@ def test_posting_a_comment_returns_it_signed_by_its_author(authed, project_id):
 
 
 def test_the_task_thread_is_narrower_than_the_project_thread(authed, project_id):
-    """Карточка задачи показывает разговор о ней. Лента проекта — весь его
-    разговор, включая реплики к строкам: второе место, куда надо заглянуть,
-    чтобы не пропустить сказанное, здесь заводить не за чем."""
+    """A task card shows the conversation about it. The project's feed shows the
+    project's whole conversation, remarks on rows included: there is no reason to
+    introduce a second place one has to look into so as not to miss what was said."""
     task_id = _task_id(authed, project_id)
     authed.post(f"/api/projects/{project_id}/comments", json={"body": "о проекте"})
     authed.post(
@@ -109,8 +109,8 @@ def test_comment_on_a_task_of_another_project_is_not_found(authed, project_id):
 
 
 def test_comments_of_another_organization_are_not_reachable(authed, db):
-    """Чужой проект неотличим от несуществующего — тем же принципом, что и в
-    остальных маршрутах проекта."""
+    """Someone else's project is indistinguishable from a nonexistent one — by the
+    same principle as in the project's other routes."""
     from app.models import Organization, Project
 
     other_org = Organization(name="Globex", slug="globex")
@@ -127,7 +127,7 @@ def test_comments_of_another_organization_are_not_reachable(authed, db):
 
 
 def test_comments_require_a_session(authed, project_id):
-    """Гостя по публичной ссылке ещё нет: без сессии лента закрыта."""
+    """There is no public-link guest yet: without a session the feed is closed."""
     anonymous = TestClient(app)
 
     assert anonymous.get(f"/api/projects/{project_id}/comments").status_code == 401
@@ -138,8 +138,8 @@ def test_comments_require_a_session(authed, project_id):
 
 
 def test_a_viewer_may_comment_without_the_right_to_change_the_plan(authed, project_id, db):
-    """Матрица прав уже говорит, что viewer комментирует, не имея права
-    писать в план. Маршрут обязан спрашивать её, а не список ролей у себя."""
+    """The permission matrix already says a viewer comments without the right to
+    write into the plan. The route must ask it rather than keep a list of roles of its own."""
     from sqlalchemy import select
 
     from app.models import Membership
@@ -152,8 +152,8 @@ def test_a_viewer_may_comment_without_the_right_to_change_the_plan(authed, proje
         authed.post(f"/api/projects/{project_id}/comments", json={"body": "вопрос"}).status_code
         == 201
     )
-    # Тот же человек по той же матрице план менять не может — иначе тест выше
-    # проходил бы и на маршруте, который прав вообще не спрашивает.
+    # The same person cannot change the plan by that same matrix — otherwise the test
+    # above would pass on a route that asks about permissions at all.
     assert (
         authed.post(
             f"/api/projects/{project_id}/mutations",

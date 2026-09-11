@@ -1,4 +1,4 @@
-"""Чистые функции app/jira/mapping.py — без сети и без базы."""
+"""The pure functions of app/jira/mapping.py — with no network and no database."""
 
 from app.calendar import Calendar
 from app.jira.mapping import (
@@ -14,8 +14,8 @@ from app.jira.mapping import (
     task_name,
 )
 
-# Пн-Пт, без праздников — тот же календарь, что берётся по умолчанию у
-# организации без переопределений.
+# Mon-Fri, no holidays — the same calendar taken by default for an organization
+# with no overrides.
 _CAL = Calendar(working_days=0b0011111, holidays=frozenset(), extra_workdays=frozenset())
 
 
@@ -38,11 +38,11 @@ def test_статус_по_названию_и_категории():
     assert issue_status("To Do", "new") == ("planned", 0)
     assert issue_status("In Progress", "indeterminate") == ("in_progress", 50)
     assert issue_status("Done", "done") == ("done", 100)
-    # Название решает раньше категории: Jira держит «заблокировано» текстом,
-    # не полем.
+    # The name decides before the category: Jira holds "blocked" in text, not in a
+    # field.
     assert issue_status("Blocked", "indeterminate") == ("blocked", 0)
     assert issue_status("On Hold", "new") == ("blocked", 0)
-    # Незнакомая категория — planned, а не авария.
+    # An unknown category means planned rather than a crash.
     assert issue_status("Custom", "") == ("planned", 0)
 
 
@@ -114,8 +114,8 @@ def test_расписание_обычной_задачи_по_датам_jira()
     )
     start, duration, milestone = issue_schedule(issue, _CAL)
     assert milestone is False
-    assert start.isoformat() == "2026-03-02"  # понедельник, уже рабочий день
-    assert duration == 5  # Пн..Пт включительно
+    assert start.isoformat() == "2026-03-02"  # Monday, already a working day
+    assert duration == 5  # Mon..Fri inclusive
 
 
 def test_расписание_без_срока_один_день():
@@ -133,7 +133,7 @@ def test_расписание_срок_раньше_старта_не_даёт_�
 
 
 def test_расписание_старт_выравнивается_на_рабочий_день():
-    # Суббота — нерабочий день, старт съезжает на понедельник.
+    # Saturday is a non-working day, so the start slides to Monday.
     issue = _issue(issuetype={"name": "Task"}, created="2026-02-28T10:00:00.000+0400", duedate=None)
     start, _, _ = issue_schedule(issue, _CAL)
     assert start.isoformat() == "2026-03-02"

@@ -1,10 +1,10 @@
-"""Контракт API зафиксирован снимком `app.openapi()` в backend/openapi.json.
+"""The API contract is pinned by a snapshot of `app.openapi()` in backend/openapi.json.
 
-Любая правка маршрутов, параметров или схем меняет снимок, и тест требует
-сделать это осознанно: обновить файл и перегенерировать фронтовые типы
-(frontend/src/api/schema.d.ts строится из этого же снимка, `npm run gen:api`).
-Так дрейф контракта перестаёт быть молчаливым: он виден в диффе PR и ломает
-CI, если фронт не узнал об изменении.
+Any edit to routes, parameters or schemas changes the snapshot, and the test
+demands that it be done deliberately: update the file and regenerate the frontend
+types (frontend/src/api/schema.d.ts is built from this same snapshot,
+`npm run gen:api`). That way contract drift stops being silent: it is visible in a
+PR's diff and breaks CI if the frontend has not learned about the change.
 """
 
 import json
@@ -24,8 +24,9 @@ HOW_TO_UPDATE = (
 
 
 def _render(schema: dict) -> str:
-    # sort_keys — чтобы дифф снимка не зависел от порядка регистрации
-    # маршрутов; ensure_ascii=False — русские описания читаемы в диффе.
+    # sort_keys — so that the snapshot's diff does not depend on the order routes
+    # were registered in; ensure_ascii=False — non-ASCII descriptions stay readable
+    # in a diff.
     return json.dumps(schema, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 

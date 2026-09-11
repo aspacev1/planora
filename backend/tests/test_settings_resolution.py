@@ -65,10 +65,10 @@ def test_calendar_layers_org_holidays_then_project_extras():
 
     cal = project_calendar(project, org)
 
-    assert cal.is_working(date(2026, 3, 20)) is False  # праздник организации
-    assert cal.is_working(date(2026, 3, 21)) is False  # доп. выходной проекта
-    assert cal.is_working(date(2026, 3, 7)) is True    # рабочая суббота проекта
-    assert cal.is_working(date(2026, 3, 19)) is True   # обычный четверг
+    assert cal.is_working(date(2026, 3, 20)) is False  # the organization's holiday
+    assert cal.is_working(date(2026, 3, 21)) is False  # the project's extra day off
+    assert cal.is_working(date(2026, 3, 7)) is True    # the project's working Saturday
+    assert cal.is_working(date(2026, 3, 19)) is True   # an ordinary Thursday
 
 
 def test_timezone_is_inherited_unless_the_project_names_its_own():
@@ -79,11 +79,11 @@ def test_timezone_is_inherited_unless_the_project_names_its_own():
 
 
 def test_a_working_days_mask_of_zero_is_a_value_and_not_inheritance():
-    """Ноль — «рабочих дней недели нет вовсе», а не «не задано».
+    """Zero means "there are no working weekdays at all" rather than "not set".
 
-    Проверка на истинность вместо `is not None` тихо превратила бы это в
-    наследование, и проект, где всю неделю выходные, получил бы будни
-    организации.
+    A truthiness check instead of `is not None` would silently turn this into
+    inheritance, and a project where the whole week is off would get the
+    organization's weekdays.
     """
     org = _org(working_days=WEEKDAYS_MON_FRI)
     project = _project(working_days=0)
@@ -93,15 +93,15 @@ def test_a_working_days_mask_of_zero_is_a_value_and_not_inheritance():
 
 
 def test_a_shift_threshold_of_zero_is_a_value_and_not_inheritance():
-    # Порог 0 — «спрашивать про любой сдвиг», содержательная настройка.
+    # A threshold of 0 means "ask about any shift", a meaningful setting.
     org = _org(default_shift_threshold_days=5)
 
     assert resolve_shift_threshold(_project(shift_threshold_days=0), org) == 0
 
 
 def test_a_project_workday_wins_over_an_organization_holiday():
-    """Порядок наложения зафиксирован: маска недели, праздники её урезают,
-    явные рабочие дни проекта возвращают конкретную дату обратно."""
+    """The order of application is pinned: the week mask, holidays trim it, and the
+    project's explicit working days bring a particular date back."""
     org = _org(holiday_calendar=["2026-03-20"])
     project = _project(workdays_extra=["2026-03-20"])
 
@@ -109,8 +109,8 @@ def test_a_project_workday_wins_over_an_organization_holiday():
 
 
 def test_a_malformed_date_in_the_stored_calendar_is_skipped_not_fatal():
-    # Список приходит из базы: одна испорченная строка не должна делать
-    # проект нечитаемым навсегда.
+    # The list comes from the database: one corrupted entry must not make a project
+    # unreadable forever.
     org = _org(holiday_calendar=["2026-03-20", "не дата", None])
     project = _project(holidays_extra=["", "2026-03-21"])
 

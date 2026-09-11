@@ -6,13 +6,13 @@ def test_email_is_trimmed_and_lowercased():
 
 
 def test_email_normalization_is_stable_for_dotted_capital_i():
-    # Азербайджанская İ не должна давать разный результат при повторном прогоне
+    # The Azerbaijani İ must not give a different result on a repeated run
     once = normalize_email("İSTANBUL@example.com")
     assert normalize_email(once) == once
 
 
 def test_dotless_and_dotted_i_do_not_collapse_into_the_same_email():
-    # разные буквы — разные адреса, молчаливого слияния аккаунтов быть не должно
+    # different letters mean different addresses; there must be no silent merging of accounts
     assert normalize_email("Ismail@x.com") != normalize_email("İsmail@x.com")
 
 
@@ -39,10 +39,10 @@ def test_slug_falls_back_when_nothing_survives():
 
 
 def test_slugify_fits_the_slug_column():
-    """Волна 1.3: транслитерация удлиняет текст, slugify обрезает до колонки.
+    """Wave 1.3: transliteration lengthens text, slugify truncates to the column.
 
-    «щ» разворачивается в «sch» — сто «щ» дали бы триста символов, которые
-    база встречала DataError-пятисоткой на усечении varchar(100).
+    "щ" unfolds into "sch" — a hundred of them would give three hundred characters,
+    which the database met with a DataError 500 on truncating a varchar(100).
     """
     from app.text import SLUG_MAX_LEN
 

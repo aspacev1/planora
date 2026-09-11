@@ -1,4 +1,4 @@
-"""Маршруты утверждения плана и отказ «нужна причина» по проводу."""
+"""The plan approval routes and the "a reason is required" refusal over the wire."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -78,8 +78,8 @@ def test_approval_shows_up_in_the_project_state(authed, project_with_task):
     task = state["tasks"][0]
     assert task["baseline_start"] == "2026-03-02"
     assert task["baseline_duration"] == 5
-    # Конец базового плана считает сервер по календарю проекта: пн + 5 рабочих
-    # дней это пятница.
+    # The baseline plan's end is computed by the server against the project's
+    # calendar: Monday + 5 working days is Friday.
     assert task["baseline_end"] == "2026-03-06"
     assert task["id"] == task_id
 
@@ -103,8 +103,8 @@ def test_a_task_added_after_approval_comes_without_a_baseline(authed, project_wi
 
     state = authed.get(f"/api/projects/{project_id}").json()
     extra = next(task for task in state["tasks"] if task["name"] == "Сверх плана")
-    # Пустые baseline_* при утверждённом плане и есть признак «сверх
-    # первоначального плана»: по нему интерфейс ставит пометку.
+    # Empty baseline_* under an approved plan is itself the "beyond the original
+    # plan" flag: the interface puts its mark by it.
     assert extra["baseline_start"] is None
     assert extra["baseline_end"] is None
 
@@ -149,10 +149,11 @@ def test_the_same_shift_with_a_reason_goes_through_and_the_reason_lands_in_histo
 
 
 def test_an_empty_reason_does_not_count_as_an_explanation(authed, project_with_task):
-    """Пустая строка — не причина.
+    """An empty string is not a reason.
 
-    Клиент держит кнопку «Сохранить» неактивной при пустом поле, но опираться
-    на это нельзя: правило живёт на сервере, иначе оно обходится curl-ом.
+    The client keeps the "Save" button inactive while the field is empty, but relying
+    on that will not do: the rule lives on the server, otherwise it is bypassed with
+    curl.
     """
     project_id, _, task_id = project_with_task
     authed.post(f"/api/projects/{project_id}/plan/approvals")
@@ -173,8 +174,8 @@ def test_an_editor_may_approve_but_not_reapprove(authed, db, project_with_task):
     _set_role(authed, db, "editor")
 
     assert authed.post(f"/api/projects/{project_id}/plan/approvals").status_code == 201
-    # Переутверждение стирает базовый план, от которого считаются объяснённые
-    # сдвиги: спецификация оставляет это владельцу.
+    # Re-approval erases the baseline plan that explained shifts are counted from:
+    # the specification leaves this to the owner.
     assert authed.post(f"/api/projects/{project_id}/plan/approvals").status_code == 403
 
 
