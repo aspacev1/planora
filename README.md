@@ -24,6 +24,7 @@
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
   <img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
   <img alt="Vercel" src="https://img.shields.io/badge/Vercel-ready-000000?logo=vercel&logoColor=white">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
 
 <p align="center">
@@ -35,7 +36,8 @@
   <a href="#deployment">Deployment</a> ·
   <a href="#api">API</a> ·
   <a href="#development">Development</a> ·
-  <a href="#documentation">Documentation</a>
+  <a href="#documentation">Documentation</a> ·
+  <a href="#license">License</a>
 </p>
 
 <br>
@@ -520,3 +522,11 @@ Planora is in active development and runs in production for its authoring organi
 The default interface locale is Azerbaijani with full English and Russian translations. Code
 comments explain the *why* behind non-obvious decisions and are written mostly in Russian;
 the architecture documents above are the English entry point.
+
+---
+
+## License
+
+Planora is free and open-source software released under the [MIT License](LICENSE).
+You may use, modify, self-host, and redistribute it, commercially or otherwise, provided
+the copyright and license notice is retained.
