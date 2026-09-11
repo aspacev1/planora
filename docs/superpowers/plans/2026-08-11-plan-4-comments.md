@@ -1,4 +1,4 @@
-# План 4: комментарии — план реализации
+# Plan 4: comments — implementation plan
 
 > **Historical.** This is one of the original build plans this codebase
 > was built from — every step below has since shipped. It reflects the plan
@@ -9,53 +9,53 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Дать проекту и задаче обсуждение: участник пишет реплику, все, кто видит проект, её читают.
+**Goal:** Give a project and a task a discussion: a member writes a reply, and everyone who sees the project reads it.
 
-**Architecture:** Комментарий — не операция. Он не меняет план, не отменяется и не попадает в журнал ревизий: собственный ресурс со своими маршрутами (`GET`/`POST /api/projects/{id}/comments`) и собственной таблицей. Право писать спрашивается у той же матрицы (`Action.COMMENT`), что уже описывает роли, — второго списка ролей не заводится. Модель сразу несёт поля гостя (`guest_name` вместо `author_user_id`), потому что таблица переживёт появление публичных ссылок, а миграция ради одной колонки потом — лишняя работа.
+**Architecture:** A comment is not an operation. It does not change the plan, is not undone and does not reach the revision journal: it is a resource of its own with its own routes (`GET`/`POST /api/projects/{id}/comments`) and its own table. The right to write is asked of the same matrix (`Action.COMMENT`) that already describes the roles — no second list of roles is created. The model carries the guest fields (`guest_name` instead of `author_user_id`) straight away, because the table will outlive the arrival of public links, and a migration for one column later is extra work.
 
-**Tech Stack:** Как в планах 0–3. Никаких новых зависимостей.
+**Tech Stack:** As in plans 0–3. No new dependencies.
 
 ## Global Constraints
 
-- Комментарии не проходят через `apply_op` и не создают ревизий. Отмены у них нет.
-- Право читать проект — `Action.PROJECT_READ`, право писать реплику — `Action.COMMENT`. Роль спрашивается у `app.access`, а не сравнивается со строкой.
-- Тело комментария — содержимое пользователя: хранится как введено и не переводится никогда.
-- Отказы сервера — машинный код в `detail`, без прозы. Клиент переводит код словарём.
-- Языки: `az` по умолчанию, `en`, `ru`. Ключ обязан появиться во всех трёх словарях — иначе падает тест полноты словарей.
-- Свой CSS с переменными и тёмной темой, `prefers-reduced-motion` уважается.
-- Гость по публичной ссылке в этот план не входит: модели `ShareLink` в схеме нет, а без неё гостя нечем опознать. Таблица к нему готова (`author_user_id` и `guest_name` — nullable), маршрут — нет. `GUEST_COMMENT_RATE_LIMIT` останется неиспользованным до плана публичных ссылок; вводить ограничитель раньше пути, который он ограничивает, значит писать код без вызывающего.
+- Comments do not go through `apply_op` and do not create revisions. They have no undo.
+- The right to read a project is `Action.PROJECT_READ`, the right to write a reply is `Action.COMMENT`. The role is asked of `app.access` rather than compared against a string.
+- A comment's body is the user's content: it is stored as entered and never translated.
+- Server refusals are a machine code in `detail`, with no prose. The client translates the code by dictionary.
+- Languages: `az` by default, `en`, `ru`. A key must appear in all three dictionaries — otherwise the dictionary completeness test fails.
+- Our own CSS with variables and a dark theme, `prefers-reduced-motion` is respected.
+- A guest by public link is not part of this plan: there is no `ShareLink` model in the schema, and without it there is nothing to identify a guest by. The table is ready for them (`author_user_id` and `guest_name` are nullable), the route is not. `GUEST_COMMENT_RATE_LIMIT` will stay unused until the public links plan; introducing a limiter before the path it limits means writing code with no caller.
 
-## Файлы
+## The files
 
-| Файл | Ответственность |
+| File | Responsibility |
 |---|---|
-| `backend/app/models.py` | Таблица `comments` с ограничением «ровно один автор» |
-| `backend/migrations/versions/*_comments.py` | Миграция схемы |
-| `backend/app/comments.py` | Домен: добавить реплику, прочитать ветку. Знает про пустое тело и чужую задачу |
-| `backend/app/api/project_routes.py` | Два маршрута ресурса — рядом с ревизиями и мутациями, на тех же помощниках доступа |
-| `frontend/src/api/comments.ts` | Типы провода и два вызова |
-| `frontend/src/task/Comments.tsx` | Ветка обсуждения на карточке задачи |
-| `frontend/src/task/panel.css` | Оформление ветки |
-| `frontend/src/i18n/{az,en,ru}.json` | Подписи и объяснение отказа |
-| `frontend/src/api/errors.ts` | Новый код отказа в списке переводимых |
+| `backend/app/models.py` | The `comments` table with an "exactly one author" constraint |
+| `backend/migrations/versions/*_comments.py` | The schema migration |
+| `backend/app/comments.py` | The domain: add a reply, read a thread. Knows about an empty body and a foreign task |
+| `backend/app/api/project_routes.py` | The resource's two routes — next to the revisions and the mutations, on the same access helpers |
+| `frontend/src/api/comments.ts` | The wire types and the two calls |
+| `frontend/src/task/Comments.tsx` | The discussion thread on a task's card |
+| `frontend/src/task/panel.css` | The thread's styling |
+| `frontend/src/i18n/{az,en,ru}.json` | The captions and the refusal's explanation |
+| `frontend/src/api/errors.ts` | A new refusal code in the list of translatable ones |
 
 ---
 
-### Task 1: Таблица комментариев
+### Task 1: The comments table
 
 **Files:**
 - Modify: `backend/app/models.py`
-- Create: `backend/migrations/versions/<hash>_comments.py` (генерируется alembic)
+- Create: `backend/migrations/versions/<hash>_comments.py` (generated by alembic)
 - Test: `backend/tests/test_models.py`
 
 **Interfaces:**
-- Produces: `Comment` с полями `id`, `project_id`, `task_id`, `author_user_id`, `guest_name`, `body`, `created_at`.
+- Produces: `Comment` with the fields `id`, `project_id`, `task_id`, `author_user_id`, `guest_name`, `body`, `created_at`.
 
-Автор бывает двух видов и ровно одного за раз: участник с аккаунтом (`author_user_id`) или гость по имени (`guest_name`). Обе колонки nullable, поэтому «ровно один» — это CHECK в базе, а не договорённость в коде: пишущих в таблицу будет больше одного (маршрут участника сегодня, маршрут гостя после публичных ссылок), и договорённость они однажды прочтут по-разному.
+An author comes in two kinds and exactly one at a time: a member with an account (`author_user_id`) or a guest by name (`guest_name`). Both columns are nullable, so "exactly one" is a CHECK in the database rather than an agreement in the code: there will be more than one writer into the table (the member's route today, the guest's route after public links), and they will one day read an agreement differently.
 
-- [x] **Step 1: Написать падающий тест**
+- [x] **Step 1: Write the failing test**
 
-В `backend/tests/test_models.py`, в конец файла:
+In `backend/tests/test_models.py`, at the end of the file:
 
 ```python
 def test_comment_has_exactly_one_kind_of_author(db):
@@ -113,19 +113,19 @@ def test_comment_without_a_task_belongs_to_the_project(db):
     assert comment.created_at is not None
 ```
 
-Импорт в шапке файла дополнить: `Comment` в списке из `app.models`.
+Extend the import at the top of the file: `Comment` in the list from `app.models`.
 
-- [x] **Step 2: Убедиться, что тест падает**
+- [x] **Step 2: Make sure the test fails**
 
 ```bash
 cd backend && uv run pytest tests/test_models.py -q
 ```
 
-Ожидается: `ImportError: cannot import name 'Comment' from 'app.models'`.
+Expected: `ImportError: cannot import name 'Comment' from 'app.models'`.
 
-- [x] **Step 3: Добавить модель**
+- [x] **Step 3: Add the model**
 
-В `backend/app/models.py`, после `Revision`:
+In `backend/app/models.py`, after `Revision`:
 
 ```python
 class Comment(Base):
@@ -164,37 +164,37 @@ class Comment(Base):
     )
 ```
 
-> Правка по ходу исполнения: сначала здесь стоял `func.now()`, как у остальных
-> таблиц. Тест порядка ленты (Task 2) его и поймал — три реплики одной
-> транзакции получили одинаковую отметку и легли в порядке случайных UUID.
+> An edit made during execution: `func.now()` stood here at first, as in the
+> other tables. The feed-order test (Task 2) is what caught it — three replies in
+> one transaction got the same stamp and lay in the order of random UUIDs.
 
-В импорт `sqlalchemy` добавить `Index`.
+Add `Index` to the `sqlalchemy` import.
 
-- [x] **Step 4: Убедиться, что тест проходит**
+- [x] **Step 4: Make sure the test passes**
 
 ```bash
 cd backend && uv run pytest tests/test_models.py -q
 ```
 
-Ожидается: PASS. (Тесты создают схему из метаданных, миграции им не нужны.)
+Expected: PASS. (The tests create the schema from the metadata, they do not need the migrations.)
 
-- [x] **Step 5: Сгенерировать миграцию**
+- [x] **Step 5: Generate the migration**
 
 ```bash
 cd backend && uv run alembic revision --autogenerate -m "comments"
 ```
 
-Открыть получившийся файл и убедиться, что в `upgrade()` только `create_table('comments')` с индексом и CHECK — ничего постороннего. Лишнее из автогенерации удалить.
+Open the resulting file and make sure `upgrade()` has only `create_table('comments')` with the index and the CHECK — nothing extraneous. Delete whatever autogeneration added beyond that.
 
-- [x] **Step 6: Прогнать миграцию и весь бэкенд**
+- [x] **Step 6: Run the migration and the whole backend**
 
 ```bash
 cd backend && uv run alembic upgrade head && uv run pytest -q
 ```
 
-Ожидается: миграция применяется, 158 тестов проходят.
+Expected: the migration applies, 158 tests pass.
 
-- [x] **Step 7: Коммит**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/app/models.py backend/migrations backend/tests/test_models.py
@@ -203,26 +203,26 @@ git commit -m "feat: таблица комментариев"
 
 ---
 
-### Task 2: Домен комментариев
+### Task 2: The comments domain
 
 **Files:**
 - Create: `backend/app/comments.py`
 - Test: `backend/tests/test_comments.py`
 
 **Interfaces:**
-- Consumes: `Comment` из Task 1.
+- Consumes: `Comment` from Task 1.
 - Produces:
   - `add_comment(db, project, *, body, task_id=None, author=None, guest_name=None) -> Comment`
   - `list_comments(db, project, *, task_id=None, limit=200) -> list[Comment]`
-  - `CommentRefused(code, message)` и `TaskNotInProject(CommentRefused)`.
+  - `CommentRefused(code, message)` and `TaskNotInProject(CommentRefused)`.
 
-Домен отдельно от маршрута по той же причине, что и `mutations.py`: правила «пустая реплика не реплика» и «чужая задача — не задача этого проекта» проверяются тестом на функции, а не поднятым HTTP-клиентом.
+The domain is separate from the route for the same reason as `mutations.py`: the rules "an empty reply is not a reply" and "a foreign task is not this project's task" are checked by a test on the functions rather than by a running HTTP client.
 
-Порядок ленты — от старых к новым, в отличие от журнала ревизий. Журнал читают с последнего события, разговор — сверху вниз; переворачивать его в браузере значило бы держать порядок в двух местах.
+The feed's order runs oldest to newest, unlike the revision journal's. A journal is read from the last event, a conversation top to bottom; turning it around in the browser would mean keeping the order in two places.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
-Создать `backend/tests/test_comments.py`:
+Create `backend/tests/test_comments.py`:
 
 ```python
 import pytest
@@ -339,17 +339,17 @@ def test_reply_without_any_author_is_refused(db, project):
     assert refusal.value.code == "comment_author_required"
 ```
 
-- [x] **Step 2: Убедиться, что тесты падают**
+- [x] **Step 2: Make sure the tests fail**
 
 ```bash
 cd backend && uv run pytest tests/test_comments.py -q
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.comments'`.
+Expected: `ModuleNotFoundError: No module named 'app.comments'`.
 
-- [x] **Step 3: Написать модуль**
+- [x] **Step 3: Write the module**
 
-Создать `backend/app/comments.py`:
+Create `backend/app/comments.py`:
 
 ```python
 import uuid
@@ -451,15 +451,15 @@ def list_comments(
     return list(db.scalars(query.order_by(Comment.created_at, Comment.id).limit(limit)).all())
 ```
 
-- [x] **Step 4: Убедиться, что тесты проходят**
+- [x] **Step 4: Make sure the tests pass**
 
 ```bash
 cd backend && uv run pytest tests/test_comments.py -q
 ```
 
-Ожидается: 7 passed.
+Expected: 7 passed.
 
-- [x] **Step 5: Коммит**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/comments.py backend/tests/test_comments.py
@@ -468,25 +468,25 @@ git commit -m "feat: домен комментариев"
 
 ---
 
-### Task 3: Маршруты комментариев
+### Task 3: The comment routes
 
 **Files:**
 - Modify: `backend/app/api/project_routes.py`
 - Test: `backend/tests/test_comment_api.py`
 
 **Interfaces:**
-- Consumes: `add_comment`, `list_comments`, `CommentRefused`, `TaskNotInProject`, `MAX_COMMENT_LEN` из Task 2.
+- Consumes: `add_comment`, `list_comments`, `CommentRefused`, `TaskNotInProject`, `MAX_COMMENT_LEN` from Task 2.
 - Produces:
   - `GET /api/projects/{project_id}/comments?task_id=&limit=` → `[{id, task_id, body, created_at, author, guest_name}]`
-  - `POST /api/projects/{project_id}/comments` с телом `{body, task_id?}` → 201, тот же объект.
+  - `POST /api/projects/{project_id}/comments` with a `{body, task_id?}` body → 201, the same object.
 
-Маршруты живут в `project_routes.py` рядом с ревизиями и мутациями, а не в своём файле: они — подресурс проекта и держатся на тех же `_load_project` и `_require_project_read`. Вынести их значило бы либо тащить приватных помощников через границу модуля, либо завести им вторую копию.
+The routes live in `project_routes.py` next to the revisions and the mutations rather than in a file of their own: they are a sub-resource of a project and rest on the same `_load_project` and `_require_project_read`. Moving them out would mean either dragging private helpers across a module boundary or giving them a second copy.
 
-`author` в ответе — объект или `null`, как в ленте ревизий. Гость приходит `guest_name`-ом; интерфейс подписывает его иначе, и различить их обязан ответ, а не догадка по отсутствию поля.
+The `author` in the response is an object or `null`, as in the revisions feed. A guest arrives as a `guest_name`; the interface signs them differently, and the response rather than a guess from a missing field must tell them apart.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
-Создать `backend/tests/test_comment_api.py`:
+Create `backend/tests/test_comment_api.py`:
 
 ```python
 import pytest
@@ -633,17 +633,17 @@ def test_a_viewer_may_comment_but_a_stranger_role_may_not(authed, project_id, db
     )
 ```
 
-- [x] **Step 2: Убедиться, что тесты падают**
+- [x] **Step 2: Make sure the tests fail**
 
 ```bash
 cd backend && uv run pytest tests/test_comment_api.py -q
 ```
 
-Ожидается: 404 вместо 201 — маршрута нет.
+Expected: a 404 instead of a 201 — the route does not exist.
 
-- [x] **Step 3: Добавить маршруты**
+- [x] **Step 3: Add the routes**
 
-В `backend/app/api/project_routes.py`. К импортам:
+In `backend/app/api/project_routes.py`. To the imports:
 
 ```python
 from app.comments import (
@@ -661,7 +661,7 @@ from app.models import (
 )
 ```
 
-Рядом с `ProjectIn`/`ProjectOut`:
+Next to `ProjectIn`/`ProjectOut`:
 
 ```python
 class CommentIn(BaseModel):
@@ -687,7 +687,7 @@ def _comment_out(comment: Comment, actors: dict) -> dict:
     }
 ```
 
-В конец файла:
+At the end of the file:
 
 ```python
 @router.get("/{project_id}/comments")
@@ -746,23 +746,23 @@ def create_comment(
     return _comment_out(comment, {user.id: user.name})
 ```
 
-- [x] **Step 4: Убедиться, что тесты проходят**
+- [x] **Step 4: Make sure the tests pass**
 
 ```bash
 cd backend && uv run pytest tests/test_comment_api.py -q
 ```
 
-Ожидается: 7 passed.
+Expected: 7 passed.
 
-- [x] **Step 5: Прогнать весь бэкенд**
+- [x] **Step 5: Run the whole backend**
 
 ```bash
 cd backend && uv run pytest -q
 ```
 
-Ожидается: всё зелёное.
+Expected: everything green.
 
-- [x] **Step 6: Коммит**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/api/project_routes.py backend/tests/test_comment_api.py
@@ -771,7 +771,7 @@ git commit -m "feat: маршруты комментариев"
 
 ---
 
-### Task 4: Обсуждение на карточке задачи
+### Task 4: The discussion on a task's card
 
 **Files:**
 - Create: `frontend/src/api/comments.ts`
@@ -784,16 +784,16 @@ git commit -m "feat: маршруты комментариев"
 - Modify: `frontend/src/test/project.ts`
 
 **Interfaces:**
-- Consumes: маршруты из Task 3.
-- Produces: `commentsQueryKey(projectId, taskId)`, `listTaskComments`, `postComment`, компонент `<Comments projectId taskId />`.
+- Consumes: the routes from Task 3.
+- Produces: `commentsQueryKey(projectId, taskId)`, `listTaskComments`, `postComment`, the `<Comments projectId taskId />` component.
 
-Ключ запроса лежит под ключом проекта (`["project", id, "comments", taskId]`) — по той же причине, что и журнал: одно `invalidateQueries` по префиксу обновляет поддерево целиком.
+The query key lies under the project's key (`["project", id, "comments", taskId]`) — for the same reason as the journal's: one `invalidateQueries` by prefix refreshes the whole subtree.
 
-Оптимистичной вставки здесь нет, и это осознанно: у реплики нет отката, а показать её до подтверждения значит однажды показать реплику, которой не существует. Отправка блокирует поле и снимает блокировку ответом.
+There is no optimistic insertion here, and that is deliberate: a reply has no rollback, and showing it before the confirmation means one day showing a reply that does not exist. Sending disables the field and re-enables it on the answer.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
-Создать `frontend/src/task/Comments.test.tsx`:
+Create `frontend/src/task/Comments.test.tsx`:
 
 ```tsx
 import { screen, waitFor, within } from "@testing-library/react";
@@ -947,17 +947,17 @@ describe("обсуждение задачи", () => {
 });
 ```
 
-- [x] **Step 2: Убедиться, что тесты падают**
+- [x] **Step 2: Make sure the tests fail**
 
 ```bash
 cd frontend && npx vitest run src/task/Comments.test.tsx --maxWorkers=1
 ```
 
-Ожидается: не найден `../api/comments`.
+Expected: `../api/comments` is not found.
 
-- [x] **Step 3: Написать клиент**
+- [x] **Step 3: Write the client**
 
-Создать `frontend/src/api/comments.ts`:
+Create `frontend/src/api/comments.ts`:
 
 ```ts
 import { request } from "./client";
@@ -999,9 +999,9 @@ export function postComment(projectId: string, taskId: string, body: string): Pr
 }
 ```
 
-- [x] **Step 4: Написать компонент**
+- [x] **Step 4: Write the component**
 
-Создать `frontend/src/task/Comments.tsx`:
+Create `frontend/src/task/Comments.tsx`:
 
 ```tsx
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1113,22 +1113,22 @@ function signature(comment: Comment, t: (key: string, params?: Record<string, st
 }
 ```
 
-- [x] **Step 5: Подключить к карточке и словарям**
+- [x] **Step 5: Wire it into the card and the dictionaries**
 
-В `frontend/src/task/TaskPanel.tsx` — импорт `import { Comments } from "./Comments";` и строка после `<History ... />`:
+In `frontend/src/task/TaskPanel.tsx` — the `import { Comments } from "./Comments";` import and a line after `<History ... />`:
 
 ```tsx
       <Comments projectId={projectId} taskId={task.id} />
 ```
 
-В `frontend/src/api/errors.ts` дописать в `PLAIN_CODES`:
+In `frontend/src/api/errors.ts` add to `PLAIN_CODES`:
 
 ```ts
   "comment_empty",
   "comment_author_required",
 ```
 
-В `frontend/src/i18n/ru.json` — новый блок верхнего уровня рядом с `history`:
+In `frontend/src/i18n/ru.json` — a new top-level block next to `history`:
 
 ```json
   "comments": {
@@ -1140,14 +1140,14 @@ function signature(comment: Comment, t: (key: string, params?: Record<string, st
   },
 ```
 
-и в `error`:
+and in `error`:
 
 ```json
     "comment_empty": "Пустой комментарий отправить нельзя",
     "comment_author_required": "Комментарий некому подписать",
 ```
 
-В `frontend/src/i18n/en.json`:
+In `frontend/src/i18n/en.json`:
 
 ```json
   "comments": {
@@ -1164,7 +1164,7 @@ function signature(comment: Comment, t: (key: string, params?: Record<string, st
     "comment_author_required": "There is no one to sign this comment",
 ```
 
-В `frontend/src/i18n/az.json`:
+In `frontend/src/i18n/az.json`:
 
 ```json
   "comments": {
@@ -1181,7 +1181,7 @@ function signature(comment: Comment, t: (key: string, params?: Record<string, st
     "comment_author_required": "Şərhi imzalayacaq kimsə yoxdur",
 ```
 
-В `frontend/src/test/project.ts`, в `projectFixtures()`, рядом с заглушкой ревизий:
+In `frontend/src/test/project.ts`, in `projectFixtures()`, next to the revisions stub:
 
 ```ts
     // Ветка обсуждения. Пустая по умолчанию — по тому же доводу, что и
@@ -1189,9 +1189,9 @@ function signature(comment: Comment, t: (key: string, params?: Record<string, st
     http.get("/api/projects/p1/comments", () => HttpResponse.json([])),
 ```
 
-- [x] **Step 6: Оформление**
+- [x] **Step 6: Styling**
 
-В конец `frontend/src/task/panel.css`:
+At the end of `frontend/src/task/panel.css`:
 
 ```css
 .panel__comments {
@@ -1232,23 +1232,23 @@ function signature(comment: Comment, t: (key: string, params?: Record<string, st
 }
 ```
 
-- [x] **Step 7: Убедиться, что тесты проходят**
+- [x] **Step 7: Make sure the tests pass**
 
 ```bash
 cd frontend && npx vitest run src/task/Comments.test.tsx src/i18n/i18n.test.ts --maxWorkers=1
 ```
 
-Ожидается: PASS, в том числе тест полноты словарей.
+Expected: PASS, including the dictionary completeness test.
 
-- [x] **Step 8: Прогнать весь фронтенд и линтер**
+- [x] **Step 8: Run the whole frontend and the linter**
 
 ```bash
 cd frontend && npx vitest run --maxWorkers=2 && npm run lint && npx tsc -b
 ```
 
-Ожидается: всё зелёное. (`--maxWorkers=2`: на перегруженной машине параллельные воркеры дают ложные падения по таймауту.)
+Expected: everything green. (`--maxWorkers=2`: on a loaded machine parallel workers give false timeout failures.)
 
-- [x] **Step 9: Коммит**
+- [x] **Step 9: Commit**
 
 ```bash
 git add frontend/src
@@ -1257,10 +1257,10 @@ git commit -m "feat: обсуждение на карточке задачи"
 
 ---
 
-## Что осталось за границей плана
+## What is left outside the plan
 
-- **Гость по публичной ссылке.** `ShareLink` в схеме нет, опознать гостя нечем. `add_comment` его уже принимает (`guest_name`), маршрут — нет. Это план публичных ссылок.
-- **`GUEST_COMMENT_RATE_LIMIT`.** Ограничивать нечего, пока нет гостевого пути: ограничитель без вызывающего — код, который никто не проверяет.
-- **Удаление и правка реплик.** Спецификация их не обещает.
-- **Живые обновления.** Ветка обновляется ответом на отправку; рассылка по WebSocket — отдельный план.
-- **Обсуждение проекта целиком.** Маршрут его отдаёт (`task_id` не указан), места на экране у него пока нет.
+- **A guest by public link.** There is no `ShareLink` in the schema and nothing to identify a guest by. `add_comment` already accepts one (`guest_name`), the route does not. That is the public links plan.
+- **`GUEST_COMMENT_RATE_LIMIT`.** There is nothing to limit while there is no guest path: a limiter with no caller is code nobody checks.
+- **Deleting and editing replies.** The specification does not promise them.
+- **Live updates.** The thread is refreshed by the answer to a submission; broadcasting over WebSocket is a separate plan.
+- **A discussion on the whole project.** The route serves it (with no `task_id` given), but it has no place on screen yet.
