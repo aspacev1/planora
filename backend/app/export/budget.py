@@ -1,19 +1,20 @@
-"""Сколько ленты влезает на страницу — и какой масштаб выбрать, чтобы влезло.
+"""How much of the chart fits on a page — and which scale to pick so that it does.
 
-Полоски в выгрузке не сжимаются ни при каком масштабе: вместо этого лента
-режется по времени и колонка названий повторяется на каждой странице. Значит
-цена подробности измеряется не читаемостью, а числом страниц — и ограничивать
-надо именно его.
+The bars in an export are not compressed at any scale: instead the chart is cut
+up by time and the name column repeats on every page. That means the price of
+detail is measured not in readability but in the number of pages — and that is
+exactly what has to be bounded.
 
-Модуль спрашивают трое: рисовальщик PDF (сколько окон резать), рисовальщик
-XLSX (сколько колонок городить) и маршрут (не отказать ли до начала работы).
-Поэтому правило живёт здесь, а не внутри одного из них.
+Three callers ask this module: the PDF renderer (how many windows to cut), the
+XLSX renderer (how many columns to lay out) and the route (whether to refuse
+before starting work). That is why the rule lives here rather than inside one of
+them.
 
-Тот же расчёт повторён на клиенте (`frontend/src/export/pageBudget.ts`) —
-намеренно, а не по недосмотру: окно обязано написать на кнопке масштаба то
-самое число страниц, которое вернёт сервер, и спрашивать его запросом на
-каждое нажатие значило бы моргающие кнопки. Тесты по обе стороны сверяют одну
-таблицу ожиданий.
+The same computation is repeated on the client
+(`frontend/src/export/pageBudget.ts`) — deliberately, not by oversight: the
+dialog must write on the scale button the very number of pages the server will
+return, and asking for it with a request on every press would mean flickering
+buttons. Tests on both sides check against one table of expectations.
 """
 
 from dataclasses import dataclass
@@ -22,14 +23,14 @@ from enum import StrEnum
 
 from app.export.errors import ExportError
 
-# Ничего из `app.models` / `app.schedule` здесь не импортируется намеренно:
-# те тянут за собой `app.db`, а он поднимает движок и требует настроенного
-# окружения ещё на импорте (так задумано, см. app/config.py). Модуль с самой
-# густой арифметикой во всей выгрузке должен проверяться без Postgres.
+# Nothing from `app.models` / `app.schedule` is imported here on purpose: those
+# drag `app.db` along, and it brings up the engine and demands a configured
+# environment at import time (by design, see app/config.py). The module with the
+# densest arithmetic in the whole export must be testable without Postgres.
 
 
 class Zoom(StrEnum):
-    """Единица колонки шкалы. Те же три значения, что у ленты на экране."""
+    """The unit of a scale column. The same three values as the chart on screen."""
 
     DAY = "day"
     WEEK = "week"
@@ -37,7 +38,7 @@ class Zoom(StrEnum):
 
 
 class Period(StrEnum):
-    """Окно ленты. Три последних привязаны к «сегодня»."""
+    """A window onto the chart. The last three are anchored to "today"."""
 
     ALL = "all"
     NEXT_4W = "next_4w"
@@ -52,47 +53,47 @@ class Orientation(StrEnum):
 
 ZOOMS: tuple[Zoom, ...] = (Zoom.DAY, Zoom.WEEK, Zoom.MONTH)
 
-#: Периоды, у которых нет смысла без настоящих дат: у относительного плана ось
-#: — «День N», и «сегодня» на ней не определено.
+#: Periods that make no sense without real dates: a relative plan's axis is
+#: "Day N", and "today" is undefined on it.
 DATED_PERIODS: frozenset[Period] = frozenset(
     {Period.NEXT_4W, Period.NEXT_3M, Period.FROM_TODAY}
 )
 
-#: Дней в единице колонки. «Месяц» здесь ровно 30 дней, а не календарный:
-#: ёмкость страницы — оценка, а не разметка, и календарная арифметика в ней
-#: дала бы разное число страниц у проекта, сдвинутого на неделю.
+#: Days per column unit. A "month" here is exactly 30 days rather than a calendar
+#: one: a page's capacity is an estimate, not a layout, and calendar arithmetic
+#: in it would yield a different page count for a project shifted by a week.
 DAYS_PER_UNIT: dict[Zoom, int] = {Zoom.DAY: 1, Zoom.WEEK: 7, Zoom.MONTH: 30}
 
-#: Ширина колонки в пунктах — минимум, при котором подпись шкалы читается.
-#: Меньше нельзя: день перестанет нести число, месяц — название.
+#: The column width in points — the minimum at which a scale label stays
+#: readable. Any less and a day stops carrying a number, a month a name.
 UNIT_WIDTH_PT: dict[Zoom, float] = {Zoom.DAY: 8.0, Zoom.WEEK: 20.0, Zoom.MONTH: 40.0}
 
-#: Ширина страницы за вычетом полей, в пунктах (A4, поля 14 мм с каждой
-#: стороны). Значения зашиты, а не считаются из reportlab.lib.pagesizes,
-#: чтобы модуль оставался пригодным для клиента как эталон.
+#: The page width minus the margins, in points (A4, 14 mm margins on each side).
+#: The values are hard-coded rather than computed from reportlab.lib.pagesizes so
+#: that the module stays usable as a reference for the client.
 PAGE_WIDTH_PT: dict[Orientation, float] = {
     Orientation.LANDSCAPE: 841.89,
     Orientation.PORTRAIT: 595.28,
 }
-MARGIN_PT = 39.69  # 14 мм
+MARGIN_PT = 39.69  # 14 mm
 LABEL_COLUMN_PT = 168.0
 
-#: Сколько страниц ленты считается приличным умолчанием. Самый подробный
-#: масштаб, укладывающийся в это число, и становится выбором по умолчанию.
+#: How many chart pages count as a decent default. The most detailed scale that
+#: fits into this number becomes the default choice.
 COMFORTABLE_PAGES = 2
 
-#: Потолок. Сверх него масштаб не предлагается и не принимается: файл на
-#: полтора десятка страниц ленты никто не читает, а собирается он долго.
+#: The ceiling. Beyond it a scale is neither offered nor accepted: nobody reads
+#: a file with a dozen and a half pages of chart, and it takes long to assemble.
 MAX_PAGES = 6
 
-#: Потолок листа Excel в колонках. Лист ленты на страницы не режется — он одна
-#: широкая полоса, и предел ставится по числу колонок: дальше по нему
-#: невозможно двигаться.
+#: The ceiling of an Excel sheet, in columns. The chart sheet is not cut into
+#: pages — it is one wide strip, and the limit is set by the number of columns:
+#: beyond it there is no moving along it.
 MAX_XLSX_COLUMNS = 400
 
 
 def units_per_page(zoom: Zoom, orientation: Orientation) -> int:
-    """Сколько колонок шкалы влезает на страницу."""
+    """How many scale columns fit on a page."""
     chart = PAGE_WIDTH_PT[orientation] - 2 * MARGIN_PT - LABEL_COLUMN_PT
     return max(1, int(chart // UNIT_WIDTH_PT[zoom]))
 
@@ -102,29 +103,30 @@ def days_per_page(zoom: Zoom, orientation: Orientation) -> int:
 
 
 def page_count(days: int, zoom: Zoom, orientation: Orientation) -> int:
-    """Число страниц ленты для окна такой длины. Пустой проект — одна страница
-    с шапкой, а не ноль: страницу всё равно надо чем-то занять."""
+    """The number of chart pages for a window of this length. An empty project is
+    one page with a header rather than zero: the page has to be filled with
+    something anyway."""
     if days <= 0:
         return 1
     per_page = days_per_page(zoom, orientation)
-    return -(-days // per_page)  # деление вверх
+    return -(-days // per_page)  # division rounding up
 
 
 def columns_for(days: int, zoom: Zoom) -> int:
-    """Число колонок листа Excel для окна такой длины."""
+    """The same for a workbook, for a window of this length."""
     if days <= 0:
         return 1
     return -(-days // DAYS_PER_UNIT[zoom])
 
 
 def allowed(zoom: Zoom, days: int, orientation: Orientation) -> bool:
-    """Укладывается ли масштаб в потолок.
+    """Whether the scale fits under the ceiling.
 
-    Самый крупный масштаб разрешён всегда, сколько бы страниц ни вышло:
-    потолок существует, чтобы человек не выбрал ненужную подробность, а у
-    месяца менее подробного соседа нет. Отказать на нём значило бы, что
-    десятилетний портфель не выгружается вовсе — а это уже не защита от
-    неподъёмного файла, а отсутствие возможности.
+    The coarsest scale is always allowed, however many pages it comes to: the
+    ceiling exists so that a person does not choose detail they do not need, and
+    the month has no less detailed neighbour. Refusing on it would mean that a
+    ten-year portfolio cannot be exported at all — and that is no longer
+    protection from an unmanageable file but the absence of a capability.
     """
     if zoom is ZOOMS[-1]:
         return True
@@ -132,11 +134,11 @@ def allowed(zoom: Zoom, days: int, orientation: Orientation) -> bool:
 
 
 def default_zoom(days: int, orientation: Orientation) -> Zoom:
-    """Самый подробный масштаб, укладывающийся в приличное число страниц.
+    """The most detailed scale that fits into a decent number of pages.
 
-    Если не укладывается ни один — самый крупный: месяц на любом мыслимом
-    проекте даёт единицы страниц, и отдать вместо файла отказ было бы
-    неуважением к тому, кто просто нажал «Скачать».
+    If none fits — the coarsest one: a month yields a handful of pages on any
+    conceivable project, and returning a refusal instead of a file would be
+    disrespectful to someone who merely pressed "Download".
     """
     for zoom in ZOOMS:
         if page_count(days, zoom, orientation) <= COMFORTABLE_PAGES:
@@ -145,7 +147,7 @@ def default_zoom(days: int, orientation: Orientation) -> Zoom:
 
 
 def default_zoom_for_xlsx(days: int) -> Zoom:
-    """То же для книги, где предел — колонки, а не страницы."""
+    """The same for a workbook, where the limit is columns rather than pages."""
     for zoom in ZOOMS:
         if columns_for(days, zoom) <= MAX_XLSX_COLUMNS:
             return zoom
@@ -154,7 +156,7 @@ def default_zoom_for_xlsx(days: int) -> Zoom:
 
 @dataclass(frozen=True)
 class Window:
-    """Окно ленты: границы и сколько в нём дней."""
+    """A window onto the chart: the bounds and how many days are in it."""
 
     start: date
     end: date
@@ -165,12 +167,13 @@ class Window:
 
 
 def project_window(starts: list[date], ends: list[date], *, fallback: date) -> Window:
-    """Границы всего проекта.
+    """The bounds of the whole project.
 
-    `fallback` — начало оси у проекта без задач: рисовать нечего, но шкала
-    обязана существовать, иначе делить будет не на что. Значение передаёт
-    вызывающий (`RELATIVE_EPOCH` или назначенный старт), а не берёт этот
-    модуль: за ним пришлось бы тянуть сюда `app.schedule` со всей базой.
+    `fallback` is the start of the axis for a project with no tasks: there is
+    nothing to draw, but a scale must exist, otherwise there will be nothing to
+    divide by. The value is passed by the caller (`RELATIVE_EPOCH` or the
+    assigned start) rather than taken by this module: taking it would drag
+    `app.schedule` and the whole database in here.
     """
     if not starts or not ends:
         return Window(fallback, fallback)
@@ -178,11 +181,11 @@ def project_window(starts: list[date], ends: list[date], *, fallback: date) -> W
 
 
 def resolve_window(period: Period, whole: Window, today: date, *, dated: bool) -> Window:
-    """Окно по выбранному периоду.
+    """A window for the chosen period.
 
-    `dated=False` — относительный план: «сегодня» на его оси не существует, и
-    три привязанных к сегодня периода здесь не отказ по вкусу, а отсутствие
-    величины, от которой их считать.
+    `dated=False` means a relative plan: "today" does not exist on its axis, and
+    the three periods anchored to today are refused here not out of taste but
+    because the quantity they would be counted from is absent.
     """
     if period in DATED_PERIODS and not dated:
         raise ExportError(
@@ -201,17 +204,17 @@ def resolve_window(period: Period, whole: Window, today: date, *, dated: bool) -
     else:
         end = start + timedelta(days=89)
 
-    # Окно не выходит за пределы проекта: пустой хвост шкалы за последней
-    # задачей — это страница, на которой ничего нет.
+    # The window does not extend beyond the project: an empty tail of the scale
+    # past the last task is a page with nothing on it.
     end = min(end, whole.end)
     if end < start:
-        # Проект целиком в прошлом: показываем его конец, а не пустоту.
+        # The project is entirely in the past: show its end rather than emptiness.
         return Window(whole.end, whole.end)
     return Window(start, end)
 
 
 def slice_window(window: Window, zoom: Zoom, orientation: Orientation) -> list[Window]:
-    """Разбиение окна на страницы по времени."""
+    """Splitting the window into pages by time."""
     step = days_per_page(zoom, orientation)
     out: list[Window] = []
     cursor = window.start
@@ -223,10 +226,11 @@ def slice_window(window: Window, zoom: Zoom, orientation: Orientation) -> list[W
 
 
 def require_within_budget(window: Window, zoom: Zoom, orientation: Orientation) -> None:
-    """Отказ до начала работы, а не файл на сорок страниц после неё.
+    """A refusal before the work starts, rather than a forty-page file after it.
 
-    Проверка повторяет ту, что делает окно. Повтор здесь не избыточность:
-    маршрут зовут и мимо окна — закладкой, скриптом, публичной ссылкой.
+    The check repeats the one the dialog makes. The repetition here is not
+    redundancy: the route is also called from outside the dialog — by a bookmark,
+    a script, a public link.
     """
     if not allowed(zoom, window.days, orientation):
         pages = page_count(window.days, zoom, orientation)

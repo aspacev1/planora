@@ -1,13 +1,14 @@
-"""Снимок проекта в том виде, в каком его рисуют оба формата.
+"""A snapshot of the project as both formats draw it.
 
-Собирается один раз и читается обоими рисовальщиками. Без этого слоя PDF и
-XLSX однажды разойдутся ровно там, где расхождение заметнее всего, — в числах
-на обложке, которые человек сравнивает первыми.
+It is assembled once and read by both renderers. Without this layer, PDF and
+XLSX would one day diverge exactly where the divergence is most noticeable — in
+the numbers on the cover page, which a person compares first.
 
-Снимок уже локализован и уже урезан по правам: решать «что этому видно» внутри
-рисовальщика значило бы принимать это решение дважды и однажды по-разному.
-Урезание идёт теми же двумя флагами, что уже действуют на публичной странице
-(`app.api.serialization.project_state`), — второй ветки сборки не заводится.
+The snapshot is already localized and already trimmed by permissions: deciding
+"what is visible to this reader" inside a renderer would mean making that
+decision twice and one day differently. The trimming uses the same two flags
+that already apply on the public page
+(`app.api.serialization.project_state`) — no second assembly branch is created.
 """
 
 import uuid
@@ -30,17 +31,17 @@ from app.proposals import proposal_state
 from app.schedule import RELATIVE_EPOCH
 from app.scorecard import scorecard_state
 
-#: Сколько записей журнала попадает в документ. Журнал длиннее любого отчёта,
-#: и «вся история» на большом проекте — это сотни страниц, которых никто не
-#: просил.
+#: How many journal entries reach the document. The journal is longer than any
+#: report, and "the whole history" on a large project means hundreds of pages
+#: nobody asked for.
 HISTORY_LIMIT = 120
 
-#: Сколько реплик обсуждения попадает в документ.
+#: How many discussion remarks reach the document.
 COMMENTS_LIMIT = 200
 
 
 class ExportSection(StrEnum):
-    """Что человек попросил положить в файл."""
+    """What a person asked to put into the file."""
 
     OVERVIEW = "overview"
     TASKS = "tasks"
@@ -52,25 +53,25 @@ class ExportSection(StrEnum):
     HISTORY = "history"
 
 
-#: Разделы, недоступные клиенту и гостю по ссылке.
+#: The sections unavailable to a client and to a link-holding guest.
 #:
-#: Правило одно и простое: **выгрузка не показывает больше, чем показывает
-#: экран, с которого её позвали.** Публичная страница не отдаёт ни смету, ни
-#: скоркард, ни журнал правок — и выгрузка с неё не должна становиться обходным
-#: путём к ним.
+#: The rule is single and simple: **an export shows no more than the screen it
+#: was called from shows.** The public page returns neither the budget, nor the
+#: scorecard, nor the edit journal — and an export from it must not become a way
+#: around to them.
 #:
-#: Каждый по своей причине. Смета — коммерческие ставки и себестоимость: по
-#: ссылке обещаны сроки и объём, а не то, из чего сложилась цена. Скоркард —
-#: внутреннее здоровье работы, включая «зависшие» и «без исполнителя».
-#: Журнал правок показывает, сколько раз команда переносила сроки, — то же
-#: самое, что уже гасит базовый план и величину отклонения на публичной
-#: странице.
+#: Each for its own reason. The budget holds commercial rates and cost: a link
+#: promises deadlines and volume, not what the price was made of. The scorecard
+#: is the internal health of the work, including "stalled" and "unassigned". The
+#: edit journal shows how many times the team moved deadlines — the same thing
+#: the baseline plan and the deviation figure are already suppressed for on the
+#: public page.
 INTERNAL_SECTIONS: frozenset[ExportSection] = frozenset(
     {ExportSection.PROPOSAL, ExportSection.SCORECARD, ExportSection.HISTORY}
 )
 
 
-# --- строки документа ---------------------------------------------------------
+# --- the document's rows ------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -87,8 +88,9 @@ class DocTask:
     number: int
     category_id: str
     name: str
-    #: Сырое значение статуса — по нему рисовальщик берёт цвет; рядом лежит
-    #: уже переведённая подпись, чтобы он не ходил в словарь сам.
+    #: The raw status value — the renderer picks the colour by it; next to it
+    #: lies the already translated label, so that it need not consult the
+    #: dictionary itself.
     status: str
     status_label: str
     criticality: str
@@ -100,9 +102,9 @@ class DocTask:
     milestone: bool
     critical: bool
     late: bool
-    #: Задача, появившаяся после утверждения плана. Отдельного поля в базе нет
-    #: — признак выведен из пустого базового плана при утверждённом плане, ровно
-    #: как на ленте (см. serialization.py).
+    #: A task that appeared after the plan was approved. There is no separate
+    #: column in the database — the flag is derived from an empty baseline plan
+    #: while the plan is approved, exactly as on the chart (see serialization.py).
     beyond_plan: bool
     assignees: list[str]
     baseline_start: date | None
@@ -113,8 +115,9 @@ class DocTask:
 
 @dataclass(frozen=True)
 class DocLink:
-    #: Концы названы идентификаторами, а не именами: имена в проекте не
-    #: уникальны, и стрелка, найденная по имени, однажды соединит не те строки.
+    #: The ends are named by identifiers rather than by names: names are not
+    #: unique within a project, and an arrow found by name would one day connect
+    #: the wrong rows.
     from_id: str
     to_id: str
     from_name: str
@@ -124,7 +127,7 @@ class DocLink:
 
     @property
     def broken(self) -> bool:
-        """Связь нарушена: преемник начинается раньше, чем кончается предок."""
+        """The dependency is violated: the successor starts before the predecessor finishes."""
         return self.to_start <= self.from_end
 
 
@@ -184,7 +187,7 @@ class DocMetric:
     owner: str
     target: float
     direction: str
-    #: Значение и состояние по неделям, в порядке недель.
+    #: The value and state by week, in week order.
     values: list[float | None]
     statuses: list[str]
 
@@ -214,8 +217,8 @@ class DocEvent:
 
 @dataclass(frozen=True)
 class Layout:
-    """Как лента ложится на бумагу. Считается один раз — рисовальщику остаётся
-    рисовать, а не решать."""
+    """How the chart lands on paper. Computed once — the renderer is left to
+    draw rather than to decide."""
 
     window: Window
     zoom: Zoom
@@ -236,9 +239,9 @@ class ExportDocument:
     deadline: date | None
     today: date
     generated_at: date
-    #: До какого дня документ действителен. Считается на сервере от даты
-    #: выгрузки по EXPORT_VALIDITY_DAYS, а не в рисовальщике: PDF и XLSX
-    #: обязаны назвать один и тот же день.
+    #: The day until which the document is valid. Computed on the server from the
+    #: export date by EXPORT_VALIDITY_DAYS rather than in the renderer: the PDF
+    #: and the XLSX must name one and the same day.
     valid_until: date
     client_copy: bool
     sections: frozenset[ExportSection]
@@ -265,15 +268,15 @@ class ExportDocument:
         return [t for t in self.tasks if t.category_id == category_id]
 
     def file_stem(self) -> str:
-        """Имя файла без расширения. Дата — в ISO: имя файла сортируется в
-        папке получателя, а не читается как фраза."""
+        """The file name without an extension. The date is in ISO: a file name
+        sorts in the recipient's folder rather than reading as a phrase."""
         safe = "".join(
             ch if ch.isalnum() or ch in " -_()" else "-" for ch in self.project_name
         ).strip()
         return f"Planora - {safe} - {self.generated_at.isoformat()}"
 
 
-# --- сборка -------------------------------------------------------------------
+# --- assembly -----------------------------------------------------------------
 
 
 def _parse(value: str | None) -> date | None:
@@ -295,11 +298,12 @@ def build_document(
     zoom: Zoom | None,
     orientation: Orientation,
 ) -> ExportDocument:
-    """Снимок проекта под запрошенный состав.
+    """A snapshot of the project for the requested contents.
 
-    `zoom=None` — «решай сам»: масштаб выбирается по длине окна (см. budget).
-    Умолчание живёт на сервере, а не в окне экспорта, потому что маршрут зовут
-    и мимо окна — закладкой, скриптом, публичной ссылкой.
+    `zoom=None` means "decide yourself": the scale is chosen by the window's
+    length (see budget). The default lives on the server rather than in the
+    export dialog, because the route is also called from outside the dialog — by
+    a bookmark, a script, a public link.
     """
     labels = Labels(locale)
     state = project_state(db, project, org, show_notes=show_notes, show_people=show_people)
@@ -388,8 +392,9 @@ def _plan(
     approved = state["plan_approved_at"] is not None
     tasks: list[DocTask] = []
 
-    # Нумерация сквозная и идёт по категориям, а не по порядку задач в ответе:
-    # в документе номер — это место строки в таблице, и таблица сгруппирована.
+    # The numbering is continuous and follows the categories rather than the
+    # order of tasks in the answer: in the document a number is a row's place in
+    # the table, and the table is grouped.
     order = {c["id"]: i for i, c in enumerate(state["categories"])}
     ordered = sorted(
         state["tasks"], key=lambda t: (order.get(t["category_id"], 0), t["position"])
@@ -401,8 +406,9 @@ def _plan(
         baseline_start = _parse(raw["baseline_start"])
         baseline_end = _parse(raw["baseline_end"])
 
-        # Клиентский экземпляр: базовый план и расхождения с ним ему не
-        # обещаны — то же правило, что уже гасит их на публичной странице.
+        # The client copy: the baseline plan and the divergences from it were not
+        # promised to them — the same rule that already suppresses them on the
+        # public page.
         if client_copy:
             baseline_start = baseline_end = None
 
@@ -422,8 +428,8 @@ def _plan(
                 duration_days=raw["duration_days"],
                 milestone=raw["milestone"],
                 critical=raw["critical"],
-                # Просрочка выводится из дат, а у относительного плана дат нет:
-                # «позади сегодня» на оси «День N» не определено.
+                # Being overdue is derived from dates, and a relative plan has
+                # none: "behind today" is undefined on a "Day N" axis.
                 late=dated and raw["status"] != "done" and end < today,
                 beyond_plan=approved and baseline_start is None and not client_copy,
                 assignees=[
@@ -503,8 +509,8 @@ def _proposal(db: DbSession, project: Project) -> DocProposal | None:
         )
         for category in state["categories"]
     ]
-    # Пустая смета — не раздел с нулями, а отсутствие раздела: лист «Смета» из
-    # одних заголовков читается как поломка выгрузки.
+    # An empty budget is not a section of zeros but the absence of a section: a
+    # "Budget" sheet of nothing but headings reads as a broken export.
     if not any(group.lines for group in groups):
         return None
     return DocProposal(
@@ -515,20 +521,20 @@ def _proposal(db: DbSession, project: Project) -> DocProposal | None:
 
 
 def align_weeks(metrics: list[dict], current_week: date) -> list[date]:
-    """Колонки таблицы скоркарда: объединение недель по всем метрикам.
+    """The columns of the scorecard table: the union of weeks across all metrics.
 
-    Не история первой метрики. Набор недель у метрик разный и обязан таким
-    оставаться: метрики появляются и снимаются, а снимки прошлых недель
-    неизменяемы — у метрики, заведённой в августе, июльских снимков нет и не
-    будет (см. миграцию scorecard_signal_cleanup).
+    Not the history of the first metric. The set of weeks differs between metrics
+    and must stay that way: metrics appear and are removed, while snapshots of
+    past weeks are immutable — a metric created in August has no July snapshots
+    and never will (see the scorecard_signal_cleanup migration).
 
-    Брать недели у одной метрики значило бы поставить весь документ в
-    зависимость от того, какая из них оказалась первой: попади на её место
-    метрика помоложе — и таблица молча схлопнулась бы в одну колонку. Молча
-    неверный документ хуже отказа, и заметили бы это не сразу.
+    Taking the weeks from one metric would make the whole document depend on
+    which of them happened to be first: put a younger metric in its place and the
+    table would silently collapse into a single column. A silently wrong document
+    is worse than a refusal, and this would not have been noticed right away.
 
-    Текущая неделя — всегда последняя колонка, даже если снимка за неё ещё
-    нет: её значение живое и берётся не из истории.
+    The current week is always the last column, even if there is no snapshot for
+    it yet: its value is live and is not taken from history.
     """
     weeks = {
         date.fromisoformat(point["week_start"])
@@ -540,10 +546,10 @@ def align_weeks(metrics: list[dict], current_week: date) -> list[date]:
 
 
 def metric_row(metric: dict, weeks: list[date]) -> tuple[list[float | None], list[str]]:
-    """Значения и состояния одной метрики, разложенные по колонкам `weeks`.
+    """One metric's values and states, laid out across the `weeks` columns.
 
-    Неделя, за которую у метрики снимка нет, — прочерк на своём месте, а не
-    сдвиг соседних значений влево.
+    A week for which the metric has no snapshot is a dash in its own place rather
+    than a shift of the neighbouring values to the left.
     """
     history = {point["week_start"]: point for point in metric["history"]}
     values: list[float | None] = []
@@ -611,12 +617,12 @@ def _comments(
 def _history(
     db: DbSession, project: Project, labels: Labels, state: dict
 ) -> list[DocEvent]:
-    """Журнал правок — датой, автором и названием операции.
+    """The edit journal — by date, author and the operation's name.
 
-    Названием, а не пересказом: пересказ каждой из двадцати трёх операций
-    завёл бы на сервере второй `formatEvent.ts`, который разошёлся бы с первым
-    на первой же новой операции. Незнакомая операция подписывается общим
-    «Правка плана» и не роняет документ.
+    By name rather than by a retelling: retelling each of the twenty-three
+    operations would create a second `formatEvent.ts` on the server, which would
+    diverge from the first on the very first new operation. An unknown operation
+    is labelled with the generic "Plan edit" and does not bring the document down.
     """
     task_names = {t["id"]: t["name"] for t in state["tasks"]}
     category_names = {c["id"]: c["name"] for c in state["categories"]}
