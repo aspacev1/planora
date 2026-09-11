@@ -9,35 +9,32 @@ import { RELATIVE_EPOCH } from "./relative";
 import { useToday } from "../time/useToday";
 
 /**
- * Задача, заведённая одним именем.
+ * A task created from a name alone.
  *
- * Всё остальное у неё уже есть: день, срок в один рабочий день и статус
- * «запланировано». Это не сокращённый набор полей, а разделение вопросов: «что
- * нужно сделать» спрашивают, когда пишут план списком, а «когда и кем» — когда
- * его раскладывают по времени, и второе делается в карточке задачи и
- * перетаскиванием полоски.
+ * It already has everything else: a day, a duration of one working day and the "planned"
+ * status. This is not a shortened set of fields but a separation of questions: "what needs
+ * doing" is asked when a plan is written as a list, while "when and by whom" is asked when it
+ * is laid out in time, and the second is done in the task's card and by dragging the bar.
  *
- * Отправленные задачи держатся списком ожидания, пока сервер не ответит.
- * Оптимистичной строки у создания быть не может — почему, сказано у `PendingRow`.
+ * Sent tasks are held in a pending list until the server answers. Creation cannot have an
+ * optimistic row — why is said at `PendingRow`.
  */
 
 export type PendingTask = { id: number; categoryId: string; name: string };
 
 /**
- * День, в который встаёт новая задача: сегодняшний — или начало своего этапа,
- * если этап ещё впереди.
+ * The day a new task lands on: today — or its own stage's start, if the stage is still ahead.
  *
- * Не просто «сегодня». Планы пишут наперёд: этап, который начнётся в октябре,
- * заполняют в августе, и каждая заведённая задача уезжала бы на два месяца
- * левее собственного этапа, растягивая ленту пустотой до сегодняшнего дня, —
- * то есть попадала бы за пределы видимого окна и требовала переноса
- * немедленно. Обе границы — нижние, поэтому берётся большая: у идущего этапа
- * побеждает сегодня (задача, заведённая сегодня, вчера не начиналась), у
- * будущего — его начало.
+ * Not simply "today". Plans are written in advance: a stage that will begin in October is
+ * filled in in August, and every created task would travel two months to the left of its own
+ * stage, stretching the strip with emptiness up to today — that is, it would land outside the
+ * visible window and demand moving immediately. Both bounds are lower ones, so the greater is
+ * taken: for a stage under way today wins (a task created today did not start yesterday), for
+ * a future one its start.
  *
- * У плана без дат сегодняшнего дня не существует вовсе, и нижняя граница там —
- * первый день проекта: настоящих дат на этой оси нет, а координата нужна.
- * Пустой этап никуда не ведёт: у него нет начала, и остаётся одна граница.
+ * A plan without dates has no today at all, and the lower bound there is the project's first
+ * day: there are no real dates on this axis, while a coordinate is needed. An empty stage
+ * leads nowhere: it has no start, and one bound is left.
  */
 export function startDayFor(state: ProjectState, categoryId: string, today: string): string {
   const floor = state.schedule_mode === "relative" ? RELATIVE_EPOCH : today;
@@ -57,15 +54,15 @@ export function useQuickTask({ projectId, state }: { projectId: string; state: P
   const showToast = useToast();
   const today = useToday(state.settings?.timezone);
   const [pending, setPending] = useState<PendingTask[]>([]);
-  // Номер отправки. Именно номер, а не имя: две задачи с одинаковым именем в
-  // одной категории — обычное дело («созвон», «созвон»), и ответ на первую
-  // убирал бы из ожидания обе.
+  // The submission's number. The number specifically, not the name: two tasks with the same
+  // name in one category are an ordinary thing ("call", "call"), and the answer to the first
+  // would remove both from the pending list.
   const sent = useRef(0);
 
   /**
-   * `position` — номер строки, на который её кладут. Не назван — задача встаёт
-   * в конец категории, как и было; назван — на своё место, а соседи ниже
-   * едут на единицу (см. `_make_room` на сервере).
+   * `position` is the row number it is put at. Not named — the task goes to the end of the
+   * category, as before; named — to its own place, and the neighbours below move by one (see
+   * `_make_room` on the server).
    */
   const create = (categoryId: string, name: string, position?: number) => {
     sent.current += 1;
@@ -79,32 +76,31 @@ export function useQuickTask({ projectId, state }: { projectId: string; state: P
         name,
         start_date: startDayFor(state, categoryId, today),
         duration_days: 1,
-        // Ключа нет вовсе, когда места не называли: сервер отличает «в конец»
-        // от названного номера, и первое — это отсутствие ключа, а не ключ со
-        // значением.
+        // There is no key at all when no place was named: the server tells "to the end" from a
+        // named number, and the former is the absence of a key rather than a key with a value.
         ...(position === undefined ? {} : { position }),
       },
-      // Догадки нет — есть строка ожидания рядом. `apply` всё равно единственная
-      // дорога изменения: она же запирает правку при обрыве связи и она же
-      // перезапрашивает состояние, в котором задача уже есть.
+      // There is no guess — there is a pending row next to it. `apply` is still the only road
+      // for a change: it is what locks editing on a dropped connection and it is what refetches
+      // the state the task is already in.
       (current) => current,
     )
       .catch((error: unknown) => {
-        // Строка ожидания исчезнет, а задачи так и не появится: без этих слов
-        // исчезновение читалось бы как «сохранилось где-то там».
+        // The pending row will disappear while the task never appears: without these words the
+        // disappearance would read as "it was saved somewhere".
         showToast({ message: t(errorKey(error)), tone: "error" });
       })
       .finally(() => {
-        // Только после ответа: `apply` дожидается перезапроса состояния, и к
-        // этому моменту настоящая строка уже на экране. Снятое раньше ожидание
-        // мигнуло бы пустотой на месте задачи.
+        // Only after the answer: `apply` waits for the state refetch, and by that moment the
+        // real row is already on screen. A pending row removed earlier would flash emptiness in
+        // the task's place.
         setPending((rows) => rows.filter((row) => row.id !== id));
       });
   };
 
   return {
     create,
-    /** Отправленные, но ещё не подтверждённые задачи этой категории. */
+    /** This category's tasks that have been sent but not yet confirmed. */
     pendingIn: (categoryId: string): PendingTask[] =>
       pending.filter((row) => row.categoryId === categoryId),
   };

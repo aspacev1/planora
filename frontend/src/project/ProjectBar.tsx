@@ -6,28 +6,28 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { PlanState } from "./ProjectHead";
 
 /**
- * Шапка рабочего экрана проекта: имя, состояние плана, вкладки, действия —
- * всё одной строкой.
+ * The project's working-screen header: the name, the plan's state, the tabs, the actions —
+ * all on one line.
  *
- * Пришла на место четырёхъярусной конструкции (шапка, срок, полоса метрик,
- * ряд вкладок), которая вместе с тулбаром ленты оставляла задачам треть окна.
- * Прежде эти ярусы складывались по прокрутке ленты в такую же строку — теперь
- * строка одна и всегда: складывание помогало только тому, кто уже прокрутил
- * план, а начинают работу наверху, где шапка как раз и стояла во весь рост.
- * Заодно ушёл прыжок содержимого на пороге складывания.
+ * It came in place of a four-tier construction (the header, the dates, the metrics bar, the
+ * row of tabs), which together with the strip's toolbar left the tasks a third of the
+ * window. These tiers used to fold on the strip's scroll into just such a line — now the
+ * line is one and always: folding helped only someone who had already scrolled the plan,
+ * while work begins at the top, where the header stood at full height.
+ * The jump of content at the folding threshold went along with it.
  *
- * Ярус здесь ровно один, и в нём три зоны разной формы — чтобы глаз развёл
- * их, не читая. Слева текстом и плашками — «где я и в каком состоянии план»,
- * с делами плана рядом (согласовать, назначить дату старта). Дальше вкладки —
- * подчёркнутый текст, а не пилюли: навигация не должна выглядеть кнопками.
- * Справа тихо, без рамок — «как смотреть» (масштаб, слои, полный экран), и
- * редкие действия под «⋯»: каждое открывает окно и в ряду постоянных кнопок
- * стояло только затем, чтобы там стоять.
+ * There is exactly one tier here, and in it three zones of different shape — so that the
+ * eye separates them without reading. On the left, in text and chips — "where I am and what
+ * state the plan is in", with the plan's business next to it (approve, assign a start date).
+ * Then the tabs — underlined text rather than pills: navigation must not look like buttons.
+ * On the right, quietly and without frames — "how to look" (the scale, the layers, full
+ * screen), and the rare actions under "⋯": each opens a dialog and stood in the row of
+ * permanent buttons only in order to stand there.
  *
- * Второго яруса над лентой нет намеренно: прежний тулбар держал восемь
- * плашек той же формы, что и здесь, и оба ряда читались одним пятном. Его
- * органы вида переехали сюда, дела плана — к состоянию плана, а создание —
- * в саму ленту, где у каждого уровня списка свой «плюс».
+ * There is deliberately no second tier above the strip: the former toolbar held eight chips
+ * of the same shape as here, and both rows read as one blot. Its view controls moved here,
+ * the plan's business to the plan's state, and creation into the strip itself, where every
+ * level of the list has its own "plus".
  */
 export function ProjectBar({
   state,
@@ -39,42 +39,42 @@ export function ProjectBar({
   onShowChanges,
 }: {
   state: ProjectState;
-  /** Ряд вкладок. Приходит готовым узлом: адреса знает экран, а не шапка. */
+  /** The row of tabs. Arrives as a ready node: the addresses are known by the screen, not the header. */
   tabs?: ReactNode;
-  /** Дела плана — согласовать, назначить дату старта — рядом с его состоянием. */
+  /** The plan's business — approve, assign a start date — next to its state. */
   planAction?: ReactNode;
   /**
-   * Сколько в проекте работы (см. PlanSummary). Раскрывается уголком у имени:
-   * постоянного места семи цифрам в этой строке нет — она бы переносилась, и
-   * ярус вернулся бы тот же, от которого уходили.
+   * How much work is in the project (see PlanSummary). Unfolded by the chevron next to the
+   * name: there is no permanent place for seven figures on this line — it would wrap, and
+   * back would come the same tier that was left behind.
    */
   summary?: ReactNode;
   /**
-   * Как смотреть на то, что открыто на вкладке, — масштаб, слои, полный экран
-   * ленты. Прижаты к правому краю перед «⋯» и на вкладках без ленты не
-   * передаются: их появление и исчезновение ничего слева не двигает.
+   * How to look at what is open on the tab — the scale, the layers, the strip's full screen.
+   * Pinned to the right edge before "⋯" and not passed on tabs without a strip: their
+   * appearance and disappearance move nothing on the left.
    */
   tools?: ReactNode;
   /**
-   * Редкие действия проекта. Складываются под «⋯»; не переданы (нет прав) —
-   * кнопки нет вовсе, пустое меню обещало бы содержимое, которого нет.
+   * The project's rare actions. Folded under "⋯"; not passed (no permissions) — there is no
+   * button at all, an empty menu would promise content that does not exist.
    */
   actions?: ReactNode;
-  /** Открыть список расхождений с согласованным планом. */
+  /** Open the list of divergences from the approved plan. */
   onShowChanges?: () => void;
 }) {
   const { t } = useLocale();
 
   return (
     <header className="project-bar">
-      {/* Заголовок экрана остаётся заголовком: строка сжалась, но то, куда
-          человек попал, по-прежнему называется первым уровнем — и для тех,
-          кто слушает экран, и для поиска по странице. */}
+      {/* The screen's heading stays a heading: the line has shrunk, but where the person has
+          landed is still named by the first level — both for those listening to the screen
+          and for a search on the page. */}
       <h1 className="project-bar__name">{state.name}</h1>
-      {/* Уголок стоит вплотную к имени и раскрывает сводку о том же проекте:
-          отдельной подписи ему не нужно — вслух он называется тем же, чем
-          подписана сама сводка. Кнопкой внутри заголовка его не делают:
-          заголовок должен читаться заголовком, а не органом управления. */}
+      {/* The chevron stands right next to the name and unfolds the summary about the same
+          project: it needs no caption of its own — aloud it is named the same as the summary
+          itself. It is not made a button inside the heading: the heading must read as a
+          heading rather than as a control. */}
       {summary && (
         <span className="project-bar__summary">
           <Menu
@@ -90,9 +90,9 @@ export function ProjectBar({
       <PlanState state={state} onShowChanges={onShowChanges} />
       {planAction}
       {tabs}
-      {/* Правый край — одним узлом, чтобы прижать к краю и органы вида, и «⋯»
-          вместе, с чертой между ними: слева от черты то, как смотреть, справа
-          — что ещё можно сделать. */}
+      {/* The right edge is one node, so as to pin both the view controls and the "⋯" to the
+          edge together, with a rule between them: to the left of the rule is how to look, to
+          the right is what else can be done. */}
       {(tools || actions) && (
         <div className="project-bar__end">
           {tools && <div className="project-bar__tools">{tools}</div>}

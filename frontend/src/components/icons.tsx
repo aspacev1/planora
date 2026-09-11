@@ -1,22 +1,21 @@
 import type { ReactNode } from "react";
 
 /**
- * Значки интерфейса.
+ * The interface's icons.
  *
- * Нарисованы здесь, а не взяты библиотекой: каждый — несколько строк разметки,
- * и ради восьми рисунков ставить зависимость с сотней неиспользованных не за
- * что.
+ * Drawn here rather than taken from a library: each is a few lines of markup, and there is
+ * no point adding a dependency with a hundred unused ones for the sake of eight drawings.
  *
- * Лежат все в одном месте, а не по местам употребления: «настройки» рисуются и
- * в боковой колонке, и в шапке проекта, и два разных рисунка одного понятия на
- * одном экране читаются как два разных понятия.
+ * They all lie in one place rather than at their points of use: "settings" is drawn both in
+ * the sidebar and in the project's header, and two different drawings of one notion on one
+ * screen read as two different notions.
  *
- * Все они `aria-hidden`: рядом стоит слово, и прочитанный вслух значок только
- * повторил бы его.
+ * They are all `aria-hidden`: a word stands next to each, and an icon read aloud would only
+ * repeat it.
  */
 
 type IconProps = {
-  /** Класс для размеров и цвета. По умолчанию — общий `.icon` кнопок. */
+  /** A class for the size and the colour. By default the buttons' shared `.icon`. */
   className?: string;
 };
 
@@ -40,7 +39,7 @@ function Icon({ className = "icon", children }: IconProps & { children: ReactNod
   );
 }
 
-/* Галочка в круге: «мои задачи» — это то, что с меня спросят. */
+/* A tick in a circle: "my tasks" is what will be asked of me. */
 export function IconCheck({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -59,8 +58,8 @@ export function IconBoard({ className }: IconProps) {
   );
 }
 
-/* Дверь и стрелка наружу: рисунок замка означал бы «заперто», а не «выйти».
-   Стрелка смотрит вправо, от проёма, — по ней читается направление действия. */
+/* A door and an arrow outwards: a drawing of a lock would mean "locked" rather than "sign
+   out". The arrow points to the right, away from the doorway — the direction of the action is read from it. */
 export function IconExit({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -71,8 +70,8 @@ export function IconExit({ className }: IconProps) {
   );
 }
 
-/* Ползунки, а не шестерня: шестерня в шестнадцати пикселях вырождается в
-   звёздочку и читается как «избранное». */
+/* Sliders rather than a cog: a cog at sixteen pixels degenerates into an asterisk and reads
+   as "favourites". */
 export function IconSettings({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -83,9 +82,9 @@ export function IconSettings({ className }: IconProps) {
   );
 }
 
-/* Три узла и две связи между ними — общепринятый рисунок «поделиться». Цепь
-   звеньями означала бы «ссылка» вообще: её ставят и там, где связывают две
-   задачи, а здесь речь про отдачу проекта наружу. */
+/* Three nodes and two links between them — the commonly accepted drawing for "share". A chain
+   of links would mean "a link" in general: it is used where two tasks are linked too, while
+   here it is about giving the project outwards. */
 export function IconShare({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -97,9 +96,9 @@ export function IconShare({ className }: IconProps) {
   );
 }
 
-/* Щит: панель директора — про надзор за всей установкой, а не про настройку
-   одного места работы, и шестерёнка соседних «Настроек» здесь повторила бы
-   уже занятый ею смысл. */
+/* A shield: the director's panel is about oversight of the whole install rather than about
+   configuring one place of work, and the cog of the neighbouring "Settings" would repeat here
+   the meaning it has already taken. */
 export function IconShield({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -109,9 +108,9 @@ export function IconShield({ className }: IconProps) {
   );
 }
 
-/* Человек с плюсом: приглашение добавляет в организацию людей, а не письма.
-   Конверт рядом со словом «Пригласить» обещал бы отправку письма — а
-   приглашение без адреса уходит ссылкой. */
+/* A person with a plus: an invitation adds people to the organization, not emails. An envelope
+   next to the word "Invite" would promise an email to be sent — while an invitation with no
+   address goes as a link. */
 export function IconInvite({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -122,8 +121,8 @@ export function IconInvite({ className }: IconProps) {
   );
 }
 
-/* Стрелка вниз в лоток. Знак скачивания, а не «сохранить»: файл уезжает из
-   приложения к человеку, а не наоборот. */
+/* A down arrow into a tray. The download sign rather than "save": the file travels from the
+   application to the person, not the other way round. */
 export function IconDownload({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -134,10 +133,10 @@ export function IconDownload({ className }: IconProps) {
   );
 }
 
-/* Двойная стрелка влево: одинарная в ряду ссылок читается как «назад», а пара
-   — как «сложить к краю». Смотрит туда, куда уедет колонка, и появляется
-   только под курсором: постоянная стрелка в самой верхней строке спорила бы за
-   внимание с названием организации. */
+/* A double left arrow: a single one in a row of links reads as "back", while a pair reads as
+   "fold to the edge". It points where the column will travel, and appears only under the
+   cursor: a permanent arrow in the very top line would compete for attention with the
+   organization's name. */
 export function IconCollapse({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -147,9 +146,9 @@ export function IconCollapse({ className }: IconProps) {
   );
 }
 
-/* Стрелки в углы: «развернуть на весь экран». Диагональ, а не рамка со
-   стрелкой внутри, — рамку в этом ряду уже носят кнопки, и вторая читалась бы
-   их частью. */
+/* Arrows into the corners: "expand to full screen". A diagonal rather than a frame with an
+   arrow inside — a frame is already worn by the buttons in this row, and a second would read
+   as part of them. */
 export function IconExpand({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -161,8 +160,8 @@ export function IconExpand({ className }: IconProps) {
   );
 }
 
-/* Те же стрелки, сведённые внутрь: выход из полного экрана — то же движение
-   наоборот, и узнаётся оно по развороту, а не по другому рисунку. */
+/* The same arrows brought inwards: leaving full screen is the same motion in reverse, and it
+   is recognized by the turn rather than by a different drawing. */
 export function IconShrink({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -174,8 +173,8 @@ export function IconShrink({ className }: IconProps) {
   );
 }
 
-/* Календарь: перенос даты старта. Лист с кольцами сверху, а не сетка дней —
-   на четырнадцати пикселях сетка сливается в серое пятно. */
+/* A calendar: moving the start date. A sheet with rings on top rather than a grid of days —
+   at fourteen pixels a grid merges into a grey blot. */
 export function IconCalendar({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -186,8 +185,8 @@ export function IconCalendar({ className }: IconProps) {
   );
 }
 
-/* Замок: раздел «только для команды» в карточке строки сметы. Дужка и корпус,
-   без скважины — на четырнадцати пикселях она читалась бы как пятно. */
+/* A lock: the "team only" section in a quote line's card. The shackle and the body, without a
+   keyhole — at fourteen pixels it would read as a blot. */
 export function IconLock({ className }: IconProps) {
   return (
     <Icon className={className}>
