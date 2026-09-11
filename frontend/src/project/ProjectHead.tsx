@@ -8,23 +8,23 @@ import { planChanges } from "./planChanges";
 import { projectMetrics, projectPeriod } from "./summary";
 
 /**
- * Шапка проекта: название, сводка, действия справа.
+ * The project's header: the name, the summary, the actions on the right.
  *
- * Осталась публичной странице (`/p/...`), где над лентой больше ничего не
- * стоит и высота ярусов ни с кем не делится. Рабочий экран проекта носит
- * вместо неё однострочную `ProjectBar`: там над лентой стоял ещё ряд вкладок
- * и тулбар, и четыре яруса вместе оставляли задачам треть окна.
+ * It has stayed with the public page (`/p/...`), where nothing else stands above the
+ * strip and the tiers' height is shared with nobody. The project's working screen
+ * wears a single-line `ProjectBar` instead: there a row of tabs and a toolbar also
+ * stood above the strip, and four tiers together left the tasks a third of the window.
  *
- * Название крупное — это то, куда попал; сводка под ним отвечает на «сколько
- * это и когда» до того, как человек начнёт считать полоски глазами; действия
- * стоят особняком справа — то, ради чего сюда возвращаются.
+ * The name is large — it is where you have landed; the summary under it answers "how
+ * much is this and when" before a person starts counting bars by eye; the actions
+ * stand apart on the right — what people come back here for.
  */
 export function ProjectHead({
   state,
   actions,
 }: {
   state: ProjectState;
-  /** Кнопки над названием. Гостю не передаются вовсе — их у него нет. */
+  /** The buttons above the name. Not handed to a guest at all — they have none. */
   actions?: ReactNode;
 }) {
   const period = projectPeriod(state);
@@ -32,20 +32,20 @@ export function ProjectHead({
   return (
     <header className="project-head">
       <div className="project-head__main">
-        {/* Название и сводка — одна пара, как в макете Planora: имя проекта
-            слева, ключевые действия справа, служебные данные строкой ниже. */}
+        {/* The name and the summary are one pair, as in the Planora mockup: the
+            project's name on the left, the key actions on the right, the service data on the line below. */}
         <div className="project-head__titles">
-          {/* Название проекта — содержимое пользователя: приходит с сервера как
-              есть и не переводится ни при каком языке интерфейса. */}
+          {/* The project's name is user content: it arrives from the server as is and
+              is not translated whatever the interface language. */}
           <div className="project-head__title-row">
             <h1 className="project-head__title">{state.name}</h1>
           </div>
 
-          {/* Срок работ и ничего больше. Счёт категорий и задач ушёл: полоса
-              метрик ниже называет то же число задач крупно и в ряду
-              остальных, а счёт категорий не отвечал ни на один вопрос,
-              который задают, открыв проект. Проекту без задач срока нет — и
-              строки тоже. */}
+          {/* The work's dates and nothing more. The count of categories and tasks is
+              gone: the metrics bar below names the same number of tasks in large type
+              and in the row with the rest, while the count of categories answered none
+              of the questions asked on opening a project. A project with no tasks has
+              no dates — and no line either. */}
           {period && (
             <p className="project-head__meta">
               <ProjectPeriod state={state} />
@@ -62,12 +62,12 @@ export function ProjectHead({
 }
 
 /**
- * Состояние плана: версия и пометка о расхождении.
+ * The plan's state: the version and the divergence marker.
  *
- * Одна разметка на полную шапку и на строку рабочего экрана — иначе два вида
- * шапки однажды назвали бы одному проекту разные числа. Расхождение с
- * согласованным планом читается вместе с именем проекта: это то, в каком он
- * состоянии, а не сколько в нём задач.
+ * One piece of markup for the full header and for the working screen's line —
+ * otherwise the two kinds of header would one day name different numbers for one
+ * project. The divergence from the approved plan is read together with the project's
+ * name: it is what state it is in, not how many tasks it has.
  */
 export function PlanState({
   state,
@@ -77,45 +77,44 @@ export function PlanState({
   onShowChanges?: () => void;
 }) {
   const { t } = useLocale();
-  // Сколько задач разошлось с согласованным планом. Тот же счёт, что показывает
-  // открытое окно: пометка в шапке и список в нём обязаны знать одно и то же.
+  // How many tasks have diverged from the approved plan. The same count the open panel
+  // shows: the marker in the header and the list in it must know one and the same thing.
   const changed = planChanges(state).taskCount;
   const note = t("plan.changed_count", { count: changed, version: state.plan_version });
 
   return (
     <>
-      {/* Черновик и согласованный план — один бейдж двух цветов, а не два
-          разных знака: `data-state` называет состояние, цвет ему даёт тема. */}
+      {/* A draft and an approved plan are one badge in two colours rather than two
+          different signs: `data-state` names the state, the theme gives it the colour. */}
       <span
         className="project-head__plan-label"
         data-state={state.plan_approved_at ? "approved" : "draft"}
       >
-        {/* Текст — отдельным узлом: на телефоне от плашки остаётся одна
-            точка, а слова уходят в невидимую для глаза, но читаемую вслух
-            подпись (см. `.project-head__plan-text` в теме). */}
+        {/* The text is a separate node: on a phone all that is left of the chip is a
+            dot, and the words go into a caption invisible to the eye but read aloud
+            (see `.project-head__plan-text` in the theme). */}
         <span className="project-head__plan-text">
           {state.plan_approved_at
             ? t("plan.line", { version: state.plan_version })
             : t("plan.line_draft")}
         </span>
       </span>
-      {/* Расхождение с планом называет себя числом задач, а не одним лишь
-          фактом: «изменены 3 задачи» отвечает на «насколько всё серьёзно» до
-          того, как список открыт, а прежнее «изменён после согласования»
-          заставляло открывать его всегда. Считаются задачи, а не правки:
-          число, растущее от повторных движений одной полоски, говорило бы о
-          суете, а не о плане.
+      {/* The divergence from the plan names itself with the number of tasks rather than
+          with the mere fact: "3 tasks changed" answers "how serious is this" before the
+          list is opened, while the former "changed after approval" made you open it
+          every time. Tasks are counted, not edits: a number growing from repeated
+          movements of one bar would speak of fuss rather than of the plan.
 
-          Кнопка, а не набор: за пометкой теперь есть куда пойти. Там, где идти
-          некуда (публичная страница), она остаётся текстом — орган управления,
-          ничего не делающий по нажатию, хуже, чем его отсутствие. */}
+          A button rather than a set: there is now somewhere to go behind the marker.
+          Where there is nowhere to go (the public page) it stays text — a control that
+          does nothing when pressed is worse than its absence. */}
       {changed > 0 &&
         (onShowChanges ? (
           <button type="button" className="project-head__plan-note" onClick={onShowChanges}>
             {note}
-            {/* Уголок — тот же знак, каким приложение обозначает
-                разворачивающееся: он обещает продолжение и отличает
-                нажимаемую плашку от соседней, которая просто сообщает. */}
+            {/* The chevron is the same sign the application marks the unfoldable with:
+                it promises a continuation and tells a pressable chip from the neighbour
+                that merely reports. */}
             <span className="project-head__plan-chevron" aria-hidden="true">
               ▾
             </span>
@@ -128,11 +127,11 @@ export function PlanState({
 }
 
 /**
- * Срок работ словами языка интерфейса.
+ * The work's dates in the words of the interface language.
  *
- * У относительного плана вместо дат — дни проекта: «День 1 — День 45».
- * Настоящих сроков у него ещё нет, и подставить сюда координаты оси значило бы
- * назвать выдуманную дату.
+ * A relative plan has project days instead of dates: "Day 1 — Day 45". It has no real
+ * dates yet, and substituting the axis's coordinates here would mean naming an
+ * invented date.
  */
 export function ProjectPeriod({ state }: { state: ProjectState }) {
   const { t } = useLocale();
@@ -155,23 +154,25 @@ export function ProjectPeriod({ state }: { state: ProjectState }) {
 }
 
 /**
- * Полоса метрик под названием проекта.
+ * The metrics bar under the project's name.
  *
- * Отвечает на «сколько тут работы и что с ней не так» цифрами, а не цветом
- * полосок: сводка выше называет объём, полоса — состояние. Четыре статуса не
- * пересекаются и в сумме дают «Всего», а «После дедлайна проекта» и «Вне
- * плана» — флаги поверх статуса и в сумму не входят.
+ * It answers "how much work is here and what is wrong with it" with figures rather
+ * than with the bars' colour: the summary above names the volume, the bar names the
+ * state. The four statuses do not overlap and add up to "Total", while "Past the
+ * project's deadline" and "Beyond the plan" are flags on top of a status and are not
+ * part of the sum.
  *
- * Отсюда следствие, которое стоит держать в голове, читая цифры: завершённая
- * задача тоже попадает в просроченные, если кончилась позже дедлайна.
- * «Завершено» и «После дедлайна проекта» пересекаются намеренно — это ответы
- * на разные вопросы: «сделано ли» и «в срок ли».
+ * Hence a consequence worth keeping in mind when reading the figures: a finished task
+ * also falls into the overdue ones if it ended after the deadline. "Finished" and
+ * "Past the project's deadline" overlap deliberately — they are answers to different
+ * questions: "is it done" and "was it on time".
  */
 function ProjectMetrics({ state }: { state: ProjectState }) {
   const { t } = useLocale();
-  // Строка плана и счёт «вне плана» — внутренняя кухня: версия плана и
-  // расхождение с ним не обещаны клиенту по ссылке, и публичная шапка их не
-  // показывает. Рабочий экран считает их в `PlanSummary`.
+  // The plan line and the "beyond the plan" count are internal kitchen: the plan's
+  // version and the divergence from it are not promised to a client following a link,
+  // and the public header does not show them. The working screen computes them in
+  // `PlanSummary`.
   const metrics = projectMetrics(state, false);
 
   return (

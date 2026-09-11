@@ -4,22 +4,23 @@ import type { KeyboardEvent, ReactNode } from "react";
 import "./rows.css";
 
 /**
- * Строки таблиц: ячейка, которую правят на месте, и знаки действий на строке.
+ * Table rows: the cell that is edited in place, and a row's action signs.
  *
- * Один набор на ленту Ганта и смету. Смета — та же таблица строк с колонками,
- * и «как в ленте» здесь означает буквально то же самое: тот же способ открыть
- * ячейку, те же кнопки под курсором, та же скорость появления. Свой набор в
- * каждом месте держался бы одинаковым ровно до первой правки одного из них.
+ * One set for the Gantt strip and the quote. The quote is the same table of rows with
+ * columns, and "as in the strip" here means literally the same thing: the same way to
+ * open a cell, the same buttons under the cursor, the same speed of appearing. A set
+ * of its own in each place would stay identical exactly until the first edit of one
+ * of them.
  */
 
 /**
- * Ячейка, которую правят на месте: показ до щелчка, поле после.
+ * A cell edited in place: a display before the click, a field after it.
  *
- * Не кнопка намеренно: колонок шесть, строк — сотня, и шестьсот шагов Tab не
- * вели бы никуда, куда нельзя дойти иначе, — те же поля лежат в карточке
- * строки, до которой с клавиатуры один шаг (её открывает знак «править» на
- * строке). Щелчок остаётся доступен указателю и не обещает того, чего не
- * выполняет.
+ * Deliberately not a button: there are six columns and a hundred rows, and six
+ * hundred Tab steps would lead nowhere you cannot reach otherwise — the same fields
+ * lie in the row's card, one step away from the keyboard (it is opened by the "edit"
+ * sign on the row). The click stays available to the pointer and promises nothing it
+ * does not deliver.
  */
 export function EditableCell({
   value,
@@ -37,43 +38,43 @@ export function EditableCell({
   placeholder,
   onCommit,
 }: {
-  /** Значение в том виде, в каком его примет поле ввода. */
+  /** The value in the form the input field will accept. */
   value: string;
-  /** Значение в том виде, в каком его читают глазами. */
+  /** The value in the form it is read with the eyes. */
   display: string;
   type: "text" | "date" | "number";
-  /** Шаг числового поля: «any» — там, где значение бывает дробным. */
+  /** A numeric field's step: "any" where the value can be fractional. */
   step?: string;
   disabled?: boolean;
   label: string;
   min?: number;
   max?: number;
   /**
-   * Считать ли пустое поле значением.
+   * Whether to treat an empty field as a value.
    *
-   * По умолчанию нет: у числа и имени пустота — середина набора, и отправлять
-   * её значит просить сервер отказать в том, чего человек не просил. У
-   * описания пустота — настоящее значение: описание стирают.
+   * By default no: for a number and a name emptiness is the middle of typing, and
+   * sending it means asking the server to refuse something the person never asked
+   * for. For a description emptiness is a real value: descriptions do get erased.
    */
   allowEmpty?: boolean;
   /**
-   * Открыть поле не щелчком по ячейке, а откуда-то ещё — например, пунктом
-   * «Переименовать» в меню строки. Ячейка сама не знает об этом внешнем
-   * поводе, поэтому повод передаётся значением: каждое новое (по ссылке или
-   * по значению) открывает поле, а не открывшее ничего первое совпадение с
-   * тем, что уже лежит в пропсе при монтировании.
+   * Open the field by something other than a click on the cell — for example, the
+   * "Rename" item in the row's menu. The cell does not know about this outside
+   * occasion itself, so the occasion is passed as a value: every new one (by
+   * reference or by value) opens the field, rather than the first coincidence with
+   * whatever is already in the prop at mount time opening nothing.
    */
   editTrigger?: unknown;
-  /** Класс поверх «cell-value» — там, где ячейка донашивает чужое оформление
-      (жирность строки категории, обрезка многоточием той же меры, что у имени
-      задачи), а не только своё. */
+  /** A class on top of "cell-value" — where the cell wears somebody else's styling
+      (a category row's boldness, the same ellipsis truncation as a task's name) and
+      not only its own. */
   className?: string;
-  /** Узел, на который ссылаются описанием — например, кнопка «⋯» строки. */
+  /** The node referred to by the description — for example, a row's "⋯" button. */
   id?: string;
   /**
-   * Что показать вместо прочерка, пока значения нет: «роль», «ставка».
-   * Прочерк говорит «пусто», подсказка — «сюда пишут вот это», и у строки,
-   * которую только что завели, второе полезнее.
+   * What to show instead of a dash while there is no value: "role", "rate". A dash
+   * says "empty", a hint says "this is what goes in here", and for a row that has
+   * just been created the second is more useful.
    */
   placeholder?: string;
   onCommit: (value: string) => void;
@@ -81,8 +82,8 @@ export function EditableCell({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const input = useRef<HTMLInputElement>(null);
-  // Первый рендер — не повод открываться: без этой отметки ячейка, которой
-  // сразу дали неопределённый `editTrigger`, распахивалась бы едва появившись.
+  // The first render is no reason to open: without this marker a cell given an
+  // undefined `editTrigger` straight away would fling itself open the moment it appeared.
   const mounted = useRef(false);
 
   useEffect(() => {
@@ -93,10 +94,10 @@ export function EditableCell({
     if (editTrigger !== undefined) setEditing(true);
   }, [editTrigger]);
 
-  // Пока ячейку не открывали, черновик обязан идти за правдой: сосед по
-  // проекту правит ту же строку, и ячейка рядом не должна показывать
-  // вчерашнее. Открытую ячейку правда не трогает — иначе чужая правка стирала
-  // бы то, что человек в этот момент набирает.
+  // While the cell has not been opened, the draft must follow the truth: a colleague
+  // on the project is editing the same row, and the cell next to it must not show
+  // yesterday's value. An open cell is not touched by the truth — otherwise someone
+  // else's edit would erase what the person is typing at that moment.
   useEffect(() => {
     if (!editing) setDraft(value);
   }, [editing, value]);
@@ -145,8 +146,8 @@ export function EditableCell({
           commit();
         }
         if (event.key === "Escape") {
-          // Передумать посреди набора — обычное дело, и выходом иначе было бы
-          // вспомнить прежнее значение и набрать его обратно.
+          // Changing your mind mid-typing is an ordinary thing, and the way out
+          // otherwise would be to remember the previous value and type it back.
           event.preventDefault();
           setDraft(value);
           setEditing(false);
@@ -157,12 +158,11 @@ export function EditableCell({
 }
 
 /**
- * Знак действия на строке: кнопка величиной со значок, молчащая до наведения.
+ * A row's action sign: a button the size of an icon, silent until hovered.
  *
- * Кнопка, а не значок с обработчиком: удаление и правка — действия, до
- * которых обязан доходить Tab и которые обязаны срабатывать по Enter. Видимость
- * доступному дереву не мешает: прозрачная кнопка остаётся в нём и всплывает
- * от фокуса (см. rows.css).
+ * A button rather than an icon with a handler: deletion and editing are actions Tab
+ * must reach and Enter must trigger. Visibility does not get in the accessibility
+ * tree's way: a transparent button stays in it and surfaces on focus (see rows.css).
  */
 export function RowIcon({
   label,
@@ -172,12 +172,12 @@ export function RowIcon({
   children,
 }: {
   /**
-   * Подпись включает имя строки: на сотне строк безымянные крестики при чтении
-   * с экрана неразличимы, и выбрать нужный нельзя иначе как считая их по
-   * порядку.
+   * The caption includes the row's name: with a hundred rows, nameless crosses are
+   * indistinguishable on a screen reader, and the right one cannot be picked except
+   * by counting them in order.
    */
   label: string;
-  /** «danger» — необратимое действие: цветом под курсором. */
+  /** "danger" — an irreversible action: by colour under the cursor. */
   tone?: "quiet" | "danger";
   disabled?: boolean;
   onClick: () => void;
@@ -198,13 +198,13 @@ export function RowIcon({
 }
 
 /**
- * Значок со счётчиком: обсуждение строки.
+ * An icon with a counter: the row's discussion.
  *
- * Не кнопка — в отличие от знаков действий рядом: то же обсуждение открывается
- * с клавиатуры карточкой строки, а вторая кнопка на каждой из ста строк была
- * бы сотней лишних шагов Tab, ни один из которых не ведёт туда, куда нельзя
- * дойти иначе. Числу при этом нужно имя: без него с экрана читается голая
- * цифра.
+ * Not a button — unlike the action signs next to it: the same discussion is opened
+ * from the keyboard by the row's card, and a second button on each of a hundred rows
+ * would be a hundred extra Tab steps, not one of which leads anywhere you cannot
+ * reach otherwise. The number does need a name at that: without it a bare figure is
+ * read from the screen.
  */
 export function RowBadge({
   label,
@@ -213,7 +213,7 @@ export function RowBadge({
   children,
 }: {
   label: string;
-  /** Есть ли что показывать: значение видно всегда, приглашение — по наведению. */
+  /** Whether there is anything to show: the value is always visible, the invitation appears on hover. */
   set?: boolean;
   onClick?: () => void;
   children: ReactNode;
@@ -231,7 +231,7 @@ export function RowBadge({
   );
 }
 
-/** Знак «обсуждение». */
+/** The "discussion" sign. */
 export function CommentIcon() {
   return (
     <svg className="glyph" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -240,7 +240,7 @@ export function CommentIcon() {
   );
 }
 
-/** Знак «править»: карандаш. Им открывают карточку строки. */
+/** The "edit" sign: a pencil. It opens the row's card. */
 export function PencilIcon() {
   return (
     <svg className="glyph" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
