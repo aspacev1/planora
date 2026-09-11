@@ -104,7 +104,7 @@ def test_create_task_writes_a_revision_after_the_category_one(db, project, categ
         actor_id=None,
     )
 
-    assert revision.seq == 2  # первая ревизия ушла на создание категории
+    assert revision.seq == 2  # the first revision went to creating the category
     assert revision.op["type"] == "create_task"
     assert revision.inverse["type"] == "delete_task"
 
@@ -226,8 +226,8 @@ def test_deleting_a_category_takes_its_tasks_with_it(db, project, category):
 
     assert db.get(Category, category.id) is None
     assert db.scalar(select(func.count()).select_from(Task)) == 0
-    # Число задач — в самой записи: «удалил категорию» умалчивало бы об этапе,
-    # ушедшем вместе с ней.
+    # The number of tasks goes into the entry itself: "deleted a category" would say
+    # nothing about the stage that went away with it.
     assert deleted.op == {
         "type": "delete_category",
         "category_id": str(category.id),
@@ -236,11 +236,11 @@ def test_deleting_a_category_takes_its_tasks_with_it(db, project, category):
 
 
 def test_undo_of_a_category_delete_brings_back_the_whole_stage(db, project, category, insider):
-    """Отмена возвращает не заголовок, а этап целиком — со связями и людьми.
+    """An undo brings back not a heading but the whole stage — with dependencies and people.
 
-    Ради этого запрет на удаление непустой категории и снимался: удалять этап
-    по строке ради его заголовка — это столько же удалений, сколько в нём
-    задач, и столько же нажатий «Отменить», чтобы передумать.
+    That is what the ban on deleting a non-empty category was lifted for: deleting a stage
+    row by row for the sake of its heading means as many deletions as it has tasks, and as
+    many presses of "Undo" to change one's mind.
     """
     first = apply_op(
         db,
@@ -277,12 +277,12 @@ def test_undo_of_a_category_delete_brings_back_the_whole_stage(db, project, cate
         "Logo",
         "Layout",
     ]
-    # Идентификаторы те же: ссылки на задачу из журнала и из соседней вкладки
-    # обязаны продолжать вести туда же.
+    # The identifiers are the same: references to the task from the journal and from a
+    # neighbouring tab must keep leading to the same place.
     assert db.get(Task, first).duration_days == 5
-    # Связь между двумя задачами одной категории возвращается тоже — а её не
-    # было бы, восстанавливай окружение каждой задачи сразу после её строки:
-    # в этот момент второй задачи ещё не существует.
+    # The dependency between two tasks of one category comes back too — and it would not,
+    # were every task's environment restored right after its row: at that moment the
+    # second task does not exist yet.
     assert db.scalar(select(func.count()).select_from(Dependency)) == 1
     assert db.scalar(select(func.count()).select_from(TaskAssignee)) == 1
 
@@ -477,9 +477,9 @@ def test_create_after_a_delete_does_not_reuse_an_occupied_task_position(db, proj
         actor_id=None,
     )
 
-    # COUNT(*) после удаления считает оставшиеся строки, а не наибольший
-    # занятый номер: после удаления первой из двух задач остаётся одна
-    # строка, и COUNT(*) даёт 1 — тот же номер, что уже занят второй задачей.
+    # COUNT(*) after a deletion counts the remaining rows rather than the greatest taken
+    # number: after deleting the first of two tasks one row is left, and COUNT(*) gives 1 —
+    # the same number the second task already holds.
     second_position = db.get(Task, second.op["task_id"]).position
     third_position = db.get(Task, third.op["task_id"]).position
     assert second_position != third_position
@@ -517,8 +517,8 @@ def test_undo_of_a_task_delete_restores_its_original_position(db, project, categ
     assert db.get(Task, second_task_id).position == 1
 
     deleted = apply_op(db, project, DeleteTask(task_id=second_task_id), actor_id=None)
-    # Другая задача занимает освободившееся место — наивный пересчёт при
-    # отмене удаления сдвинул бы восстановленную задачу в конец списка.
+    # Another task takes the freed place — a naive recount on undoing a deletion would
+    # push the restored task to the end of the list.
     apply_op(
         db,
         project,
@@ -549,7 +549,7 @@ def _make(db, project, category, name: str, position: int | None = None):
 
 
 def _order(db, category) -> list[str]:
-    """Названия строк категории в том порядке, в каком их читает лента."""
+    """The names of a category's rows in the order the chart reads them."""
     rows = db.scalars(
         select(Task).where(Task.category_id == category.id).order_by(Task.position, Task.id)
     ).all()
@@ -560,8 +560,8 @@ def test_a_task_created_at_a_taken_slot_pushes_the_row_below(db, project, catego
     _make(db, project, category, "First")
     _make(db, project, category, "Second")
 
-    # «Плюс» на границе строк: задача заводится там, куда указали, а не в
-    # конце списка.
+    # The "plus" on a row boundary: the task is created where it was pointed rather than at
+    # the end of the list.
     _make(db, project, category, "Between", position=1)
 
     assert _order(db, category) == ["First", "Between", "Second"]
@@ -571,7 +571,7 @@ def test_a_task_created_at_a_free_slot_leaves_the_neighbours_alone(db, project, 
     first = _make(db, project, category, "First")
     _make(db, project, category, "Second")
 
-    # Хвост списка ничей: сдвигать ради него некого.
+    # The tail of the list is nobody's: there is no one to move for its sake.
     _make(db, project, category, "Third", position=2)
 
     assert _order(db, category) == ["First", "Second", "Third"]
@@ -581,11 +581,11 @@ def test_a_task_created_at_a_free_slot_leaves_the_neighbours_alone(db, project, 
 def test_undo_of_a_delete_returns_the_task_even_when_its_slot_was_retaken(
     db, project, category
 ):
-    """Отмена удаления не падает на занятом номере, а раздвигает список.
+    """Undoing a deletion does not fail on a taken number but parts the list.
 
-    Перестановка перенумеровывает строки подряд и закрывает дыру от удалённой
-    задачи. До этого возврат на прежний номер нарушал бы уникальность
-    (category_id, position) — то есть отменялся бы пятисоткой.
+    A reorder renumbers the rows consecutively and closes the hole left by a deleted task.
+    Before this, returning to the previous number would violate the uniqueness of
+    (category_id, position) — that is, the undo would fail with a 500.
     """
     _make(db, project, category, "First")
     second = _make(db, project, category, "Second")
@@ -619,19 +619,18 @@ def test_the_wire_carries_the_position_but_still_not_the_identifier(db, project,
         )
     )
 
-    # Место строки выбирает человек, идентификатор — сервер.
+    # A row's place is chosen by a person, its identifier by the server.
     assert internal.position == 2
     assert internal.task_id is None
 
 
 def test_public_operations_are_a_subset_of_the_internal_ones():
-    """Публичная модель отличается от внутренней ровно полями восстановления.
+    """The public model differs from the internal one by exactly the restore fields.
 
-    Пин против расхождения: новое поле, добавленное только во внутреннюю
-    модель, — норма, но новое поле восстановления, случайно попавшее в
-    публичную, здесь и всплывёт. Позиции задачи в этом списке нет намеренно:
-    она принимается по проводу — место строки выбирает человек (см. комментарий
-    к контракту в mutations.py).
+    A pin against divergence: a new field added only to the internal model is normal, but a
+    new restore field that has accidentally landed in the public one will surface here. The
+    task's position is deliberately absent from this list: it is accepted over the wire —
+    a row's place is chosen by a person (see the comment on the contract in mutations.py).
     """
     assert set(PublicCreateTask.model_fields) | {
         "task_id",
@@ -696,19 +695,19 @@ def test_creating_past_the_project_task_limit_is_refused(db, project, category, 
 
 
 def test_apply_op_takes_a_row_lock_on_the_project(engine):
-    """Две сессии не могут применять операции к одному проекту одновременно.
+    """Two sessions cannot apply operations to one project at the same time.
 
-    Проверка настоящая, а не «вызвался ли метод»: вторая сессия просит строку
-    проекта с NOWAIT — до применения операции она свободна, после apply_op в
-    незавершённой транзакции первой сессии Postgres отказывает немедленно.
-    Без блокировки обе сессии считали бы max(seq)+1 из одного снимка, и
-    проигравший ловил бы нарушение уникальности (project_id, seq).
+    The check is a real one rather than "was the method called": the second session asks
+    for the project's row with NOWAIT — before the operation is applied it is free, and
+    after apply_op inside the first session's unfinished transaction Postgres refuses
+    immediately. Without the lock both sessions would compute max(seq)+1 from one snapshot,
+    and the loser would catch a violation of the uniqueness of (project_id, seq).
 
-    Наблюдатель просит именно FOR NO KEY UPDATE, а не FOR UPDATE: вставка
-    ревизии и так берёт на строке проекта FOR KEY SHARE по внешнему ключу, и
-    с FOR UPDATE тест проходил бы даже без явной блокировки — то есть не
-    проверял бы ничего. FOR NO KEY UPDATE с FOR KEY SHARE совместим и
-    конфликтует ровно с той блокировкой, которую берёт apply_op.
+    The observer asks for FOR NO KEY UPDATE specifically rather than FOR UPDATE: inserting
+    a revision already takes FOR KEY SHARE on the project's row through the foreign key,
+    and with FOR UPDATE the test would pass even without an explicit lock — that is, it
+    would check nothing. FOR NO KEY UPDATE is compatible with FOR KEY SHARE and conflicts
+    with exactly the lock apply_op takes.
     """
     from sqlalchemy import delete, select
     from sqlalchemy.exc import OperationalError
@@ -737,7 +736,7 @@ def test_apply_op_takes_a_row_lock_on_the_project(engine):
             .where(Project.id == project_id)
             .with_for_update(nowait=True, key_share=True)
         )
-        observer.execute(free)  # до операции строка свободна
+        observer.execute(free)  # before the operation the row is free
         observer.rollback()
 
         apply_op(
@@ -778,16 +777,15 @@ def test_undo_refuses_a_revision_from_another_project(db, project, other_project
         undo(db, project, foreign, actor_id=None)
     assert error.value.code == "revision_not_found"
 
-    # задача чужого проекта осталась на месте
+    # the task of another project stayed in place
     assert db.get(Task, foreign.op["task_id"]) is not None
 
 
 def test_the_journal_is_queryable_by_payload_containment(db, project, category):
-    """op и inverse — jsonb, а не json.
+    """op and inverse are jsonb rather than json.
 
-    Все три фичи на этом журнале ищут по содержимому полезной нагрузки.
-    Оператор вхождения (@>) существует только у jsonb: на json этот запрос
-    не выполнится вовсе.
+    All three features built on this journal search by the payload's content. The
+    containment operator (@>) exists only on jsonb: on json this query will not run at all.
     """
     from sqlalchemy import select
 
@@ -875,7 +873,7 @@ def test_set_criticality_rejects_an_unknown_level(db, project, category):
 
 
 def test_set_criticality_and_progress_and_colour_round_trip(db, project, category):
-    """Оставшиеся три операции той же формы: обе границы в журнале, отмена возвращает прежнее."""
+    """The remaining three operations of the same shape: both bounds in the journal, the undo brings the previous one back."""
     created = apply_op(db, project, CreateTask(
         category_id=str(category.id), name="Logo",
         start_date=date(2026, 3, 4), duration_days=5), actor_id=None)
@@ -900,7 +898,7 @@ def test_set_criticality_and_progress_and_colour_round_trip(db, project, categor
     assert db.get(Category, category.id).color == "#3b82f6"
 
 
-# --- статус ------------------------------------------------------------------
+# --- status -------------------------------------------------------------------
 
 
 def test_create_task_defaults_to_planned_and_accepts_a_status(db, project, category):
@@ -944,8 +942,8 @@ def test_progress_at_100_marks_the_task_done(db, project, category):
 
     task = db.get(Task, task_id)
     assert (task.progress_pct, task.status) == (100, "done")
-    # Обе границы статуса легли в журнал: отмена вернёт прежний статус
-    # дословно, а не выведет его связкой заново.
+    # Both status bounds landed in the journal: an undo will bring the previous status back
+    # verbatim rather than deriving it through the coupling anew.
     assert revision.op["status_from"] == "planned"
     assert revision.op["status_to"] == "done"
     assert revision.inverse["status_to"] == "planned"
@@ -964,7 +962,7 @@ def test_progress_below_100_returns_a_done_task_to_in_progress(db, project, cate
 
 
 def test_progress_movement_leaves_a_blocked_task_blocked(db, project, category):
-    """Связка знает ровно два перехода; прочие статусы движение прогресса не трогает."""
+    """The coupling knows exactly two transitions; a movement of progress does not touch the other statuses."""
     task_id = apply_op(db, project, CreateTask(
         category_id=str(category.id), name="A",
         start_date=date(2026, 3, 4), duration_days=1, status="blocked"),
@@ -974,7 +972,7 @@ def test_progress_movement_leaves_a_blocked_task_blocked(db, project, category):
                         actor_id=None)
 
     assert db.get(Task, task_id).status == "blocked"
-    # Статус не менялся — границ статуса в журнале нет.
+    # The status did not change — there are no status bounds in the journal.
     assert "status_from" not in revision.op
 
 
@@ -1002,7 +1000,7 @@ def test_leaving_done_keeps_the_progress_untouched(db, project, category):
                         actor_id=None)
 
     task = db.get(Task, task_id)
-    # Обратного правила у связки нет: выдуманного «почти готово» не бывает.
+    # The coupling has no reverse rule: there is no such thing as an invented "almost ready".
     assert (task.status, task.progress_pct) == ("in_progress", 100)
     assert "progress_from" not in revision.op
 
@@ -1021,10 +1019,10 @@ def test_undo_of_set_status_restores_both_status_and_progress(db, project, categ
 
 
 def test_undo_of_set_progress_restores_a_blocked_status(db, project, category):
-    """Отмена возвращает статус из журнала, а не выводит его связкой заново.
+    """An undo brings the status back from the journal rather than deriving it through the coupling anew.
 
-    Связка знает только пару planned/in_progress — про 'blocked' до 100%
-    она не угадала бы никогда.
+    The coupling knows only the planned/in_progress pair — about 'blocked' below 100% it
+    would never have guessed.
     """
     task_id = apply_op(db, project, CreateTask(
         category_id=str(category.id), name="A",
@@ -1042,10 +1040,10 @@ def test_undo_of_set_progress_restores_a_blocked_status(db, project, category):
 
 
 def test_set_status_is_not_accepted_over_the_wire_with_a_progress():
-    """progress_pct у set_status — поле восстановления, как task_id у create_task.
+    """progress_pct on set_status is a restore field, like task_id on create_task.
 
-    По проводу оно не принимается: прогрессом с провода управляет
-    set_progress, а здесь клиент подложил бы значение в обход связки.
+    It is not accepted over the wire: progress from the wire is governed by set_progress,
+    and here a client would slip a value in around the coupling.
     """
     from app.mutations import PublicSetStatus
 
@@ -1070,7 +1068,7 @@ def test_reorder_shifts_neighbours_and_records_the_whole_map(db, project, catego
     assert after[ids[2]] == 0
     assert after[ids[0]] == 1
     assert after[ids[1]] == 2
-    # в журнале лежит карта, а не один сдвиг
+    # the journal holds a map rather than a single shift
     assert set(revision.op["from"]) == set(ids)
     assert revision.op["to"][ids[0]] == 1
 
@@ -1116,10 +1114,10 @@ def test_reorder_rejects_a_category_from_another_project(db, project, category, 
 
 
 def test_undo_of_a_reorder_across_categories_restores_the_category_too(db, project, category):
-    """Карта в журнале несёт и категорию, а не только номер.
+    """The map in the journal carries the category too, not only the number.
 
-    Без categories_from отмена вернула бы позиции, но оставила задачу в
-    новой категории — то есть отменила бы половину перестановки.
+    Without categories_from an undo would bring the positions back but leave the task in
+    the new category — that is, it would undo half of the reorder.
     """
     other = db.get(Category, apply_op(db, project, CreateCategory(
         name="Development", color="#22c55e"), actor_id=None).op["category_id"])
@@ -1146,10 +1144,10 @@ def test_reorder_refuses_a_negative_position(db, project, category):
 
 
 def test_reorder_is_not_accepted_over_the_wire_as_apply_positions():
-    """ApplyPositions существует только как обратная операция.
+    """ApplyPositions exists only as an inverse operation.
 
-    В публичном реестре её нет: иначе клиент мог бы прислать произвольную
-    карту позиций и расставить строки в обход всякой проверки порядка.
+    It is absent from the public registry: otherwise a client could send an arbitrary map
+    of positions and lay the rows out around every check of the ordering.
     """
     from app.mutations import PublicOp
 
@@ -1175,10 +1173,10 @@ def _new_category(db, project, name: str) -> str:
 
 
 def test_reorder_category_shifts_neighbours_and_records_the_whole_map(db, project, category):
-    """Этап встаёт на названное место, соседи расступаются, карта — в журнале.
+    """The stage takes the named place, the neighbours part, and the map goes into the journal.
 
-    Карта, а не один сдвиг, по той же причине, что и у задачи: отмене нужны
-    все, кого перестановка задела.
+    A map rather than a single shift, for the same reason as with a task: an undo needs
+    everyone the reorder touched.
     """
     ids = [str(category.id)] + [_new_category(db, project, name) for name in ("B", "C")]
 
@@ -1207,7 +1205,7 @@ def test_undo_of_a_category_reorder_restores_every_neighbour(db, project, catego
 
 
 def test_reorder_category_past_the_end_puts_it_last(db, project, category):
-    """Позиция за концом списка — не отказ: бросок в самый низ шлёт длину."""
+    """A position past the end of the list is not a refusal: a throw to the very bottom sends the length."""
     ids = [str(category.id)] + [_new_category(db, project, "B")]
 
     apply_op(db, project, ReorderCategory(category_id=ids[0], position=99), actor_id=None)
@@ -1216,7 +1214,7 @@ def test_reorder_category_past_the_end_puts_it_last(db, project, category):
 
 
 def test_reorder_category_leaves_task_order_alone(db, project, category):
-    """У задач своя нумерация внутри своего этапа — перестановка этапов её не трогает."""
+    """Tasks have their own numbering inside their own stage — reordering stages does not touch it."""
     other = _new_category(db, project, "B")
     task_id = apply_op(db, project, CreateTask(
         category_id=str(category.id), name="Logo",
@@ -1291,10 +1289,10 @@ def test_removing_a_dependency_that_does_not_exist_is_refused(db, project, categ
 def test_a_dependency_to_a_task_of_another_project_is_refused(
     db, project, category, other_project, other_category
 ):
-    """Обе стороны связи проходят через _require_task.
+    """Both sides of a dependency go through _require_task.
 
-    Иначе стрелку можно протянуть в чужой проект — и сам факт существования
-    той задачи стал бы наблюдаемым.
+    Otherwise an arrow could be drawn into another project — and the very fact of that
+    task's existence would become observable.
     """
     mine = apply_op(db, project, CreateTask(
         category_id=str(category.id), name="A",
@@ -1323,7 +1321,7 @@ def test_undo_of_a_dependency_removal_brings_the_arrow_back(db, project, categor
 
 @pytest.fixture
 def insider(db, project):
-    """Человек из той же организации, что и проект, — кандидат в исполнители."""
+    """A person from the same organization as the project is a candidate assignee."""
     user = User(name="Insider", email="insider@example.com", password_hash="x")
     db.add(user)
     db.flush()
@@ -1334,7 +1332,7 @@ def insider(db, project):
 
 @pytest.fixture
 def outsider(db, other_project):
-    """Человек из другой организации: назначать его нельзя."""
+    """A person from another organization: they cannot be assigned."""
     user = User(name="Outsider", email="outsider@example.com", password_hash="x")
     db.add(user)
     db.flush()
@@ -1389,11 +1387,11 @@ def test_unassigning_someone_who_is_not_assigned_is_refused(db, project, categor
     assert error.value.code == "assignment_not_found"
 
 
-# --- вехи --------------------------------------------------------------------
+# --- milestones ---------------------------------------------------------------
 
 
 def _task(db, project, category, **fields):
-    """Задача с разумными умолчаниями: тестам ниже важны один-два её поля."""
+    """A task with sensible defaults: the tests below care about one or two of its fields."""
     return apply_op(
         db,
         project,
@@ -1426,8 +1424,8 @@ def test_becoming_a_milestone_collapses_the_duration_to_one_day(db, project, cat
     changed = apply_op(db, project, SetMilestone(task_id=task_id, milestone=True), actor_id=None)
 
     assert db.get(Task, task_id).duration_days == 1
-    # Обе границы длительности — в журнале: без них отмена вернула бы признак,
-    # но не срок, и задача осталась бы однодневной навсегда.
+    # Both duration bounds go into the journal: without them an undo would bring the flag
+    # back but not the dates, and the task would stay one day long forever.
     assert changed.op["duration_from"] == 5
     assert changed.op["duration_to"] == 1
 
@@ -1448,8 +1446,8 @@ def test_dropping_the_milestone_flag_leaves_the_duration_alone(db, project, cate
 
     changed = apply_op(db, project, SetMilestone(task_id=task_id, milestone=False), actor_id=None)
 
-    # Отрезок длиной в день — честный ответ: настоящей длительности у вехи не
-    # было, и придумывать её на выходе не из чего.
+    # A segment one day long is the honest answer: a milestone had no real duration, and
+    # there is nothing to invent one from on the way out.
     assert db.get(Task, task_id).duration_days == 1
     assert "duration_from" not in changed.op
 
@@ -1493,7 +1491,7 @@ def test_the_wire_accepts_the_milestone_flag(db, project, category):
     assert op.milestone is True
 
 
-# --- сдвиг категории ---------------------------------------------------------
+# --- a category shift ----------------------------------------------------------
 
 
 def test_moving_a_category_shifts_every_task_in_it(db, project, category):
@@ -1573,7 +1571,7 @@ def test_moving_a_category_of_another_project_is_refused(db, project, other_cate
     assert error.value.code == "category_not_found"
 
 
-# --- левая грань полоски -----------------------------------------------------
+# --- the bar's left edge -------------------------------------------------------
 
 
 def test_resize_changes_start_and_duration_in_one_revision(db, project, category):
@@ -1636,8 +1634,8 @@ def test_resize_rejects_zero_duration(db, project, category):
 
 
 def test_set_risk_round_trip_and_unknown_flag(db, project, category):
-    """Флаг и причина — одной операцией с обеими границами; отмена возвращает
-    обе. Незнакомый флаг — отказ, а не пятисотка от CHECK."""
+    """The flag and the reason in one operation with both bounds; an undo brings both back.
+    An unknown flag is a refusal rather than a 500 from the CHECK."""
     created = apply_op(db, project, CreateTask(
         category_id=str(category.id), name="Logo",
         start_date=date(2026, 3, 4), duration_days=5), actor_id=None)

@@ -1,10 +1,10 @@
-"""Приглашения как домен: выпуск, отзыв, повторный выпуск и приём.
+"""Invitations as a domain: issuing, revoking, reissuing and accepting.
 
-Тесты бьют по функциям модуля, а не по HTTP: те же правила действуют и на
-приёме по ссылке, и на регистрации по ней, а HTTP-слой у этих двух путей
-разный. Отдельно проверяется то, что спецификация требует держать в тестах
-явно: токен лежит хешем, принятое приглашение не срабатывает второй раз, роль
-из ссылки не подменяется, лимит срабатывает.
+The tests hit the module's functions rather than HTTP: the same rules apply both to
+accepting by link and to registering through one, while the HTTP layer of those two
+paths differs. What the specification requires to be kept explicitly in tests is checked
+separately: the token lies as a hash, an accepted invitation does not fire a second
+time, the role from the link is not substituted, the limit fires.
 """
 
 import uuid
@@ -31,7 +31,7 @@ from app.projects import create_project
 from app.security import hash_token
 
 def granted_project_ids(db, *, user_id):
-    """Проекты, к которым у человека есть явный доступ, — глазами теста."""
+    """The projects a person has explicit access to — through a test's eyes."""
     return set(
         db.scalars(select(ProjectAccess.project_id).where(ProjectAccess.user_id == user_id)).all()
     )
@@ -67,7 +67,7 @@ def test_the_token_is_stored_hashed_and_never_in_the_open(db):
 
     assert invitation.token_hash != token
     assert invitation.token_hash == hash_token(token)
-    # Прямое следствие: найти приглашение можно только предъявив токен.
+    # The direct consequence: an invitation can be found only by presenting the token.
     assert by_token(db, token).id == invitation.id
     assert by_token(db, "не тот токен") is None
 
@@ -95,8 +95,8 @@ def test_accepting_creates_a_membership_with_the_role_from_the_invitation(db):
 
     membership = accept(db, invitation, user=guest, now=NOW)
 
-    # Роль зафиксирована в момент приглашения: принимающий на неё не влияет
-    # ничем — ни адресом, ни тем, как он открыл ссылку.
+    # The role is fixed at the moment of the invitation: whoever accepts influences it in
+    # no way — neither by their address nor by how they opened the link.
     assert membership.role == Role.VIEWER
     assert invitation.accepted_at == NOW
     assert invitation.accepted_by == guest.id
@@ -141,10 +141,10 @@ def test_a_revoked_invitation_dies_immediately(db):
 
 
 def test_an_accepted_invitation_reads_as_accepted_even_after_its_date(db):
-    """Порядок проверок в status_of: принятое остаётся принятым и после срока.
+    """The order of checks in status_of: an accepted one stays accepted after it expires too.
 
-    Иначе человек, открывший свою же старую ссылку, пойдёт просить новую
-    вместо того, чтобы просто войти.
+    Otherwise a person opening their own old link will go and ask for a new one instead of
+    simply signing in.
     """
     owner, org_id = _owner(db)
     invitation, _ = _invite(db, org_id, owner.id)
@@ -184,8 +184,8 @@ def test_reissuing_kills_the_previous_link(db):
     second = reissue(db, invitation, now=NOW)
 
     assert second != first
-    # Старая ссылка перестаёт находить приглашение — иначе отозвать «то самое
-    # отправленное письмо» было бы нечем.
+    # The old link stops finding the invitation — otherwise there would be nothing to
+    # revoke "that particular sent message" with.
     assert by_token(db, first) is None
     assert by_token(db, second).id == invitation.id
 
@@ -228,9 +228,9 @@ def test_revoking_twice_changes_nothing_and_is_not_an_error(db):
 
 
 def test_a_second_invitation_to_the_same_address_reissues_the_live_one(db):
-    """Два действующих токена на один адрес означали бы, что отозвать «то самое
-    письмо» уже нельзя: отзыв убил бы одну ссылку, а вторая продолжила бы
-    работать рядом."""
+    """Two valid tokens for one address would mean that "that particular message" can no
+    longer be revoked: a revocation would kill one link while the second kept working
+    alongside it."""
     owner, org_id = _owner(db)
     first_invitation, first_token = _invite(db, org_id, owner.id)
     second_invitation, second_token = _invite(db, org_id, owner.id)
@@ -242,11 +242,11 @@ def test_a_second_invitation_to_the_same_address_reissues_the_live_one(db):
 
 
 def test_a_new_invitation_is_issued_once_the_previous_one_is_accepted(db):
-    """Принятое приглашение не переиздаётся: на его месте выпускается новое.
+    """An accepted invitation is not reissued: a new one is issued in its place.
 
-    Позвать по тому же адресу второй раз можно ровно тогда, когда человек из
-    организации вышел, — пока он внутри, выпуск отвечает `already_member`.
-    Именно этот путь здесь и проходится: принял, ушёл, позвали заново.
+    Inviting the same address a second time is possible exactly once the person has left
+    the organization — while they are inside, issuing answers `already_member`. That is
+    the path walked here: accepted, left, invited anew.
     """
     owner, org_id = _owner(db)
     first_invitation, _ = _invite(db, org_id, owner.id)
@@ -279,7 +279,7 @@ def test_the_hourly_ceiling_stops_the_next_batch(db, monkeypatch):
             _invite(db, org_id, owner.id, emails=("three@example.com",))
         assert error.value.code == "invite_rate_limited"
 
-        # Потолок часовой, а не вечный: за окном он отпускает.
+        # The ceiling is hourly rather than eternal: past the window it lets go.
         _invite(db, org_id, owner.id, emails=("three@example.com",), now=NOW + timedelta(hours=2))
     finally:
         get_settings.cache_clear()
@@ -300,8 +300,8 @@ def test_the_ceiling_counts_the_whole_batch_before_issuing_any_of_it(db, monkeyp
                 project_ids=[],
                 now=NOW,
             )
-        # Отказ до первой вставки: наполовину разосланная пачка хуже, чем
-        # отказанная целиком — половину адресов пришлось бы вычислять глазами.
+        # A refusal before the first insert: a half-sent batch is worse than one refused
+        # entirely — half the addresses would have to be worked out by eye.
         assert db.scalar(select(Invitation).where(Invitation.org_id == org_id)) is None
     finally:
         get_settings.cache_clear()
@@ -336,9 +336,9 @@ def test_a_client_invitation_grants_the_projects_it_names(db):
 
 
 def test_an_editor_invited_with_projects_is_scoped_to_them(db):
-    """Отмеченные проекты сужают членство целиком, независимо от роли: у
-    редактора, позванного в конкретные проекты, доступ к организации сузился
-    до них же — той же записью project_access, что и у client."""
+    """The selected projects narrow the membership as a whole, regardless of the role: an
+    editor invited into particular projects has their access to the organization narrowed
+    to those same ones — by the same project_access row as a client."""
     owner, org_id = _owner(db)
     project = create_project(db, org_id=org_id, name="Redesign")
     other = create_project(db, org_id=org_id, name="Internal")
@@ -356,8 +356,8 @@ def test_an_editor_invited_with_projects_is_scoped_to_them(db):
 
 
 def test_a_viewer_invited_without_projects_keeps_seeing_the_whole_org(db):
-    """Пустой список проектов ничего не сужает: наблюдатель без отметок ведёт
-    себя ровно так же, как и до появления этой возможности."""
+    """An empty list of projects narrows nothing: a viewer with nothing selected behaves
+    exactly as they did before this capability appeared."""
     owner, org_id = _owner(db)
     invitation, _ = _invite(db, org_id, owner.id, role="viewer", projects=())
     guest = register(db, name="Guest", email="guest@example.com", password="s3cret-pass")
@@ -371,9 +371,9 @@ def test_a_viewer_invited_without_projects_keeps_seeing_the_whole_org(db):
 
 
 def test_accepting_does_not_scope_the_membership_of_someone_already_inside(db):
-    """Как и роль, сужение существующего членства приглашением не трогается —
-    иначе владелец, открывший собственную же ссылку по невнимательности,
-    оказался бы заперт в списке чужого выбора."""
+    """Like the role, the narrowing of an existing membership is not touched by an
+    invitation — otherwise an owner who carelessly opened their own link would end up
+    locked inside a list of someone else's choosing."""
     owner, org_id = _owner(db)
     project = create_project(db, org_id=org_id, name="Redesign")
     db.flush()
@@ -404,7 +404,7 @@ def test_an_unknown_role_is_refused_at_the_door(db):
 
 
 def test_a_project_deleted_between_the_invitation_and_the_acceptance_is_skipped(db):
-    """Ссылка на исчезнувший проект — не повод отказать человеку во входе."""
+    """A reference to a vanished project is no reason to refuse a person entry."""
     owner, org_id = _owner(db)
     alive = create_project(db, org_id=org_id, name="Redesign")
     doomed = create_project(db, org_id=org_id, name="Cancelled")
@@ -422,13 +422,12 @@ def test_a_project_deleted_between_the_invitation_and_the_acceptance_is_skipped(
 
 
 def test_accepting_does_not_rewrite_the_role_of_an_existing_membership(db):
-    """Приглашение зовёт снаружи, а не переписывает роль тому, кто уже внутри.
+    """An invitation invites from the outside rather than rewriting the role of someone already inside.
 
-    Иначе владелец, открывший собственную же ссылку по невнимательности,
-    разжаловал бы сам себя — и починить это стало бы некому. Приглашение здесь
-    именно ссылочное: выпуск на свой адрес отбивается раньше, кодом
-    `already_member`, а ссылка без адреса достаётся предъявителю и до `accept`
-    доходит.
+    Otherwise an owner who carelessly opened their own link would demote themselves — and
+    there would be nobody left to fix it. The invitation here is a link one specifically:
+    issuing one to one's own address is rejected earlier, with the code `already_member`,
+    while a link with no address goes to whoever presents it and does reach `accept`.
     """
     owner, org_id = _owner(db)
     invitation, _ = _invite(db, org_id, owner.id, emails=(), role="viewer")
@@ -442,9 +441,9 @@ def test_accepting_does_not_rewrite_the_role_of_an_existing_membership(db):
 
 
 def test_accepting_twice_over_does_not_duplicate_project_access(db):
-    # Приглашения ссылочные: позвать по адресу того, кто уже внутри, выпуск не
-    # даёт (`already_member`), а ссылка без адреса до приёма доходит — и второй
-    # приём обязан оставить доступ к проекту одним, а не двумя.
+    # Invitations are link ones: issuing does not let you invite by address someone who is
+    # already inside (`already_member`), while a link with no address does reach
+    # acceptance — and a second acceptance must leave one access to the project, not two.
     owner, org_id = _owner(db)
     project = create_project(db, org_id=org_id, name="Redesign")
     db.flush()
@@ -499,13 +498,13 @@ def test_a_random_uuid_is_not_a_token(db):
 
 
 def test_the_owner_role_is_not_handed_out_by_an_invitation(db):
-    """Владельца приглашением не назначают.
+    """An owner is not appointed by an invitation.
 
-    Владелец распоряжается организацией целиком, а приглашение без адреса вдобавок
-    достаётся предъявителю: владельцем становился любой, кто открыл переславшуюся
-    ссылку. Назначают его поимённо и другим действием — PATCH /api/org/members.
-    Код отказа отдельный, а не общий `unknown_role`: роль существует, её просто
-    нельзя выдать этим способом.
+    An owner governs the whole organization, and an invitation with no address
+    additionally goes to whoever presents it: the owner would become anyone who opened a
+    forwarded link. They are appointed individually and by a different action — PATCH
+    /api/org/members. The refusal code is its own rather than a generic `unknown_role`:
+    the role exists, it simply cannot be handed out this way.
     """
     owner, org_id = _owner(db)
 
@@ -516,11 +515,11 @@ def test_the_owner_role_is_not_handed_out_by_an_invitation(db):
 
 
 def test_an_address_already_inside_the_organization_is_refused(db):
-    """Звать того, кто уже внутри, нечем: приглашение ничего бы не изменило.
+    """There is nothing to invite someone already inside with: the invitation would change nothing.
 
-    `accept` роли действующего членства не трогает — то есть такое приглашение
-    выглядело бы действием, ничего не делая. Зовущий узнаёт об этом сразу, а не
-    через неделю ожидания, что человек «наконец войдёт».
+    `accept` does not touch an existing membership's role — that is, such an invitation
+    would look like an action while doing nothing. The inviter learns about that right
+    away rather than after a week of waiting for the person to "finally come in".
     """
     owner, org_id = _owner(db)
     guest = register(db, name="Guest", email="guest@example.com", password="s3cret-pass")
@@ -534,11 +533,11 @@ def test_an_address_already_inside_the_organization_is_refused(db):
 
 
 def test_one_address_already_inside_refuses_the_whole_batch(db):
-    """Отказ на весь список, и до того, как выпущено хоть одно приглашение.
+    """A refusal for the whole list, and before a single invitation has been issued.
 
-    Иначе часть приглашений уже существовала бы к моменту отказа, и повторная
-    отправка исправленного списка выпустила бы их второй раз — с новыми
-    ссылками взамен только что разосланных.
+    Otherwise some invitations would already exist by the time of the refusal, and
+    resending the corrected list would issue them a second time — with new links in place
+    of the ones just sent around.
     """
     owner, org_id = _owner(db)
     guest = register(db, name="Guest", email="guest@example.com", password="s3cret-pass")
@@ -560,10 +559,10 @@ def test_one_address_already_inside_refuses_the_whole_batch(db):
 
 
 def test_a_member_of_another_organization_is_still_invitable(db):
-    """Проверка смотрит на эту организацию, а не на пользователей вообще.
+    """The check looks at this organization rather than at users in general.
 
-    Человек, работающий в чужой компании, — самый обычный приглашаемый: своя
-    организация у него есть у каждого, кто пришёл с улицы.
+    A person working in someone else's company is the most ordinary invitee: everyone who
+    came off the street has an organization of their own.
     """
     owner, org_id = _owner(db)
     register(db, name="Stranger", email="stranger@example.com", password="s3cret-pass")
@@ -575,10 +574,10 @@ def test_a_member_of_another_organization_is_still_invitable(db):
 
 
 def test_a_bearer_invitation_is_not_measured_against_the_roster(db):
-    """У ссылки без адреса адресата нет — сверять не с чем.
+    """A link with no address has no recipient — there is nothing to compare against.
 
-    Отказывать ей потому, что «кто-то в организации уже есть», значило бы
-    запретить второй способ доставки во всякой непустой организации.
+    Refusing it because "someone in the organization is already there" would mean
+    forbidding the second means of delivery in every non-empty organization.
     """
     owner, org_id = _owner(db)
 
