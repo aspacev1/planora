@@ -4,41 +4,41 @@ import { ROW_HEIGHT } from "./scale";
 import type { Scale } from "./timescale";
 
 /**
- * Слой стрелок между связанными задачами.
+ * The layer of arrows between linked tasks.
  *
- * Связи по спецификации — картинка, а не правило расчёта: даты по ним не
- * пересчитываются. Поэтому слой ничего не знает о домене и только соединяет
- * конец одной полоски с началом другой.
+ * By the specification links are a picture, not a calculation rule: dates are not
+ * recomputed along them. So the layer knows nothing about the domain and merely
+ * joins the end of one bar to the start of another.
  *
- * Координаты берутся из шкалы и из порядка строк, а не измеряются у DOM.
- * Причина не в удобстве: полоски стоят там, куда их поставила та же шкала, и
- * измерять то, что мы сами и вычислили, значит получить второй источник правды,
- * который расходится с первым при каждой перерисовке — ровно то, из-за чего
- * стрелки уезжают. Высота строки в CSS задаётся отсюда же (см. ROW_HEIGHT),
- * так что расходиться нечему.
+ * The coordinates are taken from the scale and from the row order rather than
+ * measured off the DOM. The reason is not convenience: the bars stand where that
+ * same scale put them, and measuring what we computed ourselves means getting a
+ * second source of truth that diverges from the first on every repaint — exactly
+ * what makes arrows drift. The row height in CSS is set from here too (see
+ * ROW_HEIGHT), so there is nothing to diverge.
  */
 
-/** Отступ, на который стрелка отходит от полоски, прежде чем повернуть. */
+/** The offset by which an arrow steps away from a bar before turning. */
 const ELBOW = 8;
 
 /**
- * Радиус скругления поворота.
+ * The corner rounding radius.
  *
- * Прямой угол на линии в полтора пикселя читается как ступенька и спорит с
- * округлыми полосками; дуга ведёт глаз по маршруту, не меняя сам маршрут.
- * На коротких звеньях радиус ужимается (см. roundedPath), так что цифра здесь —
- * потолок, а не обещание.
+ * A right angle on a line a pixel and a half thick reads as a step and argues
+ * with the rounded bars; an arc leads the eye along the route without changing
+ * the route itself. On short segments the radius is squeezed (see roundedPath),
+ * so the figure here is a ceiling, not a promise.
  */
 const CORNER = 6;
 
 /**
- * Признаки связи одной строкой.
+ * A link's flags in one line.
  *
- * Нарушение идёт первым и в цвете побеждает: критический путь — это «здесь
- * держится срок», а нарушенная связь — «здесь уже сломано», и второе важнее.
- * Стиль критического пути при этом действует только при включённом слое (см.
- * `.gantt.show-critical`), так что на выключенном классы просто ничего не
- * значат.
+ * The violation comes first and wins in colour: the critical path is "this is
+ * what holds the date", while a violated link is "this is already broken", and
+ * the second matters more. The critical-path style, at that, only applies when
+ * the layer is on (see `.gantt.show-critical`), so with it off the classes simply
+ * mean nothing.
  */
 function classOf(violated: boolean, critical: boolean): string | undefined {
   const names = [violated && "is-violated", critical && "is-critical"].filter(Boolean);
@@ -55,9 +55,9 @@ export function Arrows({
   scale: Scale;
   tasks: Task[];
   dependencies: Dependency[];
-  /** Номер строки задачи в ленте, считая строки категорий. */
+  /** The task's row number in the strip, counting the category rows. */
   rowOf: Map<string, number>;
-  /** Сколько всего строк в ленте. */
+  /** How many rows there are in the strip in total. */
   rows: number;
 }) {
   const byId = new Map(tasks.map((task) => [task.id, task]));
@@ -68,9 +68,9 @@ export function Arrows({
       const to = byId.get(link.to_task_id);
       const fromRow = rowOf.get(link.from_task_id);
       const toRow = rowOf.get(link.to_task_id);
-      // Связь переживает задачу ровно на один ответ сервера — задачу могли
-      // удалить в соседней вкладке. Стрелка в пустоту уходит в NaN и уносит с
-      // собой весь слой, поэтому такая связь просто не рисуется.
+      // A link outlives a task by exactly one server answer — the task may have
+      // been deleted in another tab. An arrow into nothing goes to NaN and takes
+      // the whole layer with it, so such a link is simply not drawn.
       if (!from || !to || fromRow === undefined || toRow === undefined) return null;
 
       const startX = scale.xOf(from.start_date) + scale.widthOf(from.start_date, from.end_date);
@@ -78,35 +78,38 @@ export function Arrows({
       const endX = scale.xOf(to.start_date);
       const endY = toRow * ROW_HEIGHT + ROW_HEIGHT / 2;
 
-      // Линия не доходит до полоски на размер наконечника: остриё, лежащее
-      // поверх линии, рисовало бы утолщение вместо стрелки.
+      // The line stops short of the bar by the arrowhead's size: a head lying on
+      // top of the line would draw a thickening instead of an arrow.
       const shape = elbow(startX, startY, endX - 4, endY);
 
       return {
         key: `${link.from_task_id}-${link.to_task_id}`,
         d: roundedPath(shape),
         head: `M${endX - 6} ${endY - 4} L${endX} ${endY} L${endX - 6} ${endY + 4} Z`,
-        // Место для знака нарушения — середина среднего звена ломаной, а не
-        // повторно вычисленная по тем же условиям точка: второе такое же
-        // вычисление разошлось бы с самой ломаной при первой её правке.
+        // The place for the violation sign is the middle of the polyline's middle
+        // segment, rather than a point recomputed from the same conditions: a
+        // second such computation would diverge from the polyline itself on its
+        // first edit.
         warn: middleOf(shape),
-        // Нарушенная связь: приёмник начат, пока источник ещё не кончился.
-        // Правилом из предложения о сдвиге, а не своим сравнением: знак на
-        // стрелке, кнопка под лентой и пометка в карточке обязаны загораться
-        // от одного и того же (см. overlapDays — включительный конец там).
+        // A violated link: the receiver has started while the source has not
+        // ended. By the rule from the shift nudge rather than by a comparison of
+        // its own: the sign on the arrow, the button under the strip and the
+        // marker in the card must all light up from the same thing (see
+        // overlapDays — the end is inclusive there).
         violated: overlapDays(from, to) > 0,
-        // Звено критического пути: обе задачи без запаса. Признак связи, а не
-        // задачи: критическими бывают и две несвязанные цепочки, и стрелка
-        // между ними принадлежала бы обеим, не будучи звеном ни одной.
+        // A critical-path segment: both tasks have no slack. A property of the
+        // link rather than of a task: two unlinked chains can be critical too, and
+        // an arrow between them would belong to both while being a segment of
+        // neither.
         critical: from.critical && to.critical,
       };
     })
     .filter((line) => line !== null);
 
   return (
-    // Скрыто от чтения с экрана: связь — это оформление, а не сведения. Их
-    // место в карточке задачи, списком, а не в виде картинки, которую нечем
-    // прочесть.
+    // Hidden from screen readers: a link is decoration, not information. Its place
+    // is in the task's card, as a list, rather than as a picture there is nothing
+    // to read it with.
     <svg
       className="arrows"
       width={scale.width}
@@ -125,13 +128,13 @@ export function Arrows({
               .filter(Boolean)
               .join(" ")}
           />
-          {/* Наконечник — сплошной треугольник остриём в начало полоски:
-              линия без него не говорит, кто кого ждёт. Входит всегда
-              горизонтально слева — ломаная кончается этим же направлением. */}
+          {/* The arrowhead is a solid triangle pointing at the bar's start:
+              without it the line does not say who is waiting for whom. It always
+              enters horizontally from the left — the polyline ends in that same direction. */}
           <path className="arrows__head" d={line.head} />
-          {/* Знак на нарушенной связи. Красного пунктира мало: на ленте из
-              полусотни строк цвет линии толщиной в два пикселя замечают не
-              сразу, а кружок виден и на беглом взгляде. */}
+          {/* The sign on a violated link. A red dashed line is not enough: on a
+              strip of fifty rows the colour of a two-pixel line is not noticed at
+              once, while a circle is visible even at a glance. */}
           {line.violated && (
             <>
               <circle className="arrows__warn" cx={line.warn[0]} cy={line.warn[1]} r={7} />
@@ -153,20 +156,20 @@ export function Arrows({
 }
 
 /**
- * Ломаная от конца одной полоски к началу другой.
+ * A polyline from one bar's end to another's start.
  *
- * Прямая линия наискось пересекала бы чужие полоски и читалась бы хуже угла:
- * на диаграмме, где всё стоит по сетке, диагональ выглядит случайной.
+ * A straight diagonal line would cross other bars and read worse than a corner:
+ * on a chart where everything stands on a grid, a diagonal looks accidental.
  */
 function elbow(startX: number, startY: number, endX: number, endY: number): number[][] {
   const points: number[][] = [[startX, startY]];
 
   if (endX >= startX + ELBOW * 2) {
-    // Есть куда повернуть: выходим вправо, идём вниз, входим слева.
+    // There is room to turn: we go out to the right, down, and in from the left.
     points.push([startX + ELBOW, startY], [startX + ELBOW, endY]);
   } else {
-    // Задача-приёмник начинается раньше, чем кончается источник: обходим её
-    // по промежутку между строками, иначе линия шла бы поверх обеих полосок.
+    // The receiving task starts earlier than the source ends: we go around it
+    // through the gap between the rows, otherwise the line would run over both bars.
     const between = (startY + endY) / 2;
     points.push(
       [startX + ELBOW, startY],
@@ -181,15 +184,16 @@ function elbow(startX: number, startY: number, endX: number, endY: number): numb
 }
 
 /**
- * Путь по точкам ломаной со скруглёнными поворотами.
+ * A path along the polyline's points with rounded corners.
  *
- * Ломаная остаётся источником правды о маршруте (по ней же считается место
- * знака нарушения — см. middleOf): дуги только срезают углы, не двигая звенья.
- * Радиус на каждом повороте ужимается до того, что звено может отдать: целиком,
- * если другой конец звена — конец пути, и до половины, если там сосед-поворот,
- * иначе две дуги съели бы звено с двух сторон и линия пошла бы вспять.
- * Нулевое звено (связь в той же строке) даёт нулевой радиус — поворот
- * вырождается в прямую, а не в деление на ноль.
+ * The polyline stays the source of truth about the route (the violation sign's
+ * place is computed from it too — see middleOf): the arcs only cut the corners
+ * without moving the segments. At every corner the radius is squeezed down to
+ * what the segment can give: the whole of it if the segment's other end is the
+ * path's end, and half if there is a neighbouring corner there, otherwise two
+ * arcs would eat the segment from both sides and the line would run backwards. A
+ * zero-length segment (a link within the same row) gives a zero radius — the
+ * corner degenerates into a straight line rather than into a division by zero.
  */
 function roundedPath(points: number[][]): string {
   const parts = [`M${points[0][0]} ${points[0][1]}`];
@@ -207,8 +211,8 @@ function roundedPath(points: number[][]): string {
     );
 
     if (r < 0.5) {
-      // Дуга мельче полупикселя не видна, а рисовать её — значит делить на
-      // длину нулевого звена.
+      // An arc smaller than half a pixel is invisible, and drawing it means
+      // dividing by a zero segment's length.
       parts.push(`L${cornerX} ${cornerY}`);
       continue;
     }
@@ -226,11 +230,11 @@ function roundedPath(points: number[][]): string {
 }
 
 /**
- * Середина среднего звена ломаной.
+ * The middle of the polyline's middle segment.
  *
- * У короткой ломаной звеньев три, у обходной — пять; среднее в обоих случаях
- * то самое, которое идёт между строками и ни одну полоску не задевает. Знак,
- * поставленный на него, не ложится ни на источник, ни на приёмник.
+ * A short polyline has three segments, a detouring one five; the middle one in
+ * both cases is the one that runs between rows and touches no bar. A sign placed
+ * on it lies neither on the source nor on the receiver.
  */
 function middleOf(points: number[][]): [number, number] {
   const from = points[Math.floor((points.length - 2) / 2)];

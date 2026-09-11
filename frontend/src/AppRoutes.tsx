@@ -21,104 +21,107 @@ import { Settings, SettingsHome } from "./screens/Settings";
 import { VerifyEmail } from "./screens/VerifyEmail";
 
 /**
- * Маршруты отдельно от `App`, потому что в бою их оборачивает
- * `BrowserRouter`, а в тестах — `MemoryRouter`: два роутера в одном дереве
- * несовместимы, и разделение здесь избавляет тесты от подмены истории.
+ * The routes live apart from `App`, because in production they are wrapped by
+ * `BrowserRouter` and in tests by `MemoryRouter`: two routers in one tree are
+ * incompatible, and splitting them here spares the tests from faking the history.
  */
 export function AppRoutes() {
   return (
     <Routes>
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
-      {/* Обе страницы восстановления живут вне RequireAuth: сюда приходят
-          именно потому, что войти нечем, а ссылку из письма открывают в том
-          браузере, куда пришла почта, — как и подтверждение адреса. */}
+      {/* Both recovery pages live outside RequireAuth: people come here precisely
+          because they have nothing to sign in with, and a link from an email is
+          opened in the browser the mail arrived in — as is address confirmation. */}
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      {/* Публичная страница живёт вне RequireAuth: у гостя нет и не будет
-          сессии, а обёртка увела бы его на вход — то есть ссылка, ради
-          которой всё и затевалось, не открывалась бы вовсе. */}
+      {/* The public page lives outside RequireAuth: a guest has no session and
+          never will, and the wrapper would take them to the sign-in — that is, the
+          link the whole thing was for would not open at all. */}
       <Route path="/p/:orgSlug/:projectSlug" element={<PublicProject />} />
-      {/* Вне RequireAuth: ссылку из письма открывают в том браузере, куда
-          пришла почта, и требовать там вход значило бы ломать самый обычный
-          сценарий — письмо на телефоне, работа на ноутбуке. */}
+      {/* Outside RequireAuth: a link from an email is opened in the browser the
+          mail arrived in, and demanding a sign-in there would mean breaking the
+          most ordinary scenario — the email on a phone, the work on a laptop. */}
       <Route path="/verify-email" element={<VerifyEmail />} />
-      {/* Снаружи RequireAuth: приглашённый ещё не в системе, и отправлять его
-          на вход прежде, чем он узнает, куда его зовут, — значит просить
-          подписать не глядя. */}
+      {/* Outside RequireAuth: an invitee is not in the system yet, and sending
+          them to sign in before they learn what they are being invited to means
+          asking them to sign without looking. */}
       <Route path="/invite/:token" element={<Invite />} />
       <Route element={<RequireAuth />}>
-        {/* Корень ведёт на список проектов, а не показывает свой экран: туда
-            же приводит вход, туда же указывает пункт колонки, и адрес «/» —
-            это то, что набирают руками и кладут в закладки. Раньше здесь жил
-            второй экран с тем же заголовком «Проекты», и человек, пришедший по
-            пункту меню, оказывался не там, куда его привёл вход, — на странице,
-            которую ни один пункт колонки не подсвечивал. */}
+        {/* The root leads to the list of projects rather than showing a screen of
+            its own: that is where signing in leads, that is where the column's
+            item points, and the address "/" is what people type by hand and put in
+            bookmarks. A second screen with the same "Projects" heading used to
+            live here, and a person arriving by the menu item ended up somewhere
+            other than where the sign-in had led them — on a page no column item
+            highlighted. */}
         <Route path="/" element={<Navigate to="/projects" replace />} />
         <Route path="/my-tasks" element={<MyTasks />} />
         <Route path="/projects" element={<Projects />} />
-        {/* Интервью доступно только при создании нового проекта: запуск
-            внутри существующего — следующий этап, не первая версия. */}
+        {/* The interview is available only when creating a new project: launching
+            it inside an existing one is the next stage, not the first version. */}
         <Route path="/projects/new/ai" element={<AiIntake />} />
-        {/* Импорт из Jira — тем же правилом, что интервью: заводит новый
-            проект, а перенастройка уже существующего на другой проект
-            Jira — не первая версия. */}
+        {/* Import from Jira follows the same rule as the interview: it creates a
+            new project, while repointing an existing one at a different Jira
+            project is not the first version. */}
         <Route path="/projects/new/jira" element={<JiraImport />} />
         <Route path="/projects/:projectId" element={<Project />} />
-        {/* Предложение — вкладка того же экрана со своим адресом, по тому же
-            правилу, что и история: смету обсуждают в переписке, и «открой
-            предложение» должно быть ссылкой, а не инструкцией. */}
+        {/* The proposal is a tab of the same screen with an address of its own, by
+            the same rule as the history: a quote is discussed in conversations, and
+            "open the proposal" should be a link rather than an instruction. */}
         <Route path="/projects/:projectId/proposal" element={<Project tab="proposal" />} />
-        {/* Скоркард — тоже вкладка со своим адресом: недельную сводку шлют
-            ссылкой в переписке, и она обязана открываться сразу. Публичная
-            страница (/p/...) этого маршрута не имеет намеренно. */}
+        {/* The scorecard is a tab with its own address too: a weekly summary is
+            sent as a link in a conversation, and it must open straight away. The
+            public page (/p/...) deliberately does not have this route. */}
         <Route path="/projects/:projectId/scorecard" element={<Project tab="scorecard" />} />
-        {/* История — вкладка того же экрана, но со своим адресом: на запись
-            в журнале ссылаются в переписке, и «открой историю проекта»
-            должно быть ссылкой, а не инструкцией из трёх шагов. */}
+        {/* The history is a tab of the same screen but with an address of its own:
+            a journal entry gets linked to in conversations, and "open the project's
+            history" should be a link rather than a three-step instruction. */}
         <Route path="/projects/:projectId/history" element={<Project tab="history" />} />
-        {/* Настройки проекта — отдельным адресом, а не окном поверх
-            диаграммы: их открывают редко, надолго и обсуждая, а окно поверх
-            того, что настраиваешь, показывает результат наполовину. */}
+        {/* The project's settings get their own address rather than a dialog on top
+            of the chart: they are opened rarely, for a long time and with
+            discussion, and a dialog on top of what you are configuring shows the
+            result by halves. */}
         <Route path="/projects/:projectId/settings" element={<ProjectSettings />} />
-        {/* Настройки рабочего пространства — один раздел с вкладками, а не три
-            соседних пункта в колонке: организация, участники и профиль
-            настраивают одно и то же место работы, и разница между ними —
-            вопрос уровня, а не разных разделов. */}
+        {/* The workspace settings are one section with tabs rather than three
+            neighbouring items in the column: the organization, the members and the
+            profile all configure one and the same place of work, and the difference
+            between them is a matter of level, not of different sections. */}
         <Route path="/settings" element={<Settings />}>
           <Route index element={<SettingsHome />} />
           <Route path="organization" element={<OrgSettings />} />
           <Route path="members" element={<Members />} />
           <Route path="profile" element={<Profile />} />
         </Route>
-        {/* Панель директора — не вкладка настроек: настройки правят рабочее
-            пространство одной организации, а здесь список регистраций всей
-            установки, за которым может смотреть и человек вовсе без
-            организации на этом экране. Доступ решает не RequireAuth и не
-            роль в организации — сервер отвечает 403 всякому, кто не носит
-            роль директора (см. app.director), а экран показывает этот отказ
-            тем же баннером, что и любой другой закрытый маршрут. */}
+        {/* The director's panel is not a settings tab: the settings edit one
+            organization's workspace, while here is a list of the whole install's
+            registrations, which a person with no organization at all may be
+            watching on this screen. Access is decided neither by RequireAuth nor by
+            a role in an organization — the server answers 403 to anyone not
+            carrying the director role (see app.director), and the screen shows that
+            refusal with the same banner as any other closed route. */}
         <Route path="/admin" element={<Admin />} />
-        {/* Прежний короткий адрес состава: на него уже разосланы ссылки, и
-            отвечать на них «страница не найдена» из-за переезда — расплата за
-            наведение порядка, которую платит читатель, а не мы. */}
+        {/* The roster's former short address: links to it have already been sent
+            out, and answering them with "page not found" because of a move is a
+            price for tidying up that the reader pays rather than us. */}
         <Route path="/members" element={<Navigate to="/settings/members" replace />} />
-        {/* Портфель разобран: список проектов сам отвечает «как дела» — каждая
-            карточка несёт вердикт, готовность и срок. Два экрана с одним
-            набором проектов и разной полнотой данных заставляли выбирать, на
-            котором смотреть, и ответ «на обоих» был неверным. Адрес отвечает
-            переездом, а не «страница не найдена»: по нему ходили из закладок. */}
+        {/* The portfolio has been taken apart: the list of projects answers "how
+            are things" itself — every card carries a verdict, readiness and a date.
+            Two screens with one set of projects and different completeness of data
+            forced a choice of which to look at, and the answer "at both" was wrong.
+            The address answers with a redirect rather than "page not found": people
+            came to it from bookmarks. */}
         <Route path="/portfolio" element={<Navigate to="/projects" replace />} />
-        {/* Отчёты разобраны тем же способом, что раньше портфель: их таблица
-            переехала в «Проекты» и стала тем, чем этот раздел показывает
-            сводку, — второго раздела с тем же набором проектов не осталось.
-            Адрес отвечает переездом, а не «страница не найдена»: по нему
-            ходили и из колонки, и из закладок. */}
+        {/* Reports have been taken apart the same way the portfolio was before:
+            their table moved into "Projects" and became what that section shows its
+            summary with — no second section with the same set of projects is left.
+            The address answers with a redirect rather than "page not found": people
+            came to it both from the column and from bookmarks. */}
         <Route path="/reports" element={<Navigate to="/projects" replace />} />
       </Route>
-      {/* Неизвестный адрес ведёт внутрь, а оттуда — на вход, если человек не
-          вошёл. Отдельный экран «не найдено» появится, когда появятся адреса,
-          которые можно перепутать. */}
+      {/* An unknown address leads inside, and from there to the sign-in if the
+          person is not signed in. A separate "not found" screen will appear when
+          there are addresses that can be confused. */}
       <Route path="*" element={<Navigate to="/projects" replace />} />
     </Routes>
   );
