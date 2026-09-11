@@ -10,33 +10,32 @@ import { useProjectMutation } from "../project/useProjectMutation";
 import { edgeScroll } from "./edgeScroll";
 
 /**
- * Связь, протянутая от полоски к полоске.
+ * A link dragged from bar to bar.
  *
- * До этого связи заводились только списком в карточке задачи: открыть карточку,
- * найти нужную задачу в выпадающем списке из полусотни, выбрать. Список
- * остаётся — с клавиатуры и на узком экране он единственный способ, — но
- * основной жест теперь тот же, каким связь и рисуют на бумаге: от конца одной
- * полоски к началу другой.
+ * Before this, links were created only as a list in a task's card: open the card,
+ * find the right task in a dropdown of fifty, pick it. The list stays — from the
+ * keyboard and on a narrow screen it is the only way — but the main gesture is now
+ * the same one links are drawn with on paper: from one bar's end to another's start.
  *
- * За какой кружок взялись, тем и решается направление: за правый (`end`) —
- * взятая задача блокирует ту, на которую бросили; за левый (`start`) — наоборот,
- * взятую блокирует та, на которую бросили. Иначе связь можно было бы протянуть
- * только в одну сторону, и половину зависимостей пришлось бы заводить,
- * начиная с конца.
+ * Which circle was grabbed decides the direction: the right one (`end`) means the
+ * grabbed task blocks the one it was dropped on; the left one (`start`) means the
+ * opposite, the one it was dropped on blocks the grabbed one. Otherwise a link could
+ * only be dragged in one direction, and half the dependencies would have to be
+ * created starting from the end.
  *
- * ## Почему всё это мимо состояния React
+ * ## Why all of this bypasses React state
  *
- * Линия под пальцем и подсветка цели меняются на каждом движении указателя.
- * Состояние React перерисовывало бы ради них всю ленту — сотню строк на каждое
- * событие. Поэтому линия пишется прямо в атрибуты своего узла, а подсветка —
- * классом на найденной строке; в состояние уходит один признак «жест идёт»,
- * и меняется он дважды за жест.
+ * The line under the finger and the target highlight change on every pointer
+ * movement. React state would repaint the whole strip for them — a hundred rows per
+ * event. So the line is written straight into its node's attributes and the
+ * highlight is a class on the found row; what goes into state is one "a gesture is
+ * running" flag, and it changes twice per gesture.
  */
 
-/** За какой кружок взялись: конец полоски или её начало. */
+/** Which circle was grabbed: the bar's end or its start. */
 export type LinkSide = "start" | "end";
 
-/** Класс строки, на которую бросят связь. Ставится и снимается вручную. */
+/** The class of the row a link will be dropped on. Set and removed by hand. */
 const TARGET_CLASS = "is-link-target";
 
 export function useLinkDrag({
@@ -64,7 +63,7 @@ export function useLinkDrag({
   const lastPoint = useRef({ x: 0, y: 0 });
   const [active, setActive] = useState(false);
 
-  /** Точка в координатах слоя связей: линия живёт внутри него, указатель — в окне. */
+  /** A point in the link layer's coordinates: the line lives inside it, the pointer in the window. */
   const localPoint = (clientX: number, clientY: number) => {
     const box = layer.current?.getBoundingClientRect();
     return box ? { x: clientX - box.left, y: clientY - box.top } : { x: 0, y: 0 };
@@ -78,17 +77,17 @@ export function useLinkDrag({
   };
 
   /**
-   * Строка под указателем — по координатам точки, а не по адресату события.
+   * The row under the pointer — by the point's coordinates, not by the event's target.
    *
-   * Причина та же, что у перестановки строк: пальцем указатель после нажатия
-   * захвачен кружком, за который начали жест, и строки под пальцем событий не
-   * получают вовсе (см. `targetAt` в useReorder).
+   * The reason is the same as with row reordering: with a finger, after the press the
+   * pointer is captured by the circle the gesture started on, and the rows under the
+   * finger get no events at all (see `targetAt` in useReorder).
    */
   const rowAt = (clientX: number, clientY: number): HTMLElement | null => {
     const under = document.elementFromPoint?.(clientX, clientY) ?? null;
     const row = under?.closest<HTMLElement>('[data-drop-kind="task"]') ?? null;
-    // Своя же строка целью не подсвечивается: связь задачи с самой собой
-    // сервер откажет, и обещать её кружком не за чем.
+    // Its own row is not highlighted as a target: the server will refuse a task's link
+    // to itself, and there is no point promising it with a circle.
     return row?.dataset.dropId === from.current?.taskId ? null : row;
   };
 
@@ -101,10 +100,10 @@ export function useLinkDrag({
     markTarget(rowAt(clientX, clientY));
   };
 
-  // Постоянная ссылка нужна эффекту ниже: иначе он переподписывался бы на
-  // каждой отрисовке. Всё, что `finish` трогает, живёт в ref-ах и в функции
-  // состояния — вещах, чья ссылка между отрисовками не меняется, — поэтому
-  // список зависимостей и пуст.
+  // A constant reference is needed by the effect below: otherwise it would resubscribe
+  // on every render. Everything `finish` touches lives in refs and in a state function
+  // — things whose reference does not change between renders — which is why the
+  // dependency list is empty.
   const finish = useCallback(() => {
     from.current?.scroll.stop();
     from.current = null;
@@ -113,25 +112,25 @@ export function useLinkDrag({
     setActive(false);
   }, []);
 
-  // Отпустить кнопку можно и мимо строк — за краем ленты, над шапкой, вообще
-  // вне окна. Без этого слушателя связь осталась бы «в руке» навсегда, и линия
-  // тянулась бы за курсором без всякого нажатия.
+  // The button can be released away from the rows too — beyond the strip's edge, over
+  // the header, outside the window entirely. Without this listener the link would stay
+  // "in hand" forever, and the line would trail after the cursor with nothing pressed.
   useEffect(() => {
     if (!active) return;
     const abandon = () => finish();
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      // Esc прерывает жест — как везде, где его можно начать и передумать.
+      // Esc aborts the gesture — as everywhere it can be begun and reconsidered.
       if (event.key !== "Escape") return;
       event.preventDefault();
       finish();
     };
-    // Отпускание слушает и окно, а не только кружок: кружок держит захват
-    // указателя, но узел с захватом может исчезнуть посреди жеста — сосед
-    // удалил задачу, и строка ушла вместе с кружком. Отпускание тогда
-    // приходит окну, и без этого слушателя связь оставалась бы «в руке»:
-    // линия на экране, а кадр подкачки крутился бы до следующего нажатия.
-    // На кружке своё отпускание срабатывает раньше и обнуляет жест — здесь
-    // тогда уже нечего делать.
+    // The release is listened for on the window too, not only on the circle: the circle
+    // holds the pointer capture, but the node with the capture can disappear mid-gesture
+    // — a colleague deleted the task, and the row went with the circle. The release then
+    // goes to the window, and without this listener the link would stay "in hand": the
+    // line on screen, and the scroll frame spinning until the next press. On the circle
+    // its own release fires earlier and clears the gesture — there is then nothing left
+    // to do here.
     window.addEventListener("pointerup", abandon);
     window.addEventListener("pointercancel", abandon);
     window.addEventListener("keydown", onKeyDown);
@@ -142,8 +141,8 @@ export function useLinkDrag({
     };
   }, [active, finish]);
 
-  // Лента ушла посреди жеста — кадр подкачки и подсветку цели надо снять
-  // руками: обработчикам кружка размонтированный узел ничего не пришлёт.
+  // The strip left mid-gesture — the scroll frame and the target highlight have to be
+  // cleared by hand: an unmounted node sends nothing to the circle's handlers.
   useEffect(
     () => () => {
       from.current?.scroll.stop();
@@ -155,14 +154,14 @@ export function useLinkDrag({
   );
 
   const link = (sourceId: string, side: LinkSide, targetId: string) => {
-    // За правый кружок тянут «эта задача блокирует ту», за левый — «эту
-    // блокирует та». Направление решает кружок, а не порядок клика.
+    // The right circle is dragged as "this task blocks that one", the left one as "this
+    // one is blocked by that". The direction is decided by the circle, not by the click order.
     const fromId = side === "end" ? sourceId : targetId;
     const toId = side === "end" ? targetId : sourceId;
     if (fromId === toId) return;
-    // Повторную связь глушит вызывающий, а не сервер: отказ был бы честным, но
-    // человек, дважды протянувший одну и ту же стрелку, ошибки не совершил —
-    // ему просто нечего показывать.
+    // A duplicate link is suppressed by the caller rather than by the server: a refusal
+    // would be honest, but a person who dragged the same arrow twice has made no mistake
+    // — there is simply nothing to show them.
     const exists = state.dependencies.some(
       (dep) => dep.from_task_id === fromId && dep.to_task_id === toId,
     );
@@ -171,22 +170,23 @@ export function useLinkDrag({
     void apply({ type: "add_dependency", from_task_id: fromId, to_task_id: toId }, (current) =>
       addDependency(current, fromId, toId),
     ).catch((error) => {
-      // Кольцо — единственный отказ, которого человек не мог предвидеть: он
-      // видит две полоски, а не весь граф. Откат уже сделан внутри `apply`,
-      // стрелка исчезла, и без этих слов исчезновение читалось бы как сбой.
+      // A cycle is the only refusal a person could not foresee: they see two bars rather
+      // than the whole graph. The rollback has already been done inside `apply`, the
+      // arrow has disappeared, and without these words the disappearance would read as a
+      // glitch.
       showToast({ message: t(errorKey(error)), tone: "error" });
     });
   };
 
   return {
-    /** Показывать ли кружки связи. У гостя их нет вовсе. */
+    /** Whether to show the link circles. A guest has none at all. */
     enabled: canWrite,
-    /** Тянут ли связь прямо сейчас: лента поднимает кружки у всех полосок. */
+    /** Whether a link is being dragged right now: the strip raises the circles on every bar. */
     active,
 
     /**
-     * Ссылка на слой линии. Отдаётся разметке, а сама линия дальше живёт мимо
-     * React: её концы меняются на каждом движении указателя.
+     * A reference to the line's layer. Handed to the markup, while the line itself lives
+     * on past React: its ends change on every pointer movement.
      */
     layerRef: useCallback<RefCallback<SVGSVGElement>>((element) => {
       layer.current = element;
@@ -195,17 +195,17 @@ export function useLinkDrag({
       line.current = element;
     }, []),
 
-    /** Кружок на краю полоски. Им жест и начинают, и ведут — как ручкой строки. */
+    /** The circle at a bar's edge. The gesture is both started and led with it — like a row's handle. */
     handleProps(taskId: string, side: LinkSide) {
       return {
         onPointerDown(event: PointerEvent<SVGElement | HTMLElement>) {
           if (!canWrite || event.button !== 0) return;
-          // Иначе нажатие дойдёт до полоски под кружком и начнёт перенос дат.
+          // Otherwise the press reaches the bar under the circle and starts a date move.
           event.preventDefault();
           event.stopPropagation();
           const node = event.currentTarget as unknown as HTMLElement;
-          // Прошлый жест, если он почему-то не закончился, снимается здесь:
-          // иначе за ним остались бы кадр и подписка на прокрутку ленты.
+          // A previous gesture, if it somehow did not finish, is cleared here: otherwise a
+          // frame and a subscription to the strip's scroll would be left behind it.
           from.current?.scroll.stop();
           from.current = {
             pointerId: event.pointerId,

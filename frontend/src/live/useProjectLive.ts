@@ -7,45 +7,45 @@ import { projectQueryKey } from "../api/projects";
 import { proposalQueryKey } from "../api/proposal";
 
 /**
- * Состояние живой связи с проектом.
+ * The state of the live connection to a project.
  *
- * Четыре значения, а не два, и различие между двумя последними — не
- * педантичность:
+ * Four values rather than two, and the difference between the last two is not
+ * pedantry:
  *
- * - `connecting` — сокет ещё открывается, состояние только что пришло по HTTP
- *   и свежее; блокировать тут нечего;
- * - `online` — ревизии доезжают сами;
- * - `offline` — связь была и оборвалась. Только здесь показывается полоска и
- *   запирается редактирование: данные на экране устарели неизвестно насколько;
- * - `unavailable` — связи не было ни разу. Так выглядит раскладка без
- *   WebSocket (serverless на Vercel, посредник, режущий upgrade). Живых
- *   обновлений там не будет, но и запирать редактирование не за что: HTTP
- *   работает, и человек не должен получить приложение только для чтения из-за
- *   отсутствия удобства.
+ * - `connecting` — the socket is still opening, the state has just arrived over
+ *   HTTP and is fresh; there is nothing to block here;
+ * - `online` — revisions arrive on their own;
+ * - `offline` — there was a connection and it dropped. Only here is the strip shown
+ *   and editing locked: the data on screen is stale by an unknown amount;
+ * - `unavailable` — there never was a connection. That is how a deployment without
+ *   WebSocket looks (serverless on Vercel, a proxy cutting the upgrade). There will
+ *   be no live updates there, but there is nothing to lock editing for either: HTTP
+ *   works, and a person must not get a read-only application because of a missing
+ *   convenience.
  */
 export type LiveStatus = "connecting" | "online" | "offline" | "unavailable";
 
 export type Live = { status: LiveStatus };
 
 /**
- * Пауза перед следующей попыткой. Растёт, потому что причина обрыва обычно
- * переживает первую секунду: сервер перезапускают, туннель поднимают, поезд
- * выезжает из тоннеля. Долбить сервер каждую секунду в это время — худшее,
- * что может сделать десяток открытых вкладок.
+ * The pause before the next attempt. It grows, because the cause of a drop usually
+ * outlives the first second: a server is being restarted, a tunnel is coming up, a
+ * train is leaving a tunnel. Hammering the server every second at that time is the
+ * worst thing a dozen open tabs can do.
  */
 const RECONNECT_DELAYS = [1000, 2000, 5000, 15000, 30000];
 
 /**
- * Сколько молчания считать обрывом. Сервер напоминает о себе каждые 25 секунд
- * (HEARTBEAT_SECONDS), так что запас — два пропущенных напоминания подряд.
+ * How much silence counts as a drop. The server reminds of itself every 25 seconds
+ * (HEARTBEAT_SECONDS), so the margin is two missed reminders in a row.
  *
- * Без этого сторожа половина обрывов проходит незамеченной: уснувший ноутбук и
- * сменившаяся сеть не закрывают соединение, а замолкают, и экран продолжает
- * показывать вчерашний план с полной уверенностью в его свежести.
+ * Without this watchdog half the drops go unnoticed: a laptop that fell asleep and a
+ * changed network do not close the connection but go quiet, and the screen goes on
+ * showing yesterday's plan with full confidence in its freshness.
  */
 const SILENCE_LIMIT = 60_000;
 
-/** Коды из app/api/live_routes.py. Отказ, а не обрыв: повторять его нечего. */
+/** The codes from app/api/live_routes.py. A refusal, not a drop: there is nothing to repeat. */
 const CLOSE_UNAUTHENTICATED = 4401;
 const CLOSE_NOT_FOUND = 4404;
 
@@ -63,34 +63,36 @@ function messageType(data: unknown): string | null {
       ? String((parsed as { type: unknown }).type)
       : null;
   } catch {
-    // Мусор в сокете — не повод падать: соединение живо, а сообщение просто
-    // не наше. Молча пропускаем.
+    // Junk in the socket is no reason to crash: the connection is alive, the message
+    // is simply not ours. We skip it silently.
     return null;
   }
 }
 
 /**
- * Живая лента проекта.
+ * A project's live feed.
  *
- * Ревизия из сокета — сигнал «состояние изменилось», а не патч: клиент
- * перезапрашивает проект целиком. Второй, «клиентский» применятель операций
- * разошёлся бы с сервером на первом же празднике — даты окончания считает
- * сервер, и повторять его арифметику здесь нечем и незачем.
+ * A revision from the socket is a "the state has changed" signal rather than a
+ * patch: the client re-requests the project whole. A second, "client-side" applier
+ * of operations would diverge from the server on the very first holiday — the end
+ * dates are computed by the server, and there is nothing and no reason to repeat its
+ * arithmetic here.
  */
 export function useProjectLive(projectId: string): Live {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<LiveStatus>("connecting");
-  // Установка сама говорит, есть ли у неё живая связь (`live_enabled` в
-  // /api/config). Читается из кэша, а не спрашивается: настройки установки и
-  // так запрашивает рама защищённых экранов, а без них в кэше ответ — «есть»:
-  // не открыть сокет там, где он есть, хуже, чем открыть там, где его нет.
+  // The install says itself whether it has a live connection (`live_enabled` in
+  // /api/config). Read from the cache rather than asked for: the protected screens'
+  // frame requests the install's settings anyway, and without them the cached answer
+  // is "it has one": not opening a socket where there is one is worse than opening
+  // one where there is none.
   const config = useQuery({ queryKey: CONFIG_QUERY_KEY, queryFn: installConfig, enabled: false });
   const liveEnabled = config.data?.live_enabled ?? true;
 
   useEffect(() => {
-    // Раскладка без WebSocket (serverless): установка знает об этом заранее,
-    // и стучаться в сокет шесть раз подряд, чтобы выяснить то же самое, —
-    // почти минута лишних попыток на каждое открытие проекта.
+    // A deployment without WebSocket (serverless): the install knows this in advance,
+    // and knocking on the socket six times in a row to find out the same thing is
+    // almost a minute of wasted attempts on every project opening.
     if (typeof WebSocket === "undefined" || !liveEnabled) {
       setStatus("unavailable");
       return;
@@ -100,13 +102,13 @@ export function useProjectLive(projectId: string): Live {
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let watchdog: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
-    // Была ли связь хоть раз. Отличает обрыв от «здесь этого не бывает».
+    // Whether there was ever a connection. Tells a drop from "that does not happen here".
     let established = false;
     let stopped = false;
 
-    // Ключ проекта — префикс ключа журнала (см. api/revisions.ts), так что
-    // история открытой карточки обновляется тем же сбросом, без отдельного
-    // списка ключей, который однажды забудут пополнить.
+    // The project's key is a prefix of the journal's key (see api/revisions.ts), so an
+    // open card's history is refreshed by the same invalidation, without a separate
+    // list of keys that someone will one day forget to extend.
     const refetch = () => {
       void queryClient.invalidateQueries({ queryKey: projectQueryKey(projectId) });
     };
@@ -117,9 +119,9 @@ export function useProjectLive(projectId: string): Live {
     };
 
     const retry = () => {
-      // Сокета, который не открылся ни разу, ждать вечно нечего: раскладка без
-      // WebSocket не станет с ним со временем. Попытки кончаются, приложение
-      // остаётся работоспособным без живых обновлений.
+      // There is nothing to wait forever for from a socket that never opened: a
+      // deployment without WebSocket will not gain one with time. The attempts end,
+      // and the application stays workable without live updates.
       if (!established && attempt >= RECONNECT_DELAYS.length) return;
       const delay = RECONNECT_DELAYS[Math.min(attempt, RECONNECT_DELAYS.length - 1)];
       attempt += 1;
@@ -133,9 +135,9 @@ export function useProjectLive(projectId: string): Live {
       socket.onopen = () => {
         listen();
         setStatus("online");
-        // Восстановление перезапрашивает состояние целиком, а не доигрывает
-        // пропущенные ревизии (§12). При первом подключении перезапрашивать
-        // нечего: состояние только что пришло по HTTP.
+        // Recovery re-requests the whole state rather than replaying the missed
+        // revisions (§12). On the first connection there is nothing to re-request: the
+        // state has just arrived over HTTP.
         if (established) refetch();
         established = true;
         attempt = 0;
@@ -145,13 +147,13 @@ export function useProjectLive(projectId: string): Live {
         listen();
         const type = messageType(message.data);
         if (type === "revision") refetch();
-        // Событие о реплике несёт только факт «в ленте новое» — текст клиент
-        // дочитывает по HTTP, где действует фильтр внутренних реплик.
+        // A reply event carries only the fact that "there is something new in the
+        // feed" — the client reads the text over HTTP, where the internal-reply filter applies.
         if (type === "comment") {
           void queryClient.invalidateQueries({ queryKey: commentsQueryKey(projectId) });
         }
-        // Смета правится без ревизий, поэтому у неё своё событие — как у
-        // реплик: факт «изменилась», текст клиент дочитывает по HTTP.
+        // The quote is edited without revisions, so it has an event of its own — like
+        // the replies: the fact that it "changed", with the client reading the text over HTTP.
         if (type === "proposal") {
           void queryClient.invalidateQueries({ queryKey: proposalQueryKey(projectId) });
         }
@@ -161,9 +163,10 @@ export function useProjectLive(projectId: string): Live {
         clearTimeout(watchdog);
         if (stopped) return;
         setStatus(established ? "offline" : "unavailable");
-        // «Не представился» и «нет такого проекта» — ответ, а не помеха:
-        // переподключение даст тот же отказ. О просроченной сессии человек
-        // узнает от первого же запроса по HTTP, и говорить это дважды не надо.
+        // "Did not introduce itself" and "no such project" are an answer rather than an
+        // obstacle: reconnecting will give the same refusal. A person learns about an
+        // expired session from the very first HTTP request, and there is no need to say
+        // it twice.
         if (event.code === CLOSE_UNAUTHENTICATED || event.code === CLOSE_NOT_FOUND) return;
         retry();
       };
@@ -175,15 +178,15 @@ export function useProjectLive(projectId: string): Live {
       stopped = true;
       clearTimeout(reconnect);
       clearTimeout(watchdog);
-      // onclose снят до закрытия: размонтирование — не обрыв связи, и
-      // назначать уходящему экрану статус «нет связи» незачем.
+      // onclose is removed before closing: unmounting is not a dropped connection, and
+      // there is no point assigning a "no connection" status to a screen that is leaving.
       if (socket) socket.onclose = null;
       socket?.close();
     };
   }, [projectId, queryClient, liveEnabled]);
 
-  // Объект собирается заново на каждый рендер экрана, а через контекст его
-  // читает половина дерева: без этого каждая перерисовка проекта тащила бы за
-  // собой перерисовку всех потребителей.
+  // The object is assembled anew on every render of the screen, and half the tree
+  // reads it through context: without this every repaint of the project would drag a
+  // repaint of all the consumers along with it.
   return useMemo(() => ({ status }), [status]);
 }
