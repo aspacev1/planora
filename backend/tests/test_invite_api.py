@@ -1,9 +1,9 @@
-"""Приглашения через HTTP: выпуск, ссылка, отзыв, приём и переключение организаций.
+"""Invitations over HTTP: issuing, the link, revoking, accepting and switching organizations.
 
-Здесь проверяется то, чего не видно на уровне домена: кто вправе звать, какие
-коды отказов доходят до клиента, что открытая ссылка возвращается ровно один
-раз и что принявший приглашение оказывается внутри позвавшей организации, а не
-в своей.
+What is checked here is what is not visible at the domain level: who may invite, which
+refusal codes reach the client, that the plain link is returned exactly once, and that
+whoever accepts an invitation ends up inside the inviting organization rather than in
+their own.
 """
 
 import uuid
@@ -22,12 +22,12 @@ PASSWORD = "s3cret-pass"
 
 @pytest.fixture
 def clients(db):
-    """Фабрика клиентов поверх одной сессии базы.
+    """A factory of clients over one database session.
 
-    Клиентов нужно несколько: приглашение выпускает один человек, а принимает
-    другой, и у каждого своя кука. Переопределение get_db общее — сессия
-    фикстуры одна на весь тест, иначе приглашение, созданное одним клиентом,
-    не увидел бы второй.
+    Several clients are needed: one person issues an invitation while another accepts it,
+    and each has a cookie of their own. The get_db override is shared — the fixture's
+    session is one for the whole test, otherwise the second client would not see an
+    invitation created by the first.
     """
 
     def _override_get_db():
@@ -41,11 +41,11 @@ def clients(db):
 
 
 def _register(client, name, email, **extra):
-    # company_name по умолчанию — то же имя, что у человека: так вело себя
-    # старое правило «организация называется как основатель», и большинству
-    # тестов здесь важен не он, а сам факт регистрации. При регистрации по
-    # приглашению (**extra несёт invite_token) значение всё равно уезжает в
-    # запросе, но маршрут его не читает — организация уже есть.
+    # company_name defaults to the same name as the person's: that is how the old rule
+    # "the organization is named after its founder" behaved, and for most tests here what
+    # matters is not that but the fact of registration itself. When registering through an
+    # invitation (**extra carries invite_token) the value still rides out in the request,
+    # but the route does not read it — the organization already exists.
     payload = {"name": name, "email": email, "password": PASSWORD, "company_name": name}
     payload.update(extra)
     return client.post("/api/auth/register", json=payload)
@@ -69,7 +69,7 @@ def _token(url: str) -> str:
     return url.rsplit("/", 1)[-1]
 
 
-# ---- выпуск ---------------------------------------------------------------
+# ---- issuing --------------------------------------------------------------
 
 
 def test_the_link_comes_back_once_and_points_at_the_public_base_url(owner):
@@ -81,7 +81,7 @@ def test_the_link_comes_back_once_and_points_at_the_public_base_url(owner):
     assert issued["role"] == "viewer"
     assert issued["url"].startswith(f"{get_settings().public_base_url}/invite/")
 
-    # Второй раз ссылку взять негде: сервер помнит только хеш токена.
+    # There is nowhere to get the link a second time: the server remembers only the token's hash.
     listed = owner.get("/api/org/invitations").json()["invitations"]
     assert "url" not in listed[0]
     assert "token_hash" not in listed[0]
@@ -103,7 +103,7 @@ def test_an_invitation_without_addresses_is_a_link_to_copy(owner):
 
 
 def test_only_an_owner_may_invite(owner, clients, db):
-    """Приглашать вправе владелец: ORG_ADMIN есть только у него."""
+    """The owner may invite: only they have ORG_ADMIN."""
     user_id = owner.get("/api/auth/me").json()["id"]
     membership = db.scalar(select(Membership).where(Membership.user_id == user_id))
     membership.role = "editor"
@@ -124,11 +124,11 @@ def test_an_unknown_role_is_422_with_its_own_code(owner):
 
 
 def test_the_owner_role_is_refused_by_the_server_and_not_only_hidden_in_the_form(owner):
-    """Список ролей в форме владельца не показывает — но защищает не он.
+    """The form's role list does not show it — but it is not the form that protects.
 
-    Спрятанная строка выпадающего списка не мешает отправить запрос руками, и
-    правило живёт на сервере. Код отдельный: роль существует, её просто не
-    выдают этим способом — назначают поимённо, PATCH /api/org/members.
+    A hidden row of a dropdown does not stop the request being sent by hand, and the rule
+    lives on the server. The code is its own: the role exists, it is simply not handed out
+    this way — it is assigned individually, PATCH /api/org/members.
     """
     response = _invite(owner, role="owner")
 
@@ -137,10 +137,10 @@ def test_the_owner_role_is_refused_by_the_server_and_not_only_hidden_in_the_form
 
 
 def test_inviting_someone_who_is_already_inside_answers_409(owner, clients, db):
-    """Не 422: форма запроса безупречна, звать просто больше некуда.
+    """Not a 422: the request's shape is impeccable, there is simply nobody left to invite.
 
-    Такое приглашение ничего бы не изменило — `accept` роли действующего
-    членства не трогает, — но выглядело бы отправленным.
+    Such an invitation would change nothing — `accept` does not touch an existing
+    membership's role — but would look as if it had been sent.
     """
     from app.models import Membership as MembershipModel
 
@@ -169,13 +169,13 @@ def test_the_hourly_ceiling_answers_429(owner, monkeypatch):
         get_settings.cache_clear()
 
 
-# ---- письмо ---------------------------------------------------------------
+# ---- the message ----------------------------------------------------------
 
 
 @pytest.fixture
 def mail_on(monkeypatch):
-    """Установка с настроенной почтой. Транспорт `log` ничего не отправляет
-    наружу, но проходит ровно тот же путь, что и настоящий."""
+    """An installation with mail configured. The `log` transport sends nothing outward but
+    goes down exactly the same road as a real one."""
     monkeypatch.setenv("MAIL_TRANSPORT", "log")
     get_settings.cache_clear()
     try:
@@ -205,13 +205,13 @@ def test_asking_not_to_deliver_leaves_the_letter_unsent(owner, mail_on):
 
 
 def test_a_letter_that_did_not_go_out_does_not_undo_the_invitation(owner, mail_on, monkeypatch):
-    """Приглашение существует независимо от того, доставили его письмом или
-    нет: интерфейсу остаётся сказать «письмо не ушло, скопируйте ссылку»."""
+    """An invitation exists whether or not it was delivered by mail: all the interface has
+    to say is "the message did not go out, copy the link"."""
     import app.api.invite_routes as routes
 
     def refuse(**kwargs) -> bool:
-        # Транспорт не поднимает отказ наверх исключением: он пишет причину в
-        # журнал и возвращает False (см. app.mail.send).
+        # The transport does not raise a failure upward as an exception: it writes the
+        # reason into the log and returns False (see app.mail.send).
         return False
 
     monkeypatch.setattr(routes, "send_mail", refuse)
@@ -236,7 +236,7 @@ def test_resending_by_mail_counts_against_the_same_hourly_ceiling(owner, mail_on
     )
 
     assert response.status_code == 429
-    # А выпуск ссылки для копирования — не идёт: письма при нём не уходит.
+    # Issuing a link to copy, meanwhile, does not count: no message goes out with it.
     assert (
         owner.post(
             f"/api/org/invitations/{issued['id']}/reissue", json={"deliver": False}
@@ -245,7 +245,7 @@ def test_resending_by_mail_counts_against_the_same_hourly_ceiling(owner, mail_on
     )
 
 
-# ---- приём ----------------------------------------------------------------
+# ---- accepting ------------------------------------------------------------
 
 
 def test_the_preview_answers_before_the_guest_has_an_account(owner, clients):
@@ -275,8 +275,8 @@ def test_accepting_puts_the_guest_inside_the_inviting_organization(owner, client
     assert response.status_code == 200
     assert response.json()["name"] == "Acme"
     assert response.json()["role"] == "viewer"
-    # Сессия сразу переключилась: человек нажал «принять» и оказался внутри,
-    # а не пошёл искать организацию в переключателе.
+    # The session switched right away: the person pressed "accept" and ended up inside
+    # rather than going to look for the organization in the switcher.
     assert guest.get("/api/org").json()["name"] == "Acme"
 
 
@@ -342,7 +342,7 @@ def test_an_invitation_of_another_organization_is_not_reachable(owner, clients):
     )
 
 
-# ---- регистрация по ссылке ------------------------------------------------
+# ---- registration by link -------------------------------------------------
 
 
 def test_registering_through_an_invitation_joins_that_organization_only(owner, clients, db):
@@ -353,9 +353,9 @@ def test_registering_through_an_invitation_joins_that_organization_only(owner, c
 
     assert response.status_code == 201
     assert guest.get("/api/org").json()["name"] == "Acme"
-    # Своей организации пришедший по ссылке не получает: она была бы пустышкой
-    # с ним одним внутри, а в закрытой установке ещё и делала бы каждого
-    # приглашённого владельцем.
+    # Someone arriving by link does not get an organization of their own: it would be a
+    # dummy with them alone inside, and in a closed installation it would additionally make
+    # every invitee an owner.
     assert len(guest.get("/api/org/list").json()) == 1
 
 
@@ -385,7 +385,7 @@ def test_a_closed_installation_refuses_even_a_valid_invitation(owner, clients, m
 
 
 def test_an_invite_only_installation_lets_the_invited_in_and_no_one_else(owner, clients):
-    """Ровно та разница, ради которой SIGNUP_MODE держит три значения, а не два."""
+    """Exactly the difference for whose sake SIGNUP_MODE holds three values rather than two."""
     [issued] = _invite(owner).json()
 
     import os
@@ -406,8 +406,8 @@ def test_an_invite_only_installation_lets_the_invited_in_and_no_one_else(owner, 
 
 
 def test_registering_the_ordinary_way_leaves_the_invitation_alive(owner, clients, db):
-    """Человек с приглашением на руках пошёл регистрироваться сам — ничего не
-    ломается: он получает свою организацию, а приглашение ждёт своей ссылки."""
+    """A person holding an invitation went and registered themselves — nothing breaks: they
+    get their own organization while the invitation waits for its link."""
     [issued] = _invite(owner).json()
     guest = clients()
     _register(guest, "Guest", "guest@example.com")
@@ -416,11 +416,11 @@ def test_registering_the_ordinary_way_leaves_the_invitation_alive(owner, clients
     invitation = db.scalar(select(Invitation))
     assert invitation.accepted_at is None
 
-    # И срабатывает, когда он всё-таки открывает ссылку.
+    # And it fires once they do open the link after all.
     assert guest.post(f"/api/invitations/{_token(issued['url'])}/accept").status_code == 200
 
 
-# ---- переключатель организаций --------------------------------------------
+# ---- the organization switcher --------------------------------------------
 
 
 def test_the_switcher_lists_every_organization_the_person_belongs_to(owner, clients):
@@ -445,7 +445,7 @@ def test_switching_changes_which_organization_the_next_request_talks_about(owner
     assert guest.post("/api/org/switch", json={"org_id": own["id"]}).status_code == 200
 
     assert guest.get("/api/org").json()["name"] == "Guest"
-    # Выбор живёт до конца сессии, а не до конца страницы.
+    # The choice lives until the end of the session rather than until the end of the page.
     assert guest.get("/api/org").json()["name"] == "Guest"
 
 
@@ -475,7 +475,7 @@ def test_projects_follow_the_chosen_organization(owner, clients):
     assert guest.get("/api/projects").json() == []
 
 
-# ---- роль client и выданный доступ ----------------------------------------
+# ---- the client role and granted access -----------------------------------
 
 
 def test_a_client_sees_the_project_they_were_invited_to_and_no_other(owner, clients):
@@ -489,7 +489,7 @@ def test_a_client_sees_the_project_they_were_invited_to_and_no_other(owner, clie
 
     assert [p["id"] for p in guest.get("/api/projects").json()] == [granted["id"]]
     assert guest.get(f"/api/projects/{granted['id']}").status_code == 200
-    # Проект, куда не звали, для клиента неотличим от несуществующего.
+    # A project they were not invited to is indistinguishable from a nonexistent one for a client.
     assert guest.get(f"/api/projects/{hidden['id']}").status_code == 404
 
 
@@ -522,7 +522,7 @@ def test_a_client_does_not_see_the_internal_note_of_a_project_they_may_read(owne
     assert state["tasks"][0]["name"] == "Logo"
     assert "internal_note" not in state["tasks"][0]
 
-    # И в журнале изменений её тоже нет: заметка уезжает в op при создании.
+    # And it is not in the change journal either: the note rides into op at creation.
     revisions = guest.get(f"/api/projects/{project['id']}/revisions").json()
     assert all("internal_note" not in revision["op"] for revision in revisions)
 
@@ -530,9 +530,9 @@ def test_a_client_does_not_see_the_internal_note_of_a_project_they_may_read(owne
 def test_a_client_does_not_see_risks_and_assumptions_transferred_from_the_proposal(
     owner, clients
 ):
-    """Перенос сметы кладёт риски и допущения во внутреннюю заметку задачи —
-    и правило READ_INTERNAL_NOTE прячет её от клиента везде, где заметка
-    бывает: в состоянии проекта и в журнале, куда create_task её уносит."""
+    """A budget carry-across puts risks and assumptions into a task's internal note — and
+    the READ_INTERNAL_NOTE rule hides it from a client everywhere the note occurs: in the
+    project's state and in the journal, where create_task carries it."""
     project = owner.post("/api/projects", json={"name": "Redesign"}).json()
     category = owner.post(
         f"/api/projects/{project['id']}/proposal/categories", json={"name": "Design"}
@@ -559,7 +559,7 @@ def test_a_client_does_not_see_risks_and_assumptions_transferred_from_the_propos
     assert all("internal_note" not in revision["op"] for revision in revisions)
     assert "подрядчик" not in guest.get(f"/api/projects/{project['id']}").text
 
-    # Владельцу заметка видна целиком: перенос ничего не потерял.
+    # The owner sees the note in full: the carry-across lost nothing.
     mine = owner.get(f"/api/projects/{project['id']}").json()
     assert "подрядчик ненадёжен" in mine["tasks"][0]["internal_note"]
     assert "доступы дадут к среде" in mine["tasks"][0]["internal_note"]
@@ -591,14 +591,14 @@ def test_a_client_still_does_not_get_the_organization_roster(owner, clients):
 
 
 def test_the_invitation_letter_speaks_the_language_of_the_founder(clients, mail_on, mailbox):
-    """Письмо приглашения — на языке того, кто завёл организацию.
+    """An invitation message is in the language of whoever created the organization.
 
-    Язык письма берётся из `organizations.default_locale`, а тот при регистрации
-    не задавался вовсе и оставался жёстким дефолтом модели: русскоязычный
-    владелец рассылал команде приглашения по-азербайджански и заметить это из
-    интерфейса не мог никак. Проверяется именно сквозной путь — регистрация,
-    выпуск, письмо, — потому что обе его половины по отдельности были исправны
-    и раньше, а расходились они ровно на стыке.
+    The message's language comes from `organizations.default_locale`, and that was not set
+    at registration at all and stayed at the model's hard default: a Russian-speaking owner
+    sent the team invitations in Azerbaijani and had no way of noticing it from the
+    interface. It is the end-to-end road that is checked — registration, issuing, the
+    message — because both of its halves were sound separately even before, and they
+    diverged exactly at the joint.
     """
     owner = clients()
     owner.post(
@@ -611,8 +611,8 @@ def test_the_invitation_letter_speaks_the_language_of_the_founder(clients, mail_
         },
         headers={"Accept-Language": "ru-RU,ru;q=0.9"},
     )
-    # Письмо подтверждения адреса к делу не относится: оно и раньше уходило на
-    # языке человека — расходился только язык организации.
+    # The address confirmation message is beside the point: it went out in the person's
+    # language even before — only the organization's language diverged.
     mailbox.clear()
 
     response = _invite(owner, emails=("guest@example.com",))

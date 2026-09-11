@@ -10,9 +10,9 @@ from app.main import app
 
 @pytest.fixture
 def client(db):
-    """Тот же паттерн, что в tests/test_project_api.py: get_db отдаёт сессию
-    фикстуры `db` и не делает commit, иначе внешняя транзакция закроется
-    раньше времени и изоляция между тестами исчезнет."""
+    """The same pattern as in tests/test_project_api.py: get_db returns the `db`
+    fixture's session and does not commit, otherwise the outer transaction closes ahead
+    of time and the isolation between tests disappears."""
 
     def _override_get_db():
         yield db
@@ -40,11 +40,11 @@ def authed(client):
 
 @pytest.fixture
 def clients(db):
-    """Фабрика клиентов поверх одной сессии базы — как в tests/test_invite_api.py.
+    """A factory of clients over one database session — as in tests/test_invite_api.py.
 
-    Управление составом требует двоих: один правит роль, второго правят. У
-    каждого своя кука, а сессия базы общая, иначе второй не увидел бы
-    организацию первого.
+    Managing membership requires two people: one edits a role, the other is edited.
+    Each has a cookie of their own while the database session is shared, otherwise the
+    second would not see the first one's organization.
     """
 
     def _override_get_db():
@@ -58,8 +58,8 @@ def clients(db):
 
 
 def test_current_organization_is_named(authed):
-    """Шапка интерфейса подписана названием организации, и взять его больше
-    неоткуда: состав участников про саму организацию ничего не говорит."""
+    """The interface's header is signed with the organization's name, and there is
+    nowhere else to take it from: the list of members says nothing about the organization itself."""
     response = authed.get("/api/org")
     assert response.status_code == 200
     body = response.json()
@@ -73,9 +73,9 @@ def test_current_organization_requires_authentication(client):
 
 
 def test_a_client_still_knows_which_organization_they_are_in(authed, db):
-    """В отличие от состава участников, само название организации от её
-    участника не скрывается: он видит его в шапке на каждом экране, и роль
-    `client` здесь ничего не меняет."""
+    """Unlike the list of members, the organization's own name is not hidden from its
+    member: they see it in the header on every screen, and the `client` role changes
+    nothing here."""
     from app.models import Membership
 
     user_id = authed.get("/api/auth/me").json()["id"]
@@ -115,10 +115,11 @@ def test_members_returns_id_name_email_and_role(authed):
 
 
 def test_a_client_does_not_see_the_organization_roster(authed, db):
-    """По спеку роль client состава организации не видит вовсе.
+    """Per the specification the client role does not see an organization's membership at all.
 
-    Здесь 403, а не 404: маршрут не про конкретный проект, и скрывать факт
-    существования собственной организации от её же участника нечего.
+    Here it is a 403 rather than a 404: the route is not about a particular project, and
+    there is nothing to hide about the existence of one's own organization from its own
+    member.
     """
     from app.models import Membership
 
@@ -130,7 +131,7 @@ def test_a_client_does_not_see_the_organization_roster(authed, db):
     assert authed.get("/api/org/members").status_code == 403
 
 
-# ---- управление составом: роли и вывод из организации ----------------------
+# ---- managing membership: roles and removal from an organization -----------
 
 
 def _register(client, name, email):
@@ -142,12 +143,12 @@ def _register(client, name, email):
 
 @pytest.fixture
 def pair(clients, db):
-    """Владелец организации и второй человек в ней. Роль второго — `viewer`.
+    """The organization's owner and a second person in it. The second one's role is `viewer`.
 
-    Второй заводится обычной регистрацией (со своей организацией, как у всех,
-    кто пришёл с улицы), а членство в чужой добавляется записью: путь через
-    приглашение проверяется в tests/test_invite_api.py, и повторять его здесь
-    значило бы проверять приглашения ещё раз, а не состав.
+    The second is created by ordinary registration (with an organization of their own,
+    like everyone who comes off the street), while membership in someone else's is added
+    as a row: the path through an invitation is checked in tests/test_invite_api.py, and
+    repeating it here would mean checking invitations again rather than membership.
     """
     from app.models import Membership as MembershipModel
 
@@ -182,21 +183,21 @@ def test_an_owner_changes_the_role_of_a_member(pair):
 
 
 def test_the_owner_role_is_handed_over_by_this_route_and_not_by_an_invitation(pair):
-    """Владельца назначают именно здесь — то самое «отдельное действие».
+    """An owner is appointed exactly here — that very "separate action".
 
-    Приглашением эта роль не выдаётся (`role_not_invitable`): ссылка без
-    адреса достаётся предъявителю. Здесь адресат назван поимённо.
+    This role is not handed out by an invitation (`role_not_invitable`): a link with no
+    address goes to whoever presents it. Here the recipient is named individually.
     """
     owner, other, other_id = pair
 
     assert owner.patch(f"/api/org/members/{other_id}", json={"role": "owner"}).status_code == 200
-    # Право проверяется по делу, а не по ответу маршрута: новый владелец
-    # правит настройки организации, а `viewer` не правил.
+    # The permission is checked by deed rather than by the route's answer: the new owner
+    # edits the organization's settings, which a `viewer` did not.
     assert other.patch("/api/org", json={"name": "Globex"}).status_code == 200
 
 
 def test_the_last_owner_is_not_demoted(authed, db):
-    """Организация без владельца заперта навсегда: назначить нового некому."""
+    """An organization with no owner is locked forever: there is nobody to appoint a new one."""
     user_id = authed.get("/api/auth/me").json()["id"]
 
     response = authed.patch(f"/api/org/members/{user_id}", json={"role": "editor"})
@@ -215,10 +216,10 @@ def test_an_owner_steps_down_once_there_is_a_second_one(pair):
 
 
 def test_naming_the_role_a_member_already_has_is_not_an_error(authed):
-    """Владелец, «назначенный» владельцем, — не попытка остаться без владельца.
+    """An owner "appointed" owner is not an attempt to be left without an owner.
 
-    Иначе защита последнего срабатывала бы на запросе, который ничего не
-    меняет: интерфейс отправляет выбранное значение, а не разницу с прежним.
+    Otherwise the last-owner protection would fire on a request that changes nothing: the
+    interface sends the selected value rather than the difference from the previous one.
     """
     user_id = authed.get("/api/auth/me").json()["id"]
 
@@ -235,7 +236,7 @@ def test_an_unknown_role_is_refused_with_its_own_code(pair):
 
 
 def test_a_person_from_another_organization_is_simply_not_found(authed, db):
-    """404, а не 403: иначе перебор по адресу называет чужих пользователей."""
+    """404, not 403: otherwise enumerating addresses names other people's users."""
     from app.auth import register
 
     stranger = register(db, name="Stranger", email="stranger@example.com", password="s3cret-pass")
@@ -278,11 +279,11 @@ def test_a_member_does_not_remove_anyone_but_themselves(pair, clients, db):
 
 
 def test_anyone_may_leave_on_their_own(pair):
-    """Уход своими руками прав в организации не требует.
+    """Leaving by one's own hand requires no permissions in the organization.
 
-    Проверяется на роли `client`: она не видит даже состава организации, и
-    если бы «выйти» требовало права, позванный однажды остался бы внутри
-    навсегда.
+    It is checked on the `client` role: it does not even see the organization's
+    membership, and if "leave" required a permission, whoever was once invited would stay
+    inside forever.
     """
     owner, other, other_id = pair
     owner.patch(f"/api/org/members/{other_id}", json={"role": "client"})
@@ -292,7 +293,7 @@ def test_anyone_may_leave_on_their_own(pair):
 
 
 def test_the_last_owner_does_not_leave_either(authed):
-    """Та же защита, что и у разжалования: уйти последним владельцем нельзя."""
+    """The same protection as for a demotion: the last owner cannot leave."""
     user_id = authed.get("/api/auth/me").json()["id"]
 
     response = authed.delete(f"/api/org/members/{user_id}")
@@ -302,10 +303,10 @@ def test_the_last_owner_does_not_leave_either(authed):
 
 
 def test_leaving_takes_named_project_access_with_it(pair, db):
-    """Поимённые доступы уходят вместе с членством.
+    """Individually granted access goes away together with the membership.
 
-    Иначе позванный обратно молча видел бы всё, что видел прежде, — доступ,
-    который никто не выдавал заново.
+    Otherwise someone invited back would silently see everything they saw before — access
+    nobody granted anew.
     """
     from app.models import ProjectAccess
     from app.projects import create_project
@@ -324,10 +325,11 @@ def test_leaving_takes_named_project_access_with_it(pair, db):
 
 
 def test_leaving_does_not_erase_the_person_from_the_plan(pair, db):
-    """Назначения на задачи остаются: план не переписывается кадровым решением.
+    """Task assignments remain: the plan is not rewritten by a staffing decision.
 
-    Снять назначение с ушедшего можно и потом — отдельным действием, которое
-    для того и не проверяет членства (см. UnassignUser в app.mutations).
+    An assignment can be cleared from someone who has left later too — by a separate
+    action, which for that very reason does not check membership (see UnassignUser in
+    app.mutations).
     """
     from app.models import Category, Task, TaskAssignee
     from app.projects import create_project
@@ -358,11 +360,11 @@ def test_leaving_does_not_erase_the_person_from_the_plan(pair, db):
 
 
 def test_the_organization_left_behind_stops_being_the_active_one(pair, db):
-    """Сессия ушедшего перестаёт указывать на чужое место.
+    """A departed person's session stops pointing at somewhere that is no longer theirs.
 
-    Отказом это не оборачивалось бы и без сброса — активное членство берётся
-    первое доступное, — но указатель на организацию, в которую человек больше
-    не входит, лучше убрать сразу.
+    This would not turn into a refusal even without the reset — the active membership
+    takes the first available one — but a pointer at an organization the person no longer
+    belongs to is better removed right away.
     """
     from app.models import Session as SessionModel
 
@@ -376,7 +378,7 @@ def test_the_organization_left_behind_stops_being_the_active_one(pair, db):
     assert set(
         db.scalars(select(SessionModel.active_org_id).where(SessionModel.user_id == other_id)).all()
     ) == {None}
-    # Своя организация никуда не делась — человек возвращается в неё.
+    # Their own organization has not gone anywhere — the person returns to it.
     assert other.get("/api/org").json()["name"] == "Maria"
 
 
