@@ -14,20 +14,20 @@ import { NewProposalTaskRow } from "./NewProposalTaskRow";
 import { isPositive, lineAmount, moneyToNumber, sumMoney } from "./money";
 import type { Money } from "./money";
 
-/** Колонки таблицы: работа, роль, описание, оценка, ставка, цена. */
+/** The table's columns: work, role, description, estimate, rate, price. */
 export const COLUMNS = 6;
 
-/** Подпись, переведённая экраном: таблица сама словарь не открывает. */
+/** A caption translated by the screen: the table does not open the dictionary itself. */
 type Translate = (key: string, params?: Record<string, string | number>) => string;
 
 /**
- * Пересчёты между трудоёмкостью строки и тем, что показано в колонках.
+ * The conversions between a line's effort and what is shown in the columns.
  *
- * Оценка живёт в единице сметы, а показывается в обеих: дни и часы
- * пересчитываются через «часов в дне» — теми же правилами, по которым перенос
- * в план считает длительности. Обратный пересчёт нужен правке: правят ту
- * колонку, в которую смотрят, а в трудоёмкость написанное переводится тем же
- * числом, каким и показано.
+ * The estimate lives in the quote's unit and is shown in both: days and hours are
+ * converted through "hours in a day" — by the same rules the transfer into the
+ * plan computes durations with. The reverse conversion is needed for editing:
+ * people edit the column they are looking at, and what they write is converted
+ * into effort by the same number it was shown with.
  */
 export type EffortMath = {
   toDays: (effort: number) => number;
@@ -37,27 +37,29 @@ export type EffortMath = {
 };
 
 /**
- * Числа словами и деньгами — форматтеры экрана, знающие язык и валюту.
+ * Numbers in words and in money — the screen's formatters, which know the
+ * language and the currency.
  *
- * В ячейках таблицы деньги без валюты (`amount`): валюта названа в шапке
- * колонки один раз, и «$» в каждой из сорока ячеек только теснил бы числа.
- * В итогах — с валютой (`money`): итог читают отдельно от шапки.
+ * In the table's cells money comes without a currency (`amount`): the currency is
+ * named once in the column's heading, and a "$" in every one of forty cells would
+ * only crowd the numbers. In the totals it comes with a currency (`money`): a
+ * total is read apart from the heading.
  */
 export type Formats = {
   days: (value: number) => string;
   hoursLabel: (value: number) => string;
   amount: (value: number) => string;
-  /** Стоимость без валюты — точная сумма, а не число (см. money.ts). */
+  /** A cost without a currency — an exact sum rather than a number (see money.ts). */
   price: (value: Money) => string;
   money: (value: Money) => string;
 };
 
 /**
- * Раздел в таблице: строка-заголовок со сводкой и строки работ под ней.
+ * A section in the table: a heading row with a summary and the work rows under it.
  *
- * Сводка раздела — суммы его строк; ставка показывается, только когда она у
- * всех строк одна: среднее от разных ставок не значит ничего, а первое
- * попавшееся врёт.
+ * A section's summary is the sums of its lines; the rate is shown only when it is
+ * the same on all of them: an average of different rates means nothing, while the
+ * first one to hand lies.
  */
 export function CategoryRows({
   projectId,
@@ -97,7 +99,7 @@ export function CategoryRows({
   onCloseNewTask: () => void;
   onCreateTask: (input: NewProposalTask) => void;
   onDelete: () => void;
-  /** Открыть окно раздела: имя и описание с клавиатуры правятся там. */
+  /** Open the section's dialog: the name and the description are edited there from the keyboard. */
   onEdit: () => void;
   onPatch: (patch: Partial<{ name: string; description: string }>) => void;
   onPatchTask: (taskId: string, patch: ProposalTaskPatch) => void;
@@ -129,7 +131,7 @@ export function CategoryRows({
             >
               {open ? "▾" : "▸"}
             </button>
-            {/* Имя раздела — содержимое пользователя: не переводится. */}
+            {/* The section's name is user content: it is not translated. */}
             <span className="proposal-row__field">
               <EditableCell
                 type="text"
@@ -144,11 +146,12 @@ export function CategoryRows({
               />
             </span>
             {canWrite && (
-              // Знаки строки — те же, что у строки ленты, и молчат так же:
-              // постоянное удаление возле каждого раздела читается как угроза.
-              // Подпись каждого включает название раздела — на десятке
-              // разделов безымянные знаки при чтении с экрана неразличимы.
-              // «Плюса» здесь нет: работу заводят строкой в конце раздела.
+              // The row's signs are the same as a strip row's, and they stay just
+              // as quiet: a permanent delete next to every section reads as a
+              // threat. Each one's caption includes the section's name — with a
+              // dozen sections, nameless signs are indistinguishable on a screen
+              // reader. There is no "plus" here: work is created by a row at the
+              // end of the section.
               <span className="row-icons">
                 <RowIcon
                   label={t("proposal.category.edit", { name: category.name })}
@@ -180,8 +183,8 @@ export function CategoryRows({
             onCommit={(description) => onPatch({ description })}
           />
         </td>
-        {/* Числа раздела — сводка его строк, а не значения: править их значило
-            бы менять неизвестно какую из работ. Как строка категории в ленте. */}
+        {/* A section's numbers are a summary of its lines rather than values:
+            editing them would mean changing who knows which work item. Like a category row in the strip. */}
         <td className="proposal-table__num">
           <Estimate effort={categoryEffort} unit={unit} math={math} formats={formats} />
         </td>
@@ -223,10 +226,10 @@ export function CategoryRows({
         />
       )}
 
-      {/* Работу заводят строкой в конце её раздела — как задачу в ленте: у
-          каждого уровня списка свой «плюс», и тулбару кнопки не нужны. В
-          свёрнутом разделе строки нет: класть работу в то, чего не видно,
-          не за чем. */}
+      {/* Work is created by a row at the end of its section — like a task in the
+          strip: every level of the list has its own "plus", and the toolbar does
+          not need the buttons. In a collapsed section there is no such row:
+          there is no point putting work into something you cannot see. */}
       {open && canWrite && !addingTask && (
         <tr className="proposal-row proposal-row--add">
           <td colSpan={COLUMNS}>
@@ -244,8 +247,9 @@ export function CategoryRows({
 }
 
 /**
- * Оценка в единице сметы и рядом — в другой, мелко: обе нужны, но одна из
- * них главная, и вторая не должна читаться как ещё одна колонка.
+ * The estimate in the quote's unit and, next to it, in the other one, in small
+ * type: both are needed, but one of them is the main one, and the second must not
+ * read as one more column.
  */
 function Estimate({
   effort,
@@ -274,18 +278,20 @@ function Estimate({
 }
 
 /**
- * Строка работы: каждая ячейка правится на месте.
+ * A work row: every cell is edited in place.
  *
- * Оценка живёт в трудоёмкости строки и правится в единице сметы; вторая
- * единица стоит рядом мелко, для сверки. Цена — произведение оценки на
- * ставку, и правка её меняет ставку: «эта строка стоит пять тысяч» говорят
- * именно так, а оценку в этот момент не пересматривают. У строки без оценки
- * множителя нет, и цену ей задать нечем. Пустые роль, оценка и ставка
- * подсказывают, что в них пишут: прочерк говорил бы «пусто», а не «сюда».
+ * The estimate lives in the line's effort and is edited in the quote's unit; the
+ * second unit stands next to it in small type, for checking. The price is the
+ * estimate times the rate, and editing it changes the rate: "this line costs five
+ * thousand" is said in exactly that way, and the estimate is not revisited at that
+ * moment. A line without an estimate has no multiplier, and there is nothing to
+ * set its price with. An empty role, estimate and rate hint at what goes in them: a
+ * dash would say "empty" rather than "in here".
  *
- * Карточка остаётся для того, чего в таблице нет: подробностей, рисков,
- * допущений и разговора. Её открывает знак «править» — и он же единственный
- * путь туда с клавиатуры: ячейки открываются щелчком (см. components/rows).
+ * The card is left for what the table does not have: the details, the risks, the
+ * assumptions and the conversation. It is opened by the "edit" sign — which is
+ * also the only path there from the keyboard: the cells open on a click (see
+ * components/rows).
  */
 function TaskRow({
   projectId,
@@ -310,7 +316,7 @@ function TaskRow({
   onDelete: () => void;
   t: Translate;
 }) {
-  /** «Изменить: {колонка} у „{имя}“» — подпись поля, открытого на месте. */
+  /** "Change: {column} on “{name}”" — the caption of the field opened in place. */
   const label = (column: string) =>
     t("proposal.cell.edit", { column: t(column), name: task.name });
   const price = lineAmount(task.effort, task.rate);
@@ -330,7 +336,7 @@ function TaskRow({
     },
     price: (value: string) => {
       const parsed = amount(value);
-      // Делить не на что: у строки без оценки цена не разложится на ставку.
+      // There is nothing to divide by: a line without an estimate does not decompose its price into a rate.
       if (parsed === null || task.effort === 0) return;
       const next = rounded(parsed / task.effort);
       if (next !== task.rate) onPatch({ rate: next });
@@ -341,13 +347,13 @@ function TaskRow({
     <tr className="proposal-row proposal-row--task">
       <td>
         <span className="proposal-row__name proposal-row__name--task">
-          {/* Имя строки — содержимое пользователя: не переводится.
+          {/* The line's name is user content: it is not translated.
 
-              У читателя щелчок по имени открывает карточку — как и раньше:
-              правкой он быть не может, а карточка со всем, чего в таблице нет,
-              для чтения открыта и ему. Тому, кто пишет, то же движение
-              открывает ячейку, а карточку — знак «править» справа: два разных
-              дела на одном щелчке не помещаются. */}
+              For a reader a click on the name opens the card — as before: it
+              cannot be an edit, while the card with everything the table does not
+              have is open for them to read too. For someone who writes the same
+              motion opens the cell, and the card is opened by the "edit" sign on
+              the right: two different jobs do not fit on one click. */}
           <span className="proposal-row__field">
             {canWrite ? (
               <EditableCell
@@ -363,9 +369,9 @@ function TaskRow({
               </button>
             )}
           </span>
-          {/* Строка уже в плане: отметка ведёт к её задаче на диаграмме.
-              Ссылкой, а не текстом, — «где она теперь» и есть вопрос, который
-              задают этой отметке. */}
+          {/* The line is already in the plan: the marker leads to its task on the
+              chart. As a link rather than as text — "where is it now" is exactly
+              the question this marker is asked. */}
           {task.plan_task_id && (
             <Link
               className="proposal-chip proposal-chip--plan"
@@ -378,8 +384,8 @@ function TaskRow({
           <span className="row-icons">
             {(task.comment_count > 0 || canWrite) && (
               <RowBadge
-                // Подпись та же, что у счётчика на строке ленты: разговор —
-                // один и тот же разговор, где бы его ни открыли.
+                // The caption is the same as the counter's on a strip row: the
+                // conversation is one and the same conversation, wherever it is opened.
                 label={t("comments.aria", { name: task.name, count: task.comment_count })}
                 set={task.comment_count > 0}
                 onClick={onOpen}
@@ -487,11 +493,11 @@ function TaskRow({
 }
 
 /**
- * Число из ячейки — или `null`, если написано не число.
+ * The number from a cell — or `null` if what is written is not a number.
  *
- * Отрицательные не проходят: ни оценка, ни ставка, ни цена меньше нуля не
- * бывают, и сервер откажет — но сказать об этом можно и здесь, не спрашивая
- * никого.
+ * Negatives do not pass: neither an estimate, nor a rate, nor a price is ever
+ * less than zero, and the server will refuse — but this can be said here too,
+ * without asking anyone.
  */
 function amount(text: string): number | null {
   const value = Number(text);
@@ -499,12 +505,12 @@ function amount(text: string): number | null {
 }
 
 /**
- * Два знака после запятой — ровно столько, сколько хранит сервер.
+ * Two decimal places — exactly as many as the server stores.
  *
- * Пересчёты сметы делят: 25 часов при восьмичасовом дне — это 3,125 дня, а
- * колонка цены, разложенная на ставку, и вовсе даёт бесконечную дробь.
- * Отправить её целиком значит попросить сервер о точности, которой у его
- * колонки нет, и получить в ответ округление, о котором никто не просил.
+ * The quote's conversions divide: 25 hours at an eight-hour day is 3.125 days,
+ * while the price column decomposed into a rate gives an infinite fraction
+ * outright. Sending it whole means asking the server for a precision its column
+ * does not have, and getting back a rounding nobody asked for.
  */
 function rounded(value: number): number {
   return Math.round(value * 100) / 100;

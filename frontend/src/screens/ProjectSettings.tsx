@@ -32,13 +32,13 @@ import {
 } from "../settings/fields";
 
 /**
- * Уровень 3 настроек: слаг, целевая дата и переопределения организации.
+ * Level 3 of the settings: the slug, the target date and the organization's
+ * overrides.
  *
- * Переопределение показывается переключателем «наследовать / своё», а не
- * подставленным значением организации: подставленное число выглядит как
- * собственное значение проекта, и человек, поправивший его «обратно как было»,
- * незаметно превращает наследование в копию — ровно то, чего спецификация
- * велит избегать.
+ * An override is shown as an "inherit / own" toggle rather than as the
+ * organization's value filled in: a filled-in number looks like the project's own
+ * value, and a person who corrects it "back to how it was" silently turns
+ * inheritance into a copy — exactly what the specification says to avoid.
  */
 export function ProjectSettings() {
   const { t } = useLocale();
@@ -46,10 +46,10 @@ export function ProjectSettings() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const canWrite = useCanWrite();
-  // Удаление проекта — право владельца, как и пересогласование плана:
-  // редактор правит настройки, но не расстаётся с проектом целиком. Решает
-  // всё равно сервер — здесь лишь не предлагается действие, которое кончится
-  // отказом.
+  // Deleting a project is the owner's right, as re-approving the plan is: an
+  // editor edits the settings but does not part with a whole project. The server
+  // decides either way — here we merely refrain from offering an action that will
+  // end in a refusal.
   const isOwner = useOrgRole() === "owner";
 
   const query = useQuery({
@@ -66,25 +66,25 @@ export function ProjectSettings() {
 
   const save = useMutation({
     mutationFn: (patch: Parameters<typeof updateProject>[1]) => updateProject(projectId, patch),
-    // Кнопки «Сохранить» здесь нет, поле уходит на сервер по уходу фокуса — и
-    // о записи отчитывается само поле, отметкой рядом с ним (см. `SaveMark`).
-    // Тостом это говорить нельзя: полей на экране десяток, а тост один и не
-    // называет, чьё именно значение доехало.
+    // There is no "Save" button here, a field leaves for the server on blur — and
+    // the field itself reports the write with a mark next to it (see `SaveMark`).
+    // A toast cannot say this: there are a dozen fields on the screen while there
+    // is one toast, and it does not name whose value got through.
     onSuccess: (state: ProjectState) =>
       queryClient.setQueryData(projectQueryKey(projectId), state),
   });
   const saves = useFieldSaves(save.mutateAsync);
-  // Одна и та же функция между отрисовками: поле слага откладывает проверку
-  // по ней, и новая стрелка на каждую отрисовку экрана — а он перерисовывается
-  // на каждом ответе любого поля — сбрасывала бы таймер и выбрасывала уже
-  // полученный ответ, так что подсказка «занято» не появлялась вовсе.
+  // One and the same function between renders: the slug field defers its check by
+  // it, and a new arrow on every render of the screen — and it is repainted on
+  // every answer from any field — would reset the timer and throw away an answer
+  // already received, so the "taken" suggestion would never appear at all.
   const checkSlug = useCallback((slug: string) => checkProjectSlug(projectId, slug), [projectId]);
 
-  // Что делается с кэшем после удаления, знает общий хук: то же самое
-  // случается и при удалении с карточки в списке проектов. Экрану остаётся
-  // своё — уйти оттуда, где больше нечего показывать. replace, а не push:
-  // «назад» к настройкам удалённого проекта вело бы на экран, которому нечего
-  // показать, кроме ошибки.
+  // What happens to the cache after a deletion is known by the shared hook: the
+  // same thing happens when deleting from a card in the list of projects. What is
+  // left to the screen is its own business — leaving a place with nothing more to
+  // show. replace rather than push: "back" to the deleted project's settings would
+  // lead to a screen with nothing to show but an error.
   const remove = useDeleteProject({
     onDeleted: () => navigate("/projects", { replace: true }),
   });
@@ -115,7 +115,7 @@ export function ProjectSettings() {
   return (
     <main className="screen">
       <div className="screen__head">
-        {/* Название проекта — содержимое пользователя: не переводится. */}
+        {/* The project's name is user content: it is not translated. */}
         <h1>{t("settings.project.title", { name: state.name })}</h1>
         <Link to={`/projects/${projectId}`}>{t("settings.project.back")}</Link>
       </div>
@@ -146,7 +146,7 @@ export function ProjectSettings() {
           type="date"
           value={state.deadline ?? ""}
           disabled={readOnly}
-          // Пустая дата — это отсутствие дедлайна, а не пропуск поля.
+          // An empty date is the absence of a deadline, not a skipped field.
           allowEmpty
           save={saves.at("project-deadline")}
           onCommit={(value) =>
@@ -189,9 +189,10 @@ export function ProjectSettings() {
           disabled={readOnly}
           save={saves.at("project-threshold")}
           onInherit={() => saves.commit("project-threshold", { shift_threshold_days: null })}
-          // Пустое поле — не «порог ноль»: пока числа нет, переопределение
-          // остаётся прежним, а не превращается в «объяснять каждый сдвиг».
-          // Разбор общий с настройками организации (см. `parseThresholdDays`).
+          // An empty field is not "a threshold of zero": while there is no number,
+          // the override stays as it was rather than turning into "explain every
+          // shift". The parse is shared with the organization's settings (see
+          // `parseThresholdDays`).
           onOverride={(value) =>
             saves.commitNumber(
               "project-threshold",
@@ -249,10 +250,10 @@ export function ProjectSettings() {
           onCommit={(holidays_extra) => saves.commit("project-holidays", { holidays_extra })}
         />
 
-        {/* Автоперенос — рубильник, а не переопределение: у организации такой
-            настройки нет вовсе, наследовать нечего. Стоит рядом с календарём,
-            потому что отвечает на тот же вопрос — по каким правилам считаются
-            даты, — а не «какие они». */}
+        {/* Auto-shifting is a switch rather than an override: the organization has
+            no such setting at all, there is nothing to inherit. It stands next to
+            the calendar because it answers the same question — by what rules the
+            dates are computed — rather than "what they are". */}
         <p className="field">
           <Switch
             id="project-auto-schedule"
@@ -277,18 +278,18 @@ export function ProjectSettings() {
           onCommit={(workdays_extra) => saves.commit("project-workdays", { workdays_extra })}
         />
 
-        {/* Jira — только у проекта, заведённого импортом: у обычного проекта
-            эту панель просто нечем заполнить. */}
+        {/* Jira appears only on a project created by import: on an ordinary
+            project there is simply nothing to fill this panel with. */}
         <JiraSyncPanel projectId={projectId} readOnly={readOnly} />
 
-        {/* Публичная ссылка — последним блоком: это не настройка расчёта, а
-            решение показать проект наружу. */}
+        {/* The public link comes as the last block: it is not a computation
+            setting but a decision to show the project outside. */}
         {!readOnly && <SharePanel projectId={projectId} />}
 
-        {/* Удаление — после всего остального: это не настройка, а расставание
-            с проектом. Подтверждение разворачивается на месте, как у
-            пересогласования плана, — и предупреждает честно: вместе с
-            проектом уходит журнал ревизий, то есть и возможность отмены. */}
+        {/* Deletion comes after everything else: it is not a setting but a parting
+            with the project. The confirmation unfolds in place, as with plan
+            re-approval — and it warns honestly: the revision journal goes with the
+            project, and so does the possibility of an undo. */}
         {isOwner && (
           <div className="settings__danger">
             {remove.error !== null && (
@@ -312,11 +313,11 @@ export function ProjectSettings() {
 }
 
 /**
- * Значение, которое либо наследуется, либо задано этим проектом.
+ * A value that is either inherited or set by this project.
  *
- * Переключатель стоит прежде самого поля намеренно: сперва решается, чьё это
- * значение, и только потом — какое. Обратный порядок предлагал бы править
- * число, которое проекту не принадлежит.
+ * The toggle stands before the field itself deliberately: first it is decided
+ * whose value this is, and only then which. The reverse order would offer to edit
+ * a number that does not belong to the project.
  */
 function Override({
   id,
@@ -331,9 +332,9 @@ function Override({
 }: {
   id: string;
   label: string;
-  /** Значение организации — то, что действует, пока переопределения нет. */
+  /** The organization's value — what applies while there is no override. */
   inherited: string;
-  /** `null` — наследуется. */
+  /** `null` — inherited. */
   overridden: string | null;
   disabled?: boolean;
   save?: FieldSave;
@@ -363,33 +364,33 @@ function Override({
         />
         {t("settings.inherit", { value: inherited })}
       </label>
-      {/* Отметка об отправке — там, где стоит орган управления: пока значение
-          наследуется, это сама галочка, а дальше её показывает поле. Иначе о
-          возврате к наследованию не сказал бы никто. */}
+      {/* The submission mark goes where the control is: while the value is
+          inherited that is the checkbox itself, and after that the field shows it.
+          Otherwise nobody would report a return to inheritance. */}
       {inherits ? <SaveMark save={save} /> : render(overridden, onOverride, Boolean(disabled), save)}
     </div>
   );
 }
 
 /**
- * Синхронизация с Jira — только у проекта, заведённого импортом.
+ * Synchronization with Jira — only on a project created by import.
  *
- * Молчит (не рисует ничего), если проект обычный: пустая панель с надписью
- * «не привязан» отвечала бы на вопрос, который никто не задавал, — у
- * обычного проекта Jira просто нет отношения к делу.
+ * Stays silent (draws nothing) if the project is an ordinary one: an empty panel
+ * saying "not linked" would answer a question nobody asked — an ordinary project
+ * simply has no relation to Jira.
  */
 function JiraSyncPanel({ projectId, readOnly }: { projectId: string; readOnly: boolean }) {
   const { t, locale } = useLocale();
   const queryClient = useQueryClient();
-  // День и время рядом обязаны считаться по одним часам: время — по часам
-  // машины (см. formatTime), и день берётся по ним же, а не обрезкой
-  // ISO-строки по UTC, иначе ночная синхронизация датировалась бы вчерашним
-  // числом рядом с сегодняшним временем.
+  // The day and the time next to each other must be counted by one clock: the time
+  // is by the machine's clock (see formatTime), and the day is taken from it too
+  // rather than by truncating an ISO string in UTC, otherwise a night-time sync
+  // would be dated yesterday next to today's time.
   const zone = browserTimeZone();
   const showToast = useToast();
-  // Отказы отправки остаются на панели, а не только в тосте: тост исчезает,
-  // а список отклонённых задач Jira — то, что человеку нужно решить, а не
-  // просто прочитать один раз.
+  // Submission refusals stay on the panel rather than only in a toast: a toast
+  // disappears, while the list of rejected Jira tasks is something a person needs
+  // to resolve rather than simply read once.
   const [pushFailures, setPushFailures] = useState<JiraPushFailure[]>([]);
 
   const link = useQuery({
@@ -401,10 +402,10 @@ function JiraSyncPanel({ projectId, readOnly }: { projectId: string; readOnly: b
   const sync = useMutation({
     mutationFn: () => syncFromJira(projectId),
     onSuccess: (result) => {
-      // Ревизии применились в базе — состояние проекта (задачи, диаграмма,
-      // скоркард) читают его заново, а не достраивают поверх кэша: строк
-      // могло появиться сколько угодно, и досчитывать разницу на клиенте —
-      // повторять то, что уже посчитал сервер.
+      // The revisions were applied in the database — the project's state (the
+      // tasks, the chart, the scorecard) reads it anew rather than patching over
+      // the cache: any number of rows could have appeared, and computing the
+      // difference on the client means repeating what the server has already computed.
       void queryClient.invalidateQueries({ queryKey: projectQueryKey(projectId) });
       queryClient.setQueryData(jiraLinkQueryKey(projectId), {
         ...link.data,
