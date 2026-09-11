@@ -7,9 +7,8 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { useAuth } from "./AuthProvider";
 
 /**
- * Обёртка защищённых маршрутов. Пока сессия проверяется, показывает
- * индикатор и не решает: решение о доступе принимается только после ответа
- * сервера.
+ * The wrapper for protected routes. While the session is being checked it shows an indicator and
+ * decides nothing: the decision about access is taken only after the server's answer.
  */
 export function RequireAuth() {
   const { status } = useAuth();
@@ -25,21 +24,20 @@ export function RequireAuth() {
   }
 
   if (status === "anonymous") {
-    // Адрес, на который шли, едет вместе с переходом: ссылками на проект
-    // делятся, и человек, открывший присланную ссылку, обязан после входа
-    // увидеть проект, а не общий список, забыв, зачем шёл.
+    // The address they were heading for travels with the navigation: links to a project get shared,
+    // and a person who opened a link they were sent must see the project after signing in rather
+    // than a general list, having forgotten what they came for.
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // Колонка и страница — соседи в одной строке, а не «шапка и всё
-  // остальное»: боковая навигация обязана держать высоту экрана целиком,
-  // иначе её подложка обрывается там, где кончается содержимое, и колонка
-  // читается как первый блок страницы, а не как её рама.
-  // Тосты живут на раме, а не на отдельном экране: подтверждение с «Отменить»
-  // одинаково по устройству везде, где что-то меняют.
-  // Полоска «адрес не подтверждён» — по той же причине над содержимым, а не
-  // внутри экрана: она про учётную запись, а не про то, что человек сейчас
-  // открыл, и попадаться на глаза обязана в любом разделе.
+  // The column and the page are neighbours in one row rather than "a header and everything else":
+  // the side navigation must hold the screen's full height, otherwise its background breaks off
+  // where the content ends, and the column reads as the page's first block rather than as its frame.
+  // The toasts live on the frame rather than on a particular screen: a confirmation with an "Undo"
+  // is identically built everywhere something is changed.
+  // The "address not confirmed" strip is above the content for the same reason rather than inside a
+  // screen: it is about the account rather than about what the person has open right now, and it
+  // must catch the eye in any section.
   return (
     <ToastProvider>
       <div className="app">
