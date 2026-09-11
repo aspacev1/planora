@@ -11,21 +11,22 @@ import { addDays } from "./timescale";
 import type { Scale } from "./timescale";
 
 /**
- * Перенос всей категории за её сводную полосу.
+ * Moving a whole category by its summary band.
  *
- * Этап целиком уезжает на неделю — обычное дело, и до этого жеста оно означало
- * перетащить каждую полоску по очереди, попав каждой в один и тот же день.
- * Десять движений вместо одного, десять записей в истории и десять отмен, если
- * передумали.
+ * A whole stage travelling a week is an ordinary thing, and before this gesture
+ * it meant dragging every bar in turn, landing each on the same day. Ten motions
+ * instead of one, ten history entries and ten undos if you changed your mind.
  *
- * Поэтому одна операция (`move_category`) и одна запись: человек сделал одно
- * движение. Сдвиг меряется днями, а не целевой датой, — своих границ у
- * категории нет, сводная полоса рисуется по крайним датам её задач.
+ * Hence one operation (`move_category`) and one entry: the person made one
+ * motion. The shift is measured in days rather than as a target date — a category
+ * has no bounds of its own, the summary band is drawn from its tasks' outermost
+ * dates.
  *
- * Слоя движения (`useBarMotion`) здесь нет намеренно. Он ведёт переезд полоски
- * после ответа сервера, сравнивая места на соседних отрисовках; у сводной полосы
- * переезжать нечему — она не задача, а обводка вокруг них, и её место
- * пересчитывается из тех же дат, которые в этот момент едут сами.
+ * The motion layer (`useBarMotion`) is deliberately absent here. It drives a bar's
+ * travel after the server's answer by comparing places on neighbouring renders;
+ * the summary band has nothing to travel — it is not a task but an outline around
+ * them, and its place is recomputed from the very dates that are travelling at
+ * that moment.
  */
 export function useDragCategory({
   projectId,
@@ -38,19 +39,20 @@ export function useDragCategory({
   projectId: string;
   category: Category;
   scale: Scale;
-  /** Пустую категорию двигать нечем: сервер откажет, полосы на ленте и так нет. */
+  /** There is nothing to move an empty category with: the server will refuse, and there is no band on the strip anyway. */
   enabled: boolean;
   /**
-   * Конец сводной полосы — последняя дата задач этапа. От него жест считает,
-   * докуда дотянул весь этап, когда полосу держат за краем окна (см.
-   * `onReach`). `null` — полосы нет, но тогда выключен и сам жест.
+   * The summary band's end — the last of the stage's tasks' dates. The gesture
+   * measures from it how far the whole stage has been dragged when the band is
+   * held beyond the window's edge (see `onReach`). `null` — there is no band, but
+   * then the gesture itself is off too.
    */
   spanEnd?: string | null;
   /**
-   * Полосу держат так, что конец этапа пришёлся на эту дату за правым краем
-   * окна, — лента достраивает окно до неё (см. reach в Gantt). Бросок передаёт
-   * закоммиченный конец, отменённый жест — `null`; жест, не выходивший за
-   * окно, не зовёт вовсе.
+   * The band is held so that the stage's end landed on this date beyond the
+   * window's right edge — the strip extends the window up to it (see reach in
+   * Gantt). A drop passes the committed end, a cancelled gesture passes `null`; a
+   * gesture that never left the window does not call at all.
    */
   onReach?: (endISO: string | null) => void;
 }) {
@@ -65,17 +67,18 @@ export function useDragCategory({
     scroll: ReturnType<typeof edgeScroll>;
   } | null>(null);
   const lastX = useRef(0);
-  // Двигался ли указатель за жест. Сдвиг полосы считает и ход самой ленты
-  // (см. `edgeScroll.scrolled`), а она умеет ехать под неподвижным пальцем —
-  // инерцией прокрутки, начатой перед самым нажатием. Без этого признака
-  // нажатие на полосу переносило бы этап целиком на всё докатившееся.
+  // Whether the pointer moved during the gesture. The band's offset also counts
+  // the strip's own travel (see `edgeScroll.scrolled`), and it can move under a
+  // motionless finger — by the inertia of a scroll started right before the press.
+  // Without this flag a press on the band would move the whole stage by everything
+  // that coasted.
   const pointerMoved = useRef(false);
-  // Дотягивался ли жест за край окна — как у полоски задачи: бросок внутри
-  // окна не должен трогать достройку даже пустым сбросом.
+  // Whether the gesture reached beyond the window's edge — as with a task's bar: a
+  // drop inside the window must not touch the extension even with an empty reset.
   const reached = useRef(false);
   const [dragging, setDragging] = useState(false);
 
-  /** Сдвиг полосы под пальцем — свойством прямо в узел, мимо состояния React. */
+  /** The band's offset under the finger — as a property written straight into the node, past React state. */
   const hold = (dx: number) => span.current?.style.setProperty("--span-dx", `${dx}px`);
 
   const stop = useCallback(() => {
@@ -87,16 +90,16 @@ export function useDragCategory({
   const cancel = useCallback(() => {
     hold(0);
     stop();
-    // Достройка окна снимается вместе с отменённым жестом — полоса вернулась,
-    // возвращается и сетка, доросшая под неё.
+    // The window extension is dropped together with the cancelled gesture — the
+    // band has returned, and so does the grid that grew under it.
     if (reached.current) {
       reached.current = false;
       onReach?.(null);
     }
   }, [onReach, stop]);
 
-  // Esc прерывает начатый перенос — как у полоски задачи. Слушатель на окне:
-  // захват указателя держит события мыши, но не клавиатуры.
+  // Esc aborts a started move — as with a task's bar. The listener is on the
+  // window: pointer capture holds mouse events but not keyboard ones.
   useEffect(() => {
     if (!dragging) return;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -108,23 +111,25 @@ export function useDragCategory({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [cancel, dragging]);
 
-  // Полоса пропала посреди жеста, а строка осталась: последнюю задачу этапа
-  // удалил сосед, и обработчиков у полосы больше нет — отпускание ей не
-  // придёт. Жест снимается здесь, иначе кадр подкачки крутился бы до Esc.
+  // The band disappeared mid-gesture while the row stayed: a colleague deleted the
+  // stage's last task, and the band has no handlers any more — the release will
+  // not reach it. The gesture is cleared here, otherwise the scroll frame would
+  // spin until Esc.
   useEffect(() => {
     if (!enabled && from.current !== null) cancel();
   }, [enabled, cancel]);
 
-  // Строка исчезла посреди жеста — снять надо и качалку ленты, и достройку
-  // окна: без жеста она держала бы ленту растянутой навсегда.
+  // The row disappeared mid-gesture — both the strip's edge-scroller and the
+  // window extension have to be cleared: without a gesture it would hold the strip
+  // stretched forever.
   useEffect(
     () => () => {
       if (from.current === null) return;
       from.current.scroll.stop();
       if (reached.current) onReach?.(null);
     },
-    // `onReach` мемоизирован в Gantt — эффект остаётся эффектом одного
-    // размонтирования, а не переподписки.
+    // `onReach` is memoized in Gantt — the effect stays an effect of a single
+    // unmount rather than of resubscription.
     [onReach],
   );
 
@@ -133,11 +138,11 @@ export function useDragCategory({
     if (start === null) return;
     const dx = clientX - start.x + start.scroll.scrolled();
     hold(dx);
-    // Конец этапа под пальцем уехал за окно — лента дотянет сетку до него.
-    // Счёт тот же, что у броска (см. `move`): целые дни от сводной полосы,
-    // поэтому достроенное окно всегда накрывает то, что бросок закоммитит.
-    // Только даты за нынешним краем — по той же причине, что у полоски: сетка
-    // под жестом не должна отрастать назад.
+    // The stage's end under the finger has gone beyond the window — the strip will
+    // stretch the grid up to it. The reckoning is the same as the drop's (see
+    // `move`): whole days from the summary band, so the extended window always
+    // covers what the drop will commit. Only dates past the current edge — for the
+    // same reason as with a bar: the grid under the gesture must not shrink back.
     if (onReach && spanEnd !== null) {
       const end = addDays(spanEnd, Math.round(dx / scale.dayWidth));
       if (end > scale.to) {
@@ -148,14 +153,15 @@ export function useDragCategory({
   };
 
   const move = (dx: number) => {
-    // Округление до дня, а не до половины: у полосы нет своего дня, от края
-    // которого отсчитывать. Сдвиг меньше половины деления — это дрожание руки,
-    // и в изменение оно превращаться не должно.
+    // Rounded to a day rather than to a half: the band has no day of its own to
+    // measure from the edge of. A shift of less than half a division is a trembling
+    // hand, and it must not turn into a change.
     const days = Math.round(dx / scale.dayWidth);
-    // Жест, дотягивавший окно, кончился — окно держится на том, что бросок
-    // закоммитит. Не `null`: сброс в ноль сжал бы холст раньше, чем догадка
-    // доедет до кэша, и прокрутка прыгнула бы под рукой (см. эффект у reach в
-    // Gantt — накрытую догадкой дату снимает он).
+    // The gesture that was stretching the window has ended — the window rests on
+    // what the drop will commit. Not `null`: a reset to zero would shrink the
+    // canvas before the guess reaches the cache, and the scroll would jump under
+    // the hand (see the effect at reach in Gantt — it is what releases the date the
+    // guess covered).
     const extended = reached.current;
     if (extended) {
       reached.current = false;
@@ -178,23 +184,24 @@ export function useDragCategory({
         }),
       )
       .catch(() => {
-        // Откат уже сделан внутри `apply`: задачи вернулись на свои даты, и
-        // полоса, посчитанная по ним, встала обратно сама. Окно, достроенное
-        // под бросок за край, снимается здесь: без сдвига держать его нечем.
+        // The rollback has already been done inside `apply`: the tasks returned to
+        // their dates, and the band, computed from them, went back on its own. The
+        // window extended for a drop beyond the edge is dropped here: without an
+        // offset there is nothing to hold it with.
         if (extended) onReach?.(null);
       })
       .finally(() => {
-        // Сдвиг снимается после ответа, а не до него: снятый сразу, он вернул
-        // бы полосу на прежнее место ещё до вопроса о причине — то есть ответил
-        // бы «не получилось» раньше, чем спросили.
+        // The offset is cleared after the answer rather than before it: cleared at
+        // once, it would return the band to its former place before the reason
+        // question — that is, answer "it did not work" before being asked.
         hold(0);
       });
   };
 
   return {
-    /** Тащат ли полосу прямо сейчас. */
+    /** Whether the band is being dragged right now. */
     dragging,
-    /** Ссылка на узел полосы: сдвиг пишется в него напрямую. */
+    /** A reference to the band's node: the offset is written into it directly. */
     spanRef: useCallback((element: HTMLElement | null) => {
       span.current = element;
     }, []),
@@ -202,12 +209,13 @@ export function useDragCategory({
       ? {
           onPointerDown(event: PointerEvent<HTMLElement>) {
             if (event.button !== 0) return;
-            // Строка категории — цель броска при перестановке, и без этого
-            // нажатие на полосу начинало бы заодно и её.
+            // The category's row is the drop target for reordering, and without
+            // this a press on the band would start that as well.
             event.stopPropagation();
             event.preventDefault();
-            // Прошлый жест, если он почему-то не закончился, снимается здесь:
-            // иначе за ним остались бы кадр и подписка на прокрутку ленты.
+            // A previous gesture, if it somehow did not finish, is cleared here:
+            // otherwise a frame and a subscription to the strip's scroll would be
+            // left behind it.
             from.current?.scroll.stop();
             from.current = {
               pointerId: event.pointerId,
@@ -234,8 +242,9 @@ export function useDragCategory({
             const start = from.current;
             if (start === null || start.pointerId !== event.pointerId) return;
             event.stopPropagation();
-            // Нажатие без единого движения указателя — щелчок по полосе, а не
-            // перенос этапа: ход ленты в его сдвиг не входит (см. выше).
+            // A press without a single pointer movement is a click on the band
+            // rather than a move of the stage: the strip's travel is not part of
+            // its offset (see above).
             const dx = pointerMoved.current ? event.clientX - start.x + start.scroll.scrolled() : 0;
             stop();
             move(dx);
