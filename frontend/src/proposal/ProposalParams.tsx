@@ -5,15 +5,15 @@ import { Menu } from "../components/Menu";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Параметры предложения — единица, норма часов, налог, валюта — в поповере.
+ * The proposal's parameters — the unit, the hours norm, the tax, the currency — in a popover.
  *
- * Их меняют раз в проект, а на виду четыре поля спорили бы с таблицей за
- * первый взгляд. Подпись кнопки складывается из значений: закрытый поповер
- * всё равно говорит, в чём считают и какой налог, — открывать его ради
- * ответа на этот вопрос не нужно.
+ * They are changed once per project, and in the open four fields would compete with the table for the
+ * first glance. The button's caption is assembled from the values: a closed popover still says what
+ * things are counted in and what the tax is — there is no need to open it for an answer to that
+ * question.
  *
- * Поля сохраняют себя сами, теми же отправками, что и раньше стояли в
- * тулбаре: поповер — только место, не другой способ править.
+ * The fields save themselves, by the same submissions that used to stand in the toolbar: the popover is
+ * only a place rather than a different way to edit.
  */
 export function ProposalParams({
   proposal,
@@ -88,8 +88,8 @@ export function ProposalParams({
             save={saves.at("currency")}
             onCommit={(value) => {
               const code = value.trim().toUpperCase();
-              // До сервера не доходит: код валюты — ровно три буквы, и
-              // сказать об этом можно у поля, не спрашивая никого.
+              // It never reaches the server: a currency code is exactly three letters, and that can be
+              // said by the field without asking anyone.
               if (!/^[A-Z]{3}$/.test(code)) {
                 saves.refuse("currency", "proposal.settings.currency_invalid");
                 return;
@@ -98,8 +98,8 @@ export function ProposalParams({
             }}
           />
         </div>
-        {/* Смена единицы — не переименование чисел: об этом говорится до
-            того, как переключили, а не после, когда все ставки уже другие. */}
+        {/* Changing the unit is not a renaming of numbers: that is said before the switch rather than
+            after, when all the rates are already different. */}
         <p className="proposal-params__hint">{t("proposal.params.unit_hint")}</p>
       </Menu>
     </span>

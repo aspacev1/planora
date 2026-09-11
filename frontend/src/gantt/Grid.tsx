@@ -3,15 +3,15 @@ import { isWorkingDay } from "./scale";
 import type { Scale } from "./timescale";
 
 /**
- * Фон ленты: колонки дней, заливка нерабочих, вертикали дедлайна и сегодня.
+ * The strip's background: the day columns, the fill of the non-working ones, the deadline and today
+ * verticals.
  *
- * Сетка строится один раз на всю диаграмму и растягивается по высоте, а не
- * повторяется в каждой строке. На сотне задач и сотне дней повторение дало бы
- * десять тысяч узлов ради картинки, которая во всех строках одинакова.
+ * The grid is built once for the whole chart and stretched by height rather than repeated in every row.
+ * With a hundred tasks and a hundred days repeating it would give ten thousand nodes for a picture that
+ * is identical in every row.
  *
- * Для чтения с экрана она невидима: это фон, и перечислять сто дат подряд
- * человеку, слушающему страницу, незачем — даты задачи он узнает из её
- * полоски.
+ * For a screen reader it is invisible: this is background, and there is no point enumerating a hundred
+ * dates in a row to someone listening to the page — they learn a task's dates from its bar.
  */
 export function Grid({
   scale,
@@ -50,10 +50,10 @@ export function Grid({
       )}
 
       {withinWindow(today) && (
-        // Линия идёт серединой колонки, а не по её левому краю: на границе
-        // между вчера и сегодня непонятно, какой из двух дней она называет,
-        // а посередине она однозначно указывает на свой день — и приходится
-        // ровно под подпись «сегодня» в шапке.
+        // The line runs through the middle of a column rather than along its left edge: on the boundary
+        // between yesterday and today it is unclear which of the two days it names, while in the middle
+        // it points unambiguously at its own day — and comes exactly under the "today" caption in the
+        // header.
         <div
           className="gantt__today"
           style={{ left: scale.xOf(today) + scale.dayWidth / 2 }}

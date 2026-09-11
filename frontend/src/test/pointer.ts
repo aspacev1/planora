@@ -3,12 +3,11 @@ import { fireEvent } from "@testing-library/react";
 import { DAY_WIDTH } from "../gantt/scale";
 
 /**
- * Жесты указателем.
+ * Pointer gestures.
  *
- * Событий именно четыре, и последнее — не формальность: после отпускания
- * кнопки браузер сам посылает клик по тому же элементу. Помощник, который его
- * не шлёт, не воспроизводит браузер, и написанное на нём перетаскивание в бою
- * заканчивалось бы открытием карточки.
+ * There are exactly four events, and the last one is not a formality: after the button is released the
+ * browser itself sends a click on the same element. A helper that does not send it does not reproduce
+ * the browser, and a drag written against it would end in production with a card being opened.
  */
 export function drag(
   element: HTMLElement,
@@ -21,11 +20,10 @@ export function drag(
 }
 
 /**
- * Перетаскивание полоски на целое число дней.
+ * Dragging a bar by a whole number of days.
  *
- * Дни, а не пиксели: ширина дня — это масштаб изображения, и тест, знающий её
- * числом, ломается от смены масштаба по умолчанию, хотя проверяет не масштаб,
- * а перенос задачи.
+ * Days rather than pixels: a day's width is the picture's scale, and a test that knows it as a number
+ * breaks when the default scale changes, although what it checks is not the scale but a task's move.
  */
 export function dragDays(element: HTMLElement, days: number, fromX = 100) {
   drag(element, { fromX, toX: fromX + days * DAY_WIDTH.day });

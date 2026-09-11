@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { edgeScroll } from "./edgeScroll";
 
 /**
- * Лента с настоящей шириной и прокруткой: в jsdom у элементов нет ни того, ни
- * другого, а слой без ширины сознательно вырождается в пустышку (см. `IDLE`).
+ * A strip with a real width and scroll: in jsdom elements have neither, and a layer without a width
+ * deliberately degenerates into a stub (see `IDLE`).
  */
 function scrollport() {
   const box = document.createElement("div");
@@ -22,8 +22,8 @@ function scrollport() {
     get: () => scrollLeft,
     set(next: number) {
       scrollLeft = next;
-      // Браузер шлёт событие сам; здесь оно нужно ровно затем же, зачем и
-      // там, — сообщить жесту, что лента уехала.
+      // The browser sends the event itself; here it is needed for exactly the same purpose as there —
+      // to tell the gesture that the strip has travelled.
       box.dispatchEvent(new Event("scroll"));
     },
   });
@@ -40,9 +40,8 @@ describe("подкачка ленты у края", () => {
     const { box, node } = scrollport();
     const scroll = edgeScroll(node, () => {});
 
-    // Колесо, трекпад, полоса прокрутки — для жеста это один и тот же ход
-    // ленты, и день под неподвижным пальцем меняется от него так же, как от
-    // подкачки у края.
+    // The wheel, the trackpad, the scrollbar — for the gesture these are one and the same travel of the
+    // strip, and the day under a motionless finger changes from it just as it does from edge scrolling.
     box.scrollLeft = 120;
 
     expect(scroll.scrolled()).toBe(120);
@@ -66,8 +65,8 @@ describe("подкачка ленты у края", () => {
     const onScroll = vi.fn();
     const scroll = edgeScroll(node, onScroll);
 
-    // Нажали на полоску, а лента ещё доезжает по инерции: это щелчок, и
-    // пересчитывать в нём нечего.
+    // The bar was pressed while the strip is still coasting from inertia: this is a click, and there is
+    // nothing to recompute in it.
     box.scrollLeft = 60;
 
     expect(onScroll).not.toHaveBeenCalled();
@@ -88,7 +87,7 @@ describe("подкачка ленты у края", () => {
 
   it("полоса у левого края начинается за закреплённой таблицей, а не за краем узла", () => {
     const { box, node } = scrollport();
-    // Таблица на 260 пикселей закреплена слева и накрывает начало шкалы.
+    // A 260-pixel table is pinned on the left and covers the scale's start.
     const label = document.createElement("div");
     label.className = "gantt__label";
     label.getBoundingClientRect = () =>
@@ -104,7 +103,7 @@ describe("подкачка ленты у края", () => {
     vi.stubGlobal("cancelAnimationFrame", () => {});
     try {
       const scroll = edgeScroll(node, () => {});
-      // Указатель у видимого края шкалы — сразу справа от таблицы.
+      // The pointer is at the scale's visible edge — right next to the table.
       scroll.track(270);
       frames.shift()?.(0);
 

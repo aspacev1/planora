@@ -10,14 +10,13 @@ import {
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Переключатель организаций.
+ * The organization switcher.
  *
- * Показывается, только когда организаций больше одной: у человека, который
- * никого не принимал и никуда не принят, выбора нет, и список из одного пункта
- * рядом с названием — это вопрос без ответа.
+ * It is shown only when there is more than one organization: a person who has accepted nobody and been
+ * accepted nowhere has no choice, and a one-item list next to the name is a question with no answer.
  *
- * Название организации остаётся подписью шапки; переключатель встаёт рядом,
- * а не вместо, — иначе название пропадало бы с экрана у всех остальных.
+ * The organization's name stays the header's caption; the switcher stands next to it rather than
+ * instead — otherwise the name would disappear from the screen for everyone else.
  */
 export function OrgSwitch() {
   const { t } = useLocale();
@@ -29,8 +28,8 @@ export function OrgSwitch() {
     retry: false,
     staleTime: Infinity,
   });
-  // Тот же ключ, что и у шапки: текущая организация уже лежит в кэше к
-  // моменту, когда переключатель об этом спросит, и второго запроса не будет.
+  // The same key as the header's: the current organization is already in the cache by the time the
+  // switcher asks about it, and there will be no second request.
   const current = useQuery({
     queryKey: ORG_QUERY_KEY,
     queryFn: organization,
@@ -41,10 +40,9 @@ export function OrgSwitch() {
   const change = useMutation({
     mutationFn: switchOrganization,
     onSuccess: (org) => {
-      // Организация сменилась — вместе с ней сменилось всё, что от неё
-      // зависит: проекты, состав, приглашения. Точечное обновление здесь
-      // означало бы список экранов, который придётся дописывать при каждом
-      // новом.
+      // The organization changed — and with it everything that depends on it: the projects, the roster,
+      // the invitations. A targeted refresh here would mean a list of screens that would have to be
+      // extended with every new one.
       queryClient.setQueryData(ORG_QUERY_KEY, org);
       void queryClient.invalidateQueries();
     },

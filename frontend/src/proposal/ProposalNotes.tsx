@@ -5,9 +5,8 @@ import type { FieldSave } from "../components/autosave";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Допущения и примечания — свойство предложения целиком, карточкой под
- * таблицей: «оценки по текущему объёму», «ставки без лицензий» относятся ко
- * всем строкам сразу.
+ * The assumptions and notes are a property of the whole proposal, as a card under the table:
+ * "estimates for the current scope", "rates excluding licences" apply to all the lines at once.
  */
 export function ProposalNotes({
   notes,
@@ -17,7 +16,7 @@ export function ProposalNotes({
 }: {
   notes: string;
   canWrite: boolean;
-  /** Состояние последней отправки — отметка у заголовка, как у полей. */
+  /** The last submission's state — a mark by the heading, as with the fields. */
   save?: FieldSave;
   onCommit: (value: string) => void;
 }) {
@@ -48,8 +47,8 @@ export function ProposalNotes({
       ) : notes.trim() === "" ? (
         <p className="muted">{t("proposal.notes.empty")}</p>
       ) : (
-        // Пункт на строку, как их и пишут: маркеры даёт список, а не
-        // разметка внутри текста.
+        // One item per line, as they are written: the bullets are given by the list rather than by
+        // markup inside the text.
         <ul className="proposal-notes__list">
           {notes
             .split("\n")
@@ -64,11 +63,10 @@ export function ProposalNotes({
 }
 
 /**
- * Правка примечаний: текст, по пункту на строку.
+ * Editing the notes: text, one item per line.
  *
- * Уход фокуса заканчивает правку в любом случае — изменённый текст уходит на
- * сервер, неизменённый просто закрывает поле: режим правки, из которого нет
- * выхода без изменения, читался бы как заевшая кнопка.
+ * Blur ends the edit in any case — changed text goes to the server, unchanged text simply closes the
+ * field: an edit mode there is no way out of without a change would read as a stuck button.
  */
 function NotesEditor({
   initial,
@@ -85,7 +83,7 @@ function NotesEditor({
       aria-labelledby="proposal-notes-title"
       rows={4}
       value={draft}
-      // Фокус — сразу: «править» нажали ради того, чтобы писать.
+      // The focus goes in at once: "edit" was pressed in order to write.
       autoFocus
       onChange={(event) => setDraft(event.target.value)}
       onBlur={() => onDone(draft)}

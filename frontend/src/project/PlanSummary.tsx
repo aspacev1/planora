@@ -4,17 +4,16 @@ import { ProjectPeriod } from "./ProjectHead";
 import { projectMetrics } from "./summary";
 
 /**
- * Сводка проекта: срок работ и все метрики — в раскрывающейся панели у имени.
+ * The project's summary: the work's dates and all the metrics — in an unfolding panel by the name.
  *
- * Пришла на место полосы карточек в 52 пикселя, которая стояла над каждым
- * экраном проекта. Постоянного места ей больше нет, и не от жадности к
- * пикселям: в строке с именем, вкладками и действиями семь цифр не помещаются
- * ни на одном ноутбуке — строка переносится, и ярус возвращается тот же, от
- * которого уходили. Открывают её тогда, когда спрашивают «сколько тут
- * работы», а спрашивают не каждым взглядом на план.
+ * It came in place of a 52-pixel card bar that stood above every project screen. It has no permanent
+ * place any more, and not out of greed for pixels: seven figures do not fit on the line with the name,
+ * the tabs and the actions on any laptop — the line wraps, and back comes the same tier that was left
+ * behind. It is opened when "how much work is here" is asked, and that is not asked with every glance
+ * at the plan.
  *
- * Считает общий модуль — тот же счёт, что у полной шапки публичной страницы:
- * два вида сводки не имеют права назвать одному проекту разные числа.
+ * It is computed by the shared module — the same reckoning as the public page's full header: two kinds
+ * of summary have no right to name different numbers for one project.
  */
 export function PlanSummary({ state }: { state: ProjectState }) {
   const { t } = useLocale();
@@ -22,8 +21,8 @@ export function PlanSummary({ state }: { state: ProjectState }) {
 
   return (
     <div className="plan-summary">
-      {/* Срок первым: «когда» отвечает на вопрос раньше, чем «сколько».
-          Проекту без задач срока нет — и строки о нём тоже. */}
+      {/* The dates first: "when" answers the question before "how much" does. A project with no tasks
+          has no dates — and no line about them either. */}
       <p className="plan-summary__period">
         <ProjectPeriod state={state} />
       </p>

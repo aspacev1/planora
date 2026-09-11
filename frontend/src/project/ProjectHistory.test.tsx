@@ -7,7 +7,7 @@ import type { RevisionEntry } from "../api/revisions";
 import { STATE, projectFixtures, renderProject } from "../test/project";
 import { server } from "../test/server";
 
-/** Запись журнала с разумными значениями по умолчанию. */
+/** A journal entry with sensible defaults. */
 function entry(seq: number, over: Partial<RevisionEntry> = {}): RevisionEntry {
   return {
     seq,
@@ -22,7 +22,7 @@ function entry(seq: number, over: Partial<RevisionEntry> = {}): RevisionEntry {
   };
 }
 
-/** Параметры каждого запроса к журналу — фильтры проверяются по ним. */
+/** Every journal request's parameters — the filters are checked against them. */
 const requested: URLSearchParams[] = [];
 
 function feedResponds(entries: RevisionEntry[]) {
@@ -37,7 +37,7 @@ function feedResponds(entries: RevisionEntry[]) {
 beforeEach(() => {
   projectFixtures();
   requested.length = 0;
-  // Летопись согласований пуста по умолчанию: тест про вехи объявляет свою.
+  // The approval chronicle is empty by default: a test about milestones declares its own.
   server.use(
     http.get("/api/projects/p1/plan/approvals", () => HttpResponse.json([])),
   );
@@ -51,7 +51,7 @@ describe("вкладка «История»", () => {
     feedResponds([entry(2), entry(1, { op: { type: "create_task", task_id: "t1", category_id: "c1" }, names: { t1: "Логотип", c1: "Дизайн" } })]);
     renderHistory();
 
-    // Фраза — из журнала, подлежащее — именем задачи, автор — рядом.
+    // The phrase comes from the journal, the subject is the task's name, the author stands next to it.
     expect(await screen.findByText(/перенёс старт/)).toBeInTheDocument();
     expect(screen.getAllByText("Мария").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Логотип/).length).toBeGreaterThan(0);
@@ -76,8 +76,8 @@ describe("вкладка «История»", () => {
     ]);
     renderHistory();
 
-    // Запись остаётся в ленте — история не переписывается, — но читается
-    // как отменённая, с именем того, кто отменил.
+    // The entry stays in the feed — the history is not rewritten — but reads as undone, with the name of
+    // whoever undid it.
     expect(await screen.findByText(/отменено · Мария/)).toBeInTheDocument();
     expect(screen.getByText("отмена")).toBeInTheDocument();
   });
@@ -91,7 +91,7 @@ describe("вкладка «История»", () => {
     renderHistory();
 
     expect(await screen.findByText(/пачка изменений · 3/)).toBeInTheDocument();
-    // Свёрнутая пачка не рассыпается на записи.
+    // A folded batch does not fall apart into entries.
     expect(screen.queryByText(/создал категорию/)).toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "развернуть" }));
@@ -111,8 +111,8 @@ describe("вкладка «История»", () => {
     });
 
     const feed = await screen.findByRole("region", { name: "История" });
-    // Ровно одна кнопка «Отменить» — у верхней отменяемой записи. У старых
-    // записей кнопки нет вовсе: сервер отменяет только последнее действие.
+    // Exactly one "Undo" button — by the top undoable entry. Older entries have no button at all: the
+    // server undoes only the last action.
     expect(within(feed).getAllByRole("button", { name: "Отменить" })).toHaveLength(1);
   });
 

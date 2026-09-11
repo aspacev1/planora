@@ -3,11 +3,11 @@ import type { Comment } from "./comments";
 import type { ProjectState } from "./projects";
 
 /**
- * Публичная страница: то же состояние проекта плюс то, что есть только у неё.
+ * The public page: the same project state plus what only it has.
  *
- * Исполнители в нём всегда пусты, а внутренней заметки нет вовсе — это решает
- * сервер, а не разметка. Тип честно наследует `ProjectState`: поля те же,
- * иначе публичная страница не смогла бы отдать его той же диаграмме.
+ * The assignees in it are always empty and there is no internal note at all — that is decided by the
+ * server rather than by the markup. The type honestly extends `ProjectState`: the fields are the same,
+ * otherwise the public page could not hand it to the same chart.
  */
 export type PublicProjectState = ProjectState & {
   org: { name: string; slug: string };
@@ -22,7 +22,7 @@ export function publicCommentsQueryKey(orgSlug: string, projectSlug: string, tok
   return ["public", orgSlug, projectSlug, token, "comments"] as const;
 }
 
-/** Внутри ключа ленты — по той же причине, что и на рабочем экране. */
+/** Inside the feed's key — for the same reason as on the working screen. */
 export function publicCommentCountsQueryKey(
   orgSlug: string,
   projectSlug: string,
@@ -32,9 +32,9 @@ export function publicCommentCountsQueryKey(
 }
 
 function publicPath(orgSlug: string, projectSlug: string, token: string, suffix = ""): string {
-  // Токен уходит параметром запроса — так же, как он приходит в адресе
-  // страницы. Кодируется каждая часть: слаг строит сервер, но подставляет их
-  // сюда адресная строка, а в ней может оказаться что угодно.
+  // The token goes as a query parameter — the same way it arrives in the page's address. Every part is
+  // encoded: the slug is built by the server, but it is the address bar that substitutes them here, and
+  // anything can end up in it.
   const path = `/api/public/${encodeURIComponent(orgSlug)}/${encodeURIComponent(projectSlug)}`;
   return `${path}${suffix}?s=${encodeURIComponent(token)}`;
 }
@@ -55,7 +55,7 @@ export function listPublicComments(
   return request<Comment[]>(publicPath(orgSlug, projectSlug, token, "/comments"));
 }
 
-/** Счётчик реплик на строках публичной ленты — без внутренних: их гость не видит. */
+/** The reply counter on the public strip's rows — without the internal ones: a guest does not see them. */
 export function listPublicCommentCounts(
   orgSlug: string,
   projectSlug: string,
