@@ -1,4 +1,4 @@
-"""Публичная страница глазами гостя: чтение по ссылке и комментарии."""
+"""The public page through a guest's eyes: reading by link and commenting."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -44,8 +44,8 @@ def fresh_settings():
 
 @pytest.fixture(autouse=True)
 def fresh_rate_limit(monkeypatch):
-    """Счётчик гостевых комментариев живёт в памяти процесса: без сброса
-    один тест доедал бы окно следующего."""
+    """The guest comment counter lives in the process's memory: without a reset one
+    test would eat into the next one's window."""
     import app.api.public_routes as public_routes
 
     monkeypatch.setattr(public_routes, "_guest_comments", None)
@@ -53,7 +53,7 @@ def fresh_rate_limit(monkeypatch):
 
 @pytest.fixture
 def published(authed):
-    """Проект с одной задачей и действующей публичной ссылкой."""
+    """A project with one task and a valid public link."""
     project_id = authed.post("/api/projects", json={"name": "Redesign"}).json()["id"]
     category_id = authed.post(
         f"/api/projects/{project_id}/mutations",
@@ -95,15 +95,15 @@ def test_a_guest_reads_the_shared_project(client, published):
     body = response.json()
     assert body["name"] == "Redesign"
     assert [task["name"] for task in body["tasks"]] == ["Logo"]
-    # Даты окончания считает сервер и на публичной странице тоже: гость
-    # видит ту же диаграмму, а не её упрощённую копию.
+    # Finish dates are computed by the server on the public page too: a guest sees
+    # the same chart rather than a simplified copy of it.
     assert body["tasks"][0]["end_date"] == "2026-03-10"
     assert body["org"]["name"] == "Acme"
 
 
 def test_a_guest_sees_the_task_status(client, published):
-    # Статус — не секрет: публичная страница показывает те же полоски
-    # готовности, что и рабочий экран.
+    # The status is not a secret: the public page shows the same completion bars as
+    # the working screen.
     body = _guest(client, published).json()
     assert body["tasks"][0]["status"] == "planned"
 
@@ -123,10 +123,10 @@ def test_a_guest_does_not_see_who_works_on_the_project(client, authed, published
 
     body = _guest(client, published).json()
 
-    # Состав организации наружу не выходит: по спецификации его не видит даже
-    # client с аккаунтом, а гость — тем более.
+    # The organization's membership does not go outward: per the specification not
+    # even a client with an account sees it, let alone a guest.
     assert body["tasks"][0]["assignee_ids"] == []
-    # А участнику исполнители по-прежнему видны.
+    # A member, meanwhile, still sees the assignees.
     owner_state = authed.get(f"/api/projects/{published['project_id']}").json()
     assert owner_state["tasks"][0]["assignee_ids"] == [user_id]
 
@@ -162,8 +162,8 @@ def test_a_guest_comment_reaches_the_project_team(client, authed, published):
 
     listed = authed.get(f"/api/projects/{published['project_id']}/comments").json()
 
-    # Смысл публичной ссылки в том, чтобы разговор с клиентом жил в проекте,
-    # а не в почте: гостевая реплика приходит команде в ту же ленту.
+    # The point of a public link is that the conversation with the client lives in
+    # the project rather than in email: a guest's remark reaches the team in the same feed.
     assert [(c["author"]["name"], c["author"]["guest"]) for c in listed] == [("Нигяр", True)]
 
 
@@ -237,7 +237,7 @@ def test_switched_off_comments_close_writing_but_not_reading(client, authed, pub
 
     assert refused.status_code == 403
     assert refused.json()["detail"] == "comments_closed"
-    # Сказанное вчера не исчезает от щелчка переключателем.
+    # What was said yesterday does not vanish at the flick of a toggle.
     assert len(_guest(client, published, "/comments").json()) == 1
     assert _guest(client, published).json()["comments_enabled"] is False
 
@@ -255,8 +255,8 @@ def test_the_guest_counter_leaves_out_the_internal_thread(client, authed, publis
 
     counts = _guest(client, published, "/comments/counts").json()
 
-    # Число рядом с задачей не должно проговариваться о том, чего в гостевой
-    # ленте нет вовсе: там одна реплика — значит, и в счёте одна.
+    # The number next to a task must not let slip what is not in the guest's feed at
+    # all: there is one remark there — so the count is one too.
     assert counts == {task_id: 1}
     assert authed.get(f"/api/projects/{project_id}/comments/counts").json() == {task_id: 2}
 
@@ -299,8 +299,8 @@ def test_guests_are_counted_apart_from_each_other(client, published, monkeypatch
 
     assert post("раз", "203.0.113.7").status_code == 201
     assert post("два", "203.0.113.7").status_code == 429
-    # Потолок на адрес, а не на страницу: иначе один говорливый гость
-    # затыкал бы всех остальных читателей ссылки.
+    # The ceiling is per address rather than per page: otherwise one talkative guest
+    # would gag every other reader of the link.
     assert post("раз", "198.51.100.4").status_code == 201
 
 

@@ -1,7 +1,7 @@
-"""Автоперенос по связям и критический путь.
+"""Automatic shifting along dependencies, and the critical path.
 
-Оба считаются на сервере и по одной причине: запас и раскладка меряются
-рабочими днями, а рабочий календарь — свойство проекта.
+Both are computed on the server, and for one reason: slack and layout are measured
+in working days, and the working calendar is a property of the project.
 """
 
 from datetime import date
@@ -29,8 +29,8 @@ def project(db):
     org = Organization(name="Acme", slug="acme")
     db.add(org)
     db.flush()
-    # Автоперенос включён: он выключен по умолчанию, и тесты ниже проверяют
-    # именно его. Что он молчит, пока выключен, проверяет отдельный тест.
+    # Automatic shifting is on: it is off by default, and the tests below check
+    # exactly it. That it stays silent while off is checked by a separate test.
     project = Project(org_id=org.id, name="Redesign", slug="redesign", auto_schedule=True)
     db.add(project)
     db.flush()
@@ -67,18 +67,18 @@ def _starts(db, *task_ids):
     return [db.get(Task, task_id).start_date for task_id in task_ids]
 
 
-# --- перенос вперёд ----------------------------------------------------------
+# --- shifting forward ---------------------------------------------------------
 
 
 def test_moving_a_predecessor_pushes_its_successor(db, project, category):
-    # 4 марта — среда; неделя понедельник–пятница.
+    # 4 March is a Wednesday; the week runs Monday to Friday.
     first = _task(db, project, category, "Макет", date(2026, 3, 4), duration=2)
     second = _task(db, project, category, "Вёрстка", date(2026, 3, 6), duration=2)
     _link(db, project, first, second)
 
     apply_op(db, project, MoveTask(task_id=first, start_date=date(2026, 3, 9)), actor_id=None)
 
-    # Первая идёт 9–10 марта, значит вторая обязана начаться 11-го.
+    # The first runs 9-10 March, so the second must start on the 11th.
     assert _starts(db, first, second) == [date(2026, 3, 9), date(2026, 3, 11)]
 
 
@@ -99,7 +99,7 @@ def test_the_push_runs_through_the_whole_chain(db, project, category):
 
 
 def test_the_push_skips_non_working_days(db, project, category):
-    # Пятница 6 марта плюс день — это понедельник 9-го, а не суббота.
+    # Friday 6 March plus a day is Monday the 9th, not Saturday.
     first = _task(db, project, category, "Макет", date(2026, 3, 6))
     second = _task(db, project, category, "Вёрстка", date(2026, 3, 6))
     _link(db, project, first, second)
@@ -110,7 +110,7 @@ def test_the_push_skips_non_working_days(db, project, category):
 
 
 def test_a_successor_with_slack_is_not_pulled_back(db, project, category):
-    # Запас в плане чаще всего поставлен нарочно: приёмка, отпуск, поставка.
+    # Slack in a plan is most often put there on purpose: acceptance, a holiday, a delivery.
     first = _task(db, project, category, "Макет", date(2026, 3, 4))
     second = _task(db, project, category, "Вёрстка", date(2026, 3, 20))
     _link(db, project, first, second)
@@ -139,7 +139,7 @@ def test_stretching_a_task_pushes_what_waits_for_it(db, project, category):
 
     apply_op(db, project, SetDuration(task_id=first, duration_days=4), actor_id=None)
 
-    # 4 марта плюс четыре рабочих дня — по 9 марта, значит вторая с 10-го.
+    # 4 March plus four working days runs through 9 March, so the second starts on the 10th.
     assert db.get(Task, second).start_date == date(2026, 3, 10)
 
 
@@ -164,7 +164,7 @@ def test_a_new_link_pushes_the_successor_at_once(db, project, category):
 
     _link(db, project, first, second)
 
-    # Связь и означает «эта работа ждёт ту»: вторая уезжает за первую.
+    # A dependency is what "this work waits on that one" means: the second moves out past the first.
     assert db.get(Task, second).start_date == date(2026, 3, 13)
 
 
@@ -189,7 +189,7 @@ def test_moving_a_category_pushes_what_waits_outside_it(db, project, category):
     assert _starts(db, inside, outside) == [date(2026, 3, 11), date(2026, 3, 12)]
 
 
-# --- отмена ------------------------------------------------------------------
+# --- undo ---------------------------------------------------------------------
 
 
 def test_the_whole_chain_comes_back_in_one_undo(db, project, category):
@@ -232,7 +232,7 @@ def test_the_journal_names_who_was_pushed(db, project, category):
     )
 
     assert moved.op["cascade"] == {second: "2026-03-11"}
-    # Обратная запись несёт прежние даты: по ним отмена и вернёт план.
+    # The inverse entry carries the previous dates: it is by them that an undo brings the plan back.
     assert moved.inverse["cascade"] == {second: "2026-03-05"}
 
 
@@ -247,7 +247,7 @@ def test_undoing_a_new_link_returns_the_successor(db, project, category):
 
 
 def test_removing_a_link_by_hand_moves_nobody(db, project, category):
-    # Автоперенос назад не тянет: снятая связь оставляет план как есть.
+    # The automatic shift does not pull backwards: a removed dependency leaves the plan as it is.
     first = _task(db, project, category, "Макет", date(2026, 3, 10), duration=3)
     second = _task(db, project, category, "Вёрстка", date(2026, 3, 4))
     _link(db, project, first, second)
@@ -261,7 +261,7 @@ def test_removing_a_link_by_hand_moves_nobody(db, project, category):
 
 
 def test_an_untouched_project_records_no_cascade(db, project, category):
-    # Пустое поле в журнале означало бы след того, чего не происходило.
+    # An empty field in the journal would mean a trace of something that did not happen.
     lonely = _task(db, project, category, "Одна", date(2026, 3, 4))
 
     moved = apply_op(
@@ -271,7 +271,7 @@ def test_an_untouched_project_records_no_cascade(db, project, category):
     assert "cascade" not in moved.op
 
 
-# --- критический путь --------------------------------------------------------
+# --- the critical path ---------------------------------------------------------
 
 
 def _critical(client_state) -> set[str]:
@@ -279,7 +279,7 @@ def _critical(client_state) -> set[str]:
 
 
 def test_the_longest_chain_is_critical_and_the_slack_one_is_not(db, project, category):
-    # Цепочка из двух держит конец проекта; одинокая короткая задача — нет.
+    # A chain of two holds the project's end; a lone short task does not.
     first = _task(db, project, category, "Первая", date(2026, 3, 4), duration=3)
     second = _task(db, project, category, "Вторая", date(2026, 3, 9), duration=5)
     _link(db, project, first, second)
@@ -306,8 +306,8 @@ def test_a_task_that_ends_with_the_project_holds_the_date(db, project, category)
 
 
 def test_slack_inside_a_chain_takes_it_off_the_path(db, project, category):
-    # Между первой и второй — неделя простоя, значит первую можно двигать, и
-    # срок проекта от этого не поедет.
+    # Between the first and the second there is a week of idle time, so the first can
+    # be moved and the project's deadline will not slide because of it.
     first = _task(db, project, category, "Первая", date(2026, 3, 4), duration=2)
     second = _task(db, project, category, "Вторая", date(2026, 3, 23), duration=5)
     _link(db, project, first, second)

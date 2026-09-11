@@ -1,8 +1,8 @@
-"""Язык при первом появлении человека — из `Accept-Language`.
+"""The language on a person's first appearance — from `Accept-Language`.
 
-Правило раздела 9: при первом входе язык берётся из заголовка, если тот
-просит один из трёх поддерживаемых; иначе — азербайджанский. Дальше только то,
-что человек выбрал сам.
+The rule of section 9: on first sign-in the language is taken from the header if it
+asks for one of the three supported ones; otherwise it is Azerbaijani. After that
+only what the person chose themselves.
 """
 
 import pytest
@@ -32,18 +32,18 @@ def client(db):
     [
         ("ru", "ru"),
         ("en-US,en;q=0.9", "en"),
-        # Регион отбрасывается: продукт различает языки, а не диалекты.
+        # The region is discarded: the product distinguishes languages, not dialects.
         ("ru-RU", "ru"),
-        # Порядок решают веса, а не место в строке.
+        # The order is decided by the weights, not by the place in the string.
         ("de;q=0.9,ru;q=0.4,en;q=0.8", "en"),
-        # При равных весах побеждает названный раньше.
+        # On equal weights the one named earlier wins.
         ("en,ru", "en"),
-        # Ни одного поддерживаемого — язык по умолчанию.
+        # Not a single supported one — the default language.
         ("de-DE,fr;q=0.8", "az"),
         ("*", "az"),
         ("", "az"),
         (None, "az"),
-        # Испорченный вес не отменяет разбор всего заголовка.
+        # A malformed weight does not cancel the parsing of the whole header.
         ("ru;q=abc,en", "en"),
     ],
 )
@@ -52,16 +52,15 @@ def test_preferred_locale(header, expected):
 
 
 def test_the_case_of_the_tag_does_not_depend_on_the_locale_of_the_process():
-    """Азербайджанская i-ловушка на кодах языков.
+    """The Azerbaijani i-trap on language codes.
 
-    Приведение регистра в локали пользователя превращает `I` в `ı`, и один и
-    тот же заголовок начал бы разбираться по-разному в зависимости от того,
-    чья локаль оказалась активной. `casefold` от локали процесса не зависит
-    вовсе.
+    Case conversion in the user's locale turns `I` into `ı`, and one and the same
+    header would start being parsed differently depending on whose locale happened to
+    be active. `casefold` does not depend on the process locale at all.
     """
     assert preferred_locale("RU", SUPPORTED, "az") == "ru"
     assert preferred_locale("EN-GB", SUPPORTED, "az") == "en"
-    # Заглавная I в коде языка не должна превратиться в ı и потерять «ru».
+    # A capital I in a language code must not turn into ı and lose "ru".
     assert preferred_locale("IT,ru", SUPPORTED, "az") == "ru"
 
 
@@ -97,10 +96,10 @@ def test_registration_falls_back_to_azerbaijani(client):
 
 
 def test_the_header_is_never_asked_again(client):
-    """Заголовок читается один раз — при первом появлении.
+    """The header is read once — on first appearance.
 
-    Иначе смена языка в браузере молча переписывала бы выбор, сделанный
-    человеком руками.
+    Otherwise changing the language in the browser would silently overwrite a choice
+    the person made by hand.
     """
     client.post(
         "/api/auth/register",
