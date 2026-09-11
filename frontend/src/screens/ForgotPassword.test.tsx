@@ -39,7 +39,7 @@ describe("экран восстановления пароля", () => {
         "Если этот адрес зарегистрирован, письмо уже в пути — проверьте почту",
       ),
     ).toBeInTheDocument();
-    // Форма спрятана: повторная отправка — через паузу, а не двойным кликом.
+    // The form is hidden: a repeat submission goes through the pause rather than a double click.
     expect(screen.queryByRole("button", { name: "Отправить письмо" })).not.toBeInTheDocument();
   });
 

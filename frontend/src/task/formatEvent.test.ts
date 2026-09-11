@@ -25,8 +25,8 @@ describe("запись истории", () => {
   });
 
   it("называет, сколько задач ушло вместе с категорией", () => {
-    // «Удалил категорию» об удалённом вместе с ней этапе умалчивает, а в
-    // ленте истории это единственное место, где видно, что именно исчезло.
+    // "Deleted the category" passes over the stage deleted with it, and in the history feed this is the
+    // only place where it is visible what exactly disappeared.
     expect(formatEvent({ type: "delete_category", category_id: "c1", tasks: 3 }, "ru")).toBe(
       "удалил категорию вместе с задачами: 3 задачи",
     );
@@ -61,7 +61,7 @@ describe("запись истории", () => {
     expect(formatEvent(op, "ru")).toBe(
       "изменил риск с «По плану» на «Есть риск»: жду доступ к API",
     );
-    // Причина не менялась — фраза без неё: повторять старый текст незачем.
+    // The reason did not change — the phrase goes without it: there is no point repeating old text.
     const back = { ...op, from: op.to, to: { risk: "green", note: "жду доступ к API" } };
     expect(formatEvent(back, "ru")).toBe("изменил риск с «Есть риск» на «По плану»");
   });

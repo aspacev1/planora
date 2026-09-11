@@ -27,9 +27,9 @@ describe("высота ленты", () => {
   it("ограничена окном — иначе закрепляться шапке шкалы негде", async () => {
     renderProject();
 
-    // Без числа контейнер вырастает во всю высоту содержимого, вертикально не
-    // прокручивается никогда, и `position: sticky` у шапки не срабатывает:
-    // вертикально едет страница, шапка уезжает вместе с ней.
+    // Without a number the container grows to the full height of its content, never scrolls vertically,
+    // and the header's `position: sticky` does not fire: what travels vertically is the page, and the
+    // header travels with it.
     expect(await tape()).toHaveStyle({ maxHeight: `${window.innerHeight}px` });
   });
 
@@ -46,8 +46,8 @@ describe("высота ленты", () => {
     renderProject();
     const box = await tape();
 
-    // Окно, в которое лента не помещается вовсе: лучше отдать прокрутку
-    // странице и показать несколько строк, чем полосу в один ряд.
+    // A window the strip does not fit into at all: better to give the scroll to the page and show a few
+    // rows than a band one row high.
     resizeWindowTo(80);
 
     expect(box).toHaveStyle({ maxHeight: "240px" });

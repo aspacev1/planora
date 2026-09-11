@@ -3,12 +3,12 @@ import { request } from "./client";
 export const JIRA_CREDENTIAL_QUERY_KEY = ["jira", "credential"] as const;
 export const JIRA_PROJECTS_QUERY_KEY = ["jira", "projects"] as const;
 
-/** Ключ проекта, задан из адреса самого проекта в его карточке. */
+/** The project's key, set from the project's own address in its card. */
 export function jiraLinkQueryKey(projectId: string) {
   return ["jira", "link", projectId] as const;
 }
 
-/** Подключение Jira. Токена здесь нет и быть не может — только признак. */
+/** The Jira connection. There is and can be no token here — only a flag. */
 export type JiraCredential = {
   base_url: string;
   email: string;
@@ -34,7 +34,7 @@ export type JiraSyncResult = {
   updated_tasks: number;
 };
 
-/** Заведён ли проект импортом из Jira, и когда синхронизировался в последний раз. */
+/** Whether the project was created by an import from Jira, and when it last synced. */
 export type JiraLink = {
   linked: boolean;
   jira_project_key: string | null;

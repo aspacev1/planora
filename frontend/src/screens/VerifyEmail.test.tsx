@@ -23,8 +23,8 @@ describe("подтверждение адреса", () => {
     renderApp({ route: "/verify-email?token=abc123", locale: "ru" });
 
     expect(await screen.findByText(/адрес почты подтверждён/i)).toBeInTheDocument();
-    // Ровно один запрос: StrictMode монтирует дерево дважды, а токен
-    // одноразовый — второй запрос сменил бы успех ошибкой.
+    // Exactly one request: StrictMode mounts the tree twice while the token is one-time — a second
+    // request would turn the success into an error.
     expect(tokens).toEqual(["abc123"]);
   });
 
@@ -37,7 +37,7 @@ describe("подтверждение адреса", () => {
     renderApp({ route: "/verify-email?token=abc123", locale: "ru" });
 
     expect(await screen.findByText(/адрес уже подтверждён/i)).toBeInTheDocument();
-    // Ни красной плашки, ни предложения просить новое письмо: просить нечего.
+    // Neither a red chip nor an offer to ask for a new email: there is nothing to ask for.
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /отправить письмо ещё раз/i }),
@@ -93,7 +93,7 @@ describe("подтверждение адреса", () => {
       http.post("/api/auth/verify-email", () =>
         HttpResponse.json({ detail: "token_expired" }, { status: 400 }),
       ),
-      // Почтовый сервер недоступен: сервер честно отвечает sent: false.
+      // The mail server is unavailable: the server honestly answers sent: false.
       http.post("/api/auth/verify-email/resend", () => HttpResponse.json({ sent: false })),
     );
 

@@ -27,11 +27,10 @@ describe("переводы", () => {
 
 describe("даты", () => {
   it("называет месяц словом на каждом языке, а не кодом", () => {
-    // Ловушка живая, а не выдуманная: ICU в браузере знает локаль `az`, но
-    // названий месяцев для неё не содержит и падает на корневую локаль —
-    // `Intl.DateTimeFormat("az", { month: "long" })` отдаёт «M09». Для языка
-    // по умолчанию это половина нечитаемой шкалы, поэтому названия живут в
-    // словарях. Тест ловит возврат к `Intl` и опечатку в номере месяца.
+    // The trap is live rather than made up: ICU in the browser knows the `az` locale but contains no
+    // month names for it and falls back to the root locale — `Intl.DateTimeFormat("az", { month:
+    // "long" })` gives "M09". For the default language that is half a scale rendered unreadable, so the
+    // names live in the dictionaries. The test catches a return to `Intl` and a typo in a month's number.
     for (const locale of SUPPORTED_LOCALES) {
       const t = (key: string, params?: Record<string, string | number>) =>
         translate(locale, key, params);

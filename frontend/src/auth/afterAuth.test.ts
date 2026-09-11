@@ -16,7 +16,7 @@ describe("возврат после входа", () => {
   });
 
   it("не уводит на чужой сайт", () => {
-    // `//example.com` — не путь, а адрес другого сайта.
+    // `//example.com` is not a path but another site's address.
     expect(afterAuthPath({ from: { pathname: "//example.com" } })).toBe(AFTER_AUTH_FALLBACK);
     expect(afterAuthPath({ from: { pathname: "https://example.com/x" } })).toBe(
       AFTER_AUTH_FALLBACK,

@@ -33,7 +33,7 @@ describe("экран входа", () => {
   it("возвращает на присланную ссылку, а не в общий список", async () => {
     projectFixtures();
     server.use(
-      // Позже projectFixtures — значит, побеждает: до входа сессии нет.
+      // Later than projectFixtures — which means it wins: before the sign-in there is no session.
       http.get("/api/auth/me", () =>
         HttpResponse.json({ detail: "not_authenticated" }, { status: 401 }),
       ),
@@ -41,8 +41,8 @@ describe("экран входа", () => {
     );
 
     renderApp({ route: "/projects/p1?tab=plan" });
-    // Сперва проверка сессии, и только потом форма: до ответа сервера на экране
-    // индикатор, а не поля.
+    // First the session check, and only then the form: before the server's answer there is an indicator
+    // on screen rather than fields.
     await screen.findByRole("heading", { name: /вход/i });
     await fillAndSubmit();
 

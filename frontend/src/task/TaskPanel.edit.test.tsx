@@ -8,7 +8,7 @@ import { STATE, captureMutations, projectFixtures, renderProject } from "../test
 
 beforeEach(projectFixtures);
 
-/** Открыть карточку щелчком по полоске. */
+/** Open the card with a click on the bar. */
 async function openPanel() {
   await userEvent.click(await screen.findByRole("button", { name: /Логотип/ }));
 }
@@ -85,7 +85,7 @@ describe("флаг риска в карточке", () => {
     renderProject();
     await openPanel();
 
-    // У зелёного флага причины нет: пустое поле читалось бы как забытое.
+    // A green flag has no reason: an empty field would read as a forgotten one.
     expect(screen.queryByLabelText("Причина")).not.toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText("Риск"), "yellow");
 

@@ -29,8 +29,8 @@ describe("экран нового пароля", () => {
 
     expect(await screen.findByText("Пароль изменён — войдите с новым")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute("href", "/login");
-    // Токен уходит из адресной строки как есть: сервер сверяет хеш, и любая
-    // правка по дороге сожгла бы ссылку зря.
+    // The token leaves the address bar as is: the server checks the hash, and any edit along the way
+    // would burn the link for nothing.
     expect(sent).toEqual({ token: "raw-token-from-letter", new_password: "n3w-secret-pass" });
   });
 

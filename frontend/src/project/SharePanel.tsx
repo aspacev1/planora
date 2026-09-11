@@ -2,9 +2,9 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { ShareControls } from "./ShareControls";
 
 /**
- * Публичная ссылка на проект — в настройках проекта. Тело то же, что в окне
- * «Поделиться» на экране проекта: одна фича — одна реализация, иначе кнопка
- * «Копировать» или проверка `allowed` появляется только в одном из двух мест.
+ * A project's public link — in the project's settings. The body is the same as in the "Share" dialog on
+ * the project screen: one feature, one implementation, otherwise the "Copy" button or the `allowed`
+ * check appears in only one of the two places.
  */
 export function SharePanel({ projectId }: { projectId: string }) {
   const { t } = useLocale();
