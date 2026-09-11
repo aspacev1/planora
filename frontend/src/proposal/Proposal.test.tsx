@@ -8,10 +8,10 @@ import { projectFixtures, renderProject } from "../test/project";
 import { server } from "../test/server";
 
 /**
- * Смета с двумя строками: 2д × 100 и 3д × 200 — сумма 800, налог 10% — 80,
- * итого 880, объём 5 дней и 40 часов (по восьмичасовому дню). Числа выбраны
- * так, чтобы каждая строка итогов отличалась от любой другой: совпадение
- * двух сумм позволило бы тесту зеленеть на перепутанных строках.
+ * A quote with two lines: 2d × 100 and 3d × 200 — a subtotal of 800, 10% tax —
+ * 80, a total of 880, a volume of 5 days and 40 hours (at an eight-hour day).
+ * The numbers are chosen so that every total line differs from every other: two
+ * matching sums would let the test go green on mixed-up lines.
  */
 const PROPOSAL: ProposalState = {
   effort_unit: "days",
@@ -71,9 +71,9 @@ const PROPOSAL: ProposalState = {
 };
 
 /**
- * Смета, которой ещё нет: ни разделов, ни строк — только план, из которого
- * её можно собрать. Числа плана не совпадают друг с другом, чтобы подпись
- * карточки нельзя было собрать из перепутанных счётчиков.
+ * A quote that does not exist yet: no sections, no lines — only a plan it can be
+ * assembled from. The plan's numbers do not coincide with each other, so the
+ * card's caption cannot be assembled from mixed-up counters.
  */
 const EMPTY: ProposalState = {
   ...PROPOSAL,
@@ -82,11 +82,12 @@ const EMPTY: ProposalState = {
 };
 
 /**
- * Деньги — тем же Intl, что и экран: точная строка зависит от ICU среды.
+ * Money — through the same Intl as the screen: the exact string depends on the
+ * ICU environment.
  *
- * Неразрывный пробел приводится к обычному: getByText нормализует пробелы в
- * тексте элемента, но не в искомой строке, и «600,00 $» с U+00A0 не находил
- * бы сам себя.
+ * A non-breaking space is normalized to an ordinary one: getByText normalizes
+ * whitespace in an element's text but not in the string being looked for, and
+ * "600,00 $" with a U+00A0 would not find itself.
  */
 function money(value: number): string {
   return new Intl.NumberFormat("ru", {
@@ -99,8 +100,9 @@ function money(value: number): string {
 }
 
 /**
- * Предпросмотр переноса: «Дизайн» ляжет в одноимённую категорию плана, две
- * строки оценены, третья («Анимации») без оценки и по умолчанию не идёт.
+ * A transfer preview: "Design" will land in the plan's category of the same
+ * name, two lines are estimated, the third ("Animations") has no estimate and by
+ * default does not go.
  */
 const PREVIEW: PushPreview = {
   categories: [
@@ -265,7 +267,7 @@ function proposalFixtures(
   return sent;
 }
 
-/** Открыть ячейку строки на правку: щелчок по значению, как в ленте. */
+/** Open a row's cell for editing: a click on the value, as in the strip. */
 async function openCell(text: string) {
   await userEvent.click(await screen.findByText(text));
 }
@@ -279,9 +281,10 @@ describe("вкладка предложения", () => {
     proposalFixtures();
     renderProject(undefined, { route: "/projects/p1/proposal" });
 
-    // Строка работы: роль, оценка в днях и рядом часы, ставка и цена без
-    // валюты — она названа в шапке колонки. У «Гайдлайна» цена 600 не
-    // совпадает ни с одной ставкой — совпавшая строка прятала бы ошибку.
+    // A work line: the role, the estimate in days with the hours next to it, the
+    // rate and the price without a currency — that is named in the column's
+    // heading. The "Guideline" price of 600 matches no rate — a matching line
+    // would hide a mistake.
     expect(await screen.findByText("Логотип")).toBeInTheDocument();
     expect(screen.getByText("Знак")).toBeInTheDocument();
     expect(screen.getByText("Дизайнер")).toBeInTheDocument();
@@ -290,14 +293,14 @@ describe("вкладка предложения", () => {
     expect(screen.getByText("100")).toBeInTheDocument();
     expect(screen.getByText("600")).toBeInTheDocument();
     expect(screen.getByText("Ставка, USD/д")).toBeInTheDocument();
-    // Пустая роль подсказывает, что в неё пишут, а не молчит прочерком.
+    // An empty role hints at what goes in it rather than staying silent with a dash.
     expect(screen.getByText("роль")).toBeInTheDocument();
-    // Параметры сложены в поповер, но подпись кнопки говорит главное.
+    // The parameters are folded into a popover, but the button's caption says the main thing.
     expect(
       screen.getByRole("button", { name: "Параметры предложения" }),
     ).toHaveTextContent("Дни · Налог 10 % · USD");
 
-    // Строка раздела — сводка своих работ и описание.
+    // A section's row is a summary of its own work items and a description.
     expect(screen.getByText("Понять и нарисовать")).toBeInTheDocument();
 
     const summary = screen.getByRole("complementary", {
@@ -321,7 +324,7 @@ describe("вкладка предложения", () => {
     );
 
     expect(screen.queryByText("Логотип")).not.toBeInTheDocument();
-    // Сводка раздела на месте: свёрнутый раздел — строка с суммой, не дыра.
+    // The section's summary is in place: a collapsed section is a line with a sum, not a hole.
     expect(screen.getByText("Дизайн")).toBeInTheDocument();
     expect(screen.getAllByText(money(800)).length).toBeGreaterThan(0);
   });
@@ -335,20 +338,20 @@ describe("вкладка предложения", () => {
     );
     const panel = await screen.findByRole("complementary", { name: /Логотип/ });
 
-    // Шапка: раздел, формула цены и сама цена — из чего сложилась строка.
+    // The header: the section, the price formula and the price itself — what the line adds up from.
     expect(within(panel).getByText("Дизайн")).toBeInTheDocument();
     expect(
       within(panel).getByText(`2д × ${money(100)} в день`),
     ).toBeInTheDocument();
     expect(within(panel).getByText(money(200))).toBeInTheDocument();
 
-    // Три створки: что увидит заказчик, что останется внутри, разговор.
+    // Three panels: what the customer will see, what stays inside, the conversation.
     expect(within(panel).getByText("В документе клиента")).toBeInTheDocument();
     expect(within(panel).getByText("Только для команды")).toBeInTheDocument();
     expect(within(panel).getByText("Обсуждение")).toBeInTheDocument();
     expect(within(panel).getByText("видно только команде")).toBeInTheDocument();
 
-    // Клиентская часть: работа, роль, оценка и ставка с единицами, описания.
+    // The client-facing part: the work, the role, the estimate and the rate with units, the descriptions.
     expect(within(panel).getByLabelText("Работа")).toHaveValue("Логотип");
     expect(within(panel).getByLabelText("Ответственная роль")).toHaveValue(
       "Дизайнер",
@@ -360,7 +363,7 @@ describe("вкладка предложения", () => {
       "Три варианта",
     );
 
-    // Внутренняя часть: заметки, риски, допущения.
+    // The internal part: notes, risks, assumptions.
     expect(within(panel).getByLabelText("Заметки")).toHaveValue(
       "Шрифт покупает клиент",
     );
@@ -419,7 +422,7 @@ describe("вкладка предложения", () => {
     const sent = proposalFixtures();
     renderProject(undefined, { route: "/projects/p1/proposal" });
 
-    // Имя.
+    // The name.
     await openCell("Логотип");
     const name = screen.getByLabelText("Изменить: Работа у «Логотип»");
     await userEvent.clear(name);
@@ -433,7 +436,7 @@ describe("вкладка предложения", () => {
       }),
     );
 
-    // Описание: пустое — тоже значение, описание стирают.
+    // The description: empty is a value too, descriptions do get erased.
     await openCell("Знак");
     const description = screen.getByLabelText("Изменить: Описание у «Логотип»");
     await userEvent.clear(description);
@@ -446,7 +449,7 @@ describe("вкладка предложения", () => {
       }),
     );
 
-    // Роль — тоже ячейка: пустую подсказывает, заполненную правит.
+    // The role is a cell too: an empty one hints, a filled one is edited.
     await openCell("Дизайнер");
     const role = screen.getByLabelText("Изменить: Роль у «Логотип»");
     await userEvent.clear(role);
@@ -459,7 +462,7 @@ describe("вкладка предложения", () => {
       }),
     );
 
-    // Оценка — в единице сметы; часы рядом только для сверки.
+    // The estimate is in the quote's unit; the hours next to it are only for checking.
     await openCell("2д");
     const effort = screen.getByLabelText("Изменить: Оценка у «Логотип»");
     await userEvent.clear(effort);
@@ -472,7 +475,7 @@ describe("вкладка предложения", () => {
       }),
     );
 
-    // Ставка.
+    // The rate.
     await openCell("100");
     const rate = screen.getByLabelText("Изменить: Ставка у «Логотип»");
     await userEvent.clear(rate);
@@ -485,8 +488,8 @@ describe("вкладка предложения", () => {
       }),
     );
 
-    // Цена — произведение, и правка её меняет ставку: 900 за три дня «Гайдлайна»
-    // это 300 за день.
+    // The price is a product, and editing it changes the rate: 900 for three days
+    // of "Guideline" is 300 per day.
     await openCell("600");
     const price = screen.getByLabelText("Изменить: Цена у «Гайдлайн»");
     await userEvent.clear(price);
@@ -536,7 +539,7 @@ describe("вкладка предложения", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Удалить работу «Логотип»" }),
     );
-    // Сначала — что именно сломается, и только потом само действие.
+    // First what exactly will break, and only then the action itself.
     expect(
       screen.getByText("Работа «Логотип» удалится вместе с обсуждением"),
     ).toBeInTheDocument();
@@ -557,8 +560,8 @@ describe("вкладка предложения", () => {
       }),
     );
 
-    // Тот же крестик и на строке раздела — со своим предупреждением: раздел
-    // уносит с собой все работы.
+    // The same cross on a section's row too — with its own warning: a section
+    // takes all its work items with it.
     await userEvent.click(
       screen.getByRole("button", { name: "Удалить раздел «Дизайн»" }),
     );
@@ -607,14 +610,14 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // «Добавить работу» в конце раздела открывает строку ввода — как в ленте.
+    // "Add work" at the end of a section opens an input row — as in the strip.
     await userEvent.click(
       screen.getByRole("button", { name: "Добавить работу в «Дизайн»" }),
     );
     const input = screen.getByLabelText("Новая работа в «Дизайн»");
     await userEvent.type(input, "Вёрстка{Enter}");
 
-    // Одного имени по-прежнему достаточно — и уезжает только оно.
+    // A name alone is still enough — and it is the only thing that leaves.
     await waitFor(() =>
       expect(sent).toContainEqual({
         method: "POST",
@@ -622,10 +625,10 @@ describe("вкладка предложения", () => {
         body: { name: "Вёрстка" },
       }),
     );
-    // Enter не закрывает строку: следующую работу пишут сразу.
+    // Enter does not close the row: the next work item is written straight away.
     expect(screen.getByLabelText("Новая работа в «Дизайн»")).toHaveValue("");
 
-    // Роль подсказывается из справочника организации и тянет за собой ставку.
+    // The role is suggested from the organization's reference list and pulls the rate along with it.
     await userEvent.type(
       screen.getByLabelText("Новая работа в «Дизайн»"),
       "Макет",
@@ -660,7 +663,7 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // Пройденный этап подписан датой, текущий назван, следующий — кнопкой.
+    // A passed stage is captioned with a date, the current one is named, the next one is a button.
     const stages = screen.getByRole("list", { name: "Этапы предложения" });
     expect(within(stages).getByText("27 авг")).toBeInTheDocument();
     expect(
@@ -677,7 +680,7 @@ describe("вкладка предложения", () => {
       }),
     );
 
-    // Назад — щелчком по пройденному этапу.
+    // Back — by a click on a passed stage.
     await userEvent.click(
       screen.getByRole("button", { name: "Вернуть на этап «Черновик»" }),
     );
@@ -695,9 +698,10 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // Не все отправляют документ клиенту: перенос стоит рядом с отметкой
-    // отправки, а не за ней. Но пока сделка не согласована, он тихий — и
-    // на полосе этапов, и в карточке итогов; главной кнопки в черновике нет.
+    // Not everyone sends the document to the client: the transfer stands next to
+    // the sent mark rather than behind it. But while the deal is not agreed it is
+    // quiet — both on the stage bar and in the totals card; there is no primary
+    // button in a draft.
     const stages = screen.getByRole("list", { name: "Этапы предложения" });
     expect(
       within(stages).getByRole("button", { name: "Отметить отправленным" }),
@@ -728,8 +732,8 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // Шага сделки больше нет — перенос остаётся один и залитым, в обоих
-    // местах. Многоточие при этом остаётся: за нажатием то же окно.
+    // There is no deal step any more — the transfer is left alone and filled, in
+    // both places. The ellipsis stays at that: the same dialog is behind the press.
     const stages = screen.getByRole("list", { name: "Этапы предложения" });
     expect(
       within(stages).queryByRole("button", { name: /Отметить/ }),
@@ -757,8 +761,8 @@ describe("вкладка предложения", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Параметры предложения" }),
     );
-    // Число уходит по уходу из поля, как и всякое число в полях
-    // автосохранения: набранное целиком, а не по цифре.
+    // The number leaves on blur, like every number in autosaving fields: typed
+    // whole rather than digit by digit.
     const tax = screen.getByLabelText("Налог, %");
     await userEvent.clear(tax);
     await userEvent.type(tax, "5");
@@ -805,7 +809,7 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // Пункт на строку — списком.
+    // One item per line — as a list.
     expect(screen.getByText("Оценки по текущему объёму.")).toBeInTheDocument();
     expect(
       screen.getByText("Ставки без стоимости лицензий."),
@@ -814,7 +818,7 @@ describe("вкладка предложения", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Править примечания" }),
     );
-    // Роль сужает поиск: той же подписью подписана и сама карточка примечаний.
+    // The role narrows the search: the notes card itself carries the same caption.
     const editor = screen.getByRole("textbox", {
       name: "Допущения и примечания",
     });
@@ -846,20 +850,20 @@ describe("вкладка предложения", () => {
     expect(
       within(dialog).getByText("Перенести предложение в план"),
     ).toBeInTheDocument();
-    // Раздел найдёт свою категорию плана, а не заведёт вторую.
+    // A section will find its own plan category rather than create a second one.
     expect(
       within(dialog).getByText("в категорию «Дизайн»"),
     ).toBeInTheDocument();
-    // Строка без оценки выключена и названа: спрятанную искали бы.
+    // A line without an estimate is disabled and named: a hidden one would be looked for.
     const blank = within(dialog).getByRole("checkbox", {
       name: "Перенести «Анимации»",
     });
     expect(blank).toBeDisabled();
     expect(within(dialog).getByText("без оценки")).toBeInTheDocument();
-    // По умолчанию выбрано всё оценённое: две задачи на пять дней.
+    // By default everything estimated is selected: two tasks over five days.
     expect(within(dialog).getByText("2 работы · 5 дней")).toBeInTheDocument();
 
-    // Снять галочку с одной строки: счёт и кнопка пересчитываются.
+    // Unticking one line: the count and the button are recomputed.
     await userEvent.click(
       within(dialog).getByRole("checkbox", { name: "Перенести «Гайдлайн»" }),
     );
@@ -875,8 +879,8 @@ describe("вкладка предложения", () => {
         body: { task_ids: ["pt1"] },
       }),
     );
-    // Тост говорит, что случилось, и предлагает две дороги: посмотреть и
-    // отменить. «Отменить» снимает ту самую пачку, что назвал сервер.
+    // The toast says what happened and offers two roads: look and undo. "Undo"
+    // removes the very batch the server named.
     expect(
       await screen.findByText("1 работа добавлена в план"),
     ).toBeInTheDocument();
@@ -911,7 +915,7 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // Кнопка переноса зовёт перенести только новое — счётом, в обоих местах.
+    // The transfer button offers to transfer only what is new — by count, in both places.
     expect(
       screen.getAllByRole("button", { name: "Перенести 1 новую работу…" }),
     ).toHaveLength(2);
@@ -921,7 +925,7 @@ describe("вкладка предложения", () => {
         name: "«Логотип» уже в плане: открыть задачу",
       }),
     );
-    // Диаграмма открылась с карточкой той самой задачи, параметр из адреса снят.
+    // The chart opened with that very task's card, the address parameter removed.
     expect(
       await screen.findByRole("complementary", { name: /Логотип/ }),
     ).toBeInTheDocument();
@@ -951,8 +955,8 @@ describe("вкладка предложения", () => {
       route: "/projects/p1/proposal",
     });
 
-    // Диаграмма открылась вместо сметы: сервер клиенту смету не отдаёт, и
-    // дорога к заведомому отказу никому не нужна.
+    // The chart opened instead of the quote: the server does not give a client
+    // the quote, and nobody needs a road to a certain refusal.
     expect(
       await screen.findByRole("link", { name: "Диаграмма" }),
     ).toBeInTheDocument();
@@ -971,15 +975,15 @@ describe("вкладка предложения", () => {
     await screen.findByText("Логотип");
 
     const link = screen.getByRole("link", { name: "Скачать PDF для клиента" });
-    // Язык — тот, на котором смотрят на предложение: документ придёт на нём же.
+    // The language is the one the proposal is being looked at in: the document will arrive in it too.
     expect(link).toHaveAttribute(
       "href",
       "/api/projects/p1/proposal/export.pdf?locale=ru",
     );
-    // Браузер сохраняет файл сам, под именем из ответа сервера.
+    // The browser saves the file itself, under the name from the server's response.
     expect(link).toHaveAttribute("download");
-    // До согласования документ — главная кнопка, перенос в план остаётся
-    // рядом, тихой кнопкой того же блока.
+    // Before agreement the document is the primary button, the transfer into the
+    // plan stays next to it, a quiet button of the same block.
     expect(link).toHaveClass("proposal-summary__pdf");
     const next = screen.getByRole("region", { name: "Дальше" });
     expect(
@@ -997,8 +1001,8 @@ describe("вкладка предложения", () => {
     renderProject(undefined, { route: "/projects/p1/proposal" });
     await screen.findByText("Логотип");
 
-    // Документ уже ушёл и согласован: единственный оставшийся шаг — перенос,
-    // и залитой в блоке «Дальше» должна быть одна кнопка — его.
+    // The document has already gone and been agreed: the only step left is the
+    // transfer, and the one filled button in the "Next" block must be it.
     const next = screen.getByRole("region", { name: "Дальше" });
     expect(
       within(next).getByRole("link", { name: "Скачать PDF для клиента" }),
@@ -1015,8 +1019,8 @@ describe("вкладка предложения", () => {
       route: "/projects/p1/proposal",
     });
 
-    // Имя у читателя — по-прежнему кнопка, открывающая карточку: правкой
-    // щелчок по нему быть не может, а карточка для чтения открыта и ему.
+    // For a reader the name is still a button that opens the card: a click on it
+    // cannot be an edit, while the card is open for them to read too.
     expect(
       await screen.findByRole("button", { name: /Логотип/ }),
     ).toBeInTheDocument();
@@ -1032,8 +1036,8 @@ describe("вкладка предложения", () => {
     expect(
       screen.queryByRole("button", { name: "Править примечания" }),
     ).not.toBeInTheDocument();
-    // Знаков правки и удаления на строках нет вовсе: право читать не даёт
-    // права менять.
+    // There are no edit or delete signs on the rows at all: the right to read
+    // does not give the right to change.
     expect(
       screen.queryByRole("button", { name: "Править работу «Логотип»" }),
     ).not.toBeInTheDocument();
@@ -1044,13 +1048,13 @@ describe("вкладка предложения", () => {
       screen.queryByRole("button", { name: "Править раздел «Дизайн»" }),
     ).not.toBeInTheDocument();
 
-    // Описание раздела — текстом, не полем: щелчок по нему ничего не открывает.
+    // A section's description is text, not a field: a click on it opens nothing.
     expect(screen.getByText("Понять и нарисовать")).toBeInTheDocument();
     await userEvent.click(screen.getByText("Понять и нарисовать"));
     expect(
       screen.queryByLabelText("Описание раздела «Дизайн»"),
     ).not.toBeInTheDocument();
-    // Строк заведения нет, полоса этапов без кнопок, параметры выключены.
+    // There are no creation rows, the stage bar has no buttons, the parameters are disabled.
     expect(
       screen.queryByRole("button", { name: "Добавить работу в «Дизайн»" }),
     ).not.toBeInTheDocument();
@@ -1070,8 +1074,8 @@ describe("пустая смета", () => {
   });
 
   it("объясняет назначение, предлагает два старта и собирается из плана одной кнопкой", async () => {
-    // Сервер отдаёт пустую смету, пока её не собрали, и полную — после:
-    // перезапрос после сборки обязан показать таблицу, а не прежнюю пустоту.
+    // The server gives an empty quote until it is assembled and a full one after:
+    // a refetch after assembly must show the table rather than the previous emptiness.
     let state = EMPTY;
     const sent = proposalFixtures(EMPTY);
     server.use(
@@ -1095,13 +1099,13 @@ describe("пустая смета", () => {
     ).toBeInTheDocument();
     const build = screen.getByRole("button", { name: /Собрать из плана/ });
     expect(build).toBeEnabled();
-    // Счётчики плана — в подписи карточки, склонённые по числу.
+    // The plan's counters are in the card's caption, inflected by number.
     expect(build).toHaveTextContent("В плане 3 задачи в 2 категориях");
-    // Параметры — той же кнопкой-поповером, что в тулбаре таблицы.
+    // The parameters use the same popover button as the table's toolbar.
     expect(
       screen.getByRole("button", { name: "Параметры предложения" }),
     ).toHaveTextContent("Дни · Налог 10 % · USD");
-    // Ни таблицы, ни итогов: нули в карточке отвечали бы на незаданный вопрос.
+    // Neither a table nor totals: zeros in the card would answer a question nobody asked.
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("complementary", { name: "Итоги предложения" }),
@@ -1116,7 +1120,7 @@ describe("пустая смета", () => {
         body: null,
       }),
     );
-    // Собранная смета — уже таблица с итогами.
+    // An assembled quote is already a table with totals.
     expect(await screen.findByText("Логотип")).toBeInTheDocument();
     expect(
       screen.getByRole("complementary", { name: "Итоги предложения" }),
@@ -1132,7 +1136,7 @@ describe("пустая смета", () => {
     });
     expect(build).toBeDisabled();
     expect(build).toHaveTextContent("В плане пока нет задач");
-    // Второй старт открыт: раздел заводится руками при любом плане.
+    // The second start is open: a section is created by hand whatever the plan.
     expect(screen.getByRole("button", { name: /Новый раздел/ })).toBeEnabled();
   });
 
@@ -1149,7 +1153,7 @@ describe("пустая смета", () => {
       within(modal).getByRole("button", { name: "Отмена" }),
     );
 
-    // Те же поля, что в тулбаре таблицы, и тот же способ сохранения.
+    // The same fields as in the table's toolbar, and the same way of saving.
     await userEvent.click(
       screen.getByRole("button", { name: "Параметры предложения" }),
     );
@@ -1182,8 +1186,8 @@ describe("пустая смета", () => {
     expect(
       screen.queryByRole("button", { name: /Новый раздел/ }),
     ).not.toBeInTheDocument();
-    // Параметры видны и читателю: в чём считают смету, знать вправе и он —
-    // но поля внутри поповера у него выключены.
+    // The parameters are visible to a reader too: they are entitled to know what
+    // the quote is counted in — but the fields inside the popover are disabled for them.
     await userEvent.click(
       screen.getByRole("button", { name: "Параметры предложения" }),
     );
