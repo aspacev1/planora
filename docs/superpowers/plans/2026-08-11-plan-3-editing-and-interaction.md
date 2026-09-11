@@ -1,4 +1,4 @@
-# План 3: перетаскивание, редактирование, карточки, анимация — план реализации
+# Plan 3: dragging, editing, cards, animation — implementation plan
 
 > **Historical.** This is one of the original build plans this codebase
 > was built from — every step below has since shipped. It reflects the plan
@@ -9,37 +9,37 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Превратить диаграмму из картинки в инструмент: полоски двигаются мышью, строки переставляются, карточка задачи редактируется на месте, история читается на языке читателя, изменения не дёргают экран.
+**Goal:** Turn the chart from a picture into a tool: the bars move with the mouse, the rows are reordered, a task's card is edited in place, the history is read in the reader's language, and changes do not jerk the screen about.
 
-**Architecture:** Все изменения проходят один путь — оптимистичное применение к локальному состоянию, отправка операции, откат при отказе сервера. Этот путь пишется один раз и переиспользуется всеми жестами; в противном случае каждый экран изобретает свой откат, и они расходятся. История задачи собирается из журнала ревизий: сервер присылает событие с параметрами, клиент подставляет их в строку своего языка.
+**Architecture:** All the changes go through one path — an optimistic application to the local state, sending the operation, a rollback on a server refusal. That path is written once and reused by every gesture; otherwise every screen invents a rollback of its own, and they diverge. A task's history is assembled from the revision journal: the server sends an event with parameters, and the client substitutes them into a string in its own language.
 
-**Tech Stack:** Как в планах 1 и 2. Никаких новых зависимостей: перетаскивание пишется на указательных событиях, анимация — на CSS-переходах.
+**Tech Stack:** As in plans 1 and 2. No new dependencies: dragging is written on pointer events, the animation on CSS transitions.
 
 ## Global Constraints
 
-- Даты окончания считает сервер. После любого изменения дат клиент берёт даты из ответа, а не пересчитывает их сам.
-- Все изменения идут операциями. Публичный контракт не принимает `task_id` и `position` при создании — их назначает сервер.
-- История хранится событием с параметрами и собирается в текст при показе, на языке читателя. Причина сдвига — текст пользователя, он не переводится.
-- Горизонтальное перетаскивание полоски меняет даты, вертикальное перетаскивание строки за левую колонку меняет порядок. Одна вещь — один жест, иначе люди будут сбивать сроки, пытаясь переставить строку.
-- Внутренняя заметка — единственное поле с ограниченной видимостью. Показывать её или нет, решает сервер: если её нет в ответе, блока нет в интерфейсе.
-- Языки: `az` по умолчанию, `en`, `ru`. Числительные — через `Intl.PluralRules`.
-- Анимация уважает `prefers-reduced-motion`: при включённой настройке переходы отключаются, а не ускоряются.
-- Свой CSS с переменными и тёмной темой.
+- The end dates are computed by the server. After any change of dates the client takes the dates from the response rather than recomputing them itself.
+- All the changes go as operations. The public contract does not accept `task_id` and `position` on creation — they are assigned by the server.
+- The history is stored as an event with parameters and assembled into text at display time, in the reader's language. The shift's reason is the user's text and is not translated.
+- Dragging a bar horizontally changes the dates, dragging a row by the left column vertically changes the order. One thing, one gesture — otherwise people will knock dates about while trying to reorder a row.
+- The internal note is the only field with restricted visibility. Whether to show it is decided by the server: if it is not in the response, the block is not in the interface.
+- Languages: `az` by default, `en`, `ru`. Numerals through `Intl.PluralRules`.
+- The animation respects `prefers-reduced-motion`: with the setting on the transitions are switched off rather than sped up.
+- Our own CSS with variables and a dark theme.
 
 ---
 
-### Task 1: Оптимистичные изменения с откатом
+### Task 1: Optimistic changes with a rollback
 
 **Files:**
 - Create: `frontend/src/project/useProjectMutation.ts`
 - Test: `frontend/src/project/useProjectMutation.test.tsx`
 
 **Interfaces:**
-- Produces: `useProjectMutation(projectId)` → `{ apply(op, optimistic, options?) }`, где `optimistic` — функция, преобразующая состояние локально до ответа сервера.
+- Produces: `useProjectMutation(projectId)` → `{ apply(op, optimistic, options?) }`, where `optimistic` is a function transforming the state locally before the server's answer.
 
-Это фундамент задач 2–5. Пишется первым и отдельно, потому что каждый последующий жест им пользуется, а тестировать откат через перетаскивание мышью — мучение.
+This is the foundation of tasks 2–5. It is written first and separately, because every subsequent gesture uses it, and testing a rollback through mouse dragging is a torment.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
 ```tsx
 it("показывает изменение до ответа сервера", async () => {
@@ -96,15 +96,15 @@ it("два изменения подряд откатываются каждое
 });
 ```
 
-Последний тест ловит классическую ошибку: снимок для отката делают один раз при монтировании, и откат второго изменения возвращает состояние к самому началу, стирая первое.
+The last test catches a classic mistake: the snapshot for the rollback is taken once at mount time, and rolling back a second change returns the state to the very beginning, erasing the first.
 
-- [x] **Step 2: Запустить и убедиться, что падают**
+- [x] **Step 2: Run them and make sure they fail**
 
-- [x] **Step 3: Реализовать**
+- [x] **Step 3: Implement**
 
-Снимок берётся **непосредственно перед каждым применением**, а не заранее. После успеха состояние проекта перезапрашивается: сервер мог посчитать дату окончания иначе, чем предположил клиент, и его версия единственно верная.
+The snapshot is taken **immediately before every application** rather than in advance. After a success the project's state is refetched: the server may have computed the end date differently from the client's guess, and its version is the only right one.
 
-- [x] **Step 4: Прогнать тесты и закоммитить**
+- [x] **Step 4: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/project
@@ -114,7 +114,7 @@ git commit -m "feat: оптимистичные изменения с честн
 
 ---
 
-### Task 2: Карточка задачи
+### Task 2: The task card
 
 **Files:**
 - Create: `frontend/src/task/TaskPanel.tsx`
@@ -122,9 +122,9 @@ git commit -m "feat: оптимистичные изменения с честн
 - Test: `frontend/src/task/TaskPanel.test.tsx`
 
 **Interfaces:**
-- Produces: панель задачи, открывающаяся по клику и закрывающаяся крестиком, клавишей Esc и повторным кликом по той же задаче.
+- Produces: the task panel, opening on a click and closing with the cross, the Esc key and a repeat click on the same task.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
 ```tsx
 it("по умолчанию скрыта, открывается кликом по задаче", async () => {
@@ -168,15 +168,15 @@ it("показывает вычисленную сервером дату око
 });
 ```
 
-Третий тест — про то же правило видимости, что и на сервере: интерфейс не решает, показывать ли заметку, он смотрит, прислали ли её.
+The third test is about the same visibility rule as on the server: the interface does not decide whether to show the note, it looks at whether it was sent.
 
-- [x] **Step 2: Запустить и убедиться, что падают**
+- [x] **Step 2: Run them and make sure they fail**
 
-- [x] **Step 3: Реализовать панель**
+- [x] **Step 3: Implement the panel**
 
-Диаграмма занимает всю ширину, пока панель закрыта. Открытие не должно менять горизонтальную прокрутку ленты — иначе задача, по которой кликнули, уезжает из виду.
+The chart takes the whole width while the panel is closed. Opening it must not change the strip's horizontal scroll — otherwise the task that was clicked travels out of sight.
 
-- [x] **Step 4: Прогнать тесты и закоммитить**
+- [x] **Step 4: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/task
@@ -186,7 +186,7 @@ git commit -m "feat: карточка задачи"
 
 ---
 
-### Task 3: Правка полей на месте
+### Task 3: Editing fields in place
 
 **Files:**
 - Modify: `frontend/src/task/TaskPanel.tsx`
@@ -194,9 +194,9 @@ git commit -m "feat: карточка задачи"
 - Test: `frontend/src/task/TaskPanel.edit.test.tsx`
 
 **Interfaces:**
-- Produces: редактируемые поля панели — описание, категория, старт, длительность, критичность, прогресс, исполнители, внутренняя заметка.
+- Produces: the panel's editable fields — the description, the category, the start, the duration, the criticality, the progress, the owners, the internal note.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
 ```tsx
 it("сохраняет описание одной операцией, а не тремя", async () => {
@@ -259,17 +259,17 @@ it("исполнители переключаются по одному и ка�
 });
 ```
 
-Второй тест важен для истории: поле, теряющее фокус без изменений, не должно оставлять запись «изменил описание» — иначе лента истории заполняется шумом и перестаёт читаться.
+The second test matters for the history: a field that loses focus without changes must not leave a "changed the description" entry — otherwise the history feed fills with noise and stops being readable.
 
-- [x] **Step 2: Запустить и убедиться, что падают**
+- [x] **Step 2: Run them and make sure they fail**
 
-- [x] **Step 3: Реализовать поля**
+- [x] **Step 3: Implement the fields**
 
-Три текстовых поля уходят одной операцией `set_task_fields`, потому что человек воспринимает их как одно действие. Остальные — своими операциями, потому что и меняются по одному.
+The three text fields leave in one `set_task_fields` operation, because a person perceives them as one action. The rest go in their own operations, because they are changed one at a time too.
 
-Отдельного режима редактирования и кнопки «сохранить» нет: значение уходит при потере фокуса или при выборе в списке.
+There is no separate edit mode and no "save" button: a value leaves on blur or on a choice in a list.
 
-- [x] **Step 4: Прогнать тесты и закоммитить**
+- [x] **Step 4: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/task
@@ -279,7 +279,7 @@ git commit -m "feat: правка полей задачи на месте"
 
 ---
 
-### Task 4: Перетаскивание дат
+### Task 4: Dragging dates
 
 **Files:**
 - Create: `frontend/src/gantt/useDragDates.ts`
@@ -288,9 +288,9 @@ git commit -m "feat: правка полей задачи на месте"
 
 **Interfaces:**
 - Consumes: `buildScale`, `useProjectMutation`.
-- Produces: перетаскивание полоски по горизонтали с шагом ровно в один день.
+- Produces: dragging a bar horizontally in steps of exactly one day.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
 ```tsx
 it("двигает полоску с шагом в целый день", async () => {
@@ -349,19 +349,19 @@ it("клавиатура двигает задачу так же, как мыш�
 });
 ```
 
-Третий тест закрывает раздражающую мелочь: без него каждое перетаскивание заканчивается открытием карточки, потому что браузер после отпускания кнопки шлёт клик.
+The third test closes an irritating detail: without it every drag ends with a card being opened, because after the button is released the browser sends a click.
 
-Пятый — не роскошь: полоска объявлена кнопкой, и человек, работающий с клавиатуры, должен иметь способ сдвинуть задачу.
+The fifth is not a luxury: the bar is declared a button, and a person working from the keyboard must have a way to move a task.
 
-- [x] **Step 2: Запустить и убедиться, что падают**
+- [x] **Step 2: Run them and make sure they fail**
 
-- [x] **Step 3: Реализовать**
+- [x] **Step 3: Implement**
 
-Указательные события (`pointerdown`/`pointermove`/`pointerup`) с захватом указателя, а не мышиные: захват гарантирует, что перетаскивание не потеряется, если курсор ушёл за край ленты, и заодно работает на планшете.
+Pointer events (`pointerdown`/`pointermove`/`pointerup`) with pointer capture rather than mouse ones: the capture guarantees that a drag is not lost if the cursor leaves the strip's edge, and it works on a tablet as a bonus.
 
-Смещение в днях считается через шкалу, а не делением на «ширину дня» вручную. Ноль дней — ничего не отправляем.
+The offset in days is computed through the scale rather than by dividing by a "day's width" by hand. Zero days — we send nothing.
 
-- [x] **Step 4: Прогнать тесты и закоммитить**
+- [x] **Step 4: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/gantt/useDragDates.test.tsx
@@ -371,7 +371,7 @@ git commit -m "feat: перетаскивание дат"
 
 ---
 
-### Task 5: Перестановка строк
+### Task 5: Reordering rows
 
 **Files:**
 - Create: `frontend/src/gantt/useReorder.ts`
@@ -379,9 +379,9 @@ git commit -m "feat: перетаскивание дат"
 - Test: `frontend/src/gantt/useReorder.test.tsx`
 
 **Interfaces:**
-- Produces: перетаскивание строки за левую колонку с линией вставки; бросок на заголовок категории переносит задачу в неё.
+- Produces: dragging a row by the left column with an insertion line; a drop on a category's heading moves the task into it.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
 ```tsx
 it("перетаскивание за левую колонку меняет порядок, а не даты", async () => {
@@ -431,15 +431,15 @@ it("в гостевом режиме строки не перетаскиваю�
 });
 ```
 
-Первый и четвёртый тесты вместе закрепляют разделение жестов — то самое, ради которого оно и вводилось.
+The first and fourth tests together pin down the separation of the gestures — the very thing it was introduced for.
 
-- [x] **Step 2: Запустить и убедиться, что падают**
+- [x] **Step 2: Run them and make sure they fail**
 
-- [x] **Step 3: Реализовать**
+- [x] **Step 3: Implement**
 
-Ручка перетаскивания появляется при наведении на строку. Сервер сам раздвигает соседей и пишет сдвиги в журнал — клиент шлёт только целевую позицию и категорию.
+The drag handle appears on hovering a row. The server pushes the neighbours apart itself and writes their shifts into the journal — the client sends only the target position and category.
 
-- [x] **Step 4: Прогнать тесты и закоммитить**
+- [x] **Step 4: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/gantt/useReorder.test.tsx
@@ -449,7 +449,7 @@ git commit -m "feat: перестановка строк перетаскива�
 
 ---
 
-### Task 6: История задачи
+### Task 6: A task's history
 
 **Files:**
 - Create: `frontend/src/task/History.tsx`
@@ -458,12 +458,12 @@ git commit -m "feat: перестановка строк перетаскива�
 - Test: `frontend/src/task/formatEvent.test.ts`
 
 **Interfaces:**
-- Consumes: журнал ревизий, отфильтрованный по задаче.
-- Produces: `formatEvent(op, locale) -> string`; блок истории в карточке.
+- Consumes: the revision journal filtered by task.
+- Produces: `formatEvent(op, locale) -> string`; the history block in the card.
 
-Здесь окупается решение хранить событие с параметрами, а не готовую фразу: одна и та же запись читается на трёх языках.
+This is where the decision to store an event with parameters rather than a ready phrase pays off: one and the same entry is read in three languages.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 it("собирает фразу переноса на языке читателя", () => {
@@ -491,19 +491,19 @@ it("не падает на неизвестном типе события", () =
 });
 ```
 
-Последний тест — про совместимость: журнал переживёт версии приложения, и запись, сделанная новой версией, не должна ронять карточку в старой вкладке.
+The last test is about compatibility: the journal will outlive the application's versions, and an entry made by a new version must not bring the card down in an old tab.
 
-- [x] **Step 2: Запустить и убедиться, что падают**
+- [x] **Step 2: Run them and make sure they fail**
 
-- [x] **Step 3: Реализовать**
+- [x] **Step 3: Implement**
 
-Причина сдвига выводится как есть, без перевода: это текст пользователя.
+The shift's reason is printed as is, without translation: it is the user's text.
 
-- [x] **Step 4: Реализовать блок истории**
+- [x] **Step 4: Implement the history block**
 
-Новые записи сверху. Дата и автор — рядом с событием.
+The new entries on top. The date and the author stand next to the event.
 
-- [x] **Step 5: Прогнать тесты и закоммитить**
+- [x] **Step 5: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/task
@@ -513,7 +513,7 @@ git commit -m "feat: история задачи на языке читател�
 
 ---
 
-### Task 7: Движение и стрелки связей
+### Task 7: Motion and the link arrows
 
 **Files:**
 - Modify: `frontend/src/gantt/gantt.css`
@@ -521,9 +521,9 @@ git commit -m "feat: история задачи на языке читател�
 - Test: `frontend/src/gantt/Arrows.test.tsx`, `frontend/src/gantt/motion.test.tsx`
 
 **Interfaces:**
-- Produces: слой стрелок связей; переходы при появлении, исчезновении и сдвиге полосок.
+- Produces: the link arrows layer; transitions on a bar appearing, disappearing and moving.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
 ```tsx
 it("рисует стрелку между связанными задачами", () => {
@@ -549,33 +549,33 @@ it("отключает переходы, если человек просил м
 });
 ```
 
-Второй тест ловит ошибку, которая уже случалась в прототипе: стрелки считаются от положения полосок, и при изменении ширины области они уезжают, если их не пересчитать.
+The second test catches a mistake that has already happened in the prototype: the arrows are computed from the bars' positions, and when the area's width changes they drift off unless they are recomputed.
 
-- [x] **Step 2: Запустить и убедиться, что падают**
+- [x] **Step 2: Run them and make sure they fail**
 
-- [x] **Step 3: Реализовать стрелки**
+- [x] **Step 3: Implement the arrows**
 
-Слой SVG поверх ленты, координаты считаются от реальных положений полосок после отрисовки.
+An SVG layer on top of the strip, with the coordinates computed from the bars' real positions after the render.
 
-- [x] **Step 4: Реализовать переходы**
+- [x] **Step 4: Implement the transitions**
 
-Что анимируется: появление и исчезновение полоски, сдвиг полоски после подтверждения сервером, выезд панели задачи, линия вставки при перетаскивании.
+What is animated: a bar appearing and disappearing, a bar moving after the server's confirmation, the task panel sliding out, the insertion line during a drag.
 
-Что **не** анимируется: полоска под курсором во время перетаскивания — она обязана следовать за пальцем без задержки, иначе жест ощущается вязким.
+What is **not** animated: the bar under the cursor during a drag — it must follow the finger without delay, otherwise the gesture feels viscous.
 
-При `prefers-reduced-motion: reduce` переходы выключаются целиком.
+With `prefers-reduced-motion: reduce` the transitions are switched off entirely.
 
-- [x] **Step 5: Прогнать весь набор и собрать**
+- [x] **Step 5: Run the whole suite and build**
 
 ```bash
 cd frontend && npx vitest run && npm run build
 ```
 
-- [x] **Step 6: Проверить вживую**
+- [x] **Step 6: Check it live**
 
-Против настоящего бэкенда, полный сценарий: создать проект с двумя категориями и четырьмя задачами, связать две стрелкой, подвигать полоски мышью и клавиатурой, переставить строки, перенести задачу в другую категорию, отредактировать поля в карточке, прочитать историю на трёх языках по очереди. Отдельно проверить, что после перезагрузки страницы всё сохранилось — то есть операции действительно доехали до сервера, а не остались оптимистичной иллюзией.
+Against the real backend, the full scenario: create a project with two categories and four tasks, link two with an arrow, move the bars with the mouse and the keyboard, reorder the rows, move a task into another category, edit the fields in the card, read the history in all three languages in turn. Separately, check that everything survived a page reload — that is, that the operations really reached the server rather than staying an optimistic illusion.
 
-- [x] **Step 7: Закоммитить**
+- [x] **Step 7: Commit**
 
 ```bash
 git add frontend/
@@ -584,10 +584,10 @@ git commit -m "feat: стрелки связей и движение интер�
 
 ---
 
-## Что этот план не делает
+## What this plan does not do
 
-- Утверждение плана, базовый план, порог с обязательной причиной и призрак под полоской — следующий план. Поля `baseline_start` и `baseline_duration` приходят в состоянии и пока не отображаются.
-- Живые обновления по WebSocket, публичные ссылки и комментарии — план после него.
-- Отмену действия. Механизм на сервере есть, маршрута нет; кнопка появится вместе с откатом пачки от AI.
-- Масштаб диаграммы (неделя, месяц). Шкала параметризована шириной дня, так что переключатель добавится дёшево, но в этот план не входит.
-- Редактирование настроек проекта: дедлайн, календарь, порог сдвига.
+- Plan approval, the baseline plan, the threshold with a mandatory reason and the ghost under the bar — the next plan. The `baseline_start` and `baseline_duration` fields arrive in the state and are not displayed yet.
+- Live updates over WebSocket, public links and comments — the plan after that.
+- Undoing an action. The mechanism exists on the server, the route does not; the button will appear together with rolling back an AI batch.
+- The chart's scale (week, month). The scale is parameterized by the day's width, so a switcher will be added cheaply, but it is not part of this plan.
+- Editing the project's settings: the deadline, the calendar, the shift threshold.
