@@ -1,4 +1,4 @@
-# Planora: фундамент бэкенда — план реализации
+# Planora: the backend's foundation — implementation plan
 
 > **Historical.** This is one of the original build plans this codebase
 > was built from — every step below has since shipped. It reflects the plan
@@ -9,31 +9,31 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Поднять бэкенд Planora до состояния, в котором он разворачивается одной командой, регистрирует пользователей с их организациями, хранит проекты, категории и задачи, изменяет их только через журналируемые мутации и правильно считает рабочие дни.
+**Goal:** Bring Planora's backend up to a state where it deploys with one command, registers users with their organizations, stores projects, categories and tasks, changes them only through journalled mutations and counts working days correctly.
 
-**Architecture:** FastAPI поверх SQLAlchemy 2.0 и Postgres. Бизнес-логика разложена по модулям, которые не знают про HTTP: `calendar` — чистые функции дат, `access` — матрица прав, `mutations` — реестр операций с обратными, `settings_resolution` — наследование настроек организация → проект. Слой `api` только принимает запросы и сериализует ответы. Изменения данных проекта идут исключительно через мутации, каждая пишет запись в журнал ревизий и умеет строить обратную себе операцию — из этого позже бесплатно получаются история задачи, undo и откат пачки от AI.
+**Architecture:** FastAPI on top of SQLAlchemy 2.0 and Postgres. The business logic is laid out in modules that know nothing about HTTP: `calendar` — pure date functions, `access` — the permission matrix, `mutations` — the registry of operations with their inverses, `settings_resolution` — the organization → project settings inheritance. The `api` layer only receives requests and serializes responses. Changes to a project's data go exclusively through mutations; each writes an entry into the revision journal and can build its own inverse operation — from which a task's history, undo and rolling back an AI batch later come for free.
 
 **Tech Stack:** Python 3.12, FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2 + pydantic-settings, Postgres 16, argon2-cffi, pytest + httpx, uv, Docker Compose.
 
 ## Global Constraints
 
-Требования спека, действующие во всех задачах плана:
+The spec's requirements, in force across every task in the plan:
 
-- Иерархия строго `Organization → Project → Category → Task`. Вложенности категорий и подзадач нет.
-- Длительность задачи — в **рабочих днях**. Прямых операций с календарными днями в коде нет, только через модуль `calendar`.
-- Рабочие дни недели — настройка, не константа. По умолчанию понедельник–пятница.
-- Настройки проекта, переопределяющие организацию (`timezone`, `working_days`, `shift_threshold_days`), хранятся **nullable**; `null` означает «наследовать», а не «пусто». Копировать значения организации в проект при создании запрещено.
-- Журнал изменений хранит **событие с параметрами**, а не готовую фразу: текст собирается при показе на языке читателя.
-- Приведение регистра для сравнений, поиска и логинов — только в инвариантной локали, никогда в локали пользователя.
-- Слаги строятся по явной таблице транслитерации (`ə→e, ğ→g, ı→i, İ→i, ö→o, ş→s, ü→u, ç→c` и кириллица). Автоматическое снятие диакритики запрещено как единственный механизм — `ə` в `e` не раскладывается, — но допустимо как запасной вариант для языков вне таблицы, после того как таблица отработала.
-- Локали: `az` (по умолчанию), `en`, `ru`.
-- Регистрация свободная: новый аккаунт получает собственную организацию и роль `owner` в ней. Никаких консольных команд создания пользователей.
-- Внешних сервисов нет: ни очередей, ни Redis, ни объектного хранилища.
-- Параметры развёртывания приходят из переменных окружения. Обязательны и не имеют значения по умолчанию только те, которые нельзя угадать правильно: `APP_SECRET` и `DATABASE_URL` — без них приложение не стартует. У остальных в коде лежит безопасное умолчание, переопределяемое переменной окружения; установка обязана подниматься сразу после развёртывания. Учётные данные и адреса в отслеживаемых файлах (`docker-compose.yml`) задаются через `${VAR:-default}`, а не литералами.
+- The hierarchy is strictly `Organization → Project → Category → Task`. There is no nesting of categories and no subtasks.
+- A task's duration is in **working days**. There are no direct calendar-day operations in the code, only through the `calendar` module.
+- The week's working days are a setting rather than a constant. Monday–Friday by default.
+- Project settings overriding the organization's (`timezone`, `working_days`, `shift_threshold_days`) are stored **nullable**; `null` means "inherit" rather than "empty". Copying the organization's values into a project at creation time is forbidden.
+- The change journal stores **an event with parameters** rather than a ready phrase: the text is assembled at display time in the reader's language.
+- Case conversion for comparisons, search and logins is in the invariant locale only, never in the user's.
+- Slugs are built from an explicit transliteration table (`ə→e, ğ→g, ı→i, İ→i, ö→o, ş→s, ü→u, ç→c` and Cyrillic). Automatic diacritic stripping is forbidden as the only mechanism — `ə` does not decompose into `e` — but is permissible as a fallback for languages outside the table, after the table has done its work.
+- The locales: `az` (by default), `en`, `ru`.
+- Registration is open: a new account gets its own organization and the `owner` role in it. No console commands for creating users.
+- There are no external services: no queues, no Redis, no object storage.
+- The deployment parameters come from environment variables. Mandatory and without a default value are only those that cannot be guessed correctly: `APP_SECRET` and `DATABASE_URL` — without them the application does not start. The rest have a safe default in the code, overridden by an environment variable; an install must come up right after deployment. Credentials and addresses in tracked files (`docker-compose.yml`) are set through `${VAR:-default}` rather than as literals.
 
 ---
 
-### Task 1: Скелет проекта, конфигурация и развёртывание
+### Task 1: The project's skeleton, configuration and deployment
 
 **Files:**
 - Create: `backend/pyproject.toml`
@@ -47,10 +47,10 @@
 - Create: `.env.example`
 
 **Interfaces:**
-- Consumes: ничего, это первая задача.
-- Produces: `app.config.Settings` — pydantic-settings класс со всеми переменными окружения; `app.config.get_settings() -> Settings` (кэширован через `lru_cache`); `app.main.app` — экземпляр FastAPI.
+- Consumes: nothing, this is the first task.
+- Produces: `app.config.Settings` — a pydantic-settings class with all the environment variables; `app.config.get_settings() -> Settings` (cached through `lru_cache`); `app.main.app` — the FastAPI instance.
 
-- [ ] **Step 1: Создать `backend/pyproject.toml`**
+- [ ] **Step 1: Create `backend/pyproject.toml`**
 
 ```toml
 [project]
@@ -76,9 +76,9 @@ testpaths = ["tests"]
 pythonpath = ["."]
 ```
 
-- [ ] **Step 2: Написать падающий тест здоровья**
+- [ ] **Step 2: Write the failing health test**
 
-Создать `backend/tests/test_health.py`:
+Create `backend/tests/test_health.py`:
 
 ```python
 from fastapi.testclient import TestClient
@@ -93,17 +93,17 @@ def test_health_returns_ok():
     assert response.json() == {"status": "ok"}
 ```
 
-- [ ] **Step 3: Запустить тест и убедиться, что он падает**
+- [ ] **Step 3: Run the test and make sure it fails**
 
 ```bash
 cd backend && uv run pytest tests/test_health.py -v
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.main'`.
+Expected: `ModuleNotFoundError: No module named 'app.main'`.
 
-- [ ] **Step 4: Написать модуль конфигурации**
+- [ ] **Step 4: Write the configuration module**
 
-Создать `backend/app/config.py`. Все значения — из окружения, дефолты только там, где значение безопасно и не является секретом:
+Create `backend/app/config.py`. All the values come from the environment, with defaults only where a value is safe and is not a secret:
 
 ```python
 from functools import lru_cache
@@ -149,9 +149,9 @@ def get_settings() -> Settings:
     return Settings()
 ```
 
-- [ ] **Step 5: Написать точку входа**
+- [ ] **Step 5: Write the entry point**
 
-Создать `backend/app/__init__.py` пустым файлом и `backend/app/main.py`:
+Create `backend/app/__init__.py` as an empty file and `backend/app/main.py`:
 
 ```python
 from fastapi import FastAPI
@@ -164,9 +164,9 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 ```
 
-- [ ] **Step 6: Создать conftest с окружением для тестов**
+- [ ] **Step 6: Create a conftest with the tests' environment**
 
-Создать `backend/tests/conftest.py`:
+Create `backend/tests/conftest.py`:
 
 ```python
 import os
@@ -177,17 +177,17 @@ os.environ.setdefault(
 os.environ.setdefault("APP_SECRET", "test-secret-not-for-production")
 ```
 
-- [ ] **Step 7: Запустить тест и убедиться, что он проходит**
+- [ ] **Step 7: Run the test and make sure it passes**
 
 ```bash
 cd backend && uv run pytest tests/test_health.py -v
 ```
 
-Ожидается: PASS.
+Expected: PASS.
 
-- [ ] **Step 8: Написать Dockerfile, docker-compose и пример окружения**
+- [ ] **Step 8: Write the Dockerfile, the docker-compose and the environment example**
 
-Создать `backend/Dockerfile`:
+Create `backend/Dockerfile`:
 
 ```dockerfile
 FROM python:3.12-slim
@@ -205,7 +205,7 @@ EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-Создать `docker-compose.yml` в корне репозитория:
+Create `docker-compose.yml` in the repository's root:
 
 ```yaml
 services:
@@ -234,7 +234,7 @@ volumes:
   pgdata:
 ```
 
-Создать `.env.example`:
+Create `.env.example`:
 
 ```
 DATABASE_URL=postgresql+psycopg://planora:planora@db:5432/planora
@@ -246,23 +246,23 @@ SIGNUP_MODE=open
 MAIL_TRANSPORT=none
 ```
 
-- [ ] **Step 9: Проверить, что база поднимается**
+- [ ] **Step 9: Check that the database comes up**
 
 ```bash
 docker compose up -d db && docker compose ps
 ```
 
-Ожидается: контейнер `db` в состоянии healthy.
+Expected: the `db` container in a healthy state.
 
-- [ ] **Step 10: Создать тестовую базу**
+- [ ] **Step 10: Create the test database**
 
 ```bash
 docker compose exec db psql -U planora -c "CREATE DATABASE planora_test"
 ```
 
-Ожидается: `CREATE DATABASE`.
+Expected: `CREATE DATABASE`.
 
-- [ ] **Step 11: Закоммитить**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add backend/ docker-compose.yml .env.example
@@ -271,25 +271,25 @@ git commit -m "feat: скелет бэкенда, конфигурация из 
 
 ---
 
-### Task 2: Календарь рабочих дней
+### Task 2: The working-day calendar
 
 **Files:**
 - Create: `backend/app/calendar.py`
 - Test: `backend/tests/test_calendar.py`
 
 **Interfaces:**
-- Consumes: ничего.
+- Consumes: nothing.
 - Produces:
-  - `app.calendar.WEEKDAYS_MON_FRI: int` — маска рабочих дней по умолчанию.
-  - `app.calendar.Calendar` — frozen dataclass с полями `working_days: int`, `holidays: frozenset[date]`, `extra_workdays: frozenset[date]`; метод `is_working(d: date) -> bool`.
+  - `app.calendar.WEEKDAYS_MON_FRI: int` — the default working-day mask.
+  - `app.calendar.Calendar` — a frozen dataclass with the fields `working_days: int`, `holidays: frozenset[date]`, `extra_workdays: frozenset[date]`; the method `is_working(d: date) -> bool`.
   - `app.calendar.end_date(start: date, duration_days: int, cal: Calendar) -> date`.
   - `app.calendar.count_working_days(start: date, end: date, cal: Calendar) -> int`.
 
-Биты маски: разряд 0 — понедельник, разряд 6 — воскресенье, как в `date.weekday()`.
+The mask's bits: bit 0 is Monday, bit 6 is Sunday, as in `date.weekday()`.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
-Создать `backend/tests/test_calendar.py`:
+Create `backend/tests/test_calendar.py`:
 
 ```python
 from datetime import date
@@ -361,17 +361,17 @@ def test_duration_must_be_at_least_one_day():
         end_date(date(2026, 3, 4), 0, DEFAULT)
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 ```bash
 cd backend && uv run pytest tests/test_calendar.py -v
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.calendar'`.
+Expected: `ModuleNotFoundError: No module named 'app.calendar'`.
 
-- [ ] **Step 3: Реализовать модуль**
+- [ ] **Step 3: Implement the module**
 
-Создать `backend/app/calendar.py`:
+Create `backend/app/calendar.py`:
 
 ```python
 from dataclasses import dataclass, field
@@ -442,15 +442,15 @@ def count_working_days(start: date, end: date, cal: Calendar) -> int:
     return total
 ```
 
-- [ ] **Step 4: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 cd backend && uv run pytest tests/test_calendar.py -v
 ```
 
-Ожидается: 10 passed.
+Expected: 10 passed.
 
-- [ ] **Step 5: Закоммитить**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add backend/app/calendar.py backend/tests/test_calendar.py
@@ -459,21 +459,21 @@ git commit -m "feat: календарь рабочих дней с настра�
 
 ---
 
-### Task 3: Нормализация текста — почта и слаги
+### Task 3: Text normalization — emails and slugs
 
 **Files:**
 - Create: `backend/app/text.py`
 - Test: `backend/tests/test_text.py`
 
 **Interfaces:**
-- Consumes: ничего.
+- Consumes: nothing.
 - Produces:
-  - `app.text.normalize_email(raw: str) -> str` — форма для сравнения и хранения ключа уникальности.
+  - `app.text.normalize_email(raw: str) -> str` — the form used for comparison and for storing the uniqueness key.
   - `app.text.slugify(raw: str, fallback: str = "project") -> str`.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
-Создать `backend/tests/test_text.py`:
+Create `backend/tests/test_text.py`:
 
 ```python
 from app.text import normalize_email, slugify
@@ -516,17 +516,17 @@ def test_slug_falls_back_when_nothing_survives():
     assert slugify("!!! ???", fallback="project") == "project"
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 ```bash
 cd backend && uv run pytest tests/test_text.py -v
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.text'`.
+Expected: `ModuleNotFoundError: No module named 'app.text'`.
 
-- [ ] **Step 3: Реализовать модуль**
+- [ ] **Step 3: Implement the module**
 
-Создать `backend/app/text.py`. Транслитерация применяется **до** приведения регистра — иначе `I` и `İ` уже неразличимы:
+Create `backend/app/text.py`. The transliteration is applied **before** the case conversion — otherwise `I` and `İ` are already indistinguishable:
 
 ```python
 import re
@@ -576,15 +576,15 @@ def slugify(raw: str, fallback: str = "project") -> str:
     return slug or fallback
 ```
 
-- [ ] **Step 4: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 cd backend && uv run pytest tests/test_text.py -v
 ```
 
-Ожидается: 8 passed.
+Expected: 8 passed.
 
-- [ ] **Step 5: Закоммитить**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add backend/app/text.py backend/tests/test_text.py
@@ -593,7 +593,7 @@ git commit -m "feat: нормализация почты и слагов с тр
 
 ---
 
-### Task 4: Модели данных и первая миграция
+### Task 4: The data models and the first migration
 
 **Files:**
 - Create: `backend/app/db.py`
@@ -607,12 +607,12 @@ git commit -m "feat: нормализация почты и слагов с тр
 **Interfaces:**
 - Consumes: `app.config.get_settings`, `app.calendar.WEEKDAYS_MON_FRI`.
 - Produces:
-  - `app.db.Base` — декларативная база; `app.db.engine`; `app.db.SessionLocal`; `app.db.get_db()` — зависимость FastAPI.
-  - `app.models`: `Organization`, `User`, `Membership`, `Session`, `Project`, `Category`, `Task`, `TaskAssignee`, `Dependency`, `Revision`, перечисление `Role`.
+  - `app.db.Base` — the declarative base; `app.db.engine`; `app.db.SessionLocal`; `app.db.get_db()` — a FastAPI dependency.
+  - `app.models`: `Organization`, `User`, `Membership`, `Session`, `Project`, `Category`, `Task`, `TaskAssignee`, `Dependency`, `Revision`, the `Role` enumeration.
 
-- [ ] **Step 1: Написать падающий тест**
+- [ ] **Step 1: Write the failing test**
 
-Создать `backend/tests/test_models.py`:
+Create `backend/tests/test_models.py`:
 
 ```python
 from datetime import date
@@ -674,9 +674,9 @@ def test_task_belongs_to_a_category_and_keeps_its_position(db):
     assert task.baseline_start is None
 ```
 
-- [ ] **Step 2: Расширить conftest фикстурой базы**
+- [ ] **Step 2: Extend the conftest with a database fixture**
 
-Заменить содержимое `backend/tests/conftest.py`:
+Replace the contents of `backend/tests/conftest.py`:
 
 ```python
 import os
@@ -715,17 +715,17 @@ def db(engine):
     connection.close()
 ```
 
-- [ ] **Step 3: Запустить тест и убедиться, что он падает**
+- [ ] **Step 3: Run the test and make sure it fails**
 
 ```bash
 cd backend && uv run pytest tests/test_models.py -v
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.db'`.
+Expected: `ModuleNotFoundError: No module named 'app.db'`.
 
-- [ ] **Step 4: Создать слой доступа к базе**
+- [ ] **Step 4: Create the database access layer**
 
-Создать `backend/app/db.py`:
+Create `backend/app/db.py`:
 
 ```python
 from collections.abc import Iterator
@@ -756,9 +756,9 @@ def get_db() -> Iterator[Session]:
         session.close()
 ```
 
-- [ ] **Step 5: Описать модели**
+- [ ] **Step 5: Describe the models**
 
-Создать `backend/app/models.py`:
+Create `backend/app/models.py`:
 
 ```python
 import uuid
@@ -927,21 +927,21 @@ class Revision(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 ```
 
-- [ ] **Step 6: Запустить тест и убедиться, что он проходит**
+- [ ] **Step 6: Run the test and make sure it passes**
 
 ```bash
 cd backend && uv run pytest tests/test_models.py -v
 ```
 
-Ожидается: 3 passed.
+Expected: 3 passed.
 
-- [ ] **Step 7: Настроить Alembic и создать миграцию**
+- [ ] **Step 7: Configure Alembic and create the migration**
 
 ```bash
 cd backend && uv run alembic init migrations
 ```
 
-В `backend/migrations/env.py` заменить блок конфигурации целевых метаданных на:
+In `backend/migrations/env.py` replace the target-metadata configuration block with:
 
 ```python
 from app.config import get_settings
@@ -952,15 +952,15 @@ config.set_main_option("sqlalchemy.url", get_settings().database_url)
 target_metadata = Base.metadata
 ```
 
-Затем сгенерировать и применить миграцию:
+Then generate and apply the migration:
 
 ```bash
 cd backend && uv run alembic revision --autogenerate -m "initial schema" && uv run alembic upgrade head
 ```
 
-Ожидается: создан файл в `migrations/versions/`, команда `upgrade` завершается без ошибок.
+Expected: a file is created in `migrations/versions/`, and the `upgrade` command finishes without errors.
 
-- [ ] **Step 8: Закоммитить**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add backend/app/db.py backend/app/models.py backend/alembic.ini backend/migrations/ backend/tests/
@@ -969,7 +969,7 @@ git commit -m "feat: модели данных и первая миграция"
 
 ---
 
-### Task 5: Регистрация, вход и сессии
+### Task 5: Registration, sign-in and sessions
 
 **Files:**
 - Create: `backend/app/security.py`
@@ -983,17 +983,17 @@ git commit -m "feat: модели данных и первая миграция"
 - Consumes: `app.models`, `app.text.normalize_email`, `app.text.slugify`, `app.config.get_settings`.
 - Produces:
   - `app.security.hash_password(raw: str) -> str`, `app.security.verify_password(raw: str, hashed: str) -> bool`.
-  - `app.security.new_token() -> tuple[str, str]` — возвращает `(открытый_токен, хеш)`.
+  - `app.security.new_token() -> tuple[str, str]` — returns `(plain_token, hash)`.
   - `app.security.hash_token(raw: str) -> str`.
-  - `app.auth.register(db, *, name, email, password) -> User` — создаёт пользователя, его организацию и членство `owner`.
+  - `app.auth.register(db, *, name, email, password) -> User` — creates the user, their organization and an `owner` membership.
   - `app.auth.authenticate(db, *, email, password) -> User | None`.
-  - `app.auth.open_session(db, user) -> str` — возвращает открытый токен для куки.
-  - `app.auth.current_user(request, db) -> User` — зависимость FastAPI, кидает 401.
-  - Маршруты: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`.
+  - `app.auth.open_session(db, user) -> str` — returns the plain token for the cookie.
+  - `app.auth.current_user(request, db) -> User` — a FastAPI dependency, raises a 401.
+  - The routes: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
-Создать `backend/tests/test_auth.py`:
+Create `backend/tests/test_auth.py`:
 
 ```python
 from datetime import datetime, timedelta, timezone
@@ -1083,17 +1083,17 @@ def test_authenticate_accepts_the_right_password_and_rejects_the_wrong_one(db):
     assert authenticate(db, email="ghost@example.com", password="s3cret-pass") is None
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 ```bash
 cd backend && uv run pytest tests/test_auth.py -v
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.security'`.
+Expected: `ModuleNotFoundError: No module named 'app.security'`.
 
-- [ ] **Step 3: Реализовать примитивы безопасности**
+- [ ] **Step 3: Implement the security primitives**
 
-Создать `backend/app/security.py`:
+Create `backend/app/security.py`:
 
 ```python
 import hashlib
@@ -1126,9 +1126,9 @@ def hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 ```
 
-- [ ] **Step 4: Реализовать регистрацию и вход**
+- [ ] **Step 4: Implement registration and sign-in**
 
-Создать `backend/app/auth.py`:
+Create `backend/app/auth.py`:
 
 ```python
 import secrets
@@ -1226,9 +1226,9 @@ def current_user(
     return db.get(User, record.user_id)
 ```
 
-- [ ] **Step 5: Добавить маршруты**
+- [ ] **Step 5: Add the routes**
 
-Создать `backend/app/api/__init__.py` пустым и `backend/app/api/auth_routes.py`:
+Create `backend/app/api/__init__.py` empty and `backend/app/api/auth_routes.py`:
 
 ```python
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
@@ -1329,7 +1329,7 @@ def me_route(user: User = Depends(current_user)):
     return _to_out(user)
 ```
 
-Заменить `backend/app/main.py`:
+Replace `backend/app/main.py`:
 
 ```python
 from fastapi import FastAPI
@@ -1345,15 +1345,15 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 ```
 
-- [ ] **Step 6: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 6: Run the tests and make sure they pass**
 
 ```bash
 cd backend && uv run pytest tests/test_auth.py tests/test_health.py -v
 ```
 
-Ожидается: 6 passed.
+Expected: 6 passed.
 
-- [ ] **Step 7: Закоммитить**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add backend/app/security.py backend/app/auth.py backend/app/api/ backend/app/main.py backend/tests/test_auth.py
@@ -1362,7 +1362,7 @@ git commit -m "feat: свободная регистрация с собстве
 
 ---
 
-### Task 6: Матрица прав
+### Task 6: The permission matrix
 
 **Files:**
 - Create: `backend/app/access.py`
@@ -1371,13 +1371,13 @@ git commit -m "feat: свободная регистрация с собстве
 **Interfaces:**
 - Consumes: `app.models.Role`.
 - Produces:
-  - `app.access.Action` — перечисление действий.
-  - `app.access.can(role: Role | None, action: Action, *, project_granted: bool = False) -> bool`. `role=None` означает гостя по ссылке.
-  - `app.access.require(role, action, *, project_granted=False) -> None` — кидает `PermissionError`.
+  - `app.access.Action` — an enumeration of actions.
+  - `app.access.can(role: Role | None, action: Action, *, project_granted: bool = False) -> bool`. `role=None` means a guest by link.
+  - `app.access.require(role, action, *, project_granted=False) -> None` — raises a `PermissionError`.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
-Создать `backend/tests/test_access.py`:
+Create `backend/tests/test_access.py`:
 
 ```python
 import pytest
@@ -1425,17 +1425,17 @@ def test_require_raises_for_a_forbidden_action():
         require(Role.VIEWER, Action.PROJECT_WRITE)
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 ```bash
 cd backend && uv run pytest tests/test_access.py -v
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.access'`.
+Expected: `ModuleNotFoundError: No module named 'app.access'`.
 
-- [ ] **Step 3: Реализовать матрицу**
+- [ ] **Step 3: Implement the matrix**
 
-Создать `backend/app/access.py`. Это единственное место в коде, где решается вопрос «можно ли»:
+Create `backend/app/access.py`. This is the only place in the code where "is this allowed" is decided:
 
 ```python
 from enum import StrEnum
@@ -1485,15 +1485,15 @@ def require(role: Role | None, action: Action, *, project_granted: bool = False)
         raise PermissionError(f"{role or 'guest'} не может выполнить {action}")
 ```
 
-- [ ] **Step 4: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 cd backend && uv run pytest tests/test_access.py -v
 ```
 
-Ожидается: 7 passed.
+Expected: 7 passed.
 
-- [ ] **Step 5: Закоммитить**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add backend/app/access.py backend/tests/test_access.py
@@ -1502,7 +1502,7 @@ git commit -m "feat: матрица прав как единственное м�
 
 ---
 
-### Task 7: Разрешение настроек и сборка календаря проекта
+### Task 7: Settings resolution and assembling a project's calendar
 
 **Files:**
 - Create: `backend/app/settings_resolution.py`
@@ -1516,9 +1516,9 @@ git commit -m "feat: матрица прав как единственное м�
   - `app.settings_resolution.resolve_shift_threshold(project, org) -> int`
   - `app.settings_resolution.project_calendar(project, org) -> Calendar`
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
-Создать `backend/tests/test_settings_resolution.py`:
+Create `backend/tests/test_settings_resolution.py`:
 
 ```python
 from datetime import date
@@ -1591,17 +1591,17 @@ def test_calendar_layers_org_holidays_then_project_extras():
     assert cal.is_working(date(2026, 3, 19)) is True   # обычный четверг
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 ```bash
 cd backend && uv run pytest tests/test_settings_resolution.py -v
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.settings_resolution'`.
+Expected: `ModuleNotFoundError: No module named 'app.settings_resolution'`.
 
-- [ ] **Step 3: Реализовать модуль**
+- [ ] **Step 3: Implement the module**
 
-Создать `backend/app/settings_resolution.py`:
+Create `backend/app/settings_resolution.py`:
 
 ```python
 from datetime import date
@@ -1639,15 +1639,15 @@ def project_calendar(project: Project, org: Organization) -> Calendar:
     )
 ```
 
-- [ ] **Step 4: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 cd backend && uv run pytest tests/test_settings_resolution.py -v
 ```
 
-Ожидается: 4 passed.
+Expected: 4 passed.
 
-- [ ] **Step 5: Закоммитить**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add backend/app/settings_resolution.py backend/tests/test_settings_resolution.py
@@ -1656,7 +1656,7 @@ git commit -m "feat: наследование настроек организа�
 
 ---
 
-### Task 8: Реестр мутаций и журнал ревизий
+### Task 8: The mutation registry and the revision journal
 
 **Files:**
 - Create: `backend/app/mutations.py`
@@ -1665,15 +1665,15 @@ git commit -m "feat: наследование настроек организа�
 **Interfaces:**
 - Consumes: `app.models`, `app.calendar`, `app.settings_resolution.project_calendar`.
 - Produces:
-  - `app.mutations.Op` — размеченное объединение операций: `CreateCategory`, `CreateTask`, `MoveTask`, `SetDuration`, `DeleteTask`.
+  - `app.mutations.Op` — a discriminated union of operations: `CreateCategory`, `CreateTask`, `MoveTask`, `SetDuration`, `DeleteTask`.
   - `app.mutations.apply_op(db, project, op, *, actor_id, reason=None, batch_id=None) -> Revision`.
   - `app.mutations.undo(db, project, revision, *, actor_id) -> Revision`.
 
-Каждая операция при применении возвращает обратную себе. Это ровно тот механизм, из которого позже вырастут история задачи, undo и откат пачки от AI.
+Every operation returns its own inverse when applied. This is exactly the mechanism a task's history, undo and rolling back an AI batch will grow out of later.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
-Создать `backend/tests/test_mutations.py`:
+Create `backend/tests/test_mutations.py`:
 
 ```python
 from datetime import date
@@ -1878,17 +1878,17 @@ def test_set_duration_rejects_zero(db, project, category):
         )
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 ```bash
 cd backend && uv run pytest tests/test_mutations.py -v
 ```
 
-Ожидается: `ModuleNotFoundError: No module named 'app.mutations'`.
+Expected: `ModuleNotFoundError: No module named 'app.mutations'`.
 
-- [ ] **Step 3: Реализовать реестр операций**
+- [ ] **Step 3: Implement the operation registry**
 
-Создать `backend/app/mutations.py`:
+Create `backend/app/mutations.py`:
 
 ```python
 import uuid
@@ -2138,15 +2138,15 @@ def undo(db: DbSession, project: Project, revision: Revision, *, actor_id: uuid.
     return apply_op(db, project, _op_from_dict(revision.inverse), actor_id=actor_id)
 ```
 
-- [ ] **Step 4: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 cd backend && uv run pytest tests/test_mutations.py -v
 ```
 
-Ожидается: 8 passed.
+Expected: 8 passed.
 
-- [ ] **Step 5: Закоммитить**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add backend/app/mutations.py backend/tests/test_mutations.py
@@ -2155,7 +2155,7 @@ git commit -m "feat: реестр мутаций с обратными опер�
 
 ---
 
-### Task 9: HTTP-слой проектов и мутаций
+### Task 9: The HTTP layer for projects and mutations
 
 **Files:**
 - Create: `backend/app/api/project_routes.py`
@@ -2164,13 +2164,13 @@ git commit -m "feat: реестр мутаций с обратными опер�
 
 **Interfaces:**
 - Consumes: `app.auth.current_user`, `app.access`, `app.mutations.apply_op`, `app.settings_resolution.project_calendar`, `app.calendar.end_date`.
-- Produces: маршруты `POST /api/projects`, `GET /api/projects`, `GET /api/projects/{project_id}`, `POST /api/projects/{project_id}/mutations`.
+- Produces: the routes `POST /api/projects`, `GET /api/projects`, `GET /api/projects/{project_id}`, `POST /api/projects/{project_id}/mutations`.
 
-Ответ проекта содержит вычисленную дату окончания каждой задачи — она не хранится, а считается по календарю проекта.
+The project's response contains every task's computed end date — it is not stored but computed from the project's calendar.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
-Создать `backend/tests/test_project_api.py`:
+Create `backend/tests/test_project_api.py`:
 
 ```python
 import pytest
@@ -2262,17 +2262,17 @@ def test_mutation_on_a_foreign_project_returns_404(authed, db):
     assert response.status_code == 404
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 ```bash
 cd backend && uv run pytest tests/test_project_api.py -v
 ```
 
-Ожидается: 404 на `POST /api/projects` — маршрут ещё не существует.
+Expected: a 404 on `POST /api/projects` — the route does not exist yet.
 
-- [ ] **Step 3: Реализовать маршруты**
+- [ ] **Step 3: Implement the routes**
 
-Создать `backend/app/api/project_routes.py`:
+Create `backend/app/api/project_routes.py`:
 
 ```python
 import secrets
@@ -2417,7 +2417,7 @@ def apply_mutation(
     return {"seq": revision.seq, "op": revision.op, "inverse": revision.inverse}
 ```
 
-Дописать в `backend/app/main.py` подключение маршрутов:
+Add the route wiring to `backend/app/main.py`:
 
 ```python
 from fastapi import FastAPI
@@ -2434,31 +2434,31 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 ```
 
-- [ ] **Step 4: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 cd backend && uv run pytest tests/test_project_api.py -v
 ```
 
-Ожидается: 5 passed.
+Expected: 5 passed.
 
-- [ ] **Step 5: Прогнать весь набор тестов**
+- [ ] **Step 5: Run the whole test suite**
 
 ```bash
 cd backend && uv run pytest -v
 ```
 
-Ожидается: все тесты зелёные, ни одного пропущенного.
+Expected: every test green, not one skipped.
 
-- [ ] **Step 6: Проверить приложение вживую**
+- [ ] **Step 6: Check the application live**
 
 ```bash
 docker compose up -d && curl -s localhost:8000/api/health
 ```
 
-Ожидается: `{"status":"ok"}`.
+Expected: `{"status":"ok"}`.
 
-- [ ] **Step 7: Закоммитить**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add backend/app/api/project_routes.py backend/app/main.py backend/tests/test_project_api.py
@@ -2467,14 +2467,14 @@ git commit -m "feat: HTTP-слой проектов и применение му
 
 ---
 
-## Что этот план сознательно не делает
+## What this plan deliberately does not do
 
-Чтобы следующий читатель не искал пропущенное:
+So that the next reader does not look for what is missing:
 
-- **Утверждение плана, baseline и порог с причиной** — план 3. Поля `baseline_start`, `baseline_duration`, `plan_version` уже заведены в модели, но никакой логики вокруг них нет: `reason` в мутациях принимается и сохраняется, но пока необязателен.
-- **WebSocket и живые обновления** — план 4. Ревизии уже пишутся, рассылать их некому.
-- **Публичные ссылки, гости, комментарии** — план 4. Матрица прав уже знает про гостя (`role=None`), сущностей `ShareLink` и `Comment` ещё нет.
-- **Приглашения, почта, подтверждение адреса** — план 5. `email_verified_at` заведён и остаётся пустым.
-- **AI-интейк** — план 6.
-- **Полный набор мутаций.** Реализованы пять: создание категории, создание задачи, перенос, изменение длительности, удаление. Остальные (переименование, смена критичности, прогресс, назначение исполнителей, перестановка, связи) добавляются тем же способом в плане 2, когда за ними придёт интерфейс.
-- **Локализация ответов API.** Журнал уже хранит событие с параметрами, а не фразу, — этого достаточно, чтобы фронт собрал текст на своём языке. Серверных словарей нет и не потребуется, пока не появятся письма.
+- **Plan approval, the baseline and the threshold with a reason** — plan 3. The `baseline_start`, `baseline_duration` and `plan_version` fields are already in the model, but there is no logic around them: `reason` is accepted and stored in the mutations but is optional for now.
+- **WebSocket and live updates** — plan 4. The revisions are already written, there is nobody to broadcast them to.
+- **Public links, guests, comments** — plan 4. The permission matrix already knows about a guest (`role=None`), the `ShareLink` and `Comment` entities do not exist yet.
+- **Invitations, mail, address confirmation** — plan 5. `email_verified_at` exists and stays empty.
+- **AI intake** — plan 6.
+- **The full set of mutations.** Five are implemented: creating a category, creating a task, moving, changing the duration, deleting. The rest (renaming, changing the criticality, the progress, assigning owners, reordering, links) are added the same way in plan 2, when the interface comes for them.
+- **Localizing the API's responses.** The journal already stores an event with parameters rather than a phrase — that is enough for the frontend to assemble the text in its own language. There are no server-side dictionaries and there will be no need for any until emails appear.
