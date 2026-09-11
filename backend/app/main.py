@@ -11,12 +11,12 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 
-# --- наблюдаемость -----------------------------------------------------------
+# --- observability -----------------------------------------------------------
 
-#: Идентификатор текущего запроса — в каждой строке журнала, написанной во
-#: время его обработки. Contextvar, а не глобальная переменная: запросы
-#: обрабатываются вперемешку, и без контекста строки соседних запросов
-#: подписывались бы друг другом.
+#: The identifier of the current request — in every log line written while it is
+#: being handled. A contextvar rather than a global variable: requests are
+#: handled interleaved, and without a context the lines of neighbouring requests
+#: would sign each other.
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="-")
 
 
@@ -27,12 +27,12 @@ class _RequestIdFilter(logging.Filter):
 
 
 def configure_logging() -> None:
-    """Журнал приложения: уровень из LOG_LEVEL, идентификатор запроса в каждой
-    строке.
+    """The application's log: the level from LOG_LEVEL, the request id in every
+    line.
 
-    dictConfig, а не basicConfig: uvicorn настраивает логирование сам, и
-    basicConfig после него молча не делает ничего. disable_existing_loggers=
-    False — логгеры uvicorn продолжают жить, мы лишь добавляем свои.
+    dictConfig rather than basicConfig: uvicorn configures logging itself, and
+    basicConfig after it silently does nothing. disable_existing_loggers=False —
+    uvicorn's loggers keep living, we merely add our own.
     """
     logging.config.dictConfig(
         {
@@ -55,8 +55,8 @@ def configure_logging() -> None:
                 "app": {
                     "level": get_settings().log_level.upper(),
                     "handlers": ["console"],
-                    # Не отдавать записи дальше: у uvicorn свой handler, и
-                    # без этого каждая строка печаталась бы дважды.
+                    # Do not pass records further up: uvicorn has a handler of
+                    # its own, and without this every line would be printed twice.
                     "propagate": False,
                 }
             },
@@ -84,14 +84,14 @@ from app.api import (
 )
 
 def refuse_a_multi_worker_start() -> None:
-    """Живая лента живёт в памяти процесса — воркер обязан быть один.
+    """The live feed lives in the process's memory — there must be exactly one worker.
 
-    Ревизия, применённая в воркере А, не доехала бы до сокетов, открытых в
-    воркере Б: комнаты хаба у каждого процесса свои. Это ограничение описано
-    в README, но описание не мешает задать --workers 4 — а этот отказ мешает.
-    Проверяются переменные, которыми число воркеров задают uvicorn и gunicorn;
-    появится вторая реплика по-настоящему — здесь же появится и общая шина
-    (LISTEN/NOTIFY), см. план исправлений.
+    A revision applied in worker A would not reach sockets opened in worker B:
+    each process has its own hub rooms. This limitation is described in the
+    README, but a description does not prevent anyone from passing --workers 4 —
+    whereas this refusal does. The variables uvicorn and gunicorn take the worker
+    count from are checked; once there really is a second replica, a shared bus
+    (LISTEN/NOTIFY) will appear right here — see the remediation plan.
     """
     for name in ("WEB_CONCURRENCY", "UVICORN_WORKERS", "GUNICORN_WORKERS"):
         value = os.getenv(name, "")
@@ -104,9 +104,9 @@ def refuse_a_multi_worker_start() -> None:
 
 
 def warn_about_a_default_public_base_url() -> None:
-    """PUBLIC_BASE_URL, оставшийся умолчанием, — это ссылки на localhost в
-    письмах и публичных адресах. Не отказ (локальная разработка законна),
-    но и не молчание: боевая установка должна увидеть это в журнале."""
+    """A PUBLIC_BASE_URL left at its default means localhost links in emails and
+    public addresses. Not a refusal (local development is lawful), but not
+    silence either: a production installation must see this in the log."""
     if get_settings().public_base_url == "http://localhost:8000":
         logger.warning(
             "PUBLIC_BASE_URL не задан: ссылки в письмах и публичные адреса "
@@ -121,9 +121,10 @@ async def _lifespan(_: FastAPI):
     yield
 
 
-# Документация живёт под /api: на боевой раскладке (Caddy, Vercel) всё вне
-# /api/* перехватывает фолбэк на index.html, и штатные /docs с /openapi.json
-# были недоступны ровно там, где нужнее всего.
+# The documentation lives under /api: in a production layout (Caddy, Vercel)
+# everything outside /api/* is intercepted by the fallback to index.html, and
+# the standard /docs and /openapi.json were unreachable precisely where they are
+# needed most.
 app = FastAPI(
     title="Planora",
     lifespan=_lifespan,
@@ -135,16 +136,17 @@ app = FastAPI(
 
 @app.middleware("http")
 async def stamp_request_id(request: Request, call_next):
-    """Идентификатор запроса: принимается от прокси или выдаётся здесь.
+    """The request id: accepted from the proxy or issued here.
 
-    Ответ несёт его в X-Request-ID, журнал — в каждой строке: «пришлите
-    идентификатор из ответа» — это единственный способ найти в журнале ровно
-    тот запрос, о котором говорит человек.
+    The answer carries it in X-Request-ID and the log carries it in every line:
+    "send us the id from the response" is the only way to find in the log exactly
+    the request a person is talking about.
     """
     incoming = request.headers.get("x-request-id", "")
-    # Чужое значение обрезается и чистится: заголовок — это ввод пользователя,
-    # и он не должен уметь ни писать в журнал переводы строк, ни ронять ответ
-    # символом вне latin-1. Только ASCII-буквоцифры, дефис и подчёркивание.
+    # A foreign value is truncated and cleaned: a header is user input, and it
+    # must be able neither to write newlines into the log nor to break the answer
+    # with a character outside latin-1. ASCII alphanumerics, hyphen and
+    # underscore only.
     request_id = (
         "".join(ch for ch in incoming if ch.isascii() and (ch.isalnum() or ch in "-_"))[:64]
         or uuid.uuid4().hex
@@ -160,13 +162,13 @@ async def stamp_request_id(request: Request, call_next):
 
 @app.middleware("http")
 async def reject_oversized_bodies(request: Request, call_next):
-    """Потолок размера тела — до разбора JSON.
+    """A ceiling on the body's size — before the JSON is parsed.
 
-    Pydantic ограничивает длины полей, но сначала весь JSON должен доехать и
-    разобраться — гигабайтное тело съедало бы память и время до первой
-    проверки. Смотрится Content-Length: клиент без него (chunked) редок, и
-    его тело всё равно упрётся в потолки полей — заголовок закрывает
-    дешёвый путь, не претендуя на герметичность.
+    Pydantic bounds the lengths of fields, but first the whole JSON has to arrive
+    and be parsed — a gigabyte-sized body would eat memory and time before the
+    first check. Content-Length is what is looked at: a client without it
+    (chunked) is rare, and its body will hit the field ceilings anyway — the
+    header closes the cheap path without claiming to be airtight.
     """
     length = request.headers.get("content-length")
     if length and length.isdigit() and int(length) > get_settings().max_body_bytes:
@@ -184,19 +186,21 @@ def _origin_host(value: str) -> str | None:
 
 @app.middleware("http")
 async def reject_cross_origin_writes(request: Request, call_next):
-    """CSRF в глубину: пишущий запрос с чужого сайта отвергается по Origin.
+    """CSRF in depth: a writing request from another site is rejected by Origin.
 
-    Первая линия — SameSite=Lax на куке, но она защищает не всех: старые
-    браузеры, встраивание в webview и будущие правки атрибутов куки не должны
-    оставлять запись без второй линии. Браузер выставляет Origin на все
-    cross-site запросы с телом, и подделать его со страницы нельзя.
+    The first line is SameSite=Lax on the cookie, but it does not protect
+    everyone: old browsers, embedding in a webview and future edits to the
+    cookie's attributes must not leave a write without a second line. The browser
+    sets Origin on every cross-site request with a body, and it cannot be forged
+    from a page.
 
-    Сверяется хост, а не строка целиком: тот же сайт за прокси виден
-    приложению по внутреннему имени, и сравнение со схемой/портом дало бы
-    ложные отказы. Ожидаемые хосты — свой Host, X-Forwarded-Host от прокси и
-    хост PUBLIC_BASE_URL. Запрос без Origin и Referer проходит: это не
-    браузер (curl, тесты, здоровье), и CSRF ему не грозит — кука без
-    браузера не подставляется сама.
+    The host is compared, not the whole string: the same site behind a proxy is
+    seen by the application under an internal name, and comparing the scheme and
+    port would produce false refusals. The expected hosts are our own Host,
+    X-Forwarded-Host from the proxy and the host of PUBLIC_BASE_URL. A request
+    with neither Origin nor Referer passes: it is not a browser (curl, tests,
+    health), and CSRF does not threaten it — without a browser the cookie is not
+    attached by itself.
     """
     if request.method in _WRITE_METHODS and request.url.path.startswith("/api/"):
         stated = request.headers.get("origin") or request.headers.get("referer")
@@ -231,17 +235,19 @@ app.include_router(admin_routes.router)
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
-    """Liveness: процесс жив и отвечает. В базу не ходит намеренно — упавшая
-    база не повод перезапускать процесс, а ровно это оркестратор и делает с
-    провалившим liveness."""
+    """Liveness: the process is alive and answering. It deliberately does not
+    touch the database — a database that is down is no reason to restart the
+    process, and that is exactly what an orchestrator does to whoever fails
+    liveness."""
     return {"status": "ok"}
 
 
 @app.get("/api/health/ready")
 def readiness():
-    """Readiness: готов ли процесс обслуживать запросы по-настоящему, то есть
-    достаёт ли до базы. Отдельно от liveness: на этот отвечает «нет» — и
-    балансировщик уводит трафик, не убивая процесс."""
+    """Readiness: whether the process is genuinely ready to serve requests, that
+    is, whether it can reach the database. Separate from liveness: this one
+    answers "no" — and the load balancer moves traffic away without killing the
+    process."""
     from sqlalchemy import text
 
     from app.db import engine
@@ -255,16 +261,17 @@ def readiness():
     return {"status": "ready"}
 
 
-# Определён последним — значит, обёрнут вокруг остальных middleware и
-# срабатывает первым: CSRF и лимит тела видят уже переписанный путь.
+# Defined last — which means it wraps around the other middleware and fires
+# first: CSRF and the body limit see an already rewritten path.
 @app.middleware("http")
 async def accept_the_v1_prefix(request: Request, call_next):
-    """Версионный алиас: /api/v1/* обслуживается как /api/*.
+    """A version alias: /api/v1/* is served as /api/*.
 
-    Версия появляется в адресе до того, как появится вторая версия: клиенты,
-    закладывающиеся на /api/v1, переживут появление /api/v2 без правок, а
-    нынешний /api/* остаётся псевдонимом первой версии. Переписывается только
-    путь HTTP-запроса; WebSocket живёт на /api/projects/{id}/live без алиаса.
+    The version appears in the address before a second version exists: clients
+    that build on /api/v1 will survive the arrival of /api/v2 without edits,
+    while today's /api/* remains an alias of the first version. Only the HTTP
+    request's path is rewritten; the WebSocket lives at
+    /api/projects/{id}/live with no alias.
     """
     path = request.scope["path"]
     if path.startswith("/api/v1/"):
