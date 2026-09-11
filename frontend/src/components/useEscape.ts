@@ -1,56 +1,54 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Esc, который закрывает один слой — верхний.
+ * The Esc that closes one layer — the top one.
  *
- * Слушать `keydown` на документе каждому слою по отдельности проще всего, и
- * пока слой на экране один, разницы не видно. Разница появляется, когда их
- * два: в карточке задачи правят дату, поверх всплывает окно «объясните сдвиг»,
- * человек жмёт Esc, чтобы передумать, — и вместе с окном закрывается карточка,
- * в которой он работал, унося заполненную форму. Нажатие было одно, а отменило
- * оно два действия, второе из которых никто не просил.
+ * Listening for `keydown` on the document separately in every layer is the simplest thing, and
+ * while there is one layer on screen the difference is invisible. The difference appears when
+ * there are two: a date is being edited in a task's card, the "explain the shift" dialog pops
+ * up on top, the person presses Esc to change their mind — and the card they were working in
+ * closes along with the dialog, carrying away a filled-in form. There was one press, and it
+ * cancelled two actions, the second of which nobody asked for.
  *
- * Поэтому слушатель здесь один на всё приложение, а слои лежат стопкой.
- * Порядок появления и есть порядок стопки: слой, открытый последним, лежит
- * сверху и первым же уходит. Следующий Esc достаётся тому, что было под ним, —
- * то есть закрывать приходится столько раз, сколько слоёв открыто, и это ровно
- * то, чего человек и ждёт.
+ * So there is one listener here for the whole application, and the layers lie in a stack. The
+ * order of appearance is the stack's order: the layer opened last lies on top and is the first
+ * to go. The next Esc goes to what was under it — that is, closing takes as many presses as
+ * there are layers open, and that is exactly what a person expects.
  *
- * Уговор о порядке один: слой, всплывающий поверх другого, должен появляться
- * позже него. В React это выполняется само, пока верхний слой рисуется по
- * состоянию («открыто — рисуем»), а не сидит в разметке всегда.
+ * There is one agreement about the order: a layer popping up on top of another must appear
+ * later than it. In React that holds by itself while the top layer is drawn from state ("it is
+ * open — we draw it") rather than sitting in the markup always.
  */
 
-/** Слой — ссылка на свой обработчик; тождество ссылки и держит место в стопке. */
+/** A layer is a reference to its own handler; the reference's identity is what holds its place in the stack. */
 type Layer = { current: () => void };
 
 const layers: Layer[] = [];
 
 function onKeyDown(event: KeyboardEvent) {
   if (event.key !== "Escape") return;
-  // Esc, который уже забрал себе кто-то ближе к месту нажатия, — не для
-  // стопки. Ячейка таблицы возвращает по нему набранное, строка новой задачи
-  // закрывает себя; они гасят умолчание, и слой сверху — карточка задачи под
-  // той же ячейкой — закрываться от того же нажатия не должен: одно нажатие,
-  // одно действие.
+  // An Esc already taken by someone closer to the place of the press is not for the stack. A
+  // table cell returns what was typed by it, a new task row closes itself; they prevent the
+  // default, and the layer above — the task card under that same cell — must not close from the
+  // same press: one press, one action.
   if (event.defaultPrevented) return;
   layers[layers.length - 1]?.current();
 }
 
 /**
- * Записать слой в стопку, пока он на экране.
+ * Register a layer in the stack while it is on screen.
  *
- * @param onEscape что сделать, когда Esc достался этому слою
- * @param enabled слой существует только когда раскрыт — так живут меню и
- *   встроенные подтверждения, которых большую часть времени нет
+ * @param onEscape what to do when Esc goes to this layer
+ * @param enabled the layer exists only while it is unfolded — that is how menus and inline
+ *   confirmations live, which are absent most of the time
  */
 export function useEscape(onEscape: () => void, enabled = true) {
   const layer = useRef(onEscape);
 
-  // Обработчик обновляется отдельно от места в стопке. У большинства
-  // вызывающих `onClose` — стрелка, созданная заново на каждый кадр родителя;
-  // перезаписывай мы слой по её тождеству, нижний слой всплывал бы наверх на
-  // каждой такой перерисовке — ровно та беда, от которой стопка и заведена.
+  // The handler is updated separately from the place in the stack. For most callers `onClose` is
+  // an arrow created anew on every frame of the parent; were we to rewrite the layer by its
+  // identity, a lower layer would surface to the top on every such repaint — exactly the trouble
+  // the stack exists for.
   useEffect(() => {
     layer.current = onEscape;
   });
@@ -58,15 +56,15 @@ export function useEscape(onEscape: () => void, enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     layers.push(layer);
-    // Слушатель заводится с первым слоем и снимается с последним: между
-    // нажатиями Esc приложению незачем держать на документе обработчик,
-    // которому нечего закрывать.
+    // The listener is created with the first layer and removed with the last: between Esc presses
+    // there is no reason for the application to keep a handler on the document with nothing to
+    // close.
     if (layers.length === 1) document.addEventListener("keydown", onKeyDown);
 
     return () => {
       const at = layers.indexOf(layer);
-      // Поиск по тождеству, а не `pop`: слой снизу вполне может уйти раньше
-      // верхнего — карточку закрывают и мышью, пока окно поверх неё открыто.
+    // A search by identity rather than a `pop`: a layer below can perfectly well go before the one
+    // above — a card is closed with the mouse too while a dialog on top of it is open.
       if (at !== -1) layers.splice(at, 1);
       if (layers.length === 0) document.removeEventListener("keydown", onKeyDown);
     };
