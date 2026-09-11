@@ -1,4 +1,4 @@
-# План 4: живые обновления и обрыв связи — план реализации
+# Plan 4: live updates and dropped connections — implementation plan
 
 > **Historical.** This is one of the original build plans this codebase
 > was built from — every step below has since shipped. It reflects the plan
@@ -9,118 +9,118 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Закрыть §6 «Живые обновления» и первый пункт §12: ревизии расходятся по WebSocket проекта, а обрыв связи виден полоской «нет связи, данные на 14:32» и блокирует редактирование.
+**Goal:** Close §6 "Live updates" and the first item of §12: revisions are broadcast over the project's WebSocket, while a dropped connection is visible as a "no connection, data as of 14:32" strip and blocks editing.
 
-**Architecture:** Рассылка держится в памяти процесса (§11): хаб с комнатой на проект, подписчик на сокет, очередь на подписчика. Сокет ничего не решает про домен — он подписывается и пересылает то, что положил в комнату маршрут мутаций. Клиент на входящую ревизию перезапрашивает состояние проекта, а не проигрывает операцию у себя: даты окончания считает сервер, и второй, «клиентский» применятель операций разошёлся бы с ним на первом же празднике.
+**Architecture:** The broadcast is held in the process's memory (§11): a hub with a room per project, a subscriber per socket, a queue per subscriber. The socket decides nothing about the domain — it subscribes and forwards whatever the mutations route put into the room. On an incoming revision the client refetches the project's state rather than replaying the operation itself: the end dates are computed by the server, and a second, "client-side" applier of operations would diverge from it on the very first holiday.
 
-**Tech Stack:** Как в планах 1–3. Ни одной новой зависимости: WebSocket есть в FastAPI и в браузере.
+**Tech Stack:** As in plans 1–3. Not a single new dependency: WebSocket is in FastAPI and in the browser.
 
 ## Global Constraints
 
-- **Восстановление — перезапрос целиком, а не доигрывание пропущенного** (§12). Ревизия по сокету — сигнал «состояние изменилось», а не патч, который клиент обязан уметь применить.
-- **Внутренняя заметка не утекает и в сокет.** Видимость решает то же `visible_op`, что и в HTTP-журнале, и решает её отдельно для каждого подписчика: в одной комнате сидят и редактор, и клиент.
-- **Гость — слушатель.** По сокету от клиента не принимается ни одной команды: единственный способ изменить проект — `POST /mutations`, где право проверяется.
-- **Блокируется то, что было связью, а не то, чего никогда не было.** Пока сокет ни разу не открылся (платформа без WebSocket — например, serverless-раскладка на Vercel), интерфейс работает как раньше: без живых обновлений, но с редактированием. Полоска и блокировка появляются только после обрыва состоявшегося соединения.
-- **Соединение с базой не занимается на всё время сокета.** Права проверяются короткоживущей сессией, которая закрывается до того, как обработчик уйдёт ждать сообщения; иначе десяток открытых вкладок исчерпает пул.
-- Языки: `az` по умолчанию, `en`, `ru` — новые ключи появляются во всех трёх словарях сразу, иначе падает тест полноты.
+- **Recovery is a full refetch rather than replaying what was missed** (§12). A revision over the socket is a "the state has changed" signal rather than a patch the client has to be able to apply.
+- **The internal note does not leak into the socket either.** Visibility is decided by the same `visible_op` as in the HTTP journal, and it is decided separately for every subscriber: an editor and a client sit in the same room.
+- **A guest is a listener.** Not a single command is accepted from the client over the socket: the only way to change a project is `POST /mutations`, where the permission is checked.
+- **What is blocked is what used to be a connection, not what never was.** While the socket has never opened (a platform without WebSocket — a serverless deployment on Vercel, for example), the interface works as before: without live updates but with editing. The strip and the block appear only after an established connection drops.
+- **A database connection is not held for the whole life of the socket.** Permissions are checked by a short-lived session that is closed before the handler goes off to wait for messages; otherwise a dozen open tabs would exhaust the pool.
+- Languages: `az` by default, `en`, `ru` — new keys appear in all three dictionaries at once, otherwise the completeness test fails.
 
 ---
 
-### Task 1: Хаб рассылки
+### Task 1: The broadcast hub
 
 **Files:**
 - Create: `backend/app/live.py`
 - Test: `backend/tests/test_live_hub.py`
 
 **Interfaces:**
-- Produces: `hub.subscribe(project_id)` — контекстный менеджер, отдающий `Subscriber`; `await hub.publish(project_id, message)`; `Subscriber.next()`, `Subscriber.lagging`.
+- Produces: `hub.subscribe(project_id)` — a context manager yielding a `Subscriber`; `await hub.publish(project_id, message)`; `Subscriber.next()`, `Subscriber.lagging`.
 
-Отдельный модуль без единого упоминания HTTP: это то самое место, которое §11 обещает заменить на Redis одним классом, если понадобится второй процесс.
+A separate module with not a single mention of HTTP: this is the very place §11 promises to replace with Redis in one class, should a second process be needed.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
-Подписчик получает опубликованное; чужая комната не получает ничего; отписка убирает комнату; переполненная очередь помечает подписчика отставшим и не растёт дальше.
+A subscriber receives what was published; another room receives nothing; unsubscribing removes the room; an overflowing queue marks the subscriber as lagging and stops growing.
 
-- [x] **Step 2: Реализовать**
-- [x] **Step 3: Прогнать тесты**
+- [x] **Step 2: Implement**
+- [x] **Step 3: Run the tests**
 
 ---
 
-### Task 2: Сокет проекта
+### Task 2: The project's socket
 
 **Files:**
 - Create: `backend/app/api/live_routes.py`
-- Modify: `backend/app/auth.py` (вынести `user_for_token`), `backend/app/projects.py` (вынести `first_membership`/`project_in_scope`), `backend/app/api/project_routes.py` (переиспользовать их), `backend/app/main.py`
+- Modify: `backend/app/auth.py` (extract `user_for_token`), `backend/app/projects.py` (extract `first_membership`/`project_in_scope`), `backend/app/api/project_routes.py` (reuse them), `backend/app/main.py`
 - Test: `backend/tests/test_live_api.py`
 
 **Interfaces:**
-- Produces: `WS /api/projects/{id}/live`; сообщения `{"type": "revision", …}` и `{"type": "heartbeat"}`.
+- Produces: `WS /api/projects/{id}/live`; the messages `{"type": "revision", …}` and `{"type": "heartbeat"}`.
 
-Коды закрытия — из отведённого приложению диапазона: 4401 «не представился», 4404 «нет такого проекта», 4409 «отстал». Клиенту они различимы, а 1008 на все три случая одинаков.
+The close codes come from the range allotted to the application: 4401 "did not introduce itself", 4404 "no such project", 4409 "fell behind". The client can tell them apart, whereas 1008 is the same for all three cases.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
-Мутация доезжает до подключённого; неаутентифицированного закрывают 4401; чужой проект — 4404; клиенту (роль `client`) заметка в ревизии не приходит.
+A mutation reaches the connected client; an unauthenticated one is closed with 4401; somebody else's project gives 4404; a client (the `client` role) does not receive the note in a revision.
 
-- [x] **Step 2: Реализовать**
-- [x] **Step 3: Прогнать тесты**
+- [x] **Step 2: Implement**
+- [x] **Step 3: Run the tests**
 
 ---
 
-### Task 3: Публикация ревизий
+### Task 3: Publishing revisions
 
 **Files:**
 - Modify: `backend/app/api/project_routes.py`
 - Test: `backend/tests/test_live_api.py`
 
-Публикация — фоновой задачей, а не прямо в теле маршрута: маршрут синхронный и живёт в пуле потоков, а очереди подписчиков — в цикле событий, и трогать их из чужого потока нельзя.
+Publishing happens in a background task rather than in the route's body: the route is synchronous and lives in a thread pool, while the subscribers' queues are in the event loop, and they must not be touched from another thread.
 
-Коммит при этом ставится в маршруте явно, перед постановкой задачи. Проверено на месте, а не взято из документации: фоновые задачи Starlette выполняются **раньше**, чем закрывается зависимость с `yield`, — то есть до коммита `get_db`. Клиент на сигнал перезапрашивает проект целиком, и, придя раньше коммита, изменения не увидит, а второго сигнала не будет. Порядок закреплён тестом: без явного коммита он падает.
+The commit is set explicitly in the route at that, before the task is scheduled. Verified in place rather than taken from the documentation: Starlette's background tasks run **earlier** than a dependency with `yield` is closed — that is, before `get_db` commits. On a signal the client refetches the whole project, and arriving before the commit it would not see the changes, while there would be no second signal. The order is pinned by a test: without an explicit commit it fails.
 
-- [x] **Step 1: Написать падающий тест**
-- [x] **Step 2: Реализовать**
-- [x] **Step 3: Прогнать тесты**
+- [x] **Step 1: Write the failing test**
+- [x] **Step 2: Implement**
+- [x] **Step 3: Run the tests**
 
 ---
 
-### Task 4: Соединение на клиенте
+### Task 4: The connection on the client
 
 **Files:**
 - Create: `frontend/src/live/useProjectLive.ts`, `frontend/src/live/LiveProvider.tsx`
 - Test: `frontend/src/live/useProjectLive.test.tsx`
-- Modify: `frontend/vite.config.ts` (проксировать upgrade)
+- Modify: `frontend/vite.config.ts` (proxy the upgrade)
 
 **Interfaces:**
-- Produces: `useProjectLive(projectId)` → `{ status, syncedAt }`, где `status` — `connecting | online | offline | unavailable`; `useLive()` — тот же объект из контекста.
+- Produces: `useProjectLive(projectId)` → `{ status, syncedAt }`, where `status` is `connecting | online | offline | unavailable`; `useLive()` — the same object from the context.
 
-- [x] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Write the failing tests**
 
-Входящая ревизия перезапрашивает состояние; закрытие сокета переводит в `offline`; переподключение перезапрашивает состояние целиком; сокет, не открывшийся ни разу, даёт `unavailable`, а не `offline`; молчание дольше сторожевого срока считается обрывом.
+An incoming revision refetches the state; closing the socket moves it to `offline`; a reconnection refetches the whole state; a socket that never opened gives `unavailable` rather than `offline`; silence longer than the watchdog timeout counts as a drop.
 
-- [x] **Step 2: Реализовать**
-- [x] **Step 3: Прогнать тесты**
+- [x] **Step 2: Implement**
+- [x] **Step 3: Run the tests**
 
 ---
 
-### Task 5: Полоска и блокировка редактирования
+### Task 5: The strip and the editing block
 
 **Files:**
 - Create: `frontend/src/live/OfflineBar.tsx`, `frontend/src/live/live.css`
 - Modify: `frontend/src/screens/Project.tsx`, `frontend/src/project/useProjectMutation.ts`, `frontend/src/api/errors.ts`, `frontend/src/i18n/{az,en,ru}.json`, `frontend/src/i18n/dates.ts`
 - Test: `frontend/src/screens/Project.live.test.tsx`, `frontend/src/project/useProjectMutation.test.tsx`
 
-Блокировка ставится в `useProjectMutation`, а не в каждом жесте: это единственная дорога любого изменения, и любой новый жест окажется заблокирован сам, без напоминания.
+The block is placed in `useProjectMutation` rather than in every gesture: this is the only road for any change, and any new gesture will find itself blocked by itself, without a reminder.
 
-- [x] **Step 1: Написать падающие тесты**
-- [x] **Step 2: Реализовать**
-- [x] **Step 3: Прогнать весь набор и собрать**
-- [x] **Step 4: Закоммитить**
+- [x] **Step 1: Write the failing tests**
+- [x] **Step 2: Implement**
+- [x] **Step 3: Run the whole suite and build**
+- [x] **Step 4: Commit**
 
 ---
 
-## Что этот план не делает
+## What this plan does not do
 
-- Публичные ссылки и комментарии гостей. Гость подключается к тому же сокету (§6), но самого гостевого доступа ещё нет — появится вместе с публичной страницей.
-- Проигрывание пропущенных ревизий. Спецификация выбирает перезапрос целиком, и это осознанно: доигрывание требует второго применятеля операций на клиенте.
-- Второй процесс приложения. Комнаты живут в памяти; горизонтальное масштабирование — замена `Hub` на реализацию поверх Redis.
-- Отмену (`undo`) и откат пачки AI. Механизм в `mutations` есть, маршрута нет.
+- Public links and guest comments. A guest connects to the same socket (§6), but guest access itself does not exist yet — it will arrive with the public page.
+- Replaying missed revisions. The specification chooses a full refetch, and that is deliberate: replaying requires a second applier of operations on the client.
+- A second application process. The rooms live in memory; horizontal scaling means replacing `Hub` with an implementation on top of Redis.
+- Undo and rolling back an AI batch. The mechanism exists in `mutations`, the route does not.
