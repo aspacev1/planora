@@ -1,46 +1,44 @@
 /**
- * Память о только что отправленном письме с подтверждением адреса.
+ * The memory of an address-confirmation email that has just been sent.
  *
- * Сервер держит паузу между письмами и отвечает на слишком ранний повтор
- * отказом. Клиенту неоткуда узнать, когда истекает эта пауза: письмо после
- * регистрации уходит уже за ответом, а `/api/auth/me` про письма ничего не
- * рассказывает. Поэтому браузер помнит, что письмо только что ушло, — и
- * полоска показывает «письмо отправлено на …» вместо кнопки, которая ответила
- * бы «слишком часто» на первое же нажатие.
+ * The server holds a pause between emails and answers a too-early repeat with a refusal. The client
+ * has nowhere to learn when that pause expires: the email after registration goes out along with
+ * the response, and `/api/auth/me` tells nothing about emails. So the browser remembers that an
+ * email has just gone out — and the strip shows "an email was sent to …" instead of a button that
+ * would answer "too often" on the very first press.
  *
- * Хранилище — `localStorage`: перезагрузка страницы сразу после регистрации
- * не должна стирать эту память, иначе кнопка снова обещает то, чего сервер не
- * даст. Запись привязана к адресу: чужая память не должна показывать
- * следующему вошедшему на этом компьютере письмо, отправленное не ему.
+ * The storage is `localStorage`: reloading the page right after registration must not erase this
+ * memory, otherwise the button promises again what the server will not give. The record is tied to
+ * the address: somebody else's memory must not show the next person signing in on this computer an
+ * email that was not sent to them.
  */
 
 const KEY = "planora.verification_sent";
 
 /**
- * Столько же, сколько держит сервер (RESEND_COOLDOWN в
- * backend/app/email_verification.py). Числа заданы порознь намеренно: общего
- * места у них нет, а разъехавшись, они дадут кнопку, включившуюся на секунду
- * раньше отказа, — то есть ровно тот отказ, ради которого всё и заводилось.
- * Поэтому здесь на секунду больше.
+ * The same as the server holds (RESEND_COOLDOWN in backend/app/email_verification.py). The numbers
+ * are set separately deliberately: they have no shared place, and having diverged they would give a
+ * button that came alive a second before the refusal — that is, exactly the refusal all of this
+ * exists to avoid. So there is one second more here.
  */
 export const RESEND_COOLDOWN_MS = 61_000;
 
 type Stored = { email: string; at: number };
 
-/** Запоминает: письмо на этот адрес только что ушло. */
+/** Remembers: an email to this address has just gone out. */
 export function noteVerificationSent(email: string): void {
   try {
     localStorage.setItem(KEY, JSON.stringify({ email, at: Date.now() } satisfies Stored));
   } catch {
-    // Приватный режим браузера умеет запрещать хранилище. Тогда полоска
-    // работает как без памяти: кнопка включена, а слишком ранний повтор
-    // объясняется словами сервера. Это не повод падать.
+    // A browser's private mode can forbid storage. Then the strip works as if without memory: the
+    // button is enabled, and a too-early repeat is explained in the server's words. That is no
+    // reason to crash.
   }
 }
 
 /**
- * Когда этому адресу ушло письмо. `null` — не отправляли, отправляли не ему
- * или запись испорчена.
+ * When an email went to this address. `null` — none was sent, one was sent to someone else, or the
+ * record is corrupted.
  */
 export function verificationSentAt(email: string): number | null {
   try {
@@ -50,8 +48,8 @@ export function verificationSentAt(email: string): number | null {
     if (typeof stored.at !== "number" || stored.email !== email) return null;
     return stored.at;
   } catch {
-    // Чужая или испорченная запись под нашим ключом — то же самое, что её
-    // отсутствие: разбирать её нечем, а падать на раме приложения нельзя.
+    // Somebody else's or a corrupted record under our key is the same thing as its absence: there is
+    // nothing to parse it with, and crashing in the application's frame will not do.
     return null;
   }
 }

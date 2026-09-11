@@ -13,9 +13,9 @@ async function tape(): Promise<HTMLElement> {
 }
 
 /**
- * jsdom раскладку не считает, и scrollTop у него всегда ноль — значение
- * подставляется руками, как высота окна в тестах useViewportFit. Событие
- * обязательно: без него лента о прокрутке не узнает.
+ * jsdom does not compute layout, and its scrollTop is always zero — the value is substituted by
+ * hand, like the window's height in the useViewportFit tests. The event is mandatory: without it
+ * the strip will not learn about the scroll.
  */
 function scrollTapeTo(box: HTMLElement, top: number) {
   Object.defineProperty(box, "scrollTop", { value: top, configurable: true });
@@ -30,9 +30,9 @@ describe("шапка проекта одной строкой", () => {
     renderProject();
     await tape();
 
-    // Ничего прокручивать не нужно — это и есть суть перестройки: прежде
-    // сводка появлялась строкой только после прокрутки ленты на 32 пикселя,
-    // а до того над лентой стояли четыре яруса во весь рост.
+    // There is nothing to scroll — and that is the whole point of the rebuild: the summary used to
+    // appear as a line only after the strip was scrolled by 32 pixels, and before that four tiers
+    // stood above the strip at full height.
     const row = bar();
     expect(row).not.toBeNull();
     expect(within(row as HTMLElement).getByRole("heading", { name: "Редизайн" })).
@@ -40,8 +40,8 @@ describe("шапка проекта одной строкой", () => {
     expect(within(row as HTMLElement).getByRole("link", { name: "История" })).
       toBeInTheDocument();
 
-    // Сводка — уголком у имени: постоянного места семи цифрам в этой строке
-    // нет, а раскрывается она тем же счётом, что была полоса карточек.
+    // The summary is under a chevron by the name: there is no permanent place for seven figures on
+    // this line, and it unfolds with the same reckoning the card bar had.
     fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "Сводка по проекту" }));
     expect(summary()).toHaveTextContent("Всего задач");
   });
@@ -53,8 +53,8 @@ describe("шапка проекта одной строкой", () => {
 
     scrollTapeTo(box, 60);
 
-    // Ни складывания, ни подмены на сжатую строку: состояние одно, и прыжка
-    // содержимого на пороге больше нет.
+    // Neither folding nor a swap for a squeezed line: the state is one, and there is no jump of
+    // content at the threshold any more.
     expect(bar()?.className).toBe(before);
     expect(document.querySelector(".project-fold")).toBeNull();
     expect(document.querySelector(".project-head-compact")).toBeNull();
@@ -65,13 +65,13 @@ describe("шапка проекта одной строкой", () => {
     renderProject();
     await tape();
 
-    // В самой строке их нет — иначе ярус снова растёт от каждой новой кнопки.
+    // They are not in the line itself — otherwise the tier grows again with every new button.
     expect(screen.queryByRole("button", { name: "Экспорт" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Ещё действия" }));
 
-    // Ищем внутри самой строки: слово «Настройки» есть и в колонке
-    // приложения, но там это настройки рабочего пространства, а не проекта.
+    // We look inside the line itself: the word "Settings" is also in the application's column, but
+    // there it is the workspace's settings rather than the project's.
     const row = within(bar() as HTMLElement);
     expect(row.getByRole("button", { name: "Экспорт" })).toBeInTheDocument();
     expect(row.getByRole("link", { name: /Настройки/ })).toBeInTheDocument();
@@ -81,8 +81,8 @@ describe("шапка проекта одной строкой", () => {
     renderProject();
     await tape();
 
-    // Состояние плана и кнопка при нём — то, ради чего в проект возвращаются;
-    // под «⋯» им не место.
+    // The plan's state and the button by it are what people come back to a project for; they have
+    // no place under "⋯".
     expect(bar()).toHaveTextContent("План проекта · черновик");
     expect(bar()).toHaveTextContent("Согласовать план");
   });
@@ -95,7 +95,7 @@ describe("полноэкранная лента", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "На весь экран" }));
 
-    // Шапка со вкладками спрятана: над лентой ничего не стоит.
+    // The header with the tabs is hidden: nothing stands above the strip.
     expect(document.querySelector(".project__body--focus")).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "Редизайн" })).toBeNull();
     expect(screen.queryByRole("link", { name: "История" })).toBeNull();
@@ -112,7 +112,7 @@ describe("полноэкранная лента", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "На весь экран" }));
 
-    // Шапка спрятана вместе с кнопкой разворота — выход живёт поверх ленты.
+    // The header is hidden along with the expand button — the exit lives on top of the strip.
     const exit = screen.getByRole("button", { name: "Выйти из полного экрана" });
     expect(exit).toHaveAttribute("aria-pressed", "true");
 
@@ -132,9 +132,9 @@ describe("полноэкранная лента", () => {
     renderProject();
     await tape();
 
-    // Подпись в одиннадцать букв стояла последней в перегруженном ряду, а
-    // стрелки в углы понимают и без неё. Имя при кнопке осталось целиком —
-    // тому, кто слушает экран, и тому, кто навёл курсор.
+    // An eleven-letter caption stood last in an overloaded row, and arrows into the corners are
+    // understood without it. The name stayed with the button in full — for whoever listens to the
+    // screen and whoever hovers the cursor.
     const button = screen.getByRole("button", { name: "На весь экран" });
     expect(button).toHaveAttribute("title", "На весь экран");
     expect(button).toHaveTextContent("");
@@ -150,7 +150,7 @@ describe("органы вида — в шапке, второго яруса н�
     expect(document.querySelector(".project-toolbar")).toBeNull();
 
     const row = within(bar() as HTMLElement);
-    // Масштаб назван одним значением, но имя у кнопки полное — для читалки.
+    // The scale is named by one value, but the button's name is the full one — for a screen reader.
     expect(row.getByRole("button", { name: "Масштаб: День" })).toHaveTextContent("День");
     expect(row.getByRole("button", { name: "Вид" })).toBeInTheDocument();
     expect(row.getByRole("button", { name: "На весь экран" })).toBeInTheDocument();
@@ -173,7 +173,7 @@ describe("органы вида — в шапке, второго яруса н�
 
     expect(screen.queryByRole("button", { name: /Масштаб/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "На весь экран" })).toBeNull();
-    // Сама шапка со вкладками и «⋯» на месте.
+    // The header itself with the tabs and "⋯" is in place.
     expect(within(bar() as HTMLElement).getByRole("button", { name: "Ещё действия" })).toBeInTheDocument();
   });
 
@@ -208,7 +208,7 @@ describe("дела плана — у его состояния", () => {
     const row = within(bar() as HTMLElement);
     const button = row.getByRole("button", { name: "Назначить дату старта" });
     expect(button).toHaveClass("button--accent");
-    // Плашка «Относительный план» кнопку не дублирует.
+    // The "Relative plan" chip does not duplicate the button.
     expect(screen.queryByText("Относительный план")).toBeNull();
   });
 

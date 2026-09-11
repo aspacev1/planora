@@ -4,10 +4,10 @@ import { isWorkingDay } from "./scale";
 import type { Scale } from "./timescale";
 
 /**
- * Шапка ленты: месяцы сверху, дни снизу.
+ * The strip's header: the months on top, the days below.
  *
- * Нерабочие дни залиты и здесь тоже, а не только в теле: залитая колонка,
- * обрывающаяся под шапкой, читается как дефект отрисовки, а не как выходной.
+ * The non-working days are filled here too rather than only in the body: a filled column that
+ * breaks off under the header reads as a rendering defect rather than as a day off.
  */
 export function Header({
   scale,
@@ -19,9 +19,9 @@ export function Header({
 }: {
   scale: Scale;
   calendar: Calendar;
-  /** Сегодняшний день по ISO: его колонка в шапке выделяется. */
+  /** Today by ISO: its column in the header is highlighted. */
   today: string;
-  /** Подпись под числом сегодняшнего дня, например «Сегодня». */
+  /** The caption under today's date, "Today" for example. */
   todayLabel: string;
   monthLabel: (iso: string) => string;
   weekdayLabel: (weekday: number) => string;
@@ -35,8 +35,8 @@ export function Header({
             className="gantt__month"
             style={{ left: month.x, width: month.width }}
           >
-            {/* Месяц подписывается по первому своему дню: обрезанный крайний
-                месяц всё равно называется своим именем. */}
+            {/* A month is captioned by its own first day: a truncated outermost month is still
+                called by its own name. */}
             <span className="gantt__month-label">{monthLabel(`${month.key}-01`)}</span>
           </div>
         ))}
@@ -52,13 +52,13 @@ export function Header({
             }`}
             style={{ left: day.x, width: scale.dayWidth }}
           >
-            {/* День недели над числом, как в макете: мелкая строка сверху,
-                число под ней крупнее — и в круге, если день сегодняшний. */}
+            {/* The weekday above the date, as in the mockup: a small line on top, the date below it
+                larger — and in a circle if the day is today. */}
             <span className="gantt__day-weekday">{weekdayLabel(day.weekday)}</span>
             <span className="gantt__day-number">{day.dayOfMonth}</span>
-            {/* Подпись «сегодня» стоит под числом, а не на линии в теле ленты:
-                у шапки чип никому не мешает, а на линии он закрывал бы
-                полоски задач того дня, ради которого и нарисован. */}
+            {/* The "today" caption stands under the date rather than on the line in the strip's
+                body: in the header a chip bothers nobody, while on the line it would cover the bars
+                of the very tasks on the day it is drawn for. */}
             {day.date === today && <span className="gantt__day-today">{todayLabel}</span>}
           </div>
         ))}
@@ -68,16 +68,16 @@ export function Header({
 }
 
 /**
- * Шапка относительной шкалы: «Месяц 1» над неделями, «Неделя 1» над днями,
- * в колонках дней — номер дня внутри недели, 1–7.
+ * The relative scale's header: "Month 1" above the weeks, "Week 1" above the days, and in the day
+ * columns the day's number within the week, 1–7.
  *
- * Настоящих дат в этой шапке нет намеренно: ни названий месяцев, ни дней
- * недели, ни метки «сегодня» — план ещё не привязан к календарю, и любая
- * настоящая дата здесь была бы обещанием, которого никто не давал. «Месяц» —
- * визуальная группа из четырёх недель, расчёты идут в днях (см. relative.ts).
+ * There are deliberately no real dates in this header: no month names, no weekdays, no "today"
+ * marker — the plan is not tied to a calendar yet, and any real date here would be a promise nobody
+ * made. A "month" is a visual group of four weeks, and the computations run in days (see
+ * relative.ts).
  *
- * Заливка нерабочих дней остаётся: маска недели — часть плана и без
- * настоящих дат, и человек должен видеть, что «День 6» его недели — выходной.
+ * The fill of the non-working days stays: the week's mask is part of the plan without real dates
+ * too, and a person must see that "Day 6" of their week is a day off.
  */
 export function RelativeHeader({
   scale,
@@ -124,9 +124,9 @@ export function RelativeHeader({
             className={`gantt__day${isWorkingDay(day.date, calendar, day.weekday) ? "" : " is-nonworking"}`}
             style={{ left: day.x, width: scale.dayWidth }}
           >
-            {/* Номер дня внутри недели, а не от начала проекта: колонка в
-                18–52 пикселя вмещает одну-две цифры, и счёт до сотен в ней
-                не читается. Неделя названа строкой выше. */}
+            {/* The day's number within the week rather than from the project's start: a column of
+                18–52 pixels holds one or two digits, and a count into the hundreds is unreadable in
+                it. The week is named on the line above. */}
             <span className="gantt__day-number">{(index % 7) + 1}</span>
           </div>
         ))}

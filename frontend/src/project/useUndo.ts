@@ -8,20 +8,20 @@ import { useAskShiftReason } from "./ShiftReason";
 import { thresholdOf } from "./baseline";
 
 /**
- * Отмена последнего изменения — механика кнопок в ленте истории.
+ * Undoing the last change — the mechanics of the buttons in the history feed.
  *
- * Кнопка отменяет строго то, что сервер назвал в `state.undoable`: выбор
- * отменяемого — решение сервера, и лента его не переспаривает. Номер этой
- * записи уходит в запрос: между отрисовкой ленты и нажатием сосед успевает
- * применить своё изменение, и безномерная отмена сняла бы его правку вместо
- * названной. Тост после переноса полоски (useDragDates) зовёт ту же ручку
- * отдельно и с тем же условием — только номер берёт из ответа на свой перенос.
+ * A button undoes strictly what the server named in `state.undoable`: the choice of what is
+ * undoable is the server's decision, and the feed does not argue with it. That entry's number goes
+ * into the request: between the feed being rendered and the press a colleague manages to apply
+ * their own change, and a numberless undo would remove their edit instead of the named one. The
+ * toast after a bar is moved (useDragDates) calls the same endpoint separately and with the same
+ * condition — it only takes the number from the answer to its own move.
  *
- * Пачку отменяет целиком: применение AI — это десятки операций с общим
- * `batch_id`, и отменять их по одной значило бы тридцать нажатий подряд.
+ * It undoes a batch whole: applying the AI is dozens of operations with a shared `batch_id`, and
+ * undoing them one at a time would mean thirty presses in a row.
  *
- * Ctrl/⌘+Z (`UndoHotkey`) зовёт отсюда же: горячая клавиша — второй путь к
- * той же кнопке, а не второй способ отменять.
+ * Ctrl/⌘+Z (`UndoHotkey`) calls from here too: a hotkey is a second path to the same button rather
+ * than a second way to undo.
  */
 export function useUndo(projectId: string, state: ProjectState) {
   const queryClient = useQueryClient();
@@ -31,10 +31,9 @@ export function useUndo(projectId: string, state: ProjectState) {
   const undoable = state.undoable;
 
   const mutation = useMutation({
-    // Возвращает, случилась ли отмена на самом деле: отменять было нечего или
-    // человек закрыл окно с причиной — это успех запроса и не-событие для
-    // того, кто ждёт подтверждения. Без этого признака горячая клавиша
-    // рапортовала бы «отменено» там, где не отменено ничего.
+    // Returns whether an undo actually happened: there being nothing to undo, or the person closing
+    // the reason dialog, is a successful request and a non-event for whoever is waiting for a
+    // confirmation. Without this flag the hotkey would report "undone" where nothing was undone.
     mutationFn: async (): Promise<boolean> => {
       if (!undoable) return false;
       if (undoable.batch_id) {
@@ -42,16 +41,15 @@ export function useUndo(projectId: string, state: ProjectState) {
         return true;
       }
       try {
-        // Номер той самой записи, которую кнопка назвала человеку: между
-        // отрисовкой ленты и нажатием сосед успевает применить своё изменение,
-        // и безномерная отмена сняла бы его правку вместо названной.
+        // The number of the very entry the button named to the person: between the feed being
+        // rendered and the press a colleague manages to apply their own change, and a numberless
+        // undo would remove their edit instead of the named one.
         await undoLast(projectId, { seq: undoable.seq });
       } catch (refusal) {
-        // Отмена подчиняется тому же правилу порога, что и всякий сдвиг: если
-        // возврат уводит задачу от базового плана дальше порога, объяснение
-        // нужно ровно так же. Числа берутся из подсказок сервера — своих у
-        // вкладки здесь нет: она не знает, к каким датам приведёт обратная
-        // операция.
+        // An undo obeys the same threshold rule as any other shift: if reverting takes a task
+        // further from the baseline plan than the threshold, an explanation is needed just the
+        // same. The numbers are taken from the server's hints — the tab has none of its own here:
+        // it does not know which dates the inverse operation will lead to.
         if (!(refusal instanceof ApiError) || refusal.code !== "reason_required") throw refusal;
         if (!askReason) throw refusal;
         const reason = await askReason({

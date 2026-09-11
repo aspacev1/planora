@@ -8,25 +8,25 @@ import { STATE, captureMutations, projectFixtures, renderProject } from "../test
 import { FakeWebSocket, lastSocket } from "../test/socket";
 
 /**
- * Экран проекта при живой связи и при её обрыве.
+ * The project screen with a live connection and when it drops.
  *
- * Сокет здесь подделан (см. test/socket.ts), а сервер — перехвачен: проверяется
- * поведение экрана, а не то, умеет ли jsdom ходить в сеть.
+ * The socket here is faked (see test/socket.ts) and the server is intercepted: what is checked is
+ * the screen's behaviour rather than whether jsdom can reach the network.
  */
 
-/** Приводит экран в состояние «связь была и оборвалась». */
+/** Brings the screen into the "there was a connection and it dropped" state. */
 async function goOffline() {
   await act(async () => lastSocket().accept());
   await act(async () => lastSocket().drop());
 }
 
 /**
- * «Плюс» в углу таблицы — не «+ Новая категория» с низа ленты (см.
- * `gantt/BottomActions.tsx`): у обеих одно и то же имя для читалки, а обрыв
- * связи гасит только этот — вместе с остальными «плюсами» ленты он приходит
- * только пока проект можно править (см. `editable` в Project.tsx). Строка
- * снизу ленты о разрыве не знает вовсе и остаётся нажимаемой: она полагается
- * на общий запрет в `useProjectMutation`, а не на собственный признак.
+ * The "plus" in the table's corner — not "+ New category" at the bottom of the strip (see
+ * `gantt/BottomActions.tsx`): both carry the same name for a screen reader, while a dropped
+ * connection disables only this one — along with the strip's other "pluses" it only arrives while
+ * the project can be edited (see `editable` in Project.tsx). The row at the bottom of the strip
+ * knows nothing about the drop and stays pressable: it relies on the shared ban in
+ * `useProjectMutation` rather than on a flag of its own.
  */
 function cornerAddCategoryButton() {
   const corner = document.querySelector(".gantt__corner") as HTMLElement;
@@ -37,8 +37,8 @@ beforeEach(projectFixtures);
 
 describe("экран проекта при обрыве связи", () => {
   it("говорит, что связи нет и на какой момент показаны данные", async () => {
-    // Часы прибиты гвоздями: иначе тест проверял бы текущее время, то есть
-    // ничего. 14:32 по местному — то самое время из спецификации.
+    // The clock is nailed down: otherwise the test would be checking the current time, that is,
+    // nothing. 14:32 local is the very time from the specification.
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date(2026, 2, 11, 14, 32));
 
@@ -58,16 +58,16 @@ describe("экран проекта при обрыве связи", () => {
 
     await goOffline();
 
-    // «Плюсы» ленты уходят вместе с правом писать: кнопка, обещающая
-    // действие, которое сервер отклонит, хуже отсутствующей.
+    // The strip's "pluses" go along with the right to write: a button promising an action the
+    // server will reject is worse than a missing one.
     expect(cornerAddCategoryButton()).toBeNull();
     expect(screen.queryByRole("button", { name: /Добавить задачу/ })).not.toBeInTheDocument();
   });
 
   it("не отправляет изменений, пока связи нет", async () => {
-    // Жесты ходят мимо кнопок шапки, поэтому проверяется именно жест. Сам
-    // общий путь изменений заперт отдельно — см. useProjectMutation.test.tsx:
-    // без этого запрет держался бы на одной лишь разметке.
+    // Gestures go past the header's buttons, so what is checked is precisely a gesture. The shared
+    // change path itself is locked separately — see useProjectMutation.test.tsx: without that the
+    // ban would rest on the markup alone.
     const user = userEvent.setup();
     const sent = captureMutations();
 
@@ -87,7 +87,7 @@ describe("экран проекта при обрыве связи", () => {
     await goOffline();
     expect(cornerAddCategoryButton()).toBeNull();
 
-    // Переподключение: следующий сокет открывается по таймеру отката.
+    // Reconnection: the next socket opens by the backoff timer.
     await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
     await act(async () => lastSocket().accept());
 
@@ -100,8 +100,8 @@ describe("экран проекта при обрыве связи", () => {
     await screen.findByRole("button", { name: /Логотип/ });
     await act(async () => lastSocket().accept());
 
-    // Сосед переименовал задачу: сервер отдаёт уже новое состояние, а сокет
-    // сообщает, что состояние изменилось.
+    // A colleague renamed the task: the server gives the new state already, and the socket reports
+    // that the state has changed.
     const renamed = { ...STATE, tasks: [{ ...STATE.tasks[0], name: "Знак" }] };
     server.use(http.get("/api/projects/p1", () => HttpResponse.json(renamed)));
 
@@ -120,9 +120,9 @@ describe("экран проекта при обрыве связи", () => {
   });
 
   it("не мешает работать там, где живой связи не бывает вовсе", async () => {
-    // Раскладка без WebSocket: сокет не открывается ни разу. Живых обновлений
-    // нет, но экран остаётся рабочим — иначе serverless-раскладка молча
-    // превращается в приложение для чтения.
+    // A deployment without WebSocket: the socket never opens. There are no live updates, but the
+    // screen stays workable — otherwise a serverless deployment silently turns into a read-only
+    // application.
     renderProject(STATE);
     await screen.findByRole("button", { name: /Логотип/ });
 

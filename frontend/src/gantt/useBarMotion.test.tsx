@@ -9,20 +9,19 @@ import { MOTION_MS } from "./motion";
 import { DAY_WIDTH } from "./scale";
 
 /**
- * Полоска стоит на `left`/`width` и двигается только через `transform`.
+ * The bar stands on `left`/`width` and moves only through `transform`.
  *
- * Проверяется здесь не оформление, а стоимость движения. `left` и `width` —
- * свойства разметки: анимация по ним пересчитывает положение всего слоя строк
- * каждый кадр, и на сотне задач лента от этого дёргается. Тест ловит возврат
- * к ним обратно — правку, которая ничего не сломает на пяти задачах оснастки и
- * проявится только на живом проекте.
+ * What is checked here is not styling but the cost of movement. `left` and `width` are layout
+ * properties: an animation on them recomputes the position of the whole layer of rows every frame,
+ * and with a hundred tasks the strip stutters from it. The test catches a return to them — an edit
+ * that will break nothing on the harness's five tasks and will only show up on a live project.
  */
 
 /**
- * Кадры, которые полоска попросила у браузера.
+ * The frames the bar asked the browser for.
  *
- * `Element.animate` в jsdom нет вовсе, поэтому это не подмена настоящего
- * поведения, а единственный способ вообще увидеть просьбу об анимации.
+ * `Element.animate` does not exist in jsdom at all, so this is not a substitute for real behaviour
+ * but the only way to see the animation request in the first place.
  */
 function captureSlides(): { transform: string }[][] {
   const slides: { transform: string }[][] = [];
@@ -53,7 +52,7 @@ describe("движение полоски", () => {
     fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 100 });
     fireEvent.pointerMove(bar, { pointerId: 1, clientX: 100 + 3 * DAY_WIDTH.day });
 
-    // Место по датам не тронуто: его меняет только ответ сервера.
+    // The place by dates is untouched: only the server's answer changes it.
     expect(bar.style.left).toBe(placed);
     expect(bar.style.getPropertyValue("--bar-dx")).toBe(`${3 * DAY_WIDTH.day}px`);
   });
@@ -63,8 +62,8 @@ describe("движение полоски", () => {
     renderProject();
     const bar = await screen.findByRole("button", { name: /Логотип/ });
 
-    // Три дня и ещё десять пикселей: день выбирается ближайший, и эти десять
-    // пикселей полоске предстоит проехать обратно — из-под пальца на сетку.
+    // Three days and another ten pixels: the nearest day is chosen, and those ten pixels the bar
+    // still has to travel back — from under the finger onto the grid.
     drag(bar, { fromX: 100, toX: 100 + 3 * DAY_WIDTH.day + 10 });
 
     await waitFor(() => expect(slides.length).toBeGreaterThan(0));
@@ -72,8 +71,8 @@ describe("движение полоски", () => {
       { transform: "translate3d(10px, 0, 0)" },
       { transform: "translate3d(0px, 0, 0)" },
     ]);
-    // А место по датам к этому моменту уже новое, и сдвига на полоске нет:
-    // переезд — это анимация поверх готового места, а не путь к нему.
+    // And by this moment the place by dates is already the new one, and there is no offset on the
+    // bar: the travel is an animation on top of a ready place rather than the path to it.
     expect(bar.style.left).toBe(`${6 * DAY_WIDTH.day}px`);
     expect(bar.style.getPropertyValue("--bar-dx")).toBe("0px");
   });
@@ -82,8 +81,8 @@ describe("движение полоски", () => {
     renderProject();
     const bar = await screen.findByRole("button", { name: /Логотип/ });
 
-    // Меньше половины дня — переноса нет, и рендера с новым местом тоже не
-    // будет. Снять сдвиг, кроме самого жеста, некому.
+    // Less than half a day — there is no move, and there will be no render with a new place either.
+    // There is nobody but the gesture itself to clear the offset.
     drag(bar, { fromX: 100, toX: 100 + 12 });
 
     await waitFor(() => expect(bar.style.getPropertyValue("--bar-dx")).toBe("0px"));
@@ -97,9 +96,8 @@ describe("движение полоски", () => {
     await userEvent.click(screen.getByRole("button", { name: "Масштаб: День" }));
     await userEvent.click(screen.getByRole("radio", { name: "Неделя" }));
 
-    // Полоски встали на другие места, потому что день стал уже. Это другое
-    // изображение той же ленты, и «переезжающие» разом все полоски читались бы
-    // как обвал плана.
+    // The bars stood in different places because a day became narrower. That is a different picture
+    // of the same strip, and all the bars "travelling" at once would read as the plan collapsing.
     expect(slides).toHaveLength(0);
   });
 
@@ -111,8 +109,8 @@ describe("движение полоски", () => {
 
     drag(bar, { fromX: 100, toX: 100 + 3 * DAY_WIDTH.day + 10 });
 
-    // Общее правило `transition: none` из styles.css сюда не достаёт: оно
-    // гасит переходы CSS, а переезд заведён из кода.
+    // The general `transition: none` rule from styles.css does not reach here: it suppresses CSS
+    // transitions, while the travel is started from code.
     await waitFor(() => expect(bar.style.left).toBe(`${6 * DAY_WIDTH.day}px`));
     expect(slides).toHaveLength(0);
   });
@@ -125,8 +123,8 @@ describe("движение полоски", () => {
     drag(bar, { fromX: 100, toX: 100 + 3 * DAY_WIDTH.day + 10 });
 
     await waitFor(() => expect(slides.length).toBeGreaterThan(0));
-    // Одно число на оба: длительность приходит в стили из того же `MOTION_MS`,
-    // которым код ведёт переезд, — иначе они разошлись бы при первой правке.
+    // One number for both: the duration reaches the styles from the same `MOTION_MS` the code drives
+    // the travel with — otherwise they would diverge on the first edit.
     const animate = Element.prototype.animate as unknown as ReturnType<typeof vi.fn>;
     expect(animate.mock.calls[0][1]).toMatchObject({ duration: MOTION_MS });
     expect(container.querySelector<HTMLElement>(".gantt")?.style.getPropertyValue("--motion")).toBe(
