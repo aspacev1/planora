@@ -4,17 +4,16 @@ import { OPTIONAL_COLUMNS } from "./columns";
 import type { GanttView } from "./useGanttView";
 
 /**
- * Органы управления видом ленты: масштаб и меню «Вид».
+ * The strip's view controls: the scale and the "View" menu.
  *
- * Отдельным компонентом, а не куском разметки ленты: на рабочем экране они
- * стоят в шапке проекта, справа от вкладок (см. ProjectBar), а на публичной
- * странице — в собственном ряду над лентой. Разметка одна, место разное.
+ * A separate component rather than a piece of the strip's markup: on the working screen they stand
+ * in the project's header, to the right of the tabs (see ProjectBar), while on the public page they
+ * are in a row of their own above the strip. The markup is one, the place differs.
  *
- * Два меню, а не три и не одно. «Колонки» и «Вид» стояли рядом двумя
- * кнопками, различались одним словом и оба отвечали на «что показывать» —
- * теперь это одно меню двумя озаглавленными частями. Масштаб при этом остаётся
- * снаружи: его переключают чаще всего, и текущее значение обязано читаться,
- * не открывая ничего.
+ * Two menus rather than three or one. "Columns" and "View" stood side by side as two buttons,
+ * differed by one word and both answered "what to show" — now it is one menu with two titled parts.
+ * The scale stays outside at that: it is switched most often, and its current value must be readable
+ * without opening anything.
  */
 export function GanttViewControls({
   view,
@@ -22,11 +21,11 @@ export function GanttViewControls({
 }: {
   view: GanttView;
   /**
-   * «toolbar» — тихие кнопки с рамкой, как в ряду над лентой на публичной
-   * странице. «bar» — призрачные, без рамки, и масштаб назван одним значением:
-   * в шапке проекта рядом стоят вкладки, и второй ряд обведённых плашек
-   * спорил бы с ними за внимание. Имя «Масштаб: Месяц» при этом остаётся у
-   * кнопки целиком — для читалки и подсказки.
+   * "toolbar" — quiet buttons with a frame, as in the row above the strip on the public page. "bar"
+   * — ghost ones, without a frame, and the scale is named by a single value: in the project's header
+   * the tabs stand next to it, and a second row of outlined chips would compete with them for
+   * attention. The name "Scale: Month" stays with the button in full at that — for the screen reader
+   * and the tooltip.
    */
   variant?: "toolbar" | "bar";
 }) {
@@ -55,9 +54,9 @@ export function GanttViewControls({
         ))}
       </Menu>
 
-      {/* Колонки первыми: они про таблицу слева, с которой чтение ленты и
-          начинается. Название задачи в список не входит — строка без имени не
-          говорит, о чём она. */}
+      {/* The columns come first: they are about the table on the left, which reading the strip starts
+          with. The task's name is not in the list — a row without a name does not say what it is
+          about. */}
       <Menu label={t("gantt.toolbar.view")} buttonClass={buttonClass}>
         <p className="menu__title">{t("gantt.toolbar.columns")}</p>
         {OPTIONAL_COLUMNS.map((column) => (
@@ -73,9 +72,9 @@ export function GanttViewControls({
 
         <div className="menu__sep" />
 
-        {/* Слои — то, чего нет в макете, но что уже есть в продукте: легенда,
-            сводка по дедлайну, сноска и призрак базового плана. Так они
-            перестают быть спрятанной стилем разметкой. */}
+        {/* The layers are what the mockup does not have but the product already does: the legend, the
+            deadline summary, the footnote and the baseline plan's ghost. That way they stop being
+            markup hidden by a style. */}
         <p className="menu__title">{t("gantt.view.layers")}</p>
         {(
           [

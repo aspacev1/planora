@@ -3,45 +3,44 @@ import { useEffect, useState } from "react";
 const REDUCED = "(prefers-reduced-motion: reduce)";
 
 /**
- * Длительность переходов ленты в миллисекундах.
+ * The duration of the strip's transitions in milliseconds.
  *
- * Живёт здесь, а не только в CSS, по той же причине, что и `ROW_HEIGHT`:
- * переезд полоски анимируется из кода (см. `useBarMotion`), и второе такое же
- * число в стилях разошлось бы с этим при первой правке. Разметка ставит эту
- * величину переменной `--motion`, и CSS берёт её оттуда.
+ * It lives here rather than only in CSS, for the same reason as `ROW_HEIGHT`: a bar's travel is
+ * animated from code (see `useBarMotion`), and a second identical number in the styles would diverge
+ * from this one on the first edit. The markup sets this value as the `--motion` variable, and CSS
+ * takes it from there.
  */
 export const MOTION_MS = 180;
 
 /**
- * Просил ли человек меньше движения — разовый ответ, без подписки.
+ * Whether the person asked for less motion — a one-off answer, without a subscription.
  *
- * Нужен там, где значение читают в момент действия, а не держат в состоянии:
- * анимацию полоски запускает код, и общее правило `transition: none` из
- * styles.css её не видит — оно гасит переходы CSS, а не то, что заведено
- * через `Element.animate`. Подписываться ради одного чтения нечем: полосок на
- * ленте сотни, и это были бы сотни слушателей одной и той же настройки.
+ * Needed where the value is read at the moment of an action rather than held in state: a bar's
+ * animation is started by code, and the general `transition: none` rule from styles.css does not see
+ * it — that one suppresses CSS transitions rather than something started through `Element.animate`.
+ * There is nothing to subscribe for the sake of a single read: there are hundreds of bars on the
+ * strip, and that would be hundreds of listeners on one and the same setting.
  */
 export function prefersReducedMotion(): boolean {
   return ask();
 }
 
 /**
- * Просил ли человек меньше движения.
+ * Whether the person asked for less motion.
  *
- * Настройка системная, и уважать её обязательно: для части людей движение на
- * экране — это не «менее приятно», а тошнота и головная боль. Поэтому переходы
- * при ней выключаются целиком, а не ускоряются: быстрое движение — всё ещё
- * движение.
+ * The setting is a system one, and respecting it is mandatory: for some people motion on a screen is
+ * not "less pleasant" but nausea and a headache. So with it the transitions are switched off
+ * entirely rather than sped up: fast motion is still motion.
  *
- * Слежение живое, а не разовое: настройку меняют, не перезагружая вкладку.
+ * The watching is live rather than one-off: the setting gets changed without reloading the tab.
  */
 export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(() => ask());
 
   useEffect(() => {
-    // Ни matchMedia, ни подписки может не быть — в jsdom нет первого, в старых
-    // движках второго. Отсутствие ответа значит «не просил»: это то же
-    // поведение, что и сегодня, и оно не хуже.
+    // Neither matchMedia nor a subscription may be there — jsdom lacks the first, older engines the
+    // second. The absence of an answer means "did not ask": that is the same behaviour as today's,
+    // and it is no worse.
     const list = typeof matchMedia === "function" ? matchMedia(REDUCED) : null;
     if (!list?.addEventListener) return;
 

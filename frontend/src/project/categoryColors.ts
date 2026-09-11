@@ -1,28 +1,26 @@
 /**
- * Палитра для новых категорий.
+ * The palette for new categories.
  *
- * Живёт в браузере, а не на сервере: это оформление, а не свойство плана.
- * Предлагается по числу уже существующих категорий — так две подряд созданные
- * категории не оказываются одного цвета, и человеку не приходится подбирать
- * цвет вручную каждый раз. Выбор всё равно остаётся за ним там, где его
- * спрашивают: подобранное автоматически совпадение цветов на одиннадцатой
- * категории должно чиниться, а не терпеться.
+ * It lives in the browser rather than on the server: this is styling, not a property of the plan. It
+ * is suggested by the number of already existing categories — that way two categories created in a
+ * row do not come out the same colour, and a person does not have to pick a colour by hand every
+ * time. The choice still stays theirs where they are asked for it: an automatically picked colour
+ * clash on the eleventh category should be fixable rather than endured.
  *
- * Готовый набор — это и есть весь выбор: произвольный цвет из системной
- * пипетки умеет быть неотличимым от соседнего, нечитаемым на светлой доске
- * и разным у двух людей, договорившихся «покрасить в синий». Десять
- * различимых между собой цветов закрывают задачу «отличить категории друг от
- * друга» и делают выбор делом одного щелчка.
+ * A ready set is the whole choice: an arbitrary colour from the system's eyedropper can be
+ * indistinguishable from its neighbour, unreadable on a light board and different for two people who
+ * agreed to "paint it blue". Ten mutually distinguishable colours cover the task of "telling the
+ * categories apart" and make the choice a matter of one click.
  *
- * Ключ подписи (`name`) — машинный: сам текст живёт в словарях, потому что
- * читалка обязана назвать кружок словом на языке человека, а не кодом
- * `#3b82f6`.
+ * The caption's key (`name`) is machine-readable: the text itself lives in the dictionaries, because
+ * a screen reader must name the circle with a word in the person's language rather than with the
+ * code `#3b82f6`.
  *
- * Модуль отдельно от формы создания (`screens/CategoryForm.tsx`), потому что
- * у палитры есть и второй потребитель — быстрое добавление категории с низа
- * ленты (см. `gantt/useQuickCategory.ts`), которому окно с выбором цвета
- * заводить незачем, а цвет всё равно нужен. Второй копией тех же десяти
- * значений это разошлось бы при первой же правке палитры.
+ * The module is separate from the creation form (`screens/CategoryForm.tsx`) because the palette has
+ * a second consumer too — quickly adding a category from the bottom of the strip (see
+ * `gantt/useQuickCategory.ts`), which has no reason to create a dialog with a colour choice while
+ * still needing a colour. As a second copy of the same ten values this would diverge on the very
+ * first edit of the palette.
  */
 export const CATEGORY_COLORS = [
   { value: "#3b82f6", name: "blue" },

@@ -7,11 +7,11 @@ import { useDismissToast } from "../components/toast";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Состояние проекта из кэша — наблюдателем, а не вторым запросом.
+ * The project's state from the cache — as an observer rather than a second request.
  *
- * Свежесть держит экран проекта: он перечитывает состояние после каждой своей
- * правки и по каждому сигналу из сокета. Здесь нужно одно число из него, и
- * собственный `useQuery` означал бы лишний GET на каждый перенос полоски.
+ * Its freshness is held by the project screen: it re-reads the state after every edit of its own and
+ * on every signal from the socket. Here one number from it is needed, and a `useQuery` of our own
+ * would mean an extra GET on every bar move.
  */
 function useCachedProject(projectId: string): ProjectState | undefined {
   const queryClient = useQueryClient();
@@ -29,19 +29,18 @@ function useCachedProject(projectId: string): ProjectState | undefined {
 }
 
 /**
- * «Отменить» в тосте после переноса полоски.
+ * The "Undo" in the toast after a bar is moved.
  *
- * Кнопка обещает вернуть конкретный перенос — тот, номер которого сервер
- * назвал в ответе на него. Пока тост висит свои шесть секунд, верх журнала
- * успевает уехать: сосед по проекту применил свою правку по сокету, сам
- * человек поправил что-то в карточке. Отмена «последнего» в этот момент сняла
- * бы не тот шаг, поэтому кнопка гаснет, как только верх журнала перестал быть
- * тем, что она называет.
+ * The button promises to revert a specific move — the one whose number the server named in its
+ * answer to it. While the toast hangs around for its six seconds, the top of the journal manages to
+ * move on: a colleague on the project applied their edit over the socket, the person themselves
+ * corrected something in a card. Undoing "the last one" at that moment would remove the wrong step,
+ * so the button goes dark as soon as the journal's top stops being what it names.
  *
- * Сверка тут — вежливость, а не защита: между взглядом на кэш и ответом
- * сервера лежит сеть, и в этот зазор изменение влезает ровно так же. Защита —
- * `expected_seq` в запросе: сервер сверяет номер под замком проекта и
- * отказывает (`undo_conflict`), а не отменяет вслепую.
+ * The check here is a courtesy rather than a defence: between a glance at the cache and the server's
+ * answer lies the network, and a change fits into that gap just as well. The defence is
+ * `expected_seq` in the request: the server checks the number under the project's lock and refuses
+ * (`undo_conflict`) rather than undoing blindly.
  */
 export function UndoMove({
   projectId,
@@ -49,7 +48,7 @@ export function UndoMove({
   onUndo,
 }: {
   projectId: string;
-  /** Номер ревизии, отмену которой обещает кнопка. */
+  /** The number of the revision the button promises to undo. */
   seq: number;
   onUndo: () => void;
 }) {
@@ -57,9 +56,9 @@ export function UndoMove({
   const dismiss = useDismissToast();
   const state = useCachedProject(projectId);
 
-  // Состояния в кэше нет — экран проекта закрыли, пока висел тост. Это не
-  // «верх журнала уехал», а «неизвестно», и гасить кнопку не за что: решит
-  // сервер, он всё равно последняя инстанция.
+  // There is no state in the cache — the project screen was closed while the toast hung around. That
+  // is not "the journal's top moved on" but "unknown", and there is nothing to disable the button
+  // for: the server will decide, it is the last instance anyway.
   const stale = state !== undefined && state.undoable?.seq !== seq;
 
   return (
@@ -69,8 +68,8 @@ export function UndoMove({
       disabled={stale}
       title={stale ? t("undo.stale") : undefined}
       onClick={() => {
-        // Сначала спрятать, потом действовать: отмена сама покажет результат
-        // на ленте, а висящий тост предлагал бы отменить уже отменённое.
+        // First hide, then act: the undo will show its own result on the strip, while a hanging toast
+        // would offer to undo what has already been undone.
         dismiss();
         onUndo();
       }}
