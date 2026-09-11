@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="112" viewBox="0 0 520 112" role="img" aria-label="Planora">
+  <title>Planora</title>
+  <rect x="8" y="8" width="96" height="96" rx="22" fill="#1F4B99"/>
+  <rect x="26" y="30" width="36" height="12" rx="6" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="40" y="50" width="46" height="12" rx="6" fill="#FFFFFF" opacity="0.8"/>
+  <rect x="54" y="70" width="32" height="12" rx="6" fill="#7FB2FF"/>
+  <text x="132" y="74" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="56" font-weight="700" letter-spacing="-1.5" fill="#0F1F3D">Planora</text>
+</svg>
