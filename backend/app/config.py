@@ -8,26 +8,26 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# Вынесено в имя, потому что ниже с ним сравнивают: «значение осталось
-# умолчанием» — единственный доступный признак того, что PUBLIC_BASE_URL никто
-# не задавал, а угадывать домен поверх заданного руками нельзя.
+# Extracted into a name because it is compared against below: "the value is still
+# the default" is the only available sign that nobody set PUBLIC_BASE_URL, and
+# guessing a domain over one set by hand is not allowed.
 _LOCAL_BASE_URL = "http://localhost:8000"
 
-#: Режимы регистрации. `open` — кто угодно, `invite_only` — только по
-#: приглашению, `closed` — вход есть, регистрации нет.
+#: Registration modes. `open` — anyone, `invite_only` — by invitation only,
+#: `closed` — sign-in exists, registration does not.
 SIGNUP_MODES = ("open", "invite_only", "closed")
 
-# Что обязано быть задано при каждом транспорте почты. Транспортов без
-# требований в списке нет: у выключенной почты и у записи в журнал требований
-# нет по определению.
+# What must be set for each mail transport. Transports with no requirements are
+# absent from the list: disabled mail and writing to the log have no requirements
+# by definition.
 _MAIL_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     "smtp": ("smtp_url", "mail_from"),
     "api": ("mail_api_url", "mail_api_key", "mail_from"),
 }
-#: Транспорты почты, которые умеет эта установка. `none` — писем нет вовсе, и
-#: интерфейс не показывает кнопку отправки; `log` — та же запись в журнал, но
-#: установка считается почтовой (кнопка на месте, письмо ищется в логе) —
-#: разница нужна при разработке.
+#: The mail transports this installation can do. `none` — there are no messages at
+#: all, and the interface does not show the send button; `log` — the same writing
+#: to the log, but the installation counts as mail-capable (the button is there,
+#: the message is found in the log) — the difference is needed in development.
 MAIL_TRANSPORTS: tuple[str, ...] = ("none", "log", *_MAIL_REQUIREMENTS)
 
 
@@ -36,20 +36,20 @@ class Settings(BaseSettings):
 
     database_url: str
     app_secret: str
-    #: Единственный адрес, за которым закреплена роль директора — панель
-    #: /admin и всё, что к ней когда-нибудь добавится. Обязателен и без
-    #: значения по умолчанию: роль директора не должна доставаться первому,
-    #: кто забыл её настроить. Не роль в организации (Role.OWNER имеет смысл
-    #: только внутри одной организации, а владельцев организаций в установке
-    #: может быть сколько угодно) — свойство самой установки.
+    #: The one address that holds the director role — the /admin panel and
+    #: whatever is ever added to it. Mandatory and with no default value: the
+    #: director role must not fall to the first person who forgot to configure it.
+    #: Not a role within an organization (Role.OWNER only makes sense inside one
+    #: organization, and an installation may have any number of organization
+    #: owners) — a property of the installation itself.
     director_email: str
 
     public_base_url: str = _LOCAL_BASE_URL
-    #: Флаг Secure сессионной куки. None — вывести автоматически: из схемы
-    #: пришедшего запроса (за прокси — из X-Forwarded-Proto) либо из
-    #: PUBLIC_BASE_URL. Явное значение — для установок, где автоматика
-    #: ошибается: например, TLS терминируется до прокси, не передающего
-    #: X-Forwarded-Proto.
+    #: The Secure flag of the session cookie. None means derive it automatically:
+    #: from the incoming request's scheme (behind a proxy, from
+    #: X-Forwarded-Proto) or from PUBLIC_BASE_URL. An explicit value is for
+    #: installations where the automatic choice gets it wrong: for example, TLS is
+    #: terminated ahead of a proxy that does not pass X-Forwarded-Proto on.
     cookie_secure: bool | None = None
     default_locale: str = "az"
     supported_locales: str = "az,en,ru"
@@ -63,65 +63,66 @@ class Settings(BaseSettings):
     invite_ttl_days: int = 7
     invite_rate_limit: int = 20
 
-    #: Срок действия выгруженного документа в днях от даты выгрузки: дата
-    #: выгрузки и есть дата отправки заказчику, а «действительно до» на обложке
-    #: считается от неё. Настройка установки, а не поле в форме экспорта: пока
-    #: срок один на всех, форма ему только мешала бы — попросят иное, тогда
-    #: и заведём поле.
+    #: How long an exported document stays valid, in days from the export date:
+    #: the export date is the date it is sent to the orderer, and the "valid
+    #: until" on the cover page is counted from it. An installation setting rather
+    #: than a field in the export form: while the term is the same for everyone, a
+    #: field would only get in the way — once someone asks for otherwise, we will
+    #: add one.
     export_validity_days: int = 30
 
     public_sharing_enabled: bool = True
     guest_comment_rate_limit: int = 10
 
-    # Пределы входа и регистрации (0 — выключить соответствующий предел).
-    # По IP считаются все попытки, по аккаунту — только неудачные: успешный
-    # вход с двух устройств не должен запирать человека, а вот десяток
-    # неверных паролей к одному адресу — это перебор, чей бы он ни был.
+    # The sign-in and registration limits (0 disables the corresponding limit).
+    # By IP every attempt is counted, by account only the failed ones: a successful
+    # sign-in from two devices must not lock a person out, whereas a dozen wrong
+    # passwords for one address is guessing, whoever it comes from.
     login_rate_limit_per_ip: int = 30
     login_rate_limit_per_account: int = 10
     signup_rate_limit_per_ip: int = 10
-    # Просьбы о восстановлении пароля считаются по IP и все подряд: каждая —
-    # это письмо на произвольный адрес, введённый в форму без входа.
+    # Password recovery requests are counted by IP and all of them: each one is a
+    # message to an arbitrary address entered into a form without signing in.
     password_reset_rate_limit_per_ip: int = 10
     auth_rate_window_seconds: int = 900
 
-    # Пределы AI: запросов к модели в минуту и токенов в сутки — на
-    # организацию (0 — без предела). Бюджет стережёт деньги владельца ключа:
-    # без него один участник может выжечь месячный лимит ключа за вечер.
+    # The AI limits: model requests per minute and tokens per day — per
+    # organization (0 means no limit). The budget guards the key owner's money:
+    # without it one member can burn the key's monthly limit in an evening.
     ai_requests_per_minute: int = 10
     ai_daily_token_budget: int = 200_000
 
     ai_max_questions: int = 12
     ai_schema_retries: int = 2
     ai_request_timeout: int = 60
-    #: Разрешить адрес LLM со схемой http и в приватных диапазонах. По
-    #: умолчанию запрещено (защита от SSRF: адрес задаёт пользователь, а
-    #: ходит по нему сервер); true — осознанный выбор self-hosted установки
-    #: с локальной моделью в своей сети.
+    #: Allow an LLM address with the http scheme and in private ranges. Forbidden
+    #: by default (SSRF protection: the address is set by a user while the server
+    #: is what goes there); true is a deliberate choice for a self-hosted
+    #: installation with a local model on its own network.
     ai_allow_private_urls: bool = False
 
     jira_request_timeout: int = 30
-    #: Тот же рубильник, что ai_allow_private_urls, и по той же причине
-    #: (защита от SSRF — адрес сайта Jira задаёт пользователь, а ходит по нему
-    #: сервер): по умолчанию выключен, true — self-hosted Jira в приватной сети.
+    #: The same switch as ai_allow_private_urls, and for the same reason (SSRF
+    #: protection — the Jira site address is set by a user while the server is what
+    #: goes there): off by default, true means a self-hosted Jira on a private network.
     jira_allow_private_urls: bool = False
-    #: Потолок задач, которые импорт и синхронизация обрабатывают за один
-    #: вызов. Явная строка отказа при переполнении, а не молчаливая обрезка:
-    #: план, обрезанный без предупреждения, выглядит как полный.
+    #: The ceiling on issues an import or a sync handles in a single call. An
+    #: explicit refusal line on overflow rather than silent truncation: a plan
+    #: truncated without warning looks complete.
     jira_max_issues_per_sync: int = 500
 
     max_tasks_per_project: int = 2000
     max_text_len: int = 4000
-    #: Потолок размера тела запроса в байтах. Больше самого большого
-    #: законного тела (черновик AI на сотни задач — десятки килобайт) на
-    #: порядок; всё сверх — не форма, а заливка.
+    #: The ceiling on a request body's size in bytes. An order of magnitude above
+    #: the largest lawful body (an AI draft of hundreds of tasks is tens of
+    #: kilobytes); anything beyond is not a form but a flood.
     max_body_bytes: int = 1_000_000
     log_level: str = "INFO"
 
-    #: Работает ли на этой установке живая лента (WebSocket). None — вывести:
-    #: на Vercel сокетов нет (serverless обрывает upgrade), в остальных
-    #: раскладках — есть. Клиент читает признак из /api/config и не тратит
-    #: попытки подключения там, где их не к чему прикладывать.
+    #: Whether the live feed (WebSocket) works on this installation. None means
+    #: derive it: on Vercel there are no sockets (serverless cuts the upgrade off),
+    #: in other layouts there are. The client reads the flag from /api/config and
+    #: does not spend connection attempts where there is nothing to apply them to.
     live_enabled: bool | None = None
 
     @model_validator(mode="after")
@@ -133,17 +134,17 @@ class Settings(BaseSettings):
     @field_validator("app_secret")
     @classmethod
     def _refuse_a_secret_that_is_not_one(cls, value: str) -> str:
-        """Отказывается стартовать с секретом-заглушкой или огрызком.
+        """Refuses to start with a placeholder secret or a stub.
 
-        APP_SECRET подписывает сессии и шифрует ключи LLM. Значение из
-        .env.example, оставшееся как есть, означает, что куку любой установки
-        может подделать любой, кто читал репозиторий, — и это должно быть
-        отказом старта, а не тихой дырой. Короткий секрет — та же дыра в
-        профиль: его перебирают.
+        APP_SECRET signs sessions and encrypts LLM keys. The value from
+        .env.example left as it is means that any installation's cookie can be
+        forged by anyone who has read the repository — and that must be a refusal
+        to start rather than a silent hole. A short secret is the same hole in
+        profile: it gets brute-forced.
 
-        Ротация секрета — не бесплатная операция: сохранённые ключи LLM
-        зашифрованы прежним значением и после смены не расшифруются
-        (см. app/crypto.py) — их придётся ввести заново.
+        Rotating the secret is not a free operation: stored LLM keys are encrypted
+        with the previous value and will not decrypt after a change (see
+        app/crypto.py) — they will have to be entered again.
         """
         if value == "change-me-to-a-long-random-string":
             raise ValueError(
@@ -157,13 +158,13 @@ class Settings(BaseSettings):
     @field_validator("director_email")
     @classmethod
     def _refuse_a_director_email_that_is_not_one(cls, value: str) -> str:
-        """Отказывается стартовать с адресом-заглушкой или пустотой.
+        """Refuses to start with a placeholder address or with nothing.
 
-        DIRECTOR_EMAIL решает, кто видит панель директора (/admin). Значение
-        из .env.example, оставшееся как есть, означает, что роль директора
-        досталась бы адресу, который есть в каждой копии репозитория, — это
-        должно быть отказом старта, а не тихой дырой. Пустое значение —
-        та же дыра наоборот: панель не видна вовсе никому.
+        DIRECTOR_EMAIL decides who sees the director's panel (/admin). The value
+        from .env.example left as it is means the director role would fall to an
+        address present in every copy of the repository — that must be a refusal to
+        start rather than a silent hole. An empty value is the same hole in
+        reverse: the panel is visible to nobody at all.
         """
         stripped = value.strip()
         if not stripped:
@@ -179,18 +180,18 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def _spell_out_the_driver(cls, value: str) -> str:
-        """Дописывает драйвер к адресу базы, если его там нет.
+        """Appends the driver to the database URL if it is not there.
 
-        Управляемые базы (Neon, Supabase, Vercel Marketplace) выдают строку
-        подключения в виде `postgresql://…`, а некоторые — ещё и наследием
-        Heroku в виде `postgres://…`. SQLAlchemy по первой пойдёт искать
-        psycopg2, которого в зависимостях нет, а на второй просто откажется
-        разбирать адрес. Раньше это чинилось руками при каждом копировании
-        строки из панели — и ломалось молча, если интеграция вписывала
-        переменную сама и править было нечего.
+        Managed databases (Neon, Supabase, Vercel Marketplace) hand out a
+        connection string as `postgresql://...`, and some — with a Heroku legacy —
+        as `postgres://...`. On the first, SQLAlchemy goes looking for psycopg2,
+        which is not among the dependencies, and on the second it simply refuses to
+        parse the URL. This used to be fixed by hand every time the string was
+        copied from a dashboard — and broke silently when an integration wrote the
+        variable itself and there was nothing to edit.
 
-        Заданный драйвер не трогаем: `postgresql+psycopg` уже верен, а
-        `postgresql+asyncpg` — осознанный выбор того, кто его написал.
+        A driver that is already set is left alone: `postgresql+psycopg` is already
+        right, and `postgresql+asyncpg` is a deliberate choice by whoever wrote it.
         """
         for prefix in ("postgresql://", "postgres://"):
             if value.startswith(prefix):
@@ -200,14 +201,15 @@ class Settings(BaseSettings):
     @field_validator("signup_mode")
     @classmethod
     def _reject_a_value_nobody_implements(cls, value: str) -> str:
-        """Отвергает незнакомое значение рубильника при старте, а не при первом
-        обращении к нему.
+        """Rejects an unknown switch value at start-up rather than on the first use
+        of it.
 
-        Опечатка в `SIGNUP_MODE` иначе тихо превращает установку в закрытую
-        (сравнение с `open` не сходится) — отказ, неотличимый от задуманного
-        поведения и потому ищущийся часами; отказ стартовать находится за
-        секунду. То же самое про `MAIL_TRANSPORT` проверяется ниже, вместе с
-        переменными, которых транспорт требует.
+        Otherwise a typo in `SIGNUP_MODE` silently turns the installation into a
+        closed one (the comparison with `open` does not match) — a refusal
+        indistinguishable from the intended behaviour and therefore hunted for
+        hours; a refusal to start is found in a second. The same thing about
+        `MAIL_TRANSPORT` is checked below, together with the variables the
+        transport requires.
         """
         if value not in SIGNUP_MODES:
             raise ValueError(f"допустимые значения: {', '.join(SIGNUP_MODES)}")
@@ -215,21 +217,21 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _borrow_the_domain_from_the_platform(self) -> Self:
-        """Выводит PUBLIC_BASE_URL из домена, который выдала платформа.
+        """Derives PUBLIC_BASE_URL from the domain the platform handed out.
 
-        На Vercel домен известен только после первого деплоя, поэтому задать
-        переменную заранее нельзя: получается круг — сначала деплой, потом
-        значение, потом деплой заново. А до второго деплоя кука сессии уезжает
-        по https без флага Secure, потому что он выводится отсюда
-        (см. app.api.auth_routes).
+        On Vercel the domain is known only after the first deploy, so the variable
+        cannot be set in advance: it comes out as a circle — first the deploy, then
+        the value, then the deploy again. And until the second deploy the session
+        cookie rides out over https without the Secure flag, because that flag is
+        derived from here (see app.api.auth_routes).
 
-        VERCEL_PROJECT_PRODUCTION_URL — постоянный домен проекта,
-        VERCEL_URL — адрес конкретного деплоя; обе платформа выставляет сама,
-        обе без схемы. Первая красивее и переживает передеплой, вторая есть
-        всегда — отсюда порядок.
+        VERCEL_PROJECT_PRODUCTION_URL is the project's permanent domain, VERCEL_URL
+        is the address of a specific deploy; the platform sets both itself, both
+        without a scheme. The first is prettier and survives a redeploy, the second
+        is always there — hence the order.
 
-        Заданное значение имеет приоритет: свой домен, привязанный к проекту,
-        платформа в этих переменных не показывает.
+        A value that is set takes precedence: a custom domain attached to the
+        project is not shown by the platform in these variables.
         """
         if self.public_base_url != _LOCAL_BASE_URL:
             return self
@@ -241,16 +243,17 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _refuse_a_mail_setup_that_cannot_send(self) -> Self:
-        """Не даёт приложению стартовать с наполовину заданной почтой.
+        """Does not let the application start with mail configured halfway.
 
-        Без этой проверки `MAIL_TRANSPORT=smtp` при пустом `SMTP_URL`
-        обнаружился бы только на первом письме — то есть на регистрации
-        первого же пользователя, и молча: письмо не ушло, в журнале строчка,
-        которую никто не читает. Опечатка в самом значении (`MAIL_TRANSPORT=
-        stmp`) тем более не должна тихо превращаться в «почта выключена».
+        Without this check, `MAIL_TRANSPORT=smtp` with an empty `SMTP_URL` would
+        surface only on the first message — that is, on the registration of the
+        very first user, and silently: the message did not go out, and there is a
+        line in a log nobody reads. A typo in the value itself
+        (`MAIL_TRANSPORT=stmp`) must all the more not quietly turn into "mail is
+        off".
 
-        Выключенная почта проверок не требует: установка без почтового
-        сервера — законный вариант развёртывания, а не недонастроенный.
+        Disabled mail requires no checks: an installation without a mail server is
+        a lawful deployment option rather than an under-configured one.
         """
         if self.mail_transport not in MAIL_TRANSPORTS:
             raise ValueError(
@@ -271,12 +274,12 @@ class Settings(BaseSettings):
 
     @property
     def mail_enabled(self) -> bool:
-        """Есть ли куда отправлять письма.
+        """Whether there is anywhere to send messages.
 
-        При `none` интерфейс не показывает кнопку отправки вовсе — остаётся
-        копирование ссылки, а само письмо уходит в журнал. `log` пишет туда
-        же, но установка считается почтовой: при разработке кнопка нужна на
-        месте, а письмо читается в логе.
+        With `none` the interface does not show the send button at all — copying
+        the link remains, while the message itself goes to the log. `log` writes to
+        the same place, but the installation counts as mail-capable: in development
+        the button has to be there and the message is read in the log.
         """
         return self.mail_transport != "none"
 

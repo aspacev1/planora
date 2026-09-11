@@ -52,15 +52,15 @@ class RegisterIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     email: EmailStr
     password: str = Field(min_length=8, max_length=200)
-    #: Название компании — так называется организация, которую регистрация
-    #: заводит вместе с аккаунтом. Поле не Field(min_length=1): пустую строку
-    #: нормализует валидатор ниже, а обязательность проверяется в маршруте, а
-    #: не здесь — решает это приглашение (см. company_name_required), которого
-    #: схема сама по себе не видит.
+    #: The company name — that is what the organization registration creates
+    #: alongside the account is called. The field is not Field(min_length=1): an
+    #: empty string is normalized by the validator below, while being mandatory is
+    #: checked in the route rather than here — that is decided by the invitation
+    #: (see company_name_required), which the schema itself cannot see.
     company_name: str | None = Field(default=None, max_length=200)
-    #: Приглашение, по которому человек пришёл. С ним аккаунт заводится сразу
-    #: внутри позвавшей организации — и заводится даже в установке, где
-    #: свободная регистрация выключена.
+    #: The invitation a person came with. With it the account is created right
+    #: inside the inviting organization — and it is created even in an installation
+    #: where free registration is turned off.
     invite_token: str | None = None
 
     @field_validator("company_name")
@@ -86,51 +86,53 @@ class UserOut(BaseModel):
     name: str
     email: str
     locale: str
-    # `null` — «пояс не выбран, спросите браузер». Отдавать вместо него
-    # выведенный пояс нельзя: сервер знает про браузер только то, с какого
-    # адреса пришёл запрос, а по адресу пояс угадывается неверно ровно у тех,
-    # кому эта настройка и нужна, — у уехавших и у сидящих через VPN.
+    # `null` means "no timezone chosen, ask the browser". Returning a derived
+    # timezone instead is not allowed: all the server knows about the browser is
+    # the address the request came from, and the timezone is guessed wrongly from
+    # an address for exactly the people who need this setting — those who have
+    # moved and those sitting behind a VPN.
     timezone: str | None
-    # Не дата, а признак: интерфейсу нужно решить, показывать ли полоску
-    # «подтвердите адрес», а точное время подтверждения ему не нужно ни для
-    # чего — и не стоит того, чтобы разбирать формат даты на клиенте.
+    # Not a date but a flag: the interface needs to decide whether to show the
+    # "confirm your address" bar, and it needs the exact confirmation time for
+    # nothing at all — which is not worth parsing a date format on the client for.
     email_verified: bool
-    #: Носит ли этот человек роль директора — единственную роль уровня всей
-    #: установки (см. app.director), а не одной организации. Решает, виден
-    #: ли пункт «Админ-панель» в колонке; то же правило проверяет и сам
-    #: маршрут панели (см. app.api.admin_routes.current_director) — здесь оно
-    #: продублировано только затем, чтобы колонка не показывала пункт меню,
-    #: ведущий заведомо в отказ.
+    #: Whether this person holds the director role — the only installation-wide
+    #: role (see app.director) rather than an organization one. It decides whether
+    #: the "Admin panel" item is visible in the column; the panel's own route
+    #: checks the same rule (see app.api.admin_routes.current_director) — it is
+    #: duplicated here only so that the column does not show a menu item leading to
+    #: a certain refusal.
     is_director: bool
 
 
 class MailResultOut(BaseModel):
-    """Ушло письмо или нет. Врать «отправлено» нельзя: человек будет ждать."""
+    """Whether the message went out. Lying "sent" is not allowed: the person will wait."""
 
     sent: bool
 
 
 class VerifyEmailOut(BaseModel):
-    """Итог погашения ссылки.
+    """The outcome of redeeming a link.
 
-    Признак, а не два разных ответа: адрес подтверждён в обоих случаях, и
-    интерфейсу нужно только выбрать слова — «адрес подтверждён» или «адрес
-    уже подтверждён».
+    A flag rather than two different answers: the address is confirmed in both
+    cases, and the interface only needs to pick the words — "the address is
+    confirmed" or "the address is already confirmed".
     """
 
     already_verified: bool
 
 
 def _cookie_is_secure(request: Request) -> bool:
-    """Ставить ли на куку флаг Secure.
+    """Whether to put the Secure flag on the cookie.
 
-    Порядок источников — от явного к выведенному. COOKIE_SECURE, если задан,
-    решает всё: это рубильник для установок, где автоматика ошибается. Дальше
-    — сам запрос: схема https или X-Forwarded-Proto от прокси значят, что
-    кука поедет по защищённому каналу, каким бы ни был PUBLIC_BASE_URL (тот
-    бывает не задан вовсе — и тогда прежний вывод «только из него» отправлял
-    куку боевой установки без Secure). PUBLIC_BASE_URL остаётся последним
-    источником — для запросов, пришедших в обход прокси.
+    The order of sources runs from explicit to derived. COOKIE_SECURE, if set,
+    decides everything: it is the switch for installations where the automatic
+    choice gets it wrong. Next comes the request itself: an https scheme or
+    X-Forwarded-Proto from the proxy means the cookie will travel over a secure
+    channel, whatever PUBLIC_BASE_URL says (it is sometimes not set at all — and
+    then the previous "from it alone" derivation sent a production installation's
+    cookie without Secure). PUBLIC_BASE_URL remains the last source — for requests
+    that arrived bypassing the proxy.
     """
     settings = get_settings()
     if settings.cookie_secure is not None:
@@ -143,10 +145,10 @@ def _cookie_is_secure(request: Request) -> bool:
 
 
 def _cookie_attributes(request: Request) -> dict:
-    """Атрибуты куки, общие для установки и удаления.
+    """The cookie attributes shared by setting and deleting.
 
-    Одним словарём, потому что браузер удаляет куку только при совпадении
-    атрибутов: delete_cookie с другим набором оставляет старую куку жить.
+    In one dictionary, because a browser deletes a cookie only when the attributes
+    match: delete_cookie with a different set leaves the old cookie alive.
     """
     return {
         "httponly": True,
@@ -159,9 +161,9 @@ def _set_cookie(response: Response, request: Request, token: str) -> None:
     response.set_cookie(
         SESSION_COOKIE,
         token,
-        # Ровно столько же, сколько живёт сама сессия в базе: два числа,
-        # заданных порознь, однажды разъедутся, и кука переживёт сессию
-        # (или наоборот) без единого признака в коде.
+        # Exactly as long as the session itself lives in the database: two numbers
+        # set separately will one day diverge, and the cookie will outlive the
+        # session (or the other way round) with not a single sign of it in the code.
         max_age=int(SESSION_TTL.total_seconds()),
         **_cookie_attributes(request),
     )
@@ -180,12 +182,13 @@ def _to_out(user: User) -> UserOut:
 
 
 def _invitation_for_signup(db: DbSession, payload: RegisterIn) -> Invitation | None:
-    """Приглашение из формы регистрации, проверенное до создания аккаунта.
+    """The invitation from the registration form, checked before the account is created.
 
-    Проверка идёт здесь, а не внутри register(): человек, чья ссылка
-    просрочена, должен прочитать про ссылку, а не завести аккаунт и получить
-    отказ уже после. Тот же набор кодов, что и у приёма по ссылке, — экран
-    регистрации и экран приглашения объясняют одно и то же одинаково.
+    The check happens here rather than inside register(): a person whose link has
+    expired must read about the link rather than create an account and get a
+    refusal afterwards. The same set of codes as for accepting by link — the
+    registration screen and the invitation screen explain the same thing the same
+    way.
     """
     if not payload.invite_token:
         return None
@@ -199,9 +202,9 @@ def _invitation_for_signup(db: DbSession, payload: RegisterIn) -> Invitation | N
         raise HTTPException(status_code=409, detail=f"invite_{state.value}")
 
     try:
-        # Адрес приглашения не редактируется: форма его подставляет, а сервер
-        # не верит форме. Иначе приглашение с адресом становится приглашением
-        # предъявителю, чего оно как раз и не должно допускать.
+        # The invitation's address is not editable: the form fills it in, and the
+        # server does not trust the form. Otherwise an invitation with an address
+        # becomes an invitation to the bearer, which is exactly what it must not allow.
         check_recipient(invitation, str(payload.email))
     except InvitationError as error:
         raise as_http(error)
@@ -219,14 +222,15 @@ def register_route(
 ):
     settings = get_settings()
     mode = settings.signup_mode
-    # `closed` проверяется до приглашения: в такой установке регистрации нет
-    # вовсе, и отвечать на неё разбором чужой ссылки не за чем.
+    # `closed` is checked before the invitation: in such an installation there is
+    # no registration at all, and there is no reason to answer it by parsing
+    # somebody's link.
     if mode == "closed":
         raise HTTPException(status_code=403, detail="signup_disabled")
 
-    # Предел до любых проверок и до создания чего бы то ни было: массовое
-    # заведение аккаунтов — это спам в базе и поток писем с подтверждениями
-    # с нашего же отправителя.
+    # The limit comes before any checks and before anything is created: mass
+    # account creation is spam in the database and a stream of confirmation
+    # messages from our own sender.
     if not throttle.hit(
         db,
         f"signup:ip:{client_key(request)}",
@@ -239,9 +243,10 @@ def register_route(
     if mode == "invite_only" and invitation is None:
         raise HTTPException(status_code=403, detail="signup_disabled")
 
-    # Название компании обязательно ровно там, где регистрация заводит свою
-    # организацию. У пришедшего по приглашению она уже есть — спрашивать имя
-    # для организации, которую он не заводит, было бы вопросом не по делу.
+    # The company name is mandatory exactly where registration creates an
+    # organization of its own. Someone arriving by invitation already has one —
+    # asking for the name of an organization they are not creating would be a
+    # question beside the point.
     if invitation is None and payload.company_name is None:
         raise HTTPException(status_code=422, detail="company_name_required")
 
@@ -252,8 +257,8 @@ def register_route(
             email=payload.email,
             password=payload.password,
             company_name=payload.company_name,
-            # Единственное место, где заголовок вообще читается: язык при
-            # первом появлении человека. Дальше он живёт в профиле.
+            # The only place where the header is read at all: the language on a
+            # person's first appearance. After that it lives in the profile.
             locale=locale_from_request(accept_language),
             invitation=invitation,
         )
@@ -262,10 +267,10 @@ def register_route(
     except ValueError:
         raise HTTPException(status_code=409, detail="email_taken")
     except IntegrityError:
-        # Защитная сетка на случай гонки, не пойманной внутри register()
-        # (например, если состав вставок там изменится в будущем): без
-        # отката сессия остаётся в прерванном состоянии, а без этой ветки
-        # клиент получил бы 500 вместо честного «адрес занят».
+        # A safety net for a race not caught inside register() (for example, if the
+        # set of inserts there changes in the future): without a rollback the
+        # session stays in an aborted state, and without this branch the client
+        # would get a 500 instead of an honest "the address is taken".
         db.rollback()
         raise HTTPException(status_code=409, detail="email_taken")
     _set_cookie(
@@ -273,13 +278,14 @@ def register_route(
         request,
         open_session(db, user, active_org_id=invitation.org_id if invitation else None),
     )
-    # Письмо — после ответа, а не в его теле: SMTP-серверу разрешено думать
-    # до десяти секунд, и всё это время человек смотрел бы на замерший
-    # экран регистрации. Судьбу регистрации письмо не решает и раньше не
-    # решало: отказ доставки пишется в журнал внутри mail.send, повторная
-    # отправка доступна отдельным маршрутом. Коммит — до постановки задачи:
-    # фоновая задача выполняется раньше, чем закрывается зависимость get_db,
-    # и аккаунт должен быть в базе независимо от судьбы письма.
+    # The message goes out after the answer rather than inside it: an SMTP server
+    # is allowed to think for up to ten seconds, and all that time a person would
+    # be staring at a frozen registration screen. The message does not decide the
+    # fate of the registration and never did: a delivery failure is written to the
+    # log inside mail.send, and a resend is available through a separate route. The
+    # commit comes before the task is scheduled: a background task runs before the
+    # get_db dependency is closed, and the account must be in the database
+    # regardless of the message's fate.
     db.commit()
     background.add_task(send_verification, db, user)
     return _to_out(user)
@@ -289,14 +295,15 @@ def register_route(
 def login_route(
     payload: LoginIn, response: Response, request: Request, db: DbSession = Depends(get_db)
 ):
-    """Вход. Два предела частоты — на два разных способа перебора.
+    """Sign-in. Two rate limits, for two different kinds of guessing.
 
-    По IP считаются все попытки: один адрес, молотящий вход, — это перебор
-    паролей по словарю, чьи бы адреса он ни пробовал. По аккаунту — только
-    неудачи: это перебор паролей к конкретному человеку с многих адресов, и
-    считать успехи здесь нельзя — успешный вход с двух устройств заперал бы
-    владельца. Счётчики в базе, а не в памяти процесса: перезапуск или
-    вторая реплика не должны обнулять предел (см. app.throttle).
+    By IP every attempt is counted: one address hammering the sign-in is
+    dictionary password guessing, whatever addresses it tries. By account only
+    failures are: that is password guessing against one particular person from many
+    addresses, and successes must not be counted here — a successful sign-in from
+    two devices would lock the owner out. The counters live in the database rather
+    than in the process's memory: a restart or a second replica must not reset the
+    limit (see app.throttle).
     """
     settings = get_settings()
     if not throttle.hit(
@@ -333,8 +340,8 @@ def logout_route(
 ):
     if planora_session:
         close_session(db, planora_session)
-    # Те же атрибуты, что и при установке: браузер сверяет их и с другим
-    # набором оставил бы куку на месте.
+    # The same attributes as when setting it: the browser compares them and with a
+    # different set would leave the cookie in place.
     response.delete_cookie(SESSION_COOKIE, **_cookie_attributes(request))
 
 
@@ -357,12 +364,13 @@ def change_password_route(
     db: DbSession = Depends(get_db),
     planora_session: str | None = Cookie(default=None, alias=SESSION_COOKIE),
 ):
-    """Смена пароля. Требует прежний: одной сессии для этого мало —
-    иначе украденная кука меняла бы пароль владельцу.
+    """Changing the password. It requires the previous one: a session alone is not
+    enough for this — otherwise a stolen cookie would change the owner's password.
 
-    Остальные сессии закрываются тут же: смена пароля — это обычно ответ на
-    подозрение, что он утёк, и оставлять чужие входы жить дальше значило бы
-    делать вид, что смена что-то решила. Текущая сессия остаётся.
+    The other sessions are closed right away: changing a password is usually an
+    answer to a suspicion that it has leaked, and leaving other people's sign-ins
+    alive would mean pretending the change solved something. The current session
+    stays.
     """
     try:
         change_password(
@@ -393,14 +401,14 @@ def forgot_password_route(
     background: BackgroundTasks,
     db: DbSession = Depends(get_db),
 ):
-    """Просьба о письме для восстановления пароля. Куки не требует.
+    """A request for a password-recovery message. It requires no cookie.
 
-    Ответ одинаковый для любого адреса — 204: есть ли такой аккаунт, форма
-    не сообщает. Иначе она была бы справочником «кто здесь зарегистрирован»,
-    тем самым, который authenticate() прячет ценой холостого хеширования.
-    По той же причине пауза между повторами не отвечает 429: молчаливый 204
-    и есть ответ. Предел по IP один на все адреса — каждая просьба, чей бы
-    адрес в ней ни стоял, превращается в письмо с нашего отправителя.
+    The answer is the same for any address — 204: the form does not report whether
+    such an account exists. Otherwise it would be a directory of "who is registered
+    here", the very one authenticate() hides at the cost of a dummy hash. For the
+    same reason the pause between repeats does not answer 429: a silent 204 is the
+    answer. The IP limit is one for all addresses — every request, whatever address
+    stands in it, turns into a message from our sender.
     """
     settings = get_settings()
     if not throttle.hit(
@@ -417,22 +425,23 @@ def forgot_password_route(
     if user is None or password_reset.sent_recently(db, user):
         return
 
-    # Письмо — после ответа, тем же порядком, что и при регистрации: SMTP
-    # думает до десяти секунд, и время ответа не должно выдавать, ушло ли
-    # письмо вообще. Коммит — до постановки задачи (см. register_route).
+    # The message goes out after the answer, in the same order as at registration:
+    # SMTP thinks for up to ten seconds, and the response time must not reveal
+    # whether a message went out at all. The commit comes before the task is
+    # scheduled (see register_route).
     db.commit()
     background.add_task(password_reset.send_reset, db, user)
 
 
 @router.post("/password/reset", status_code=204)
 def reset_password_route(payload: ResetPasswordIn, db: DbSession = Depends(get_db)):
-    """Погашение ссылки из письма: новый пароль вместо забытого.
+    """Redeeming the link from the message: a new password instead of a forgotten one.
 
-    Куки не требует по той же причине, что и подтверждение адреса: ссылку
-    открывают там, куда пришла почта. Сессию не открывает: пароль только что
-    задан, и вход им — секундное дело, а вот все прежние сессии умирают
-    внутри redeem_token — восстановлением пользуются как раз тогда, когда
-    пароль, похоже, утёк.
+    It requires no cookie for the same reason as address confirmation: the link is
+    opened wherever the mail arrived. It does not open a session: the password has
+    just been set and signing in with it is a matter of a second, whereas every
+    previous session dies inside redeem_token — recovery is used precisely when the
+    password appears to have leaked.
     """
     try:
         password_reset.redeem_token(db, payload.token, new_password=payload.new_password)
@@ -450,7 +459,7 @@ def close_other_sessions_route(
     db: DbSession = Depends(get_db),
     planora_session: str | None = Cookie(default=None, alias=SESSION_COOKIE),
 ):
-    """«Выйти на всех устройствах», кроме этого."""
+    """"Sign out on all devices" except this one."""
     return SessionsClosedOut(
         closed=close_other_sessions(db, user, keep_raw_token=planora_session)
     )
@@ -458,17 +467,17 @@ def close_other_sessions_route(
 
 @router.post("/verify-email", response_model=VerifyEmailOut)
 def verify_email_route(payload: VerifyEmailIn, db: DbSession = Depends(get_db)):
-    """Погашение ссылки из письма. Куки не требует.
+    """Redeeming the link from the message. It requires no cookie.
 
-    Ссылку открывают в том браузере, куда пришла почта, а не обязательно в
-    том, где открыта сессия. Требовать вход значило бы ломать самый обычный
-    сценарий — письмо на телефоне, работа на ноутбуке; сам токен при этом
-    одноразовый, живёт сутки и достаточно длинный, чтобы его нельзя было
-    подобрать.
+    The link is opened in the browser the mail arrived in, not necessarily in the
+    one where a session is open. Requiring a sign-in would mean breaking the most
+    ordinary scenario — the message on a phone, the work on a laptop; the token
+    itself is single-use, lives for a day and is long enough that it cannot be
+    guessed.
 
-    Повторное открытие — не отказ, а тот же успех с оговоркой: по ссылке из
-    письма ходят дважды, и второй заход должен рассказывать про подтверждённый
-    адрес, а не про недействительную ссылку.
+    Opening it again is not a refusal but the same success with a caveat: a link
+    from a message is followed twice, and the second visit must speak of a
+    confirmed address rather than of an invalid link.
     """
     try:
         confirmation = confirm_email(db, payload.token)
@@ -490,16 +499,16 @@ def resend_verification_route(
 
 
 class ProfileIn(BaseModel):
-    """Уровень 4 настроек: язык интерфейса и часовой пояс.
+    """Level 4 of the settings: the interface language and the timezone.
 
-    Имя рядом с ними не настройка, а свойство человека, но правится оно там же
-    и тем же запросом: заводить ради одного поля второй маршрут значило бы
-    делать вид, что это разные экраны.
+    The name next to them is not a setting but a property of the person, yet it is
+    edited in the same place and by the same request: introducing a second route
+    for one field would mean pretending these are different screens.
 
-    `timezone` — единственное поле, у которого `null` что-то значит: «считать
-    сутки по браузеру». Отличить его от «поле не прислали» позволяет
-    `model_fields_set` — тот же приём, что у переопределений проекта, и по той
-    же причине: без него сброс выбора был бы невыразим.
+    `timezone` is the only field for which `null` means something: "count days by
+    the browser". Telling it apart from "the field was not sent" is made possible
+    by `model_fields_set` — the same technique as with a project's overrides, and
+    for the same reason: without it, clearing a choice would be inexpressible.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -518,13 +527,14 @@ class ProfileIn(BaseModel):
 def update_me(
     payload: ProfileIn, user: User = Depends(current_user), db: DbSession = Depends(get_db)
 ):
-    """Правка своего профиля.
+    """Editing one's own profile.
 
-    Язык проверяется по списку поддерживаемых: непроверенное значение легло бы
-    в профиль, и интерфейс молча падал бы на язык по умолчанию при каждом
-    входе, не объясняя почему. Пояс проверен разбором тела — именем из базы
-    IANA, а не свободной строкой: по нему считаются сутки читателя, и опечатка
-    в нём сдвинула бы «сегодня» на весь срок, пока её не заметят.
+    The language is checked against the list of supported ones: an unvalidated
+    value would land in the profile, and the interface would silently fall back to
+    the default language on every sign-in without explaining why. The timezone is
+    validated by parsing the body — by a name from the IANA database rather than as
+    a free string: the reader's days are counted by it, and a typo in it would
+    shift "today" for as long as it went unnoticed.
     """
     if payload.locale is not None:
         try:

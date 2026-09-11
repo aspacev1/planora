@@ -1,34 +1,33 @@
-"""Импорт проекта из Jira и повторная синхронизация — сборка мутаций.
+"""Importing a project from Jira and re-syncing it — assembling mutations.
 
-Импорт заводит новый проект Planora пачкой обычных мутаций с общим
-`batch_id`, тем же приёмом, что применение черновика AI (см.
-app.ai.intake.apply_draft): история задач, заведённых из Jira, не отличается
-от истории любых других, и всю пачку отменяет одна кнопка «Отменить». Эпики
-Jira становятся категориями, остальные задачи — строками плана; задача без
-эпика уходит в категорию по умолчанию.
+An import creates a new Planora project as a batch of ordinary mutations with a
+shared `batch_id`, by the same technique as applying an AI draft (see
+app.ai.intake.apply_draft): the history of tasks created from Jira is no
+different from the history of any others, and one "Undo" button undoes the whole
+batch. Jira epics become categories and the other issues become plan rows; an
+issue with no epic goes into the default category.
 
-Синхронизация повторяет тот же обход по сохранённому запросу (JQL) и решает
-для каждой строки: не заведена — создать, заведена и разошлась — обновить
-изменившиеся поля, заведена и совпадает — пропустить. Она **не**:
-  - удаляет локально задачи/категории, исчезнувшие из выборки Jira (Jira не
-    источник правды об удалении — человек мог намеренно вычеркнуть строку
-    здесь, оставив её в Jira открытой);
-  - переносит задачу в другую категорию, если её эпик в Jira сменился
-    (перенос — это reorder_task, который спрашивает новую позицию, а
-    угадывать место в чужом списке задач не дело автоматической синхронизации);
-  - понижает веху обратно в обычную задачу, если тип задачи в Jira сменился.
-Обновление уже заведённых дат и статусов при этом происходит: Jira для
-привязанного проекта — источник правды по срокам и статусам, а не Planora —
-с одним исключением. Как только срок конкретной задачи отправлен в Jira
-кнопкой «Отправить в Jira» (`push_project`), эта же задача помечается
-`JiraTaskLink.pushed_due_date`, и с этого момента её старт и длительность
-больше не приходят из Jira при обычной синхронизации — их source of truth
-переключился на Planora для этой одной строки, а не для всего проекта.
-Отправка при этом однонаправленная и не автоматическая: меняет поля только
-по нажатию кнопки, шлёт только Due Date (единственное системное поле сроков,
-которое есть на любом сайте Jira Cloud — Start Date существует лишь при
-Advanced Roadmaps) и никогда не создаёт задачи в Jira из тех, что заведены
-только в Planora.
+A sync repeats the same walk over the saved query (JQL) and decides for every
+row: not created — create it, created and diverged — update the changed fields,
+created and matching — skip it. It does **not**:
+  - locally delete tasks/categories that disappeared from the Jira selection
+    (Jira is not the source of truth about deletion — a person may have crossed a
+    row out here deliberately while leaving it open in Jira);
+  - move a task into another category if its epic changed in Jira (a move is
+    reorder_task, which asks for a new position, and guessing a place in someone
+    else's task list is not an automatic sync's business);
+  - demote a milestone back into an ordinary task if the issue type changed in Jira.
+Updating dates and statuses that are already created does happen, though: for a
+linked project Jira is the source of truth on deadlines and statuses, not
+Planora — with one exception. As soon as a particular task's due date is pushed
+to Jira with the "Push to Jira" button (`push_project`), that same task is marked
+`JiraTaskLink.pushed_due_date`, and from then on its start and duration no longer
+come from Jira on an ordinary sync — their source of truth has switched to
+Planora for that one row, not for the whole project. The push, meanwhile, is
+one-way and not automatic: it changes fields only on a button press, sends only
+the Due Date (the one system date field present on any Jira Cloud site — Start
+Date exists only with Advanced Roadmaps) and never creates issues in Jira out of
+tasks that exist only in Planora.
 """
 
 import uuid
@@ -76,19 +75,19 @@ from app.mutations import (
 from app.projects import create_project
 from app.settings_resolution import project_calendar
 
-# Палитра — оформление, не данные: тот же короткий набор шести цветов, что
-# предлагает форма создания категории вручную и применение черновика AI (см.
-# app/ai/intake.py:_COLORS). Общего модуля ради шести строк не заводим —
-# он был бы тяжелее, чем цена нести палитру трижды.
+# The palette is presentation, not data: the same short set of six colours the
+# manual category-creation form and the application of an AI draft offer (see
+# app/ai/intake.py:_COLORS). We do not introduce a shared module for six lines —
+# it would weigh more than the price of carrying the palette three times.
 _COLORS = ("#3b82f6", "#a855f7", "#f97316", "#10b981", "#ef4444", "#eab308")
 
 _DEFAULT_CATEGORY_NAME = {"ru": "Без эпика", "az": "Epiksiz", "en": "No epic"}
 
-#: Ключ привязки категории по умолчанию — не ключ задачи Jira (в Jira таких
-#: ключей не бывает: они всегда `ПРОЕКТ-число`), а значит не столкнётся ни с
-#: одним настоящим эпиком. Нужен, чтобы повторная синхронизация находила уже
-#: заведённую категорию по умолчанию по привязке, а не по имени: имя завязано
-#: на локаль запускающего, а привязка — нет.
+#: The link key of the default category — not a Jira issue key (Jira has no such
+#: keys: they are always `PROJECT-number`), so it cannot collide with any real
+#: epic. It exists so that a repeated sync finds the already created default
+#: category by its link rather than by name: the name depends on the locale of
+#: whoever ran it, the link does not.
 _NO_EPIC_LINK_KEY = "__no_epic__"
 
 
@@ -101,7 +100,7 @@ def _default_category_name(locale: str) -> str:
 
 
 def default_jql(jira_project_key: str) -> str:
-    """Запрос по умолчанию: весь проект, от старых задач к новым."""
+    """The default query: the whole project, from old issues to new ones."""
     return f'project = "{jira_project_key}" ORDER BY created ASC'
 
 
@@ -110,14 +109,14 @@ def _now() -> datetime:
 
 
 def resolve_epic_link_field(client: JiraClient) -> str | None:
-    """Id пользовательского поля «Epic Link», если оно есть у инстанса.
+    """The id of the "Epic Link" custom field, if the instance has one.
 
-    Отказ здесь не должен ронять импорт целиком — на части инстансов список
-    полей недоступен без прав администратора, а без поля эпик team-managed
-    проектов (обычный `parent`) продолжает определяться. Классические
-    (company-managed) проекты в этом случае просто не находят эпик через
-    старое поле и попадают в категорию по умолчанию — план от этого не
-    ломается, только беднее размечен.
+    A refusal here must not bring the whole import down — on some instances the
+    field list is unavailable without administrator rights, and without the field
+    the epic of team-managed projects (an ordinary `parent`) keeps being
+    determined. Classic (company-managed) projects in that case simply fail to
+    find their epic through the old field and land in the default category — the
+    plan is not broken by that, only more sparsely labelled.
     """
     try:
         return find_epic_link_field(client.list_fields())
@@ -140,10 +139,10 @@ def _fetch_issues(client: JiraClient, jql: str, epic_link_field: str | None, lim
 
 
 class _CategoryAssigner:
-    """Категория для задачи: по эпику, если он заведён, иначе — по умолчанию.
+    """The category for a task: by its epic, if one was created, otherwise the default.
 
-    Категория по умолчанию заводится лениво, первой задачей без эпика: план,
-    где у каждой задачи есть эпик, не должен получать пустой лишний этап.
+    The default category is created lazily, by the first task with no epic: a plan
+    where every task has an epic must not get an extra empty stage.
     """
 
     def __init__(
@@ -218,12 +217,12 @@ def _sync_categories(
         link = existing.get(key)
         name = issue_summary(epic)
         category = db.get(Category, link.category_id) if link is not None else None
-        # Категория могла быть удалена вручную с тех пор — привязка тогда
-        # осиротела. Задачи этого эпика создавать всё равно нужно (Jira его
-        # не удаляла), поэтому здесь заводится новая категория заново — в
-        # отличие от JiraTaskLink ниже: там осиротевшая привязка молча
-        # пропускается, потому что удаление задачи человек мог сделать
-        # осознанно, а категория без единой строки такого решения не несёт.
+        # The category may have been deleted by hand since — the link is then
+        # orphaned. This epic's tasks still have to be created (Jira did not delete
+        # it), so a new category is created here anew — unlike JiraTaskLink below:
+        # there an orphaned link is silently skipped, because a person may have
+        # deleted the task deliberately, while a category with not a single row
+        # carries no such decision.
         if link is not None and category is None:
             db.delete(link)
         if category is None:
@@ -254,8 +253,8 @@ def _sync_categories(
 
 
 def _dates_from_jira(link: JiraTaskLink) -> bool:
-    """Ведёт ли Jira сроки этой задачи. `False` — сроки отправлены в Jira
-    (см. app/jira/sync.py:push_project), и обычная синхронизация им не указ."""
+    """Whether Jira drives this task's dates. `False` means the dates were pushed
+    to Jira (see app/jira/sync.py:push_project), and an ordinary sync has no say over them."""
     return link.pushed_due_date is None
 
 
@@ -307,7 +306,7 @@ def _apply_task_update(
             batch_id=batch_id,
             reason=reason,
         )
-    # Веху только повышают, никогда не понижают — см. докстринг модуля.
+    # A milestone is only promoted, never demoted — see the module docstring.
     if fields.milestone and not task.milestone:
         apply_op(
             db,
@@ -360,8 +359,8 @@ def _sync_tasks(
     batch_id: uuid.UUID,
     reason: str | None,
 ) -> tuple[int, int, bool]:
-    """Возвращает (создано задач, обновлено задач, заведена ли новая
-    категория по умолчанию)."""
+    """Returns (tasks created, tasks updated, whether a new default category was
+    created)."""
     assigner = _CategoryAssigner(
         db,
         project,
@@ -404,10 +403,10 @@ def _sync_tasks(
             continue
 
         if link.task_id is None:
-            # Задача удалена локально с тех пор — привязка осталась
-            # надгробием (task_id обнулён FK SET NULL, см. модель) вместо
-            # того, чтобы воскрешать задачу заново: решение избавиться от
-            # строки плана отдаём человеку, который его принял.
+            # The task has been deleted locally since — the link remains as a
+            # headstone (task_id nulled by the FK's SET NULL, see the model) rather
+            # than resurrecting the task anew: the decision to get rid of a plan row
+            # is left to the person who made it.
             continue
         task = db.get(Task, link.task_id)
         if _task_needs_update(task, fields, link):
@@ -442,8 +441,8 @@ def _sync(
     )
     default_link = existing_category_links.get(_NO_EPIC_LINK_KEY)
     default_category_id = default_link.category_id if default_link else None
-    # Та же проверка на осиротевшую привязку, что и у эпиков в
-    # _sync_categories: категорию по умолчанию тоже могли удалить вручную.
+    # The same orphaned-link check as for epics in _sync_categories: the default
+    # category may have been deleted by hand too.
     if default_link is not None and db.get(Category, default_link.category_id) is None:
         db.delete(default_link)
         default_category_id = None
@@ -482,13 +481,13 @@ def import_project(
     jql: str | None,
     actor: User,
 ) -> tuple[Project, uuid.UUID, SyncResult]:
-    """Заводит проект Planora по проекту Jira. Ничего не создаёт, если Jira
-    не отвечает или запрос не находит ни одной задачи — пустой проект без
-    единой строки был бы хуже честного отказа."""
+    """Creates a Planora project from a Jira project. It creates nothing if Jira
+    does not answer or the query finds no issues at all — an empty project without
+    a single row would be worse than an honest refusal."""
     query = jql or default_jql(jira_project_key)
     project = create_project(db, org_id=org.id, name=name)
-    # План с настоящими датами Jira — календарный, не относительный, тем же
-    # решением, что применение черновика AI (см. app.ai.intake.apply_draft).
+    # A plan with real Jira dates is calendar-based, not relative, by the same
+    # decision as applying an AI draft (see app.ai.intake.apply_draft).
     project.schedule_mode = ScheduleMode.CALENDAR
     db.flush()
 
@@ -519,14 +518,14 @@ def sync_project(
     project: Project,
     actor: User,
 ) -> tuple[SyncResult, uuid.UUID]:
-    """Повторная синхронизация уже заведённого проекта — см. докстринг модуля
-    о том, чего она не делает.
+    """Re-syncing an already created project — see the module docstring for what
+    it does not do.
 
-    Клиента строит `client_factory`, а не готовый объект: связь с Jira можно
-    было отключить в настройках уже после того, как этот проект из неё
-    завели, и «проект не привязан» — более точный отказ для непривязанного
-    проекта, чем «Jira не подключена», даже если оба условия верны разом.
-    Поэтому привязка проверяется раньше, чем строится клиент.
+    The client is built by `client_factory` rather than being a ready object: the
+    Jira connection may have been turned off in the settings after this project was
+    created from it, and "the project is not linked" is a more precise refusal for
+    an unlinked project than "Jira is not connected", even when both conditions are
+    true at once. So the link is checked before the client is built.
     """
     link = db.scalar(select(JiraProjectLink).where(JiraProjectLink.project_id == project.id))
     if link is None:
@@ -564,8 +563,8 @@ def sync_project(
 class PushResult:
     pushed: int = 0
     unchanged: int = 0
-    #: [{"issue_key": ..., "code": ...}] — одна отклонённая Jira задача не
-    #: должна прятать успех остальных, поэтому список, а не первое же исключение.
+    #: [{"issue_key": ..., "code": ...}] — one issue rejected by Jira must not hide
+    #: the success of the rest, hence a list rather than the first exception.
     failed: list[dict] = field(default_factory=list)
 
 
@@ -575,16 +574,17 @@ def push_project(
     org: Organization,
     client_factory: Callable[[], JiraClient],
     project: Project,
-    actor: User,  # noqa: ARG001 — параметр держит форму с sync_project/import_project;
-    # отправка не проходит через apply_op (меняет только jira_task_links, не
-    # план), и автору мутации здесь взяться неоткуда.
+    actor: User,  # noqa: ARG001 — the parameter keeps the shape of
+    # sync_project/import_project; the push does not go through apply_op (it changes
+    # only jira_task_links, not the plan), and there is nowhere here for a mutation
+    # author to come from.
 ) -> PushResult:
-    """Отправляет в Jira сроки задач, разошедшиеся с тем, что туда ушло в
-    прошлый раз, — кнопка «Отправить в Jira». Меняет только Due Date
-    (см. докстринг JiraClient.update_issue_due_date) и только у задач,
-    заведённых из Jira; ничего не создаёт в Jira и не трогает план Planora —
-    см. докстринг модуля о том, как это меняет поведение следующей
-    синхронизации для отправленных задач.
+    """Pushes to Jira the dates of the tasks that have diverged from what was sent
+    there last time — the "Push to Jira" button. It changes only the Due Date (see
+    the JiraClient.update_issue_due_date docstring) and only on tasks created from
+    Jira; it creates nothing in Jira and does not touch the Planora plan — see the
+    module docstring for how this changes the behaviour of the next sync for pushed
+    tasks.
     """
     link = db.scalar(select(JiraProjectLink).where(JiraProjectLink.project_id == project.id))
     if link is None:
