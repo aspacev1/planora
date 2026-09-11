@@ -23,16 +23,15 @@ import type { Money } from "./money";
 import "../task/panel.css";
 
 /**
- * Карточка строки сметы — та же выдвижная панель, что у задачи плана.
+ * A quote line's card — the same sliding panel as a plan task's.
  *
- * Разметка и классы карточки задачи переиспользуются нарочно: два разных
- * выдвижных ящика в одном продукте означали бы, что человек угадывает, как
- * закрывается каждый.
+ * The task card's markup and classes are reused deliberately: two different drawers in one product
+ * would mean a person guessing how each of them closes.
  *
- * Поля собраны по тому, кто их увидит, а не по типу: «в документе клиента»
- * и «только для команды». Смету пишут для заказчика, и человек, дописывая
- * риск, обязан с первого взгляда знать, уйдёт ли строка в документ или
- * останется внутри — иначе однажды заказчик прочтёт «подрядчик ненадёжен».
+ * The fields are gathered by who will see them rather than by type: "in the client's document" and
+ * "team only". A quote is written for the customer, and a person adding a risk must know at first
+ * glance whether the line will go into the document or stay inside — otherwise one day the customer
+ * will read "the contractor is unreliable".
  */
 export function ProposalTaskPanel({
   projectId,
@@ -45,7 +44,7 @@ export function ProposalTaskPanel({
 }: {
   projectId: string;
   task: ProposalTask;
-  /** Раздел сметы, в котором стоит строка: показывается в шапке. */
+  /** The quote section the line stands in: shown in the header. */
   categoryName: string;
   effortUnit: EffortUnit;
   currency: string;
@@ -58,8 +57,8 @@ export function ProposalTaskPanel({
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: proposalQueryKey(projectId) });
 
-  // Поля сохраняют себя сами — при потере фокуса, с отметкой у поля: у
-  // карточки нет кнопки «Сохранить», как и у карточки задачи.
+  // The fields save themselves — on blur, with a mark by the field: the card has no "Save" button,
+  // just like the task card.
   const saves = useFieldSaves((patch: ProposalTaskPatch) =>
     updateProposalTask(projectId, task.id, patch).then(invalidate),
   );
@@ -79,20 +78,19 @@ export function ProposalTaskPanel({
   });
 
   const send = useMutation({
-    // Сброс всей сметы, а не только ленты: счётчик реплик стоит на строке
-    // таблицы, и лента с ним обязаны обновляться вместе.
+    // The whole quote is invalidated rather than only the feed: the reply counter stands on the
+    // table's row, and it and the feed must refresh together.
     mutationFn: (body: string) => addProposalComment(projectId, task.id, body),
     onSuccess: invalidate,
   });
 
-  // Тот же слой Esc, что у карточки задачи: закрывается верхний слой, а не
-  // всё разом.
+  // The same Esc layer as the task card's: the top layer closes rather than everything at once.
   useEscape(onClose);
 
   const hours = effortUnit === "hours";
   const money = (value: Money) => formatMoney(locale, currency, value);
-  // Формула цены — «2д × 400,00 $ в день»: цена в шапке не поле, и человек
-  // должен видеть, из чего она сложилась, чтобы знать, какое поле править.
+  // The price formula — "2d × $400.00 per day": the price in the header is not a field, and a person
+  // must see what it adds up from to know which field to edit.
   const effort = t(hours ? "proposal.format.hours" : "proposal.format.days", {
     value: formatAmount(locale, task.effort),
   });
@@ -109,7 +107,7 @@ export function ProposalTaskPanel({
     >
       <header className="panel__head">
         <div className="panel__head-top">
-          {/* Имя строки — содержимое пользователя: не переводится. */}
+          {/* The line's name is user content: it is not translated. */}
           <h2 className="panel__title">{task.name}</h2>
           <button
             type="button"
@@ -120,8 +118,8 @@ export function ProposalTaskPanel({
             ×
           </button>
         </div>
-        {/* Раздел | формула | цена — приборной строкой, как статус и период
-            у задачи. Цена правится сомножителями в полях ниже. */}
+        {/* Section | formula | price — as a dashboard line, like a task's status and period. The
+            price is edited through its factors in the fields below. */}
         <p className="panel__meta">
           <span>{categoryName}</span>
           <span className="panel__meta-sep" aria-hidden="true" />
@@ -237,8 +235,8 @@ export function ProposalTaskPanel({
           </div>
         </PanelSection>
 
-        {/* Разговор о строке — той же лентой, что у задачи и на публичной
-            странице: две формы одного разговора разошлись бы на первой правке. */}
+        {/* The conversation about the line uses the same feed as a task's and the public page's: two
+            forms of one conversation would diverge on the first edit. */}
         <PanelSection
           title={t("proposal.task.section_discussion")}
           note={t("proposal.task.discussion_note")}

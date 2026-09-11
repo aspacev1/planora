@@ -3,26 +3,26 @@ import type { useFieldSaves } from "../components/autosave";
 import { useLocale } from "../i18n/LocaleProvider";
 import { ProposalParams } from "./ProposalParams";
 
-/** Три шага сметы — в том порядке, в каком их проходят. */
+/** The quote's three steps — in the order they are gone through. */
 const STEPS = ["sections", "estimate", "plan"] as const;
 
 /**
- * Пустая смета: что это и с чего начать.
+ * An empty quote: what this is and where to begin.
  *
- * Вместо таблицы без единой строки — один экран: надзаголовок, заголовок,
- * абзац о назначении, три шага и две карточки старта. Новичок, открывший
- * вкладку впервые, должен понять, что здесь делают, не уходя за подсказкой,
- * и сделать первый шаг одной кнопкой: завести раздел руками или собрать
- * смету из плана, если план уже есть.
+ * Instead of a table without a single row there is one screen: an overline, a heading, a paragraph
+ * about the purpose, three steps and two start cards. A newcomer opening the tab for the first time
+ * must understand what is done here without leaving for a help page, and take the first step with
+ * one button: create a section by hand or assemble the quote from the plan, if a plan already
+ * exists.
  *
- * Карточка сборки при пустом плане не прячется, а гаснет с объяснением:
- * пропавшая карточка читалась бы как «такого не бывает», погасшая — как
- * «будет, когда появятся задачи».
+ * The assembly card is not hidden when the plan is empty but goes dim with an explanation: a
+ * vanished card would read as "that does not happen", a dimmed one as "it will, once there are
+ * tasks".
  *
- * Параметры сметы — строкой под карточками, а не полями: до первой строки их
- * трогают редко, и четыре поля спорили бы с двумя карточками за внимание.
- * Кнопка — тот же поповер, что стоит в тулбаре таблицы (ProposalParams):
- * второго места с теми же четырьмя полями не заводится.
+ * The quote's parameters are a line under the cards rather than fields: before the first row they
+ * are touched rarely, and four fields would compete with the two cards for attention. The button is
+ * the same popover that stands in the table's toolbar (ProposalParams): no second place with the
+ * same four fields is created.
  */
 export function ProposalEmptyState({
   proposal,
@@ -37,7 +37,7 @@ export function ProposalEmptyState({
   saves: ReturnType<typeof useFieldSaves<ProposalSettingsPatch>>;
   onNewCategory: () => void;
   onBuild: () => void;
-  /** Сборка уже идёт: второй щелчок по карточке ничего не должен запускать. */
+  /** The assembly is already running: a second click on the card must start nothing. */
   building: boolean;
 }) {
   const { t } = useLocale();
@@ -86,15 +86,15 @@ export function ProposalEmptyState({
           </button>
         </div>
       ) : (
-        // Читателю карточки не показываются вовсе: обе ведут к правке, и
-        // погасшие они звали бы просить права, которых здесь не выдают.
+        // A reader is not shown the cards at all: both lead to editing, and dimmed they would invite
+        // them to ask for permissions that are not handed out here.
         <p className="muted proposal-start__readonly">{t("proposal.start.readonly")}</p>
       )}
 
-      {/* div, а не p: внутри поповера живёт блочная панель, а абзац блоков
-          не вмещает — браузер разорвал бы его на месте панели. Читателю
-          кнопка тоже показывается — поля внутри у него выключены, а в чём
-          считают смету, знать вправе и он. */}
+      {/* A div rather than a p: a block-level panel lives inside the popover, and a paragraph does
+          not hold blocks — the browser would tear it apart at the panel. A reader is shown the
+          button too — the fields inside are disabled for them, while they are entitled to know what
+          the quote is counted in. */}
       <div className="proposal-start__settings">
         <span>{t("proposal.start.settings")}</span>
         <ProposalParams proposal={proposal} canWrite={canWrite} saves={saves} />

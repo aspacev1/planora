@@ -2,42 +2,42 @@ import type { ProjectState, Task } from "../api/projects";
 import { daysBetween } from "../gantt/timescale";
 
 /**
- * Просрочка проекта: две разные величины с похожим именем.
+ * A project's overdueness: two different quantities with a similar name.
  *
- * «Задача просрочена» — работа не закончена, а её срок уже прошёл;
- * «проект не влезает в дедлайн» — общий срок проекта нарушен, посчитанный в
- * днях, а не в задачах. По-русски оба зовутся «просрочено», но отвечают на
- * разные вопросы и до этого модуля считались в нескольких местах по-своему —
- * здесь им одно место на двоих.
+ * "A task is overdue" — the work is not finished while its date has already passed; "the project
+ * does not fit into the deadline" — the project's overall date is broken, counted in days rather
+ * than in tasks. In Russian both are called "просрочено", but they answer different questions and
+ * before this module were computed in several places each in its own way — here they get one place
+ * between them.
  */
 
 /**
- * Просрочена ли задача: работа не закончена, а её срок уже прошёл.
+ * Whether a task is overdue: the work is not finished while its date has already passed.
  *
- * Только у календарного плана. У относительного даты задач — координаты на
- * оси от RELATIVE_EPOCH (2001-01-01), а не настоящие сроки: сравнение с
- * сегодняшним днём пометило бы просроченной каждую строку такого проекта.
+ * Only for a calendar plan. In a relative one the tasks' dates are coordinates on an axis from
+ * RELATIVE_EPOCH (2001-01-01) rather than real dates: a comparison with today would mark every row
+ * of such a project overdue.
  */
 export function isTaskOverdue(state: ProjectState, task: Task, today: string): boolean {
   if (state.schedule_mode !== "calendar") return false;
   return task.status !== "done" && task.end_date < today;
 }
 
-/** Просроченные задачи проекта. Считаются в задачах: их открывают поимённо. */
+/** A project's overdue tasks. Counted in tasks: they are opened by name. */
 export function overdueTasks(state: ProjectState, today: string): Task[] {
   return state.tasks.filter((task) => isTaskOverdue(state, task, today));
 }
 
 /**
- * Задачи, кончающиеся позже дедлайна проекта.
+ * The tasks ending later than the project's deadline.
  *
- * Не то же, что просрочка выше, хотя по-русски оба зовутся «просрочено». Та
- * отвечает на «работа стоит, а время вышло», эта — на «в срок ли». Отсюда
- * пересечение с завершёнными: сделанное после дедлайна сделано не в срок, и
- * из этого счёта оно не уходит.
+ * Not the same as the overdueness above, although in Russian both are called "просрочено". That one
+ * answers "the work has stopped and the time is up", this one answers "was it on time". Hence the
+ * overlap with the finished ones: something done after the deadline was not done on time, and it
+ * does not leave this count.
  *
- * Относительному плану ничего не грозит и без проверки режима: его координаты
- * лежат в 2001 году и дедлайна не перешагивают.
+ * A relative plan is in no danger even without a mode check: its coordinates lie in 2001 and do not
+ * step over a deadline.
  */
 export function pastDeadlineTasks(state: ProjectState): Task[] {
   const { deadline } = state;
@@ -46,11 +46,11 @@ export function pastDeadlineTasks(state: ProjectState): Task[] {
 }
 
 /**
- * На сколько дней проект не влезает в дедлайн. `null` — укладывается либо
- * сравнивать не с чем.
+ * By how many days the project does not fit into the deadline. `null` — it fits, or there is nothing
+ * to compare with.
  *
- * Днями, а не задачами: «шесть задач за дедлайном» не отвечает, опоздание это
- * на день или на месяц, а «+14 дней» отвечает сразу.
+ * In days rather than in tasks: "six tasks past the deadline" does not answer whether the delay is a
+ * day or a month, while "+14 days" answers at once.
  */
 export function deadlineOverrunDays(state: ProjectState): number | null {
   if (state.schedule_mode !== "calendar") return null;

@@ -9,33 +9,32 @@ import {
 import type { Project, ProjectState } from "../api/projects";
 
 /**
- * Все проекты организации с их состояниями — сырьё «Проектов», «Моих задач» и
- * «Отчётов».
+ * All the organization's projects with their states — the raw material for "Projects", "My tasks"
+ * and "Reports".
  *
- * Список, затем состояние каждого проекта по отдельности: сводного маршрута
- * на сервере нет, а ключи совпадают с ключами экрана проекта — то, что уже
- * открывали, приходит из кэша, и список не платит вторым запросом за то,
- * на что человек только что смотрел. Установки этого продукта — команды на
- * единицы проектов, не порталы на сотни: веер запросов здесь дешевле нового
- * серверного маршрута, который пришлось бы держать в согласии с основным.
+ * The list, then each project's state separately: there is no combined route on the server, and the
+ * keys coincide with the project screen's keys — whatever has already been opened comes from the
+ * cache, and the list does not pay a second request for what the person has just been looking at.
+ * This product's installs are teams with single-digit numbers of projects rather than portals with
+ * hundreds: a fan of requests here is cheaper than a new server route that would have to be kept in
+ * agreement with the main one.
  *
- * Список и состояния разделены и в ответе тоже. Экран проектов рисует имена
- * сразу, как только пришёл список, и дополняет карточки сводкой по мере того,
- * как приходят состояния: ждать общего «готово» значило бы держать пустой
- * экран из-за одного медленного проекта. Отчётам и «Моим задачам» нужно всё
- * сразу — им остаются `pending` и `error`.
+ * The list and the states are separated in the response too. The projects screen draws the names as
+ * soon as the list arrives and fills the cards in with the summary as the states come: waiting for a
+ * shared "ready" would mean holding an empty screen because of one slow project. The reports and "My
+ * tasks" need everything at once — they are left with `pending` and `error`.
  */
 export function useProjectStates(): {
-  /** Список и все состояния до единого. */
+  /** The list and every last state. */
   pending: boolean;
-  /** Первая ошибка любого из запросов. */
+  /** The first error of any of the requests. */
   error: unknown;
-  /** Только список: по нему рисуются имена карточек. */
+  /** The list alone: the cards' names are drawn from it. */
   listPending: boolean;
   /**
-   * Только отказ списка. Отдельно от общего: не пришедшее состояние одного
-   * проекта — это карточка без сводки, а не экран без проектов, и баннер
-   * «сервер недоступен» поверх нормально загруженного списка врал бы.
+   * The list's refusal alone. Separate from the shared one: one project's state failing to arrive is
+   * a card without a summary rather than a screen without projects, and a "server unavailable"
+   * banner over a normally loaded list would be a lie.
    */
   listError: unknown;
   projects: Project[];
@@ -58,8 +57,8 @@ export function useProjectStates(): {
 
   return {
     pending: list.isPending || details.some((query) => query.isPending),
-    // Первая ошибка, а не все: экраны показывают одну строку отказа, и список
-    // из пяти одинаковых «сервер недоступен» не сообщил бы ничего сверх неё.
+    // The first error rather than all of them: the screens show one refusal line, and a list of five
+    // identical "server unavailable"s would say nothing beyond it.
     error: list.error ?? details.find((query) => query.error)?.error ?? null,
     listPending: list.isPending,
     listError: list.error ?? null,

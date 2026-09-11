@@ -9,12 +9,12 @@ import { addMoney } from "./money";
 import type { Money } from "./money";
 
 /**
- * Итоги — карточкой сбоку, на виду при любой прокрутке: «сколько всего»
- * спрашивают, не дочитав смету.
+ * The totals — as a card on the side, in sight however the page is scrolled: "how much altogether"
+ * is asked before the quote has been read through.
  *
- * Числа приходят готовыми: их считает экран из уже показанных строк (см.
- * Proposal.tsx), а карточка их только показывает — второе место с той же
- * арифметикой разошлось бы с колонкой цены на первой же правке.
+ * The numbers arrive ready: they are computed by the screen from the rows already shown (see
+ * Proposal.tsx), and the card only shows them — a second place with the same arithmetic would
+ * diverge from the price column on the very first edit.
  */
 export function ProposalSummary({
   projectId,
@@ -41,21 +41,21 @@ export function ProposalSummary({
   tax: Money;
   formats: Formats;
   canWrite: boolean;
-  /** Вправе ли смотрящий получить документ для клиента (см. permissions). */
+  /** Whether the viewer is entitled to get the document for the client (see permissions). */
   canExport: boolean;
-  /** Этап сделки: от него зависит, главная кнопка переноса или тихая. */
+  /** The deal's stage: whether the transfer button is the primary one or a quiet one depends on it. */
   status: ProposalStage;
-  /** Сколько строк уже в плане и сколько оценённых ещё можно перенести. */
+  /** How many lines are already in the plan and how many estimated ones can still be transferred. */
   pushedCount: number;
   pushableCount: number;
-  /** Открыть окно переноса. */
+  /** Open the transfer dialog. */
   onPush: () => void;
 }) {
   const { t, locale } = useLocale();
 
-  // Блок отвечает на «что дальше», и ответ меняется по ходу дела: пока в
-  // плане не всё — перенести (см. PushPlanButton: тихо до согласования,
-  // главной после); перенесли всё — смотреть диаграмму.
+  // The block answers "what next", and the answer changes as things go: while not everything is in
+  // the plan — transfer (see PushPlanButton: quiet before the agreement, primary after); everything
+  // transferred — look at the chart.
   const everythingPushed = pushedCount > 0 && pushableCount === 0;
 
   return (
@@ -91,16 +91,15 @@ export function ProposalSummary({
           </dd>
         </div>
       </dl>
-      {/* «Дальше» — что делать с предложением, когда итоги прочитаны.
-          Отделено чертой от чисел: «сколько» и «что теперь» — разные
-          вопросы. Пока сделка не согласована, главное действие — документ
-          для клиента: смета пишется, чтобы уйти клиенту, а перенос стоит
-          тихой кнопкой под ним. После согласования остаётся один шаг —
-          перенос, и главной становится уже его кнопка (см. PushPlanButton),
-          а документ отходит в тихий вид: он уже ушёл и согласован.
+      {/* "Next" — what to do with the proposal once the totals have been read. Separated from the
+          numbers by a rule: "how much" and "what now" are different questions. While the deal is not
+          agreed, the main action is the document for the client: a quote is written in order to go
+          to the client, and the transfer stands as a quiet button below it. After the agreement one
+          step is left — the transfer — and its button becomes the primary one (see PushPlanButton),
+          while the document moves into the quiet form: it has already gone and been agreed.
 
-          Документ — ссылка с `download`, а не запрос из скрипта: файл
-          собирает сервер, и браузер сохраняет его сам под именем из ответа. */}
+          The document is a link with `download` rather than a request from a script: the file is
+          assembled by the server, and the browser saves it itself under the name from the response. */}
       {(canExport || canWrite) && (
         <section
           className="proposal-summary__next"

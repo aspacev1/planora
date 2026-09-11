@@ -18,11 +18,11 @@ import { errorKey } from "../api/errors";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Создание проекта через интервью.
+ * Creating a project through an interview.
  *
- * Четыре шага и двое ворот между ними: конспект — где дешевле всего поймать
- * неверно понятое, и черновик — где ещё ничего не записано в проект. Пропустить
- * их нельзя: сервер откажет, а интерфейс и не предлагает.
+ * Four steps and two gates between them: the summary — where it is cheapest to catch a
+ * misunderstanding — and the draft — where nothing has been written into the project yet. They
+ * cannot be skipped: the server will refuse, and the interface does not offer it either.
  */
 export function AiIntake() {
   const { t, locale } = useLocale();
@@ -71,8 +71,8 @@ export function AiIntake() {
     apply.error ??
     saveDraft.error;
 
-  // Нет ключа — кнопки AI неактивны со ссылкой в настройки. Не спрятаны:
-  // спрятанная кнопка не объясняет, почему интервью недоступно.
+  // No key — the AI buttons are disabled with a link to the settings. Not hidden: a hidden button
+  // does not explain why the interview is unavailable.
   if (credential.data && !credential.data.configured) {
     return (
       <main className="screen">
@@ -111,8 +111,8 @@ export function AiIntake() {
 
       {session !== null && session.status === "interview" && (
         <section className="settings">
-          {/* Вопросы по одному: список из двенадцати полей превращает
-              интервью в анкету, которую заполняют не читая. */}
+          {/* The questions come one at a time: a list of twelve fields turns an interview into a
+              questionnaire that gets filled in without reading. */}
           <p className="ai__question">{question?.question}</p>
           <p className="field">
             <label htmlFor="ai-answer">{t("ai.answer")}</label>
@@ -132,8 +132,8 @@ export function AiIntake() {
             >
               {t("ai.reply")}
             </button>
-            {/* Кнопка «хватит, генерируй» доступна на любом шаге: без неё
-                человек, которому всё ясно, вынужден досидеть до потолка. */}
+            {/* The "enough, generate it" button is available at any step: without it a person for
+                whom everything is clear has to sit it out to the ceiling. */}
             <button
               type="button"
               className="button--quiet"
@@ -173,7 +173,7 @@ export function AiIntake() {
   );
 }
 
-/** Ворота 1: тезисы правятся и удаляются — на то они и ворота. */
+/** Gate 1: the theses are edited and deleted — that is what a gate is for. */
 function SummaryGate({
   theses,
   pending,
@@ -213,7 +213,7 @@ function SummaryGate({
   );
 }
 
-/** Ворота 2: черновик правится целиком, и в проект не записано ничего. */
+/** Gate 2: the draft is edited whole, and nothing has been written into the project. */
 function DraftGate({
   draft,
   pending,
@@ -227,11 +227,11 @@ function DraftGate({
 }) {
   const { t } = useLocale();
   const [name, setName] = useState("");
-  // Рабочая копия черновика. Правки идут по ней, а не по пропсу: пропс —
-  // это ответ сервера на прошлую правку, и он приходит позже следующей. Две
-  // правки подряд — дата у одной задачи, имя у другой, — построенные каждая
-  // от пропса, стирали бы друг друга: вторая уходила бы без первой, а
-  // последний ответ ставил бы экран в состояние без неё.
+  // A working copy of the draft. The edits go through it rather than through the prop: the prop is
+  // the server's answer to the previous edit, and it arrives after the next one. Two edits in a row
+  // — a date on one task, a name on another — each built from the prop, would erase one another: the
+  // second would leave without the first, and the last answer would put the screen into a state
+  // without it.
   const [work, setWork] = useState(draft);
   useEffect(() => setWork(draft), [draft]);
 
@@ -272,12 +272,12 @@ function DraftGate({
       <h2>{t("ai.draft.title")}</h2>
       <p className="muted">{t("ai.draft.hint")}</p>
 
-      {/* Ключ — номер, а не имя: имена категориям даёт модель, и двум из них
-          ничто не мешает совпасть; правки же адресуются номерами. */}
+      {/* The key is a number rather than a name: the names are given to the categories by the model,
+          and nothing stops two of them from coinciding; the edits, meanwhile, are addressed by number. */}
       {work.categories?.map((category, categoryIndex) => (
         <fieldset key={categoryIndex} className="settings__fieldset">
-          {/* Название категории — содержимое: пришло от модели на языке
-              сессии и не переводится. */}
+          {/* The category's name is content: it came from the model in the session's language and is
+              not translated. */}
           <legend>{category.name}</legend>
           <ul className="members__list">
             {category.tasks.map((task, taskIndex) => (
