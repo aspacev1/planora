@@ -51,12 +51,12 @@ import { CategoryForm, suggestColor } from "./CategoryForm";
 import { ShareDialog } from "./ShareDialog";
 
 /**
- * Экран одного проекта.
+ * A single project's screen.
  *
- * Три явных состояния, а не два: пока состояние не пришло, показывать пустую
- * диаграмму нельзя — она читается как «в проекте ничего нет». Отказ 404
- * означает и несуществующий проект, и чужой: интерфейс не знает разницы и не
- * притворяется, что знает.
+ * Three explicit states rather than two: until the state arrives an empty chart
+ * must not be shown — it reads as "there is nothing in this project". A 404
+ * means both a non-existent project and someone else's: the interface does not
+ * know the difference and does not pretend to.
  */
 export function Project({
   tab = "gantt",
@@ -66,66 +66,70 @@ export function Project({
   const navigate = useNavigate();
   const canWrite = useCanWrite();
   const role = useOrgRole();
-  // Тот же признак, что и у ленты: выезд карточки — такое же движение, как
-  // переезд полоски, и выключаться они обязаны вместе.
+  // The same flag as the strip's: a card sliding out is the same kind of motion
+  // as a bar travelling, and they must switch off together.
   const reducedMotion = usePrefersReducedMotion();
   const [addingCategory, setAddingCategory] = useState(false);
-  // Категория, о расставании с которой спрашивают. Держится идентификатором,
-  // а не самой категорией: пока окно открыто, состояние приходит с сервера
-  // заново, и окно, помнящее объект, называло бы человеку старое имя.
+  // The category we are asking about parting with. Held by id rather than by
+  // the category itself: while the dialog is open the state arrives from the
+  // server anew, and a dialog remembering the object would name an old name.
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [exporting, setExporting] = useState(false);
-  // Спрашивается только при открытом окне: числа разделов нужны раз в жизни
-  // экрана, а платить за них запросом на каждый показ проекта не за что.
+  // Asked for only while the dialog is open: the section counts are needed once
+  // in a screen's life, and there is no reason to pay a request per project view.
   const factsQuery = useQuery({
     queryKey: exportFactsQueryKey(projectId),
     queryFn: () => exportFacts(projectId),
     enabled: exporting,
   });
-  // Окно приглашения в организацию. Открывается прямо с проекта: зовут людей
-  // тогда, когда смотрят на работу, которую собираются им отдать, а не когда
-  // зашли в настройки рабочего пространства.
+  // The organization invitation dialog. Opened right from the project: people
+  // are invited when you are looking at the work you are about to hand them,
+  // not when you have gone into the workspace settings.
   const [inviting, setInviting] = useState(false);
-  // Окно привязки плана к дате старта — и переноса уже назначенной даты.
+  // The dialog binding the plan to a start date — and moving an already assigned one.
   const [scheduling, setScheduling] = useState(false);
-  // Открыт ли список расхождений с согласованным планом. Живёт здесь, а не в
-  // шапке: открывают его из двух мест — пометкой о расхождении и ссылкой в
-  // подтверждении переутверждения, — и оба стоят в разных поддеревьях.
+  // Whether the list of divergences from the approved plan is open. Lives here
+  // rather than in the header: it is opened from two places — the divergence
+  // marker and a link in the re-approval confirmation — and both sit in
+  // different subtrees.
   const [showingChanges, setShowingChanges] = useState(false);
-  // Задан ли вопрос о переутверждении. Тоже здесь: его задают и кнопкой в
-  // шапке, и из подвала панели изменений, а вопрос у действия один.
+  // Whether the re-approval question has been asked. Also here: it is asked
+  // both by the header button and from the changes panel's footer, and the
+  // action has a single question.
   const [reapproving, setReapproving] = useState(false);
-  // Показывает ли лента призрак согласованного плана. Поднят из ленты, потому
-  // что тем же слоем управляет тумблер в панели изменений: список и диаграмма
-  // рассказывают одно и то же двумя языками, и переключатель у них общий.
+  // Whether the strip shows the ghost of the approved plan. Lifted out of the
+  // strip because the same layer is driven by the toggle in the changes panel:
+  // the list and the chart tell the same thing in two languages, and they share
+  // one switch.
   const [showBaseline, setShowBaseline] = useState(true);
-  // Масштаб, колонки и слои ленты. Заводит экран, а не лента: органы
-  // управления стоят в шапке проекта, справа от вкладок, а рисует по ним
-  // лента — и у одного состояния обязан быть один хозяин (см. useGanttView).
+  // The strip's scale, columns and layers. Owned by the screen, not by the
+  // strip: the controls sit in the project header, to the right of the tabs,
+  // while the strip draws by them — and one state must have one owner (see
+  // useGanttView).
   const ganttView = useGanttView(projectId, {
     baselineShown: showBaseline,
     onBaselineToggle: () => setShowBaseline((shown) => !shown),
   });
-  // Где открыта строка новой задачи. `null` — закрыта.
+  // Where the new-task row is open. `null` — closed.
   //
-  // Задачу заводят прямо в ленте, а не в окне: план пишут списком, и окно
-  // между строками означало бы открыть, заполнить и закрыть его столько раз,
-  // сколько в плане дел. Спрашивается одно имя, остальное правится в карточке
-  // (см. NewTaskRow).
+  // A task is created right in the strip and not in a dialog: a plan is written
+  // as a list, and a dialog between rows would mean opening, filling in and
+  // closing it as many times as there are items in the plan. A single name is
+  // asked for, the rest is edited in the card (see NewTaskRow).
   const [addingTaskAt, setAddingTaskAt] = useState<NewTaskAt | null>(null);
-  // Задача, карточка которой открыта. Держится идентификатором, а не самой
-  // задачей: после каждого изменения состояние приходит с сервера заново, и
-  // карточка, помнящая объект, показывала бы устаревшие данные.
+  // The task whose card is open. Held by id rather than by the task itself:
+  // after every change the state arrives from the server anew, and a card
+  // remembering the object would show stale data.
   //
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  // Карточку открывают и адресом: отметка «в плане» на строке сметы ведёт
-  // сюда с `?task=<id>`, и карточка обязана открыться сразу, а не после
-  // поиска строки в ленте. Слежкой за адресом, а не начальным значением
-  // состояния: между вкладками проекта экран не перемонтируется, и начальное
-  // значение, прочитанное на смете, к диаграмме бы не дожило. Параметр
-  // снимается тут же: перезагрузка страницы не должна открывать карточку
-  // заново — открыть её просили однажды.
+  // A card is also opened by address: the "in the plan" marker on a quote line
+  // leads here with `?task=<id>`, and the card must open right away rather than
+  // after finding the row in the strip. By watching the address rather than as
+  // the state's initial value: the screen is not remounted between the
+  // project's tabs, and an initial value read on the quote would not survive to
+  // the chart. The parameter is cleared right here: reloading the page must not
+  // open the card again — opening it was asked for once.
   const [searchParams, setSearchParams] = useSearchParams();
   const taskFromAddress = searchParams.get("task");
   useEffect(() => {
@@ -135,37 +139,39 @@ export function Project({
     next.delete("task");
     setSearchParams(next, { replace: true });
   }, [taskFromAddress, searchParams, setSearchParams]);
-  // С какого раздела открыть карточку. Со строки ленты в неё ведут два пути:
-  // по имени и полоске — к свойствам, по счётчику реплик — сразу в обсуждение.
-  // Дальше вкладками управляет сама карточка.
+  // Which section to open the card on. Two paths lead into it from a strip row:
+  // the name and the bar go to the properties, the reply counter goes straight
+  // to the discussion. After that the card drives its own tabs.
   const [selectedTaskTab, setSelectedTaskTab] = useState<PanelTab>("details");
   const openTask = (taskId: string, tab: PanelTab = "details") => {
     setSelectedTaskTab(tab);
-    // Карточка выезжает на то же место справа, что и список расхождений: двум
-    // выдвижным колонкам там не разойтись, и открытая последней занимает его
-    // одна. Закрывается именно список — за карточкой пришли только что.
+    // The card slides out into the same place on the right as the divergence
+    // list: two sliding columns cannot fit there, and whichever opened last
+    // takes it alone. It is the list that closes — the card is what was just
+    // asked for.
     setShowingChanges(false);
-    // Повторный щелчок по той же строке закрывает карточку: люди делают так не
-    // задумываясь, и без этого щелчок выглядит бездействием. Переход же с имени
-    // на счётчик реплик — не повтор, а другой раздел той же карточки, и
-    // закрывать её он не должен.
+    // A repeat click on the same row closes the card: people do that without
+    // thinking, and without it the click looks like nothing happened. Going
+    // from the name to the reply counter, though, is not a repeat but a
+    // different section of the same card, and must not close it.
     setSelectedTaskId((current) =>
       current === taskId && tab === selectedTaskTab ? null : taskId,
     );
   };
-  // Карточка, к которой пришли из другого места — со скоркарда, из списка
-  // расхождений, — обязана открыться, а не переключиться. Правило «повторный
-  // щелчок закрывает» — про строку ленты под рукой; человек, выбравший задачу
-  // в списке, ждёт её карточку, даже если та уже была открыта на ленте.
+    // A card arrived at from somewhere else — from the scorecard, from the
+    // divergence list — must open rather than toggle. The "a repeat click
+    // closes" rule is about the strip row at hand; a person who picked a task
+    // in a list expects its card, even if it was already open on the strip.
   const showTask = (taskId: string) => {
     setSelectedTaskTab("details");
     setShowingChanges(false);
     setSelectedTaskId(taskId);
   };
 
-  // Лента развёрнута на весь экран. Между визитами не запоминается: полный
-  // экран включают осознанно, и открывшийся без шапки и колонки проект читался
-  // бы как сломанный, а не как удобно настроенный.
+  // The strip is expanded to the full screen. Not remembered between visits:
+  // full screen is turned on deliberately, and a project opening without a
+  // header and a column would read as broken rather than as conveniently
+  // configured.
   const [focusMode, setFocusMode] = useState(false);
 
   const query = useQuery({
@@ -174,46 +180,47 @@ export function Project({
     retry: false,
   });
 
-  // Живая связь открывается вместе с экраном и живёт, пока он открыт: ревизии
-  // соседей приезжают сами, а обрыв — единственное, что запирает редактирование.
+  // The live connection opens with the screen and lives as long as it is open:
+  // other people's revisions arrive on their own, and a drop is the only thing
+  // that locks editing.
   const live = useProjectLive(projectId);
 
   const offline = live.status === "offline";
 
-  // Обрыв связи возвращает обычный вид: полоска офлайна стоит над лентой, а
-  // полноэкранная лента накрыла бы её — человек видел бы, что полоски перестали
-  // двигаться, и не видел бы почему.
+  // A dropped connection brings back the ordinary view: the offline strip
+  // stands above the chart, and a full-screen chart would cover it — the person
+  // would see that the bars had stopped moving and not see why.
   useEffect(() => {
     if (offline) setFocusMode(false);
   }, [offline]);
 
-  // На других вкладках разворачивать нечего: полноэкранный режим, унесённый со
-  // вкладки на вкладку, накрыл бы собой историю или смету, к которым он не
-  // относится.
+  // There is nothing to expand on the other tabs: full-screen mode carried from
+  // tab to tab would cover the history or the quote, which it has nothing to do
+  // with.
   useEffect(() => {
     if (tab !== "gantt") setFocusMode(false);
   }, [tab]);
 
-  // Esc сворачивает полный экран — тем же слоем, что закрывает окна и меню:
-  // полноэкранная лента и есть верхний слой, пока она развёрнута.
+  // Esc collapses full screen — through the same layer that closes dialogs and
+  // menus: the full-screen strip is the top layer while it is expanded.
   useEscape(() => setFocusMode(false), focusMode);
 
   const { apply } = useProjectMutation(projectId);
-  // Отказ молчит — тем же образом, что у перестановки строк (useReorder):
-  // откат догадки внутри `apply` уже вернул категорию на экран, и этого
-  // достаточно — удалить успели в соседней вкладке, и правду покажет
-  // ближайший перезапрос.
+  // The refusal stays silent — the same way as with row reordering
+  // (useReorder): rolling the guess back inside `apply` has already returned
+  // the category to the screen, and that is enough — it was deleted in another
+  // tab, and the next refetch will show the truth.
   const removeCategory = (categoryId: string) => {
     void apply({ type: "delete_category", category_id: categoryId }, (state) =>
       deleteCategory(state, categoryId),
     ).catch(() => {});
   };
 
-  // Состав организации — только ради имён исполнителей в карточке наведения на
-  // полоску. Спрашивает экран, а не лента: у ленты нет признака «это публичная
-  // страница», и решать, ходить ли за составом, она не должна. Отказ — не
-  // ошибка экрана: роль `client` этот маршрут не получает вовсе, и карточка
-  // тогда обходится без строки исполнителей.
+  // The organization's roster — only for the assignee names in the bar's hover
+  // card. Asked for by the screen rather than by the strip: the strip has no
+  // "this is a public page" flag, and deciding whether to go for the roster is
+  // not its job. A refusal is not the screen's error: the `client` role never
+  // gets this route at all, and the card then does without the assignee line.
   const membersQuery = useQuery({
     queryKey: MEMBERS_QUERY_KEY,
     queryFn: members,
@@ -225,11 +232,12 @@ export function Project({
     [membersQuery.data],
   );
 
-  // Сколько реплик у каждой задачи — число на строке ленты. Отдельным
-  // запросом, а не полем состояния: комментарий состояния не меняет, и
-  // счётчик, вшитый в него, показывал бы вчерашнее число до ближайшей правки
-  // плана. Ключ лежит внутри ключа ленты реплик, поэтому и своя реплика, и
-  // чужая по сокету обновляют его тем же сбросом (см. api/comments.ts).
+  // How many replies each task has — the number on a strip row. As a separate
+  // request rather than a state field: a comment does not change the state, and
+  // a counter baked into it would show yesterday's number until the next plan
+  // edit. The key lies inside the comment feed's key, so both your own reply
+  // and someone else's over the socket refresh it with the same invalidation
+  // (see api/comments.ts).
   const countsQuery = useQuery({
     queryKey: commentCountsQueryKey(projectId),
     queryFn: () => commentCounts(projectId),
@@ -258,23 +266,25 @@ export function Project({
     );
   }
 
-  // Задача могла исчезнуть между открытием карточки и следующим ответом
-  // сервера: её удалили в соседней вкладке. Карточка тогда просто не рисуется.
+  // The task may have disappeared between opening the card and the server's
+  // next answer: it was deleted in another tab. The card then simply is not drawn.
   const selectedTask = query.data.tasks.find((task) => task.id === selectedTaskId) ?? null;
-  // То же и с категорией, о которой спрашивают: её могли удалить, пока вопрос
-  // читали, — тогда спрашивать не о чем.
+  // The same goes for the category being asked about: it may have been deleted
+  // while the question was being read — then there is nothing to ask about.
   const deletingCategory =
     query.data.categories.find((category) => category.id === deletingCategoryId) ?? null;
 
-  // Пока связи нет, показанное устарело неизвестно насколько, и любое изменение
-  // легло бы поверх чужих правок вслепую. Право при этом никуда не делось —
-  // поэтому признаки разные: `canWrite` отвечает на «кому можно», а этот — на
-  // «можно ли сейчас».
+  // While there is no connection, what is shown is stale by an unknown amount,
+  // and any change would land on top of someone else's edits blindly. The
+  // permission has not gone anywhere, though — which is why the flags are
+  // different: `canWrite` answers "who is allowed", this one answers "is it
+  // allowed right now".
   const editable = canWrite && !offline;
 
-  // Адрес сметы у клиента ведёт на диаграмму: вкладки у него нет (см. ниже),
-  // а сервер на смету ответит отказом. Отказ словами человек, который сюда не
-  // целился, а пришёл по чужой ссылке, читал бы как поломку.
+  // For a client the quote's address leads to the chart: they have no such tab
+  // (see below), and the server would refuse the quote anyway. A refusal in
+  // words would read as a breakage to someone who was not aiming here but came
+  // by someone else's link.
   if (tab === "proposal" && role === "client") {
     return <Navigate to={`/projects/${projectId}`} replace />;
   }
@@ -284,40 +294,42 @@ export function Project({
       <DependencyNudgeProvider>
         <LiveProvider live={live}>
           <main className="screen screen--wide">
-            {/* Ctrl/⌘+Z — на обеих вкладках сразу, а не внутри ленты или
-                истории: отменяется последнее изменение проекта, и от того,
-                какая вкладка открыта, оно не зависит. */}
+            {/* Ctrl/⌘+Z — on both tabs at once, rather than inside the strip or
+                the history: it undoes the project's last change, and that does
+                not depend on which tab is open. */}
             <UndoHotkey projectId={projectId} state={query.data} enabled={editable} />
 
-            {/* Шапка — одна строка: имя, состояние плана, вкладки, действия.
-                В полноэкранном режиме прячется целиком: над лентой там не
-                стоит ничего. */}
+            {/* The header is one line: name, plan state, tabs, actions. In
+                full-screen mode it is hidden entirely: nothing stands above the
+                strip there. */}
             {!focusMode && (
               <ProjectBar
                 state={query.data}
                 onShowChanges={() => setShowingChanges(true)}
                 summary={<PlanSummary state={query.data} />}
                 tabs={
-                  /* Вкладки — в адресе, а не в состоянии экрана: на историю
-                     ссылаются в переписке, и ссылка обязана открывать её
-                     сразу. */
+                  /* The tabs live in the address rather than in the screen's
+                     state: the history gets linked to in conversations, and a
+                     link must open it straight away. */
                   <nav className="tabs" aria-label={t("history.tabs_label")}>
                     <NavLink to={`/projects/${projectId}`} end className={tabClass}>
                       {t("history.tab_gantt")}
                     </NavLink>
-                    {/* Предложение — между лентой и историей, как в макете:
-                        лента остаётся первым экраном проекта, смета — рядом.
-                        Клиенту вкладка не показывается: сервер ему смету не
-                        отдаёт (Action.PROPOSAL_READ), и дорога к заведомому
-                        отказу никому не нужна. Решает всё равно сервер. */}
+                    {/* The quote sits between the strip and the history, as in
+                        the mockup: the strip stays the project's first screen,
+                        the quote is next to it. The tab is not shown to a
+                        client: the server does not give them the quote
+                        (Action.PROPOSAL_READ), and nobody needs a road to a
+                        certain refusal. The server decides either way. */}
                     {role !== "client" && (
                       <NavLink to={`/projects/${projectId}/proposal`} className={tabClass}>
                         {t("history.tab_proposal")}
                       </NavLink>
                     )}
-                    {/* Скоркард — после сметы, перед историей: сводка недели
-                        ближе к работе, чем журнал. На публичной странице
-                        (/p/...) вкладок нет вовсе. */}
+                    {/* The scorecard comes after the quote, before the history:
+                        the week's summary is closer to the work than the
+                        journal is. On a public page (/p/...) there are no tabs
+                        at all. */}
                     <NavLink to={`/projects/${projectId}/scorecard`} className={tabClass}>
                       {t("history.tab_scorecard")}
                     </NavLink>
@@ -332,25 +344,27 @@ export function Project({
                         projectId={projectId}
                         state={query.data}
                         canApprove={editable}
-                        // Пересогласование — право владельца: оно сдвигает базу, от
-                        // которой считаются все объяснённые сдвиги.
+                        // Re-approval is an owner's right: it moves the baseline
+                        // all explained shifts are measured from.
                         canReapprove={role === "owner" && !offline}
                         confirming={reapproving}
                         onConfirmingChange={setReapproving}
                         onShowChanges={() => setShowingChanges(true)}
                       />
-                      {/* Привязка плана к дате — дело плана, как и согласование,
-                          и стоит рядом с его состоянием, а не в ряду настроек
-                          ленты, где жила прежде: она меняет проект, а не то, как
-                          на него смотрят. Контуром, а не заливкой — как
-                          пересогласование рядом: действие важное, но однократное,
-                          и первый взгляд ему делить не с чем. Подсказка о том,
-                          когда дату назначают, — на самой кнопке.
+                      {/* Binding the plan to a date is the plan's business, as
+                          approval is, and stands next to its state rather than
+                          in the row of strip settings where it used to live: it
+                          changes the project, not how the project is looked at.
+                          Outlined rather than filled — like re-approval next to
+                          it: the action matters but happens once, and there is
+                          nothing for it to share a first glance with. The hint
+                          about when the date is assigned is on the button
+                          itself.
 
-                          Перенос уже назначенной даты — редкость, и он под «⋯».
-                          Читателю относительного плана вместо кнопки — плашка
-                          режима: шкала без месяцев без неё читалась бы как
-                          поломка. */}
+                          Moving an already assigned date is rare, and it lives
+                          under "⋯". A reader of a relative plan gets a mode
+                          badge instead of a button: a scale without months would
+                          read as a breakage without it. */}
                       {query.data.schedule_mode === "relative" &&
                         (canWrite ? (
                           <button
@@ -369,21 +383,23 @@ export function Project({
                         ))}
                     </>
                   }
-                  // Как смотреть на ленту — справа, отдельно от вкладок и тише
-                  // их: это второй класс органов, и на других вкладках их нет —
-                  // масштаб у сметы и истории ни к чему. Группа прижата к
-                  // правому краю, поэтому её появление и исчезновение ничего
-                  // слева не двигает.
+                  // How to look at the strip — on the right, apart from the tabs
+                  // and quieter than them: these are second-class controls, and
+                  // the other tabs have none — a scale means nothing to the
+                  // quote or the history. The group is pinned to the right edge,
+                  // so its appearance and disappearance move nothing on the left.
                   tools={
                     tab === "gantt" ? (
                       <>
                         <GanttViewControls view={ganttView} variant="bar" />
-                        {/* Полноэкранная лента — последней в ряду настроек
-                            показа: это тоже способ смотреть, самый широкий из
-                            них. Значок без подписи: стрелки в углы понимают все,
-                            а имя осталось при кнопке — для читалки и подсказки.
-                            Выход из режима — своей кнопкой поверх ленты (см.
-                            ниже): шапка в нём спрятана. */}
+                        {/* The full-screen strip comes last in the row of view
+                            settings: it is a way of looking too, the widest of
+                            them. An icon without a caption: arrows into the
+                            corners are understood by everyone, and the name
+                            stayed with the button — for the screen reader and
+                            the tooltip. Leaving the mode has its own button on
+                            top of the strip (see below): the header is hidden
+                            in it. */}
                         <button
                           type="button"
                           className="button--ghost project-toolbar__icon"
@@ -391,10 +407,11 @@ export function Project({
                           aria-label={t("gantt.toolbar.focus")}
                           title={t("gantt.toolbar.focus")}
                           onClick={() => {
-                            // Прокрутка страницы обнуляется до разворота: высоту
-                            // ленты меряют от окна (useViewportFit), и слой,
-                            // раскрытый на прокрученной странице, отмерил бы её
-                            // от уехавшего края.
+                            // The page scroll is reset before expanding: the
+                            // strip's height is measured from the window
+                            // (useViewportFit), and a layer opened on a scrolled
+                            // page would measure it from an edge that has moved
+                            // away.
                             window.scrollTo(0, 0);
                             setFocusMode(true);
                           }}
@@ -404,33 +421,36 @@ export function Project({
                       </>
                     ) : undefined
                   }
-                  // Редкие действия — под «⋯»: каждое открывает окно, и в ряду
-                  // постоянных кнопок они стояли только затем, чтобы там
-                  // стоять. Четыре плашки в строке — это и есть тот ярус, из
-                  // которого шапка выросла в последний раз (кнопка «Экспорт»
-                  // приехала уже после того, как шапку сжимали).
+                  // Rare actions go under "⋯": each opens a dialog, and in the
+                  // row of permanent buttons they only stood there in order to
+                  // stand there. Four chips in a line is exactly the tier the
+                  // header grew into the last time (the "Export" button arrived
+                  // after the header had already been squeezed).
                   //
-                  // Гостю кнопки не передаются вовсе: они обещали бы действие,
-                  // которое сервер отклонит. Меню без единого пункта не
-                  // рисуется — читателю без права на запись остаётся только
-                  // выгрузка, и она в меню одна.
+                  // A guest is not handed the buttons at all: they would promise
+                  // an action the server will reject. A menu without a single
+                  // item is not drawn — a reader without write permission is
+                  // left with the export alone, and it is the only item in the
+                  // menu.
                   //
-                  // Каждое действие — со значком слева от подписи: ряд одинаковых
-                  // плашек различался только словом, и найти в нём нужную можно
-                  // было, лишь прочитав все подряд, а рисунок находится глазом
-                  // раньше, чем читается слово. Значки `aria-hidden`: вслух они
-                  // повторили бы стоящую рядом подпись.
+                  // Every action has an icon to the left of its caption: a row
+                  // of identical chips differed only by a word, and finding the
+                  // right one meant reading all of them in turn, whereas a
+                  // drawing is found by the eye before the word is read. The
+                  // icons are `aria-hidden`: read aloud they would repeat the
+                  // caption next to them.
                   actions={
                     <Menu
                       label="⋯"
                       showCaret={false}
                       buttonLabel={t("project.actions.more")}
                     >
-                      {/* Публикация — действие над проектом, и стоит она в общем
-                          ряду действий, а не вплотную к названию: у названия теперь
-                          живёт состояние плана, а действия собраны в одном месте.
-                          Гостю и читателю не показывается: сервер такую попытку
-                          отклонит. */}
+                      {/* Publishing is an action on the project, and it stands
+                          in the common row of actions rather than right next to
+                          the name: the plan's state now lives by the name, and
+                          the actions are gathered in one place. Not shown to a
+                          guest or a reader: the server will reject such an
+                          attempt. */}
                       {canWrite && (
                         <button
                           type="button"
@@ -442,11 +462,12 @@ export function Project({
                           {t("share.open")}
                         </button>
                       )}
-                      {/* Выгрузка стоит в общем ряду действий, а не в тулбаре
-                          ленты: файл собирается и из сметы, и из скоркарда, а
-                          тулбар живёт только на вкладке ленты. Показывается
-                          всем, кто вправе проект читать, — клиент и гость
-                          получат тот же урез, что видят на экране. */}
+                      {/* Export stands in the common row of actions rather than
+                          in the strip's toolbar: the file is built from the
+                          quote and from the scorecard too, while the toolbar
+                          lives only on the strip's tab. Shown to everyone
+                          entitled to read the project — a client and a guest
+                          will get the same trimmed version they see on screen. */}
                       <button
                         type="button"
                         className="menu__item"
@@ -456,11 +477,12 @@ export function Project({
                         <IconDownload />
                         {t("export.open")}
                       </button>
-                      {/* Перенос даты старта уже привязанного плана — здесь, а
-                          не в шапке: у настроенного проекта это редкость, и
-                          постоянная кнопка стояла в ряду только затем, чтобы
-                          там стоять. Первая привязка, наоборот, стоит в шапке
-                          у состояния плана — она дело плана, а не редкость. */}
+                      {/* Moving the start date of an already bound plan lives
+                          here rather than in the header: for a configured
+                          project this is rare, and a permanent button stood in
+                          the row only in order to stand there. The first
+                          binding, on the contrary, stands in the header by the
+                          plan's state — it is the plan's business, not a rarity. */}
                       {canWrite && query.data.schedule_mode === "calendar" && (
                         <button
                           type="button"
@@ -472,17 +494,20 @@ export function Project({
                           {t("schedule.change")}
                         </button>
                       )}
-                      {/* Приглашение стоит рядом с публикацией: обе кнопки отвечают
-                          на «дать посмотреть», и разница между ними — кому. Ссылка
-                          открывает проект на чтение кому угодно, приглашение зовёт
-                          человека в организацию с ролью и правами.
+                      {/* The invitation stands next to publishing: both buttons
+                          answer "let someone look", and the difference between
+                          them is who. A link opens the project for reading to
+                          anyone, an invitation calls a person into the
+                          organization with a role and permissions.
 
-                          Право здесь строже соседей — владелец, а не всякий, кто
-                          может писать: приглашение раздаёт доступ ко всей
-                          организации, и сервер (invitations.py) отвечает на чужую
-                          попытку отказом. Обрыв живой связи кнопку не гасит, в
-                          отличие от публикации: приглашение не пишет в проект и
-                          устаревшего состояния перед собой не имеет. */}
+                          The permission here is stricter than its neighbours' —
+                          the owner, not anyone who can write: an invitation
+                          hands out access to the whole organization, and the
+                          server (invitations.py) answers someone else's attempt
+                          with a refusal. A dropped live connection does not
+                          disable the button, unlike publishing: an invitation
+                          does not write to the project and has no stale state in
+                          front of it. */}
                       {role === "owner" && (
                         <button
                           type="button"
@@ -493,21 +518,22 @@ export function Project({
                           {t("invite.open")}
                         </button>
                       )}
-                      {/* Настройки — здесь, а не в боковом меню, куда они на время
-                          уезжали: колонка одна на всё приложение, а настройки —
-                          этого проекта.
+                      {/* The settings live here and not in the sidebar they were
+                          moved to for a while: there is one column for the whole
+                          application, and the settings belong to this project.
 
-                          Подпись — одно слово, а полное имя действия отдано
-                          `aria-label`: в колонке рядом стоит вход в настройки
-                          рабочего пространства с тем же словом, и различает их
-                          место — ряд действий проекта под его названием — вместе со
-                          значком. Тому, кто слушает экран, места не видно, и ему
-                          по-прежнему называется подлежащее. Видимая подпись входит
-                          в озвученную целиком, поэтому голосовое управление
-                          («нажми настройки») попадает по кнопке.
+                          The caption is one word, and the action's full name is
+                          given to `aria-label`: the entrance to the workspace
+                          settings stands nearby in the column with the same
+                          word, and what tells them apart is the place — the
+                          project's row of actions under its name — together with
+                          the icon. Someone listening to the screen cannot see
+                          the place, and is still told the subject. The visible
+                          caption is contained in the spoken one in full, so
+                          voice control ("press settings") lands on the button.
 
-                          Право то же, что и у остальных действий: читателю ссылка
-                          обещала бы отказ сервера. */}
+                          The permission is the same as the other actions': for a
+                          reader the link would promise a server refusal. */}
                       {canWrite && (
                         <Link
                           to={`/projects/${projectId}/settings`}
@@ -525,9 +551,9 @@ export function Project({
 
             {offline && <OfflineBar syncedAt={query.dataUpdatedAt || null} />}
 
-            {/* Смета, скоркард и история — в одной обёртке с полем шапки по
-                бокам (см. .project__pane): лента в неё не входит, она идёт от
-                края до края. */}
+            {/* The quote, the scorecard and the history share one wrapper with
+                the header's margins on either side (see .project__pane): the
+                strip is not part of it, it runs edge to edge. */}
             {tab !== "gantt" && (
               <div className="project__pane">
               {tab === "history" && (
@@ -542,10 +568,11 @@ export function Project({
                 />
               )}
 
-              {/* Скоркарду отдаётся «кому можно», а не «можно ли сейчас»:
-                  обрыв связи он учитывает сам — пересчёт гаснет, а чтение
-                  остаётся. Задача из drill-down открывается на ленте — тем же
-                  переходом, что и из списка расхождений. */}
+              {/* The scorecard is given "who is allowed", not "is it allowed
+                  right now": it accounts for a dropped connection itself —
+                  recalculation goes dark while reading stays. A task from the
+                  drill-down opens on the strip — by the same transition as from
+                  the divergence list. */}
               {tab === "scorecard" && (
                 <Scorecard
                   projectId={projectId}
@@ -559,16 +586,17 @@ export function Project({
               </div>
             )}
 
-            {/* Предложение подвинуть связанную задачу — над лентой, а не поверх
-                неё: оно ненавязчивое и не должно закрывать то, что человек только
-                что подвинул. В полноэкранном режиме его нет: над лентой там
-                ничего не стоит, а слой поверх неё закрыл бы задачи. */}
+            {/* The offer to move a linked task stands above the strip rather
+                than on top of it: it is unobtrusive and must not cover what the
+                person has just moved. In full-screen mode it is absent: nothing
+                stands above the strip there, and a layer on top of it would
+                cover the tasks. */}
             {tab === "gantt" && editable && !focusMode && (
               <DependencyNudge projectId={projectId} state={query.data} />
             )}
 
-            {/* Диаграмма занимает всю ширину, пока карточка закрыта: пустая колонка
-                справа отнимает у ленты треть экрана ради ничего. */}
+            {/* The chart takes the full width while the card is closed: an empty
+                column on the right takes a third of the screen from the strip for nothing. */}
             {tab === "gantt" && (
             <div
               className={`project__body${reducedMotion ? " motion-off" : ""}${
@@ -586,13 +614,14 @@ export function Project({
                 onAddTask={editable ? setAddingTaskAt : undefined}
                 newTaskAt={addingTaskAt}
                 onCloseNewTask={() => setAddingTaskAt(null)}
-                // «Плюс» в углу таблицы и кнопка в пустой ленте открывают одно
-                // окно: категорию заводят там, куда смотрят, — у заголовка
-                // списка или посреди пустого поля, — а не в ряду над лентой.
+                // The "plus" in the table's corner and the button in an empty
+                // strip open the same dialog: a category is created where you
+                // are looking — by the list's heading or in the middle of an
+                // empty field — and not in a row above the strip.
                 onAddCategory={editable ? () => setAddingCategory(true) : undefined}
-                // Крестик на строке категории только спрашивает: удаление
-                // уносит с собой весь этап, и назвать, что именно уйдёт,
-                // нужно до того, как оно ушло, — а не тостом после.
+                // The cross on a category row only asks: deleting takes the
+                // whole stage with it, and naming what exactly will go has to
+                // happen before it goes — not in a toast afterwards.
                 onDeleteCategory={editable ? setDeletingCategoryId : undefined}
                 selectedTaskId={selectedTaskId}
                 onSelectTask={(taskId) => openTask(taskId)}
@@ -600,9 +629,10 @@ export function Project({
                 commentCounts={commentsByTask}
               />
 
-              {/* Шапка в полном экране спрятана, а с ней и кнопка разворота —
-                  выход живёт поверх самой ленты, в правом верхнем углу, где его
-                  ищут по привычке к видео и картам. Esc делает то же. */}
+              {/* The header is hidden in full screen, and the expand button with
+                  it — the exit lives on top of the strip itself, in the top
+                  right corner, where it is looked for out of habit from video
+                  and maps. Esc does the same. */}
               {focusMode && (
                 <button
                   type="button"
@@ -631,9 +661,10 @@ export function Project({
 
             {sharing && <ShareDialog projectId={projectId} onClose={() => setSharing(false)} />}
 
-            {/* Что в проекте есть, а чего нет, окну сообщает экран: состояние
-                у него уже на руках, и окно, сходившее за ним само, показывало
-                бы пустой список разделов первые полсекунды после открытия. */}
+            {/* What the project has and has not is reported to the dialog by the
+                screen: it already has the state in hand, and a dialog that went
+                for it itself would show an empty list of sections for the first
+                half-second after opening. */}
             {exporting && (
               <ExportDialog
                 facts={
@@ -658,10 +689,10 @@ export function Project({
               />
             )}
 
-            {/* Тот же состав полей, что и на экране состава организации, — и
-                тот же компонент: приглашают одинаково, откуда бы ни звали.
-                Проект передаётся дальше и отмечается в списке заранее — для
-                любой роли, не только «Клиента». */}
+            {/* The same set of fields as on the organization roster screen — and
+                the same component: people are invited the same way wherever they
+                are called from. The project is passed on and marked in the list
+                in advance — for any role, not only "Client". */}
             {inviting && (
               <InviteDialog projectId={projectId} onClose={() => setInviting(false)} />
             )}
@@ -674,13 +705,13 @@ export function Project({
               />
             )}
 
-            {/* Список расхождений с планом — выдвижной колонкой справа, без
-                подложки: лента слева остаётся видимой и рабочей, и призраки
-                согласованного плана на ней читаются вместе со списком. Открыт
-                может быть на любой вкладке: пометка о расхождении стоит в
-                шапке, а шапка одна на все три. С имени задачи ведёт в её
-                карточку — а та живёт только на ленте, поэтому переход туда
-                заодно и возвращает на неё. */}
+            {/* The list of divergences from the plan is a sliding column on the
+                right, with no backdrop: the strip on the left stays visible and
+                workable, and the ghosts of the approved plan on it are read
+                together with the list. It can be open on any tab: the divergence
+                marker stands in the header, and the header is one for all three.
+                A task's name leads into its card — and that lives only on the
+                strip, so going there brings you back to it as well. */}
             {showingChanges && (
               <PlanChangesPanel
                 projectId={projectId}
@@ -705,10 +736,11 @@ export function Project({
               />
             )}
 
-            {/* Окно живёт на экране, а не в строке ленты: строка исчезает в тот
-                же миг, что и категория, и вопрос, живущий в ней, унёс бы с
-                собой сам себя. Категории может уже не быть — её удалили в
-                соседней вкладке, пока вопрос читали; тогда окна нет. */}
+            {/* The dialog lives on the screen rather than in the strip's row:
+                the row disappears at the same instant as the category, and a
+                question living in it would carry itself away. The category may
+                already be gone — deleted in another tab while the question was
+                being read; then there is no dialog. */}
             {deletingCategory && (
               <DeleteCategoryDialog
                 category={deletingCategory}
@@ -730,17 +762,18 @@ export function Project({
 }
 
 /**
- * Вопрос перед удалением категории — окном, а не выноской на строке.
+ * The question before deleting a category — as a dialog, not a popover on the row.
  *
- * Выноска на месте кнопки (как у задачи в карточке) здесь не помещается
- * буквально: строка категории живёт в колонке шириной в двести пикселей, и
- * предупреждение о десятке задач вытеснило бы из неё имя самой категории —
- * то единственное, по чему видно, что целились не в соседнюю.
+ * A popover in the button's place (as a task has in its card) literally does
+ * not fit here: a category's row lives in a column two hundred pixels wide, and
+ * a warning about a dozen tasks would push out the category's own name — the
+ * only thing that shows you were not aiming at the neighbouring one.
  *
- * Окно называет число задач, а не только имя: «удалить категорию» звучит как
- * расставание с заголовком, а уходит вместе с ним весь этап. Отмена при этом
- * есть — снимок для неё хранит журнал, — и об этом сказано прямо: иначе
- * человек оставляет ненужный этап на ленте просто из осторожности.
+ * The dialog names the number of tasks, not only the name: "delete the
+ * category" sounds like parting with a heading, while the whole stage goes with
+ * it. There is an undo, at that — the journal keeps a snapshot for it — and
+ * that is said outright: otherwise a person leaves an unneeded stage on the
+ * strip purely out of caution.
  */
 function DeleteCategoryDialog({
   category,
@@ -749,7 +782,7 @@ function DeleteCategoryDialog({
   onClose,
 }: {
   category: Category;
-  /** Сколько задач уйдёт вместе с категорией. Ноль — этап пуст. */
+  /** How many tasks will go with the category. Zero — the stage is empty. */
   tasks: number;
   onConfirm: () => void;
   onClose: () => void;
@@ -764,9 +797,9 @@ function DeleteCategoryDialog({
           : t("category.delete_warning", { tasks: t("common.tasks", { count: tasks }) })}
       </p>
 
-      {/* Отказ первым — как в окне удаления проекта: окно ставит фокус на
-          первый орган управления, и у необратимого на вид действия первой под
-          рукой обязана быть безопасная кнопка. */}
+      {/* Refusal comes first — as in the project deletion dialog: the dialog
+          puts the focus on the first control, and an action that looks
+          irreversible must have the safe button first at hand. */}
       <div className="modal__actions">
         <button type="button" className="button--quiet" onClick={onClose}>
           {t("common.cancel")}
@@ -780,8 +813,8 @@ function DeleteCategoryDialog({
 }
 
 /**
- * Текущая вкладка помечается классом, а не цветом: подчёркивание снизу
- * показывает границы вкладки целиком, и по нему видно, куда попадёт щелчок.
+ * The current tab is marked with a class rather than a colour: the underline
+ * shows the tab's bounds in full, and it shows where the click will land.
  */
 function tabClass({ isActive }: { isActive: boolean }) {
   return `tabs__link${isActive ? " is-current" : ""}`;

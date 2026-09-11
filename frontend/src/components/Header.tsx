@@ -10,26 +10,27 @@ import { LocaleSwitch } from "./LocaleSwitch";
 import { OrgSwitch } from "./OrgSwitch";
 
 /**
- * Боковая колонка приложения.
+ * The application's sidebar.
  *
- * Слева, а не сверху: разделов немного, но растут они вниз — проекты, состав,
- * настройки, — и колонка принимает новый пункт, не отбирая ширину у
- * диаграммы. Горизонтальная шапка на пятом пункте начала бы переноситься на
- * вторую строку и прыгать по высоте.
+ * On the left rather than on top: there are few sections, but they grow
+ * downwards — projects, roster, settings — and the column accepts a new item
+ * without taking width from the chart. A horizontal header would start wrapping
+ * onto a second line at the fifth item and jumping about in height.
  *
- * Порядок сверху вниз — от общего к личному: организация, разделы работы,
- * человек. Разделы стоят сразу под названием организации: они — то, зачем
- * колонку открывают, и пустой строке над ними места нет. Внизу, отделённое
- * линией, всё, что относится к вошедшему, а не к делу: язык, настройки и выход.
- * Так пункт «Выйти» не оказывается соседом пункта «Проекты», по которому
- * целятся чаще всего.
+ * The order from top to bottom goes from the general to the personal: the
+ * organization, the sections of work, the person. The sections stand right
+ * under the organization's name: they are what the column is opened for, and
+ * there is no room for an empty line above them. At the bottom, separated by a
+ * rule, is everything to do with the signed-in person rather than with the work:
+ * the language, the settings and signing out. That way "Sign out" does not end
+ * up next to "Projects", which is aimed at most often.
  */
 const COLLAPSED_KEY = "planora.sidebar_collapsed";
 
-/* Логотип объявляет `aria-expanded`, и оно обязано говорить про что-то
-   названное: без `aria-controls` читалка сообщает «свёрнуто», не говоря чего.
-   Обе области перечислены, а не одна: сворачивание убирает подписи и у
-   разделов, и у нижнего блока. */
+/* The logo declares `aria-expanded`, and that must speak about something named:
+   without `aria-controls` the screen reader reports "collapsed" without saying
+   what. Both areas are listed rather than one: collapsing removes the captions
+   from the sections and from the bottom block alike. */
 const NAV_ID = "sidebar-nav";
 const FOOT_ID = "sidebar-foot";
 
@@ -37,8 +38,8 @@ function storedCollapsed(): boolean {
   try {
     return localStorage.getItem(COLLAPSED_KEY) === "1";
   } catch {
-    // Приватный режим браузера умеет запрещать localStorage. Колонка при
-    // этом просто открывается развёрнутой — это не повод падать.
+    // A browser's private mode can forbid localStorage. The column then simply
+    // opens expanded — that is no reason to crash.
     return false;
   }
 }
@@ -58,7 +59,7 @@ export function Header() {
           localStorage.removeItem(COLLAPSED_KEY);
         }
       } catch {
-        // см. storedCollapsed()
+        // see storedCollapsed()
       }
       return next;
     });
@@ -71,30 +72,32 @@ export function Header() {
     staleTime: Infinity,
   });
 
-  // Название организации — содержимое пользователя: оно приходит с сервера
-  // как есть и не переводится ни при каком языке интерфейса. Пока оно не
-  // пришло, подпись держит название продукта, а не пустота, которая дёргала
-  // бы колонку по ширине. Пустое название с сервера — тоже пустота: `||`, а не
-  // `??`, иначе квадрат слева остался бы без буквы.
+  // The organization's name is user content: it arrives from the server as is
+  // and is not translated whatever the interface language. Until it arrives the
+  // caption holds the product's name rather than emptiness, which would jerk
+  // the column's width about. An empty name from the server is emptiness too:
+  // `||` and not `??`, otherwise the square on the left would be left without a
+  // letter.
   const title = org.data?.name?.trim() || t("app.title");
 
-  // Подпись переключателя нужна дважды — читалке и подсказке в свёрнутой
-  // колонке, — и обязана быть одной строкой: разъехавшись, они назвали бы одну
-  // кнопку двумя разными именами.
+  // The toggle's caption is needed twice — by the screen reader and by the
+  // tooltip in the collapsed column — and must be one string: having drifted
+  // apart, they would give one button two different names.
   const toggleLabel = collapsed ? t("nav.sidebar_expand") : t("nav.sidebar_collapse");
 
   return (
     <header className={`sidebar${collapsed ? " sidebar--collapsed" : ""}`}>
-      {/* Логотип сам сворачивает и разворачивает колонку: отдельная кнопка со
-          стрелкой занимала место в самой узкой строке приложения и требовала
-          прицела в 24 пикселя, а логотип — крупная мишень, которая остаётся
-          видимой в обоих состояниях. */}
-      {/* Подсказка — своя, а не атрибут `title`. Нативную рисует система, и
-          приложение не управляет ни её местом, ни временем жизни: она вставала
-          поверх пункта «Проекты», закрывая ему значок и половину подписи, и
-          висела ещё пару секунд после того, как курсор ушёл. Своя знает про
-          колонку: встаёт справа от рейки, гаснет сразу и видна только там, где
-          подписей нет. */}
+      {/* The logo collapses and expands the column itself: a separate button
+          with an arrow took up room in the application's narrowest line and
+          demanded aiming at 24 pixels, while the logo is a large target that
+          stays visible in both states. */}
+      {/* The tooltip is our own rather than the `title` attribute. The native
+          one is drawn by the system, and the application controls neither its
+          place nor its lifetime: it stood on top of the "Projects" item,
+          covering its icon and half its caption, and hung around for another
+          couple of seconds after the cursor had left. Ours knows about the
+          column: it stands to the right of the rail, goes out at once and is
+          visible only where there are no captions. */}
       <button
         type="button"
         className="sidebar__workspace"
@@ -103,66 +106,69 @@ export function Header() {
         aria-controls={`${NAV_ID} ${FOOT_ID}`}
         aria-label={toggleLabel}
       >
-        {/* Квадрат с первой буквой — не украшение: в колонке одинаковых строк
-            цветное пятно находится глазом быстрее, чем читается слово. В
-            свёрнутой колонке он остаётся единственной видимой строкой — по
-            нему видно, что это за приложение и чья это организация, и по нему
-            же колонка разворачивается обратно. */}
+        {/* The square with the first letter is not decoration: in a column of
+            identical lines a patch of colour is found by the eye faster than a
+            word is read. In a collapsed column it remains the only visible line
+            — it shows what application this is and whose organization it is, and
+            it is also what expands the column back. */}
         <span className="sidebar__avatar" aria-hidden="true">
           {[...title][0]}
         </span>
         <span className="sidebar__brand">{title}</span>
-        {/* Стрелка вместо надписи: в развёрнутой колонке название организации
-            стоит рядом, и подсказка «Скрыть меню» пересказывала бы словами то,
-            что рисунок говорит короче. Появляется под курсором и по фокусу —
-            постоянная, она читалась бы как часть логотипа. */}
+        {/* An arrow instead of a caption: in an expanded column the
+            organization's name stands next to it, and a "Hide menu" tooltip
+            would retell in words what the drawing says more briefly. It appears
+            under the cursor and on focus — a permanent one would read as part of
+            the logo. */}
         <IconCollapse className="sidebar__fold" />
-        {/* А в рейке наоборот: рисовать стрелку негде, и единственное, что
-            объясняет одинокий квадрат, — слово. `aria-hidden`, потому что имя
-            кнопке уже дано `aria-label`, и без этого читалка произнесла бы его
-            дважды. */}
+        {/* In the rail it is the other way round: there is nowhere to draw an
+            arrow, and the only thing that explains a lone square is a word.
+            `aria-hidden`, because the button has already been given a name by
+            `aria-label`, and without this the screen reader would say it twice. */}
         <span className="sidebar__tip" aria-hidden="true">
           {toggleLabel}
         </span>
       </button>
 
-      {/* Приветствия здесь больше нет: имя вошедшего человек знает и без
-          колонки, а строка «Привет, N» отодвигала разделы на полсотни
-          пикселей вниз — платить местом в самой верхней части колонки за
-          вежливость не за что. */}
+      {/* There is no greeting here any more: a person knows their own name
+          without the column, and a "Hello, N" line pushed the sections fifty
+          pixels down — there is no reason to pay for politeness with room in the
+          very top of the column. */}
       <OrgSwitch />
 
-      {/* Разделы работы — и только они. Состав организации отсюда уехал в
-          настройки: приглашения и роли настраивают рабочее пространство, а не
-          работу в нём, и стоять рядом с «Проектами» им незачем. Роли `client`
-          часть маршрутов отвечает отказом, но ссылки остаются видимыми —
-          прятать их значило бы решать про доступ на клиенте, а решает про него
-          сервер. */}
+      {/* The sections of work — and only they. The organization's roster moved
+          from here into the settings: invitations and roles configure the
+          workspace rather than the work in it, and they have no business
+          standing next to "Projects". Some routes answer the `client` role with
+          a refusal, but the links stay visible — hiding them would mean deciding
+          about access on the client, and the server is what decides. */}
       <nav className="sidebar__nav" id={NAV_ID}>
-        {/* «Проекты» ведут туда же, куда приводит вход, — на `/projects`.
-            Раньше пункт указывал на «/», где жил другой экран с тем же
-            заголовком: щелчок по единственному пункту про проекты уводил не
-            туда, где человек только что оказался после входа.
+        {/* "Projects" leads where signing in leads — to `/projects`. The item
+            used to point at "/", where a different screen with the same heading
+            lived: a click on the only item about projects took you somewhere
+            other than where you had just landed after signing in.
 
-            Без `end`: страница проекта — часть этого же раздела, и пункт
-            остаётся подсвеченным, пока человек ходит внутри. Иначе на
-            `/projects/42` колонка не подсвечивает ничего, и по ней не видно,
-            где ты. */}
-        {/* Один пункт про проекты, а не три. Прежние соседи — «Портфель» и
-            «Отчёты» — показывали тот же набор проектов под своим заголовком:
-            один сводился к карточкам с вердиктом, другой — к таблице с
-            готовностью и сроками. Раздел один, и сводка живёт в его таблице —
-            выбирать, на котором из трёх смотреть, больше не нужно. Значок тот
-            же, что раньше отличал именно «Проекты» от чисел «Отчётов». */}
-        {/* Подпись — отдельным узлом, как и в нижнем блоке: свёрнутая колонка
-            прячет подписи, а голым текстом внутри ссылки спрятать нечего —
-            пришлось бы гасить всю строку целиком, вместе со значком, чем
-            рейка и оказывалась пустой.
+            Without `end`: a project's page is part of this same section, and the
+            item stays highlighted while the person moves around inside.
+            Otherwise on `/projects/42` the column highlights nothing, and it
+            does not show where you are. */}
+        {/* One item about projects, not three. The former neighbours —
+            "Portfolio" and "Reports" — showed the same set of projects under
+            their own heading: one boiled down to cards with a verdict, the other
+            to a table with readiness and dates. There is one section, and the
+            summary lives in its table — choosing which of the three to look at
+            is no longer needed. The icon is the one that used to distinguish
+            "Projects" specifically from the numbers of "Reports". */}
+        {/* The caption is a separate node, as in the bottom block: a collapsed
+            column hides the captions, and there is nothing to hide in bare text
+            inside a link — the whole line would have to be dimmed, icon and all,
+            which is how the rail turned out empty.
 
-            Имя задано и отдельно, `aria-label`: спрятанная подпись пропадает
-            не только с экрана, но и из дерева доступности, а значок рядом
-            `aria-hidden` — свёрнутый пункт остался бы вовсе безымянным.
-            Строка та же самая, так что разойтись именам не с чем. */}
+            The name is also given separately, as `aria-label`: a hidden caption
+            disappears not only from the screen but from the accessibility tree,
+            and the icon next to it is `aria-hidden` — a collapsed item would be
+            left with no name at all. The string is the same one, so there is
+            nothing for the names to drift apart over. */}
         <NavLink to="/projects" className={navClass} aria-label={t("nav.projects")}>
           <IconBoard className="sidebar__icon" />
           <span className="sidebar__label">{t("nav.projects")}</span>
@@ -174,51 +180,56 @@ export function Header() {
       </nav>
 
       <div className="sidebar__foot" id={FOOT_ID}>
-        {/* Одна шестерёнка вместо трёх пунктов подряд. Раньше здесь стояли
-            «Организация», «Настройки» (проекта) и «Профиль» — два первых с
-            одинаковым значком и подписями, по которым нельзя было угадать,
-            какая из них про что. Настройки проекта уехали в шапку самого
-            проекта, где у слова «настройки» есть подлежащее, остальные —
-            вкладками внутрь этого раздела. */}
-        {/* Язык интерфейса — здесь, а не вкладкой в настройках: за ним
-            приходят не «настраивать рабочее пространство», а прочитать
-            текущий экран, и три щелчка до него (настройки → профиль → выбор)
-            стоили дороже, чем строка в колонке. Стоит над «Настройками», а не
-            под ними: он и есть самая частая причина сюда посмотреть, а «Выйти»
-            остаётся последним — по нему целятся реже всего.
+        {/* One cog instead of three items in a row. There used to be
+            "Organization", "Settings" (the project's) and "Profile" here — the
+            first two with the same icon and with captions from which you could
+            not guess which was about what. The project's settings moved into the
+            project's own header, where the word "settings" has a subject, and
+            the rest became tabs inside this section. */}
+        {/* The interface language lives here rather than as a tab in the
+            settings: people come to it not to "configure the workspace" but to
+            read the current screen, and three clicks to reach it (settings →
+            profile → choice) cost more than a line in the column. It stands
+            above "Settings" rather than below: it is the single most common
+            reason to look here, while "Sign out" stays last — it is aimed at
+            least often.
 
-            Переключатель тот же самый, что на публичной странице, и поле
-            профиля пишет он же: второй копии, которая разъехалась бы с этой на
-            первой правке, ни здесь, ни на экране профиля больше нет. */}
+            The switcher is the same one as on the public page, and it is what
+            writes the profile field too: there is no second copy — which would
+            have drifted from this one on the first edit — either here or on the
+            profile screen any more. */}
         <LocaleSwitch />
-        {/* Видна только директору — единственной роли уровня всей установки,
-            закреплённой на сервере за одним адресом (см. UserOut.is_director
-            и app.director). Остальным пункт не просто спрятан для порядка:
-            сервер и так ответит отказом, а показывать дорогу к заведомому 403
-            незачем никому. Стоит над «Настройками» — оба пункта не про
-            личное, но панель директора касается не одной организации, а
-            установки целиком, и ставить её вровень с языком, а не внутрь
-            настроек рабочего пространства, здесь честнее. */}
+        {/* Visible only to the director — the single install-wide role, pinned
+            on the server to one address (see UserOut.is_director and
+            app.director). For the rest the item is not just hidden for tidiness:
+            the server will refuse anyway, and showing anyone the road to a
+            certain 403 serves no purpose. It stands above "Settings" — neither
+            item is about the personal, but the director's panel concerns the
+            whole install rather than a single organization, and putting it level
+            with the language rather than inside the workspace settings is more
+            honest here. */}
         {user?.is_director && (
           <NavLink to="/admin" className={navClass} aria-label={t("nav.admin")}>
             <IconShield className="sidebar__icon" />
             <span className="sidebar__label">{t("nav.admin")}</span>
           </NavLink>
         )}
-        {/* Подпись — отдельным узлом, потому что прячут её в двух местах: на
-            узком экране нижний блок переезжает в верхнюю строку, а на широком
-            колонка сворачивается в рейку. В обоих случаях места на подписи
-            нет, а сами пункты обязаны остаться. Имя для чтения вслух при этом
-            задано явно — значок `aria-hidden`, и без aria-label свёрнутый
-            пункт остался бы безымянным. */}
+        {/* The caption is a separate node, because it is hidden in two places:
+            on a narrow screen the bottom block moves into the top line, and on a
+            wide one the column collapses into a rail. In both cases there is no
+            room for the caption, while the items themselves must stay. The name
+            for reading aloud is set explicitly at that — the icon is
+            `aria-hidden`, and without aria-label a collapsed item would be left
+            with no name. */}
         <NavLink to="/settings" className={navClass} aria-label={t("nav.settings")}>
           <IconSettings className="sidebar__icon" />
           <span className="sidebar__label">{t("nav.settings")}</span>
         </NavLink>
-        {/* Значок слева — тот же, что у соседних пунктов: без него подпись
-            «Выйти» одна съезжала влево, к краю колонки, и ряд снизу ломался.
-            Дверь со стрелкой наружу говорит про выход то же, что слово, — и
-            находится глазом быстрее, когда ищут именно её. */}
+        {/* The icon on the left is the same as the neighbouring items': without
+            it the "Sign out" caption drifted left on its own, towards the
+            column's edge, and the row below broke. A door with an arrow out says
+            the same about leaving as the word does — and is found by the eye
+            faster when it is specifically what is being looked for. */}
         <button
           type="button"
           className="button--quiet sidebar__button"
@@ -234,10 +245,11 @@ export function Header() {
 }
 
 /**
- * Текущий раздел помечается классом, а не цветом ссылки: заливка показывает
- * границы пункта целиком, и по ней видно, куда попадёт щелчок. Готовый класс
- * `active` от `NavLink` для этого не годится — он ничего не говорит о том,
- * чем пункт является, и правило пришлось бы писать через два селектора.
+ * The current section is marked with a class rather than with the link's
+ * colour: the fill shows the item's bounds in full, and it shows where the click
+ * will land. `NavLink`'s ready-made `active` class will not do for this — it
+ * says nothing about what the item is, and the rule would have to be written
+ * through two selectors.
  */
 function navClass({ isActive }: { isActive: boolean }) {
   return `sidebar__link${isActive ? " is-current" : ""}`;
