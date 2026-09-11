@@ -9,18 +9,18 @@ import { Field } from "../components/Field";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Просьба о письме для восстановления пароля.
+ * The request for a password recovery email.
  *
- * После отправки экран говорит «если адрес зарегистрирован — письмо ушло», а
- * не «письмо ушло»: сервер нарочно отвечает одинаково на любой адрес, и
- * обещать больше, чем он знает, значило бы врать половине читателей.
+ * After submitting, the screen says "if the address is registered, the email has gone out" rather than
+ * "the email has gone out": the server deliberately answers the same for any address, and promising more
+ * than it knows would mean lying to half the readers.
  */
 export function ForgotPassword() {
   const { t } = useLocale();
   const [params] = useSearchParams();
-  // Приглашение проезжает и через восстановление: сюда попадают посреди пути
-  // «пришёл по ссылке — аккаунт уже есть — пароля не помню», и возврат на вход
-  // должен вести обратно к приглашению, а не в прежнюю организацию.
+  // The invitation travels through the recovery too: people land here in the middle of the "came by a
+  // link — the account already exists — I do not remember the password" path, and the return to the
+  // sign-in must lead back to the invitation rather than to the former organization.
   const inviteToken = params.get("invite");
   const [email, setEmail] = useState("");
   const mutation = useMutation({ mutationFn: requestPasswordReset });

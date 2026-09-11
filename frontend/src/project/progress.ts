@@ -1,15 +1,14 @@
 import type { Task, TaskStatus } from "../api/projects";
 
 /**
- * Готовность набора задач, взвешенная по длительности.
+ * A set of tasks' readiness, weighted by duration.
  *
- * Взвешивание выбрано явно (см. разбор макета, §9.3): равновесное среднее
- * считало бы день и месяц одинаковыми вкладами, и категория с готовой
- * однодневкой и нетронутым месяцем показывала бы «50%». Доля дневной работы —
- * то, что человек и имеет в виду под «готово на две трети».
+ * The weighting was chosen explicitly (see the mockup analysis, §9.3): an unweighted average would count
+ * a day and a month as equal contributions, and a category with a finished one-day item and an untouched
+ * month would show "50%". The share of a day's work is what a person means by "two thirds done".
  *
- * Одна функция на категорию, проект и отчёт: три свёртки в трёх местах
- * разошлись бы на первом же спорном проценте.
+ * One function for a category, a project and a report: three reductions in three places would diverge on
+ * the very first disputable percentage.
  */
 export function progressOf(tasks: Task[]): number | null {
   if (tasks.length === 0) return null;
@@ -19,7 +18,7 @@ export function progressOf(tasks: Task[]): number | null {
   return Math.round(done / total);
 }
 
-/** Сколько задач в каждом статусе. Нули на месте: отчёту нужны все колонки. */
+/** How many tasks are in each status. The zeros stay: a report needs every column. */
 export function statusCounts(tasks: Task[]): Record<TaskStatus, number> {
   const counts: Record<TaskStatus, number> = { planned: 0, in_progress: 0, done: 0, blocked: 0 };
   for (const task of tasks) counts[task.status] += 1;

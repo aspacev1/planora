@@ -1,19 +1,19 @@
 import { request } from "./client";
 
-/** Ключ кэша настроек установки: один на всё приложение и на всю сессию. */
+/** The install settings' cache key: one for the whole application and the whole session. */
 export const CONFIG_QUERY_KEY = ["config"] as const;
 
 /**
- * То, что интерфейсу нужно знать об установке до всякого входа.
+ * What the interface needs to know about the install before any sign-in.
  *
- * Только рубильники: адресов, ключей и секретов здесь нет и быть не может —
- * маршрут открыт всякому, кто открыл страницу (backend/app/api/meta_routes.py).
+ * Switches only: there are and can be no addresses, keys or secrets here — the route is open to anyone
+ * who opened the page (backend/app/api/meta_routes.py).
  */
 export type InstallConfig = {
   /**
-   * Настроена ли в установке почта. Без неё письма не уходят никуда, адрес не
-   * подтверждается ни у кого, и подсказку «подтвердите адрес» показывать не за
-   * что: она стала бы вечной полоской, которую нечем убрать.
+   * Whether mail is configured in the install. Without it emails go nowhere, nobody's address is
+   * confirmed, and there is nothing to show a "confirm your address" hint for: it would become an
+   * eternal strip with nothing to remove it with.
    */
   mail_enabled: boolean;
   signup_mode: string;

@@ -7,18 +7,18 @@ import {
 } from "../components/autosave";
 
 /**
- * Поля карточки задачи.
+ * The task card's fields.
  *
- * Сами поля общие — они же стоят в настройках (см. `components/autosave`), и
- * второй их набор разъехался бы с первым на первой правке. Своё у карточки
- * одно: раскладка строки. В настройках подпись стоит над полем, в карточке —
- * слева от него, потому что свойств у задачи восемь и подписи сверху дают
- * восемь лишних строк, после которых карточка перестаёт помещаться на экран.
+ * The fields themselves are shared — the same ones stand in the settings (see `components/autosave`),
+ * and a second set of them would diverge from the first on the first edit. The card has one thing of its
+ * own: the row's layout. In the settings the caption stands above the field, in the card to its left,
+ * because a task has eight properties and captions on top give eight extra lines, after which the card
+ * stops fitting on the screen.
  */
 
 const ROW = "panel__field";
 
-/** Те же свойства, что у общего поля, кроме раскладки: её задаёт карточка. */
+/** The same props as the shared field's, except the layout: that is set by the card. */
 type Panel<Props> = Omit<Props, "className">;
 
 export function TextField(props: Panel<ComponentProps<typeof BaseTextField>>) {

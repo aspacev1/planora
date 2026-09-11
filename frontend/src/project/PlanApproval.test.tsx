@@ -8,7 +8,7 @@ import { server } from "../test/server";
 
 beforeEach(projectFixtures);
 
-/** Утверждения плана, ушедшие на сервер за тест. */
+/** The plan approvals that went to the server during the test. */
 function captureApprovals(): number[] {
   const calls: number[] = [];
   server.use(
@@ -39,8 +39,7 @@ describe("согласование плана", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Пересогласовать" }));
 
-    // Один щелчок ничего не пересогласовывает: действие сдвигает базу, от которой
-    // считаются все объяснённые сдвиги.
+    // One click re-approves nothing: the action moves the baseline all explained shifts are measured from.
     expect(approvals).toHaveLength(0);
     await userEvent.click(screen.getByRole("button", { name: "Да, пересогласовать" }));
     await waitFor(() => expect(approvals).toHaveLength(1));
@@ -57,8 +56,8 @@ describe("согласование плана", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Пересогласовать" }));
     await userEvent.click(screen.getByRole("button", { name: "Да, пересогласовать" }));
 
-    // Карточка вопроса остаётся — и отказ стоит в ней, а не теряется за её
-    // пределами, где его никто не рисует.
+    // The question's card stays — and the refusal stands in it rather than being lost outside it, where
+    // nobody draws it.
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/ошибка/i);
     const card = screen.getByRole("button", { name: "Да, пересогласовать" }).closest("[role=group]");

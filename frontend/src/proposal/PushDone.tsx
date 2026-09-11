@@ -7,13 +7,12 @@ import { useDismissToast, useToast } from "../components/toast";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Действия в тосте после переноса: посмотреть, что получилось, или вернуть
- * всё назад.
+ * The toast's actions after a transfer: look at what came out, or put it all back.
  *
- * «Вернуть» снимает ту самую пачку, номер которой сервер назвал в ответе на
- * перенос, — а не «последнее изменение»: пока тост висит, сосед по проекту
- * успевает применить своё, и безадресная отмена сняла бы чужую правку. Ссылки
- * строк на задачи при этом обнуляет база, и строки снова переносимы.
+ * "Revert" removes the very batch whose number the server named in its answer to the transfer — rather
+ * than "the last change": while the toast hangs around, a colleague on the project manages to apply
+ * theirs, and an unaddressed undo would remove their edit. The lines' references to tasks are cleared
+ * by the database at that, and the lines become transferable again.
  */
 export function PushDone({ projectId, batchId }: { projectId: string; batchId: string }) {
   const { t } = useLocale();
@@ -23,8 +22,8 @@ export function PushDone({ projectId, batchId }: { projectId: string; batchId: s
   const queryClient = useQueryClient();
 
   const undo = () => {
-    // Сначала спрятать, потом действовать: результат покажет сама таблица, а
-    // висящий тост предлагал бы вернуть уже возвращённое.
+    // First hide, then act: the result will be shown by the table itself, while a hanging toast would
+    // offer to revert what has already been reverted.
     dismiss();
     undoBatch(projectId, batchId).then(
       () => queryClient.invalidateQueries({ queryKey: projectQueryKey(projectId) }),
