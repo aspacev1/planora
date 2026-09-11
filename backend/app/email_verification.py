@@ -1,16 +1,16 @@
-"""Подтверждение адреса почты: выдача ссылки и её погашение.
+"""Email address confirmation: issuing a link and redeeming it.
 
-Подтверждение ничего не запрещает. Оно отвечает на один вопрос — доходят ли
-письма до этого человека, — и потому не стоит на пути входа: установка без
-почтового сервера обязана оставаться полноценной, а там `email_verified_at`
-остаётся пустым у всех (§3 спецификации). Как только подтверждение начнёт
-что-то блокировать, такая установка перестанет работать целиком.
+Confirmation forbids nothing. It answers one question — do messages reach this
+person — and therefore does not stand in the way of signing in: an installation
+without a mail server must stay fully usable, and there `email_verified_at`
+stays empty for everyone (specification §3). The moment confirmation starts
+blocking something, such an installation stops working entirely.
 
-Токен хранится хешем и срабатывает один раз — так же, как токен сессии в
-app.auth: одна и та же дисциплина на все секреты, которые уходят наружу.
-Погашенная строка при этом не удаляется, а помечается: по ссылке из письма
-ходят дважды, и второму заходу отвечают «адрес уже подтверждён», а не
-«ссылка не подходит».
+The token is stored as a hash and fires once — the same as a session token in
+app.auth: one and the same discipline for every secret that goes outward. A
+redeemed row is not deleted but flagged, though: a link from an email is
+followed twice, and the second visit is told "the address is already confirmed"
+rather than "this link does not fit".
 """
 
 import logging
@@ -28,19 +28,18 @@ from app.security import hash_token, new_token
 
 logger = logging.getLogger(__name__)
 
-# Сутки: письмо читают вечером того же дня или следующим утром, а ссылка,
-# живущая неделю, всё это время лежит в почтовом ящике готовым ключом.
+# A day: the message is read that same evening or the next morning, while a link
+# that lives for a week sits in the mailbox all that time as a ready key.
 VERIFICATION_TTL = timedelta(hours=24)
 
-# Пауза между повторными отправками. Кнопка «отправить ещё раз» — это
-# отправитель писем на любой адрес, введённый при регистрации, и без
-# паузы одна учётная запись превращает приложение в бесплатный рассыльщик
-# по чужому ящику.
+# A pause between repeated sends. The "send again" button is a mailer aimed at
+# any address entered at registration, and without a pause a single account turns
+# the application into a free mailer aimed at someone else's mailbox.
 RESEND_COOLDOWN = timedelta(minutes=1)
 
 
 class VerificationError(Exception):
-    """Ссылку не приняли. `code` уходит наружу как есть, без прозы."""
+    """The link was not accepted. `code` goes outward as is, with no prose."""
 
     def __init__(self, code: str) -> None:
         super().__init__(code)
@@ -48,11 +47,12 @@ class VerificationError(Exception):
 
 
 class Confirmation(NamedTuple):
-    """Итог погашения ссылки.
+    """The outcome of redeeming a link.
 
-    `already_verified` — ссылку открыли не в первый раз. Это не отказ:
-    адрес подтверждён, делать человеку нечего, и говорить ему про
-    недействительную ссылку значило бы пугать успехом.
+    `already_verified` means the link was not opened for the first time. This is
+    not a refusal: the address is confirmed, there is nothing for the person to
+    do, and telling them about an invalid link would mean frightening them with
+    success.
     """
 
     user: User
@@ -60,11 +60,11 @@ class Confirmation(NamedTuple):
 
 
 def issue_token(db: DbSession, user: User) -> str:
-    """Новый токен подтверждения. Прежние гасит: действует последняя ссылка.
+    """A new confirmation token. It redeems the previous ones: the last link wins.
 
-    Иначе каждая повторная отправка оставляла бы за собой ещё один рабочий
-    ключ, и «ссылка перестала работать» после повторной отправки стало бы
-    неправдой при разборе инцидента.
+    Otherwise every repeated send would leave another working key behind it, and
+    "the link stopped working" after a resend would become untrue when an
+    incident is investigated.
     """
     db.execute(delete(EmailVerification).where(EmailVerification.user_id == user.id))
     raw, hashed = new_token()
@@ -85,16 +85,16 @@ def verification_link(raw_token: str) -> str:
 
 
 def send_verification(db: DbSession, user: User) -> bool:
-    """Выдаёт ссылку и отправляет письмо. False — письмо не ушло.
+    """Issues a link and sends a message. False means the message did not go out.
 
-    Токен выдаётся до отправки и остаётся выданным, даже если письмо не
-    ушло: адрес почты владельцу учётной записи известен, повторная отправка
-    доступна, а откат токена ничего бы не улучшил.
+    The token is issued before sending and stays issued even if the message did
+    not go out: the account's owner knows their email address, a resend is
+    available, and rolling the token back would improve nothing.
 
-    Отметка об отправке ставится после письма, а не вместе с токеном: от неё
-    считается пауза до следующего письма, и выданный токен паузу не заводит.
-    Иначе недоступный почтовый сервер запирал бы кнопку «отправить ещё раз»
-    на минуту за письмо, которого никто не отправлял.
+    The sent mark is set after the message rather than together with the token:
+    the pause before the next message is counted from it, and an issued token
+    does not start a pause. Otherwise an unreachable mail server would lock the
+    "send again" button for a minute over a message nobody sent.
     """
     link = verification_link(issue_token(db, user))
     sent = mail.send(
@@ -113,10 +113,10 @@ def send_verification(db: DbSession, user: User) -> bool:
 
 
 def note_sent(db: DbSession, user: User) -> None:
-    """Отмечает: письмо ушло. С этой минуты считается пауза до следующего.
+    """Marks that the message went out. The pause before the next one is counted from this minute.
 
-    Обновляет строки владельца, а не одну конкретную: годная у него ровно
-    одна — issue_token сносит прежние перед выдачей новой.
+    It updates the owner's rows rather than one specific row: exactly one of
+    theirs is valid — issue_token removes the previous ones before issuing a new one.
     """
     db.execute(
         update(EmailVerification)
@@ -127,11 +127,12 @@ def note_sent(db: DbSession, user: User) -> None:
 
 
 def sent_recently(db: DbSession, user: User) -> bool:
-    """Ушло ли письмо этому человеку только что.
+    """Whether a message went out to this person just now.
 
-    Считается от отправки, а не от выдачи токена: письмо, застрявшее в
-    недоступном почтовом сервере, паузу не заводит — иначе первое же нажатие
-    кнопки получало бы отказ за письмо, которого не было.
+    Counted from the send rather than from the issue of the token: a message
+    stuck in an unreachable mail server does not start a pause — otherwise the
+    very first press of the button would get a refusal over a message that never
+    existed.
     """
     latest = db.scalar(
         select(func.max(EmailVerification.sent_at)).where(
@@ -142,12 +143,12 @@ def sent_recently(db: DbSession, user: User) -> bool:
 
 
 def confirm_email(db: DbSession, raw_token: str) -> Confirmation:
-    """Гасит ссылку и ставит отметку о подтверждении.
+    """Redeems the link and sets the confirmation mark.
 
-    Погашенная ссылка остаётся в таблице до конца своего срока и на повторное
-    открытие отвечает «адрес уже подтверждён»: по ссылке из письма ходят
-    дважды — сначала почтовый сканер или предпросмотр, потом человек, — и
-    удалённая строка отвечала бы ему «ссылка не подходит».
+    A redeemed link stays in the table until the end of its lifetime and answers
+    a repeated opening with "the address is already confirmed": a link from an
+    email is followed twice — first by a mail scanner or a preview, then by a
+    person — and a deleted row would answer them "this link does not fit".
     """
     record = db.scalar(
         select(EmailVerification).where(EmailVerification.token_hash == hash_token(raw_token))
@@ -157,15 +158,15 @@ def confirm_email(db: DbSession, raw_token: str) -> Confirmation:
 
     user = db.get(User, record.user_id)
 
-    # Отметка о погашении проверяется раньше срока годности: ссылкой, которая
-    # уже сработала, ничего не подтверждают второй раз, а человеку с
-    # подтверждённым адресом незачем читать про истёкший срок.
+    # The redemption mark is checked before the expiry date: a link that has
+    # already fired confirms nothing a second time, and a person with a confirmed
+    # address has no reason to read about an expired deadline.
     if record.used_at is not None:
         return Confirmation(user, already_verified=True)
 
     if record.expires_at < datetime.now(timezone.utc):
-        # Просроченную строку убираем сразу: она уже ни на что не годна, а
-        # оставленная — накапливается и мешает читать таблицу.
+        # An expired row is removed right away: it is good for nothing anymore,
+        # and if left behind it accumulates and makes the table harder to read.
         db.delete(record)
         db.flush()
         raise VerificationError("token_expired")
@@ -173,16 +174,17 @@ def confirm_email(db: DbSession, raw_token: str) -> Confirmation:
     now = datetime.now(timezone.utc)
     user.email_verified_at = now
     record.used_at = now
-    # Прочие ссылки владельца гасятся насовсем: отвечать «уже подтверждён»
-    # должна та, по которой пришли, а не любая из выданных когда-то.
+    # The owner's other links are extinguished for good: the one that answers
+    # "already confirmed" must be the one that was followed, not any of those
+    # ever issued.
     db.execute(
         delete(EmailVerification).where(
             EmailVerification.user_id == user.id, EmailVerification.id != record.id
         )
     )
-    # Заодно подметаются просроченные строки всех остальных: у погашенной
-    # ссылки нет второго повода зайти в эту таблицу, и без уборки здесь
-    # подтверждённые адреса оставляли бы в ней по строке навсегда.
+    # Expired rows of everyone else are swept along the way: a redeemed link has
+    # no second reason to visit this table, and without a cleanup here confirmed
+    # addresses would each leave a row in it forever.
     db.execute(delete(EmailVerification).where(EmailVerification.expires_at < now))
     db.flush()
     return Confirmation(user, already_verified=False)

@@ -1,9 +1,10 @@
-"""Чистые функции: поле задачи Jira → поле задачи Planora.
+"""Pure functions: a Jira issue field -> a Planora task field.
 
-Ничего здесь не трогает базу и не знает про мутации — это тот единственный
-слой, что достаточно проверить на выдуманных объектах, без сети и без базы
-(см. tests/test_jira_mapping.py). Слой синхронизации (app/jira/sync.py) уже
-собирает из этого CreateTask/SetTaskFields и решает, что с этим делать.
+Nothing here touches the database or knows about mutations — this is the one
+layer that can be checked against made-up objects, with no network and no
+database (see tests/test_jira_mapping.py). The sync layer (app/jira/sync.py)
+already assembles CreateTask/SetTaskFields out of this and decides what to do
+with it.
 """
 
 from dataclasses import dataclass
@@ -11,16 +12,16 @@ from datetime import date
 
 from app.calendar import Calendar, count_working_days, first_working_on_or_after
 
-#: Название пользовательского поля классических (company-managed) проектов
-#: Jira, которым задача привязана к эпику. У team-managed проектов эпик —
-#: обычный `parent`, отдельного поля нет. Id самого поля инстанс-специфичен
-#: (customfield_NNNNN) и находится по этому имени через /rest/api/3/field —
-#: см. resolve_epic_link_field в app/jira/sync.py.
+#: The name of the custom field in classic (company-managed) Jira projects that
+#: ties an issue to an epic. In team-managed projects the epic is an ordinary
+#: `parent` and there is no separate field. The field's own id is
+#: instance-specific (customfield_NNNNN) and is found by this name through
+#: /rest/api/3/field — see resolve_epic_link_field in app/jira/sync.py.
 EPIC_LINK_FIELD_NAME = "epic link"
 
 
 def find_epic_link_field(fields: list[dict]) -> str | None:
-    """Id пользовательского поля «Epic Link» среди полей инстанса, если оно есть."""
+    """The id of the "Epic Link" custom field among the instance's fields, if it exists."""
     for field in fields:
         if str(field.get("name", "")).strip().lower() == EPIC_LINK_FIELD_NAME:
             return field.get("id")
@@ -40,11 +41,11 @@ def is_milestone_type(issue: dict) -> bool:
 
 
 def epic_key_of(issue: dict, epic_link_field: str | None) -> str | None:
-    """Ключ эпика этой задачи, если он есть.
+    """The key of this issue's epic, if it has one.
 
-    Категория, на которую он в итоге ляжет, решает вызывающий: неизвестный
-    ключ (эпик вне выборки импорта, задача без эпика) здесь не ошибка — это
-    сигнал воспользоваться категорией по умолчанию.
+    Which category it ultimately lands in is decided by the caller: an unknown
+    key (an epic outside the import's selection, an issue with no epic) is not an
+    error here — it is a signal to use the default category.
     """
     fields = issue.get("fields", {}) or {}
     if epic_link_field:
@@ -58,8 +59,8 @@ def epic_key_of(issue: dict, epic_link_field: str | None) -> str | None:
     return None
 
 
-#: Название приоритета Jira → критичность Planora. Ключи — нижним регистром:
-#: сравнение регистронезависимо, инстансы Jira расходятся в написании.
+#: A Jira priority name -> a Planora criticality. The keys are lower case: the
+#: comparison is case-insensitive, and Jira instances differ in their spelling.
 _CRITICALITY_BY_PRIORITY = {
     "blocker": "critical",
     "highest": "critical",
@@ -71,26 +72,27 @@ _CRITICALITY_BY_PRIORITY = {
 
 
 def priority_to_criticality(priority_name: str | None) -> str:
-    """Medium и незнакомое имя — normal: середина шкалы Jira и середина
-    шкалы Planora совпадают, а неизвестное лучше не завышать и не занижать."""
+    """Medium and an unknown name both become normal: the middle of the Jira
+    scale and the middle of the Planora scale coincide, and it is better not to
+    inflate or deflate the unknown."""
     return _CRITICALITY_BY_PRIORITY.get((priority_name or "").strip().lower(), "normal")
 
 
-#: Подстроки названия статуса, по которым задача считается заблокированной.
-#: Категория статуса Jira («new» / «indeterminate» / «done») этого состояния
-#: не знает вовсе — Jira держит «заблокировано» текстом названия, не полем, —
-#: и признак ищется здесь, до обращения к категории.
+#: Substrings of a status name by which a task is considered blocked. The Jira
+#: status category ("new" / "indeterminate" / "done") does not know this state at
+#: all — Jira holds "blocked" in the text of the name rather than in a field —
+#: so the flag is looked for here, before consulting the category.
 _BLOCKED_MARKERS = ("block", "impediment", "on hold")
 
 
 def issue_status(status_name: str | None, status_category_key: str | None) -> tuple[str, int]:
-    """Статус и процент выполнения Planora — производные статуса Jira.
+    """A Planora status and completion percentage, derived from the Jira status.
 
-    Процент — грубая оценка на момент импорта или переноса из другого
-    статуса, а не факт: Jira процента не хранит вовсе. `in_progress`
-    получает половину, `done` — все сто, `planned` и `blocked` — ноль;
-    последующая правка человеком (в том числе через drag на диаграмме)
-    заменяет её на настоящую.
+    The percentage is a rough estimate at the moment of an import or a move from
+    another status, not a fact: Jira does not store a percentage at all.
+    `in_progress` gets half, `done` gets a full hundred, `planned` and `blocked`
+    get zero; a subsequent edit by a person (including by dragging on the chart)
+    replaces it with the real one.
     """
     name = (status_name or "").strip().lower()
     if any(marker in name for marker in _BLOCKED_MARKERS):
@@ -104,15 +106,15 @@ def issue_status(status_name: str | None, status_category_key: str | None) -> tu
 
 
 def _adf_to_text(node: object) -> str:
-    """Текст документа Atlassian Document Format (ADF) — описание задачи в
-    Jira Cloud REST API v3 приходит этим деревом, не строкой.
+    """The text of an Atlassian Document Format (ADF) document — an issue's
+    description in the Jira Cloud REST API v3 arrives as this tree, not as a string.
 
-    Разбирает ровно те типы узлов, что нужны для читаемого plain-text: абзацы
-    и разрывы строк переводятся в перевод строки, элементы списка — в строку
-    с тире, остальные структурные узлы (документ целиком, списки, цитаты)
-    просто разворачиваются в конкатенацию содержимого. Незнакомый тип узла не
-    роняет разбор — он тоже разворачивается в содержимое, если оно есть, или
-    даёт пустую строку.
+    It parses exactly the node types needed for readable plain text: paragraphs
+    and line breaks become newlines, list items become a line with a dash, and
+    the remaining structural nodes (the document as a whole, lists, quotes) are
+    simply unwrapped into a concatenation of their contents. An unknown node type
+    does not break the parse — it too is unwrapped into its contents, if there
+    are any, or yields an empty string.
     """
     if node is None:
         return ""
@@ -138,23 +140,24 @@ def _adf_to_text(node: object) -> str:
 
 
 def description_text(description: object) -> str:
-    """Описание задачи как обычный текст — из ADF или уже готовой строки
-    (некоторые старые данные Jira Server отдают описание строкой)."""
+    """An issue's description as plain text — from ADF or from an already
+    finished string (some old Jira Server data returns the description as a string)."""
     return _adf_to_text(description).strip()
 
 
 def issue_schedule(
     issue: dict, calendar: Calendar
 ) -> tuple[date, int, bool]:
-    """Старт, длительность в рабочих днях и признак вехи для задачи плана.
+    """The start, the duration in working days and the milestone flag for a plan task.
 
-    Веха берёт дату из срока (или из даты создания, если срока нет) и всегда
-    занимает один день — тем же правилом, что и веха, заведённая руками (см.
-    ck_tasks_milestone_duration в app/models.py). Обычная задача стартует с
-    даты создания в Jira, выровненной на ближайший рабочий день, и тянется до
-    срока; без срока — тоже один день. Срок раньше даты создания (реальный
-    случай при неаккуратно расставленных полях) не даёт отрицательную или
-    нулевую длительность — задача сворачивается в тот же один день.
+    A milestone takes its date from the due date (or from the creation date, if
+    there is no due date) and always occupies one day — by the same rule as a
+    milestone created by hand (see ck_tasks_milestone_duration in
+    app/models.py). An ordinary task starts on the Jira creation date, aligned to
+    the nearest working day, and runs until the due date; with no due date it is
+    one day as well. A due date earlier than the creation date (a real case when
+    fields are set carelessly) does not yield a negative or zero duration — the
+    task collapses into that same single day.
     """
     fields = issue.get("fields", {}) or {}
     created_raw = fields.get("created")
@@ -178,9 +181,9 @@ def issue_summary(issue: dict) -> str:
 
 
 def task_name(issue: dict) -> str:
-    """Имя задачи Planora, с ключом Jira в начале — единственный след, по
-    которому человек находит исходную строку в самой Jira: карточка задачи
-    описания Jira-ссылки не несёт (см. app/jira/sync.py:_task_fields)."""
+    """The Planora task's name, with the Jira key at the front — the only trace
+    by which a person finds the original issue in Jira itself: the task card
+    carries no Jira link in its description (see app/jira/sync.py:_task_fields)."""
     return f"[{issue.get('key', '')}] {issue_summary(issue)}"
 
 
@@ -197,8 +200,8 @@ class IssueTaskFields:
 
 
 def task_fields_from_issue(issue: dict, calendar: Calendar) -> IssueTaskFields:
-    """Все поля задачи Planora разом — то, что use CreateTask и (при
-    расхождении со строкой плана) обновления при повторной синхронизации."""
+    """Every field of a Planora task at once — what CreateTask uses and what (on
+    a divergence from the plan row) updates use on a repeated sync."""
     fields = issue.get("fields", {}) or {}
     status_field = fields.get("status", {}) or {}
     status, progress = issue_status(

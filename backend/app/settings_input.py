@@ -1,10 +1,11 @@
-"""Разбор и проверка настроек, приходящих из интерфейса.
+"""Parsing and validating the settings that arrive from the interface.
 
-Отдельно от маршрутов, потому что одни и те же величины настраиваются на двух
-уровнях: рабочие дни, часовой пояс и порог сдвига есть и у организации, и у
-проекта — с той разницей, что у проекта они допускают `null` («наследовать»).
-Проверка, написанная в двух маршрутах порознь, разъедется на первой правке, и
-разъедется молча: пропущенное значение просто ляжет в базу.
+Separate from the routes, because the same values are configured at two levels:
+working days, the timezone and the shift threshold exist both on an
+organization and on a project — with the difference that on a project they
+allow `null` ("inherit"). Validation written separately in two routes will
+drift apart on the first edit, and it will drift silently: a value that slipped
+through simply lands in the database.
 """
 
 from datetime import date
@@ -15,29 +16,31 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from app.config import get_settings
 from app.text import slugify
 
-# Маска рабочих дней — семь бит. Ноль запрещён: календарь без единого рабочего
-# дня не позволяет посчитать ни одну дату окончания, и проект перестаёт
-# читаться целиком. Отказать при вводе честнее, чем показать пятисотку потом.
+# The working-day mask is seven bits. Zero is forbidden: a calendar without a
+# single working day makes it impossible to compute any finish date, and the
+# project stops being readable altogether. Refusing at input is more honest than
+# showing a 500 later.
 MIN_WORKING_DAYS = 1
 MAX_WORKING_DAYS = 0b1111111
 
 
 class SettingsInput(BaseModel):
-    """Общее для настроек всех уровней.
+    """What is common to settings at every level.
 
-    `extra="forbid"`: опечатка в имени поля должна быть отказом, а не тихо
-    проигнорированной строкой, после которой человек гадает, почему настройка
-    не сохранилась.
+    `extra="forbid"`: a typo in a field name must be a refusal rather than a
+    silently ignored line after which a person wonders why the setting did not
+    save.
     """
 
     model_config = ConfigDict(extra="forbid")
 
 
 def check_timezone(value: str) -> str:
-    """Часовой пояс — по имени из базы IANA, а не свободной строкой.
+    """The timezone — by a name from the IANA database, not as a free string.
 
-    Хранится он ради того, чтобы однажды показать даты в поясе проекта;
-    непроверенное имя обнаружится в тот день, а не в день ввода.
+    It is stored so that one day dates can be shown in the project's timezone;
+    an unvalidated name would surface on that day rather than on the day it was
+    entered.
     """
     try:
         ZoneInfo(value)
@@ -54,12 +57,11 @@ def check_locale(value: str) -> str:
 
 
 def check_dates(value: list) -> list[str]:
-    """Список нерабочих (или, наоборот, рабочих) дат.
+    """A list of non-working (or, conversely, working) dates.
 
-    Приводится к отсортированному набору без повторов: календарь — это
-    множество дат, а не журнал того, в каком порядке их вводили. Заодно
-    исчезает случай «одна и та же дата дважды», на котором список растёт
-    молча.
+    It is reduced to a sorted set with no repeats: a calendar is a set of dates,
+    not a log of the order in which they were entered. That also removes the
+    case of "the same date twice", on which the list grows silently.
     """
     parsed: set[date] = set()
     for item in value:
@@ -79,7 +81,7 @@ def check_working_days(value: int) -> int:
 
 
 class OrganizationSettingsIn(SettingsInput):
-    """Уровень 2: дефолты организации, которые наследуют все её проекты."""
+    """Level 2: the organization's defaults, inherited by all of its projects."""
 
     name: str | None = None
     slug: str | None = None
@@ -129,13 +131,13 @@ class OrganizationSettingsIn(SettingsInput):
     @field_validator("slug")
     @classmethod
     def _slug(cls, value: str | None) -> str | None:
-        """Слаг приводится к своей форме здесь, а не у вызывающего.
+        """The slug is reduced to its own form here rather than at the caller.
 
-        Иначе `slug-check` и сохранение расходятся: поле ввода показывает
-        `redizayn-2026`, а в базу ложится «Редизайн 2026» — и публичный адрес
-        оказывается не тем, который человеку только что показали. Пустая форма
-        («...», одни пробелы) заменяется запасным словом: адрес без слага не
-        открывается вовсе.
+        Otherwise `slug-check` and saving diverge: the input field shows
+        `redizayn-2026` while "Редизайн 2026" lands in the database — and the
+        public address turns out not to be the one just shown to the person. An
+        empty form ("...", nothing but spaces) is replaced with a fallback word:
+        an address without a slug does not open at all.
         """
         return None if value is None else slugify(value, fallback="org")
 
@@ -152,12 +154,13 @@ class OrganizationSettingsIn(SettingsInput):
 
 
 class ProjectSettingsIn(SettingsInput):
-    """Уровень 3: настройки проекта.
+    """Level 3: the project's settings.
 
-    Три величины здесь допускают `null`, и `null` означает «наследовать от
-    организации», а не «пусто». Отличить «прислали null» от «не прислали
-    вовсе» позволяет `model_fields_set`: без этого сброс переопределения был
-    бы невыразим — любой запрос без поля стирал бы его.
+    Three values here allow `null`, and `null` means "inherit from the
+    organization" rather than "empty". Telling "null was sent" from "nothing was
+    sent at all" is made possible by `model_fields_set`: without it, clearing an
+    override would be inexpressible — any request without the field would erase
+    it.
     """
 
     name: str | None = None
@@ -168,10 +171,10 @@ class ProjectSettingsIn(SettingsInput):
     shift_threshold_days: int | None = None
     holidays_extra: list | None = None
     workdays_extra: list | None = None
-    # Автоперенос по связям. `null` для него не значит «наследовать»: у
-    # организации такой настройки нет вовсе, и в NULLABLE_PROJECT_FIELDS он не
-    # входит — присланный `null` просто игнорируется, как и у всякого поля вне
-    # этого списка.
+    # Automatic shifting along dependencies. `null` does not mean "inherit" for
+    # it: an organization has no such setting at all, and it is not in
+    # NULLABLE_PROJECT_FIELDS — a `null` that is sent is simply ignored, as it is
+    # for every field outside that list.
     auto_schedule: bool | None = None
 
     @field_validator("timezone")
@@ -194,13 +197,13 @@ class ProjectSettingsIn(SettingsInput):
     @field_validator("slug")
     @classmethod
     def _slug(cls, value: str | None) -> str | None:
-        """Слаг приводится к своей форме здесь, а не у вызывающего.
+        """The slug is reduced to its own form here rather than at the caller.
 
-        Иначе `slug-check` и сохранение расходятся: поле ввода показывает
-        `redizayn-2026`, а в базу ложится «Редизайн 2026» — и публичный адрес
-        оказывается не тем, который человеку только что показали. Пустая форма
-        («...», одни пробелы) заменяется запасным словом: адрес без слага не
-        открывается вовсе.
+        Otherwise `slug-check` and saving diverge: the input field shows
+        `redizayn-2026` while "Редизайн 2026" lands in the database — and the
+        public address turns out not to be the one just shown to the person. An
+        empty form ("...", nothing but spaces) is replaced with a fallback word:
+        an address without a slug does not open at all.
         """
         return None if value is None else slugify(value, fallback="project")
 
@@ -220,18 +223,18 @@ class ProjectSettingsIn(SettingsInput):
         return stripped
 
 
-# Поля, которым `null` разрешён как значение («наследовать от организации»).
-# Всё остальное `null`-ом только помечается как «не менять».
+# The fields for which `null` is allowed as a value ("inherit from the
+# organization"). For everything else a `null` only marks it as "do not change".
 NULLABLE_PROJECT_FIELDS = frozenset({"deadline", "timezone", "working_days", "shift_threshold_days"})
 
 
 def changes(payload: SettingsInput, *, nullable: frozenset[str] = frozenset()) -> dict:
-    """Присланные поля → набор изменений.
+    """The fields that were sent -> the set of changes.
 
-    Поле, которого не было в теле запроса, не меняется вовсе. Поле со
-    значением `null` либо сбрасывается в «наследовать» (если оно из
-    `nullable`), либо игнорируется — потому что для остальных `null` не
-    значение, а отсутствие ответа.
+    A field that was absent from the request body is not changed at all. A field
+    with a `null` value is either reset to "inherit" (if it is one of the
+    `nullable` ones) or ignored — because for the rest `null` is not a value but
+    the absence of an answer.
     """
     sent = payload.model_dump(exclude_unset=True)
     return {

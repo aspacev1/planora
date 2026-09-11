@@ -1,13 +1,13 @@
-"""Три способа вручить письмо и общий для них тип письма.
+"""Three ways to deliver a message, and the message type common to them.
 
-Транспорт знает только «как доставить», но не «что написать» и не «кому
-понадобилось»: текст собирается в app.mail.templates, а решение отправить
-принимает вызывающий код. Поэтому здесь нет ни шаблонов, ни обращений к
-базе — только сокет, HTTP-запрос и журнал.
+A transport knows only "how to deliver", not "what to write" and not "who
+needed it": the text is assembled in app.mail.templates, and the decision to
+send is made by the calling code. That is why there are no templates and no
+database access here — only a socket, an HTTP request and the log.
 
-Отказ доставки — это MailError, а не пятисотка: письмо в этом продукте
-всегда сопутствует основному действию (регистрация, приглашение), и
-невозможность его отправить не должна отменять само действие.
+A delivery failure is a MailError rather than a 500: in this product a message
+always accompanies a main action (registration, an invitation), and being
+unable to send it must not cancel the action itself.
 """
 
 import json
@@ -24,15 +24,15 @@ from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
 
-# Письмо уходит внутри HTTP-запроса пользователя (очереди в первой версии
-# нет), поэтому потолок ожидания короткий: регистрация, зависшая на минуту
-# из-за недоступного почтового сервера, выглядит как сломанное приложение.
+# The message goes out inside the user's HTTP request (there is no queue in the
+# first version), so the waiting ceiling is short: a registration hanging for a
+# minute because of an unreachable mail server looks like a broken application.
 DEFAULT_TIMEOUT = 10
 
 
 @dataclass(frozen=True, slots=True)
 class Letter:
-    """Готовое к отправке письмо: адресат и уже собранный на его языке текст."""
+    """A message ready to send: the recipient and the text already assembled in their language."""
 
     to: str
     subject: str
@@ -40,7 +40,7 @@ class Letter:
 
 
 class MailError(RuntimeError):
-    """Письмо не удалось вручить. Отправитель решает, что с этим делать."""
+    """The message could not be delivered. The sender decides what to do about it."""
 
 
 class Transport(Protocol):
@@ -52,11 +52,11 @@ def _build_message(letter: Letter, sender: str) -> EmailMessage:
     message["Subject"] = letter.subject
     message["From"] = sender
     message["To"] = letter.to
-    # Date и Message-ID добавляются руками: smtplib их не проставляет, а
-    # письмо без них уверенно собирает штрафные очки у спам-фильтров.
-    # Домен для Message-ID берётся из адреса отправителя, а не из hostname
-    # машины (умолчание make_msgid) — иначе внутреннее имя контейнера
-    # уезжает в заголовках каждого письма наружу.
+    # Date and Message-ID are added by hand: smtplib does not set them, and a
+    # message without them confidently racks up penalty points with spam filters.
+    # The domain for Message-ID is taken from the sender's address rather than
+    # from the machine's hostname (make_msgid's default) — otherwise the
+    # container's internal name rides out in the headers of every message.
     message["Date"] = formatdate(localtime=True)
     _, address = parseaddr(sender)
     domain = address.rpartition("@")[2] or None
@@ -66,13 +66,13 @@ def _build_message(letter: Letter, sender: str) -> EmailMessage:
 
 
 class SmtpTransport:
-    """Основной транспорт: любой SMTP-сервер, включая собственный.
+    """The main transport: any SMTP server, including one's own.
 
-    Адрес задаётся одной переменной SMTP_URL — так учётные данные, хост и
-    порт не разъезжаются по четырём переменным, которые легко задать
-    наполовину. Схема выбирает шифрование: `smtps://` — TLS с самого
-    соединения (порт 465 по умолчанию), `smtp://` — обычное соединение с
-    переходом на STARTTLS, если сервер его предлагает (порт 587).
+    The address is given by the single SMTP_URL variable — that way the
+    credentials, host and port do not scatter across four variables that are easy
+    to set only halfway. The scheme picks the encryption: `smtps://` is TLS from
+    the connection itself (port 465 by default), `smtp://` is a plain connection
+    upgrading to STARTTLS if the server offers it (port 587).
     """
 
     def __init__(self, url: str, *, sender: str, timeout: int = DEFAULT_TIMEOUT) -> None:
@@ -84,8 +84,8 @@ class SmtpTransport:
         self._implicit_tls = parsed.scheme == "smtps"
         self._host = parsed.hostname
         self._port = parsed.port or (465 if self._implicit_tls else 587)
-        # unquote: пароль в адресе закодирован процентами, иначе слэш или @
-        # в нём разорвали бы разбор самого адреса.
+        # unquote: the password in the URL is percent-encoded, otherwise a slash
+        # or an @ in it would break the parsing of the URL itself.
         self._user = unquote(parsed.username) if parsed.username else ""
         self._password = unquote(parsed.password) if parsed.password else ""
         self._sender = sender
@@ -104,8 +104,9 @@ class SmtpTransport:
                 encrypted = smtp.has_extn("starttls")
                 if encrypted:
                     smtp.starttls()
-                    # Второй ehlo обязателен: после STARTTLS сервер объявляет
-                    # список возможностей заново, и до него AUTH в нём нет.
+                    # The second ehlo is mandatory: after STARTTLS the server
+                    # announces its capability list anew, and before that AUTH is
+                    # not in it.
                     smtp.ehlo()
                 self._hand_over(smtp, message, encrypted=encrypted)
         except (smtplib.SMTPException, OSError) as exc:
@@ -114,11 +115,10 @@ class SmtpTransport:
     def _hand_over(self, smtp: smtplib.SMTP, message: EmailMessage, *, encrypted: bool) -> None:
         if self._user:
             if not encrypted:
-                # Пароль от почтового ящика по открытому каналу — это не
-                # «менее надёжная доставка», а утечка учётных данных, поэтому
-                # отказ, а не предупреждение в лог. Локальный релей без
-                # пароля (mailhog, postfix на той же машине) при этом
-                # продолжает работать.
+                # A mailbox password over an open channel is not "less reliable
+                # delivery" but a credential leak, hence a refusal rather than a
+                # warning in the log. A local relay with no password (mailhog,
+                # postfix on the same machine) keeps working regardless.
                 raise MailError(
                     "отказ передавать пароль SMTP по незашифрованному соединению: "
                     "нужен smtps:// или сервер с поддержкой STARTTLS"
@@ -128,12 +128,12 @@ class SmtpTransport:
 
 
 class ApiTransport:
-    """Отправка через HTTP-API рассылочного сервиса.
+    """Sending through a delivery service's HTTP API.
 
-    Тело запроса — `{from, to, subject, text}`: форма, которую принимают
-    Resend и совместимые с ним; для сервиса с другим форматом меняется
-    только этот метод. Взято на stdlib, потому что ради одного POST в
-    зависимости приложения не стоит тянуть HTTP-клиент.
+    The request body is `{from, to, subject, text}`: the shape accepted by Resend
+    and services compatible with it; for a service with a different format only
+    this method changes. Built on the stdlib, because pulling an HTTP client into
+    the application's dependencies for the sake of one POST is not worth it.
     """
 
     def __init__(self, *, url: str, key: str, sender: str, timeout: int = DEFAULT_TIMEOUT) -> None:
@@ -164,18 +164,20 @@ class ApiTransport:
             with urlopen(request, timeout=self._timeout):
                 return
         except HTTPError as exc:
-            # Тело ответа обрезается: сервисы охотно возвращают страницу на
-            # килобайт, а в журнал нужен код и первая строка объяснения.
+            # The response body is truncated: services readily return a
+            # kilobyte-long page, while the log needs the code and the first line
+            # of the explanation.
             detail = exc.read(200).decode("utf-8", "replace").strip()
             raise MailError(f"почтовый API ответил {exc.code}: {detail}") from exc
         except (URLError, OSError) as exc:
             raise MailError(f"почтовый API недоступен: {exc}") from exc
 
 
-# Токены в письмах — это base64/hex-строки длиной от двадцати символов;
-# обычные слова любого из языков установки до неё не дотягивают. Маскируется
-# хвост, а не вся строка: по первым символам письмо в журнале можно сопоставить
-# с записью в базе, не получив при этом рабочей ссылки.
+# Tokens in messages are base64/hex strings of twenty characters or more;
+# ordinary words in any of the installation's languages do not reach that.
+# The tail is masked rather than the whole string: the first characters let a
+# message in the log be matched against a database row without yielding a
+# working link.
 _TOKEN_LIKE = re.compile(r"[A-Za-z0-9_\-]{20,}")
 
 
@@ -184,16 +186,16 @@ def _mask_secrets(text: str) -> str:
 
 
 class LogTransport:
-    """MAIL_TRANSPORT=none и log: письмо уходит в журнал и больше никуда.
+    """MAIL_TRANSPORT=none and log: the message goes to the log and nowhere else.
 
-    Установка без почтового сервера должна оставаться полноценной, поэтому
-    выключенная почта — это не ошибка. Разница между двумя значениями — в
-    том, что попадает в журнал. Журнал боевой установки читают не только
-    администраторы: он уезжает в агрегаторы и хранится дольше, чем живут
-    токены, а ссылка подтверждения или приглашения в нём — это готовый вход
-    в чужой аккаунт. Поэтому `none` маскирует токены, и полный текст письма
-    печатает только `log` — явный выбор режима разработки, где журнал и есть
-    почтовый ящик.
+    An installation without a mail server must stay fully usable, so disabled
+    mail is not an error. The difference between the two values is in what lands
+    in the log. The log of a production installation is read by more than
+    administrators: it rides out to aggregators and is kept longer than the
+    tokens live, and a confirmation or invitation link in it is a ready-made way
+    into someone else's account. So `none` masks the tokens, and only `log`
+    prints the full text of the message — an explicit choice of a development
+    mode where the log is the mailbox.
     """
 
     def __init__(self, *, sender: str = "", reveal_secrets: bool = False) -> None:
