@@ -1,475 +1,487 @@
-# Planora — план исправлений по итогам аудита
+# Planora — remediation plan from the audit findings
 
-Дорожная карта устранения находок шести аудитов кода (безопасность, ядро
-бэкенда, API/realtime, фронтенд-инженерия, инфраструктура, тесты) и отдельного
-UX-аудита. План составлен в ветке `claude/project-ux-efficiency-analysis-t6hqtg`;
-исполнение идёт волнами, ветка волны 0 — `claude/remediation-plan-stepwise-n7cjaw`.
+A road map for clearing the findings of six code audits (security, backend
+core, API/realtime, frontend engineering, infrastructure, tests) and a separate
+UX audit. The plan was drawn up in the `claude/project-ux-efficiency-analysis-t6hqtg`
+branch; execution goes in waves, and wave 0's branch is `claude/remediation-plan-stepwise-n7cjaw`.
 
-Задачи сгруппированы в **девять последовательных волн**. Порядок задан
-зависимостями, а не только серьёзностью: сначала — сеть, ловящая регрессии,
-затем — то, что ломает данные и доступ, и лишь потом остальное. Внутри волны
-задачи независимы и параллелятся.
+The tasks are grouped into **nine sequential waves**. The order is set by
+dependencies, not by severity alone: first the net that catches regressions,
+then whatever breaks data and access, and only after that the rest. Within a
+wave the tasks are independent and parallelize.
 
-## Как пользоваться
+## How to use this
 
-- Отмечайте `[x]` по мере выполнения. Один пункт — обычно один PR.
-- Каждой задаче волн 0–1 обязателен регрессионный тест, воспроизводящий отказ.
-- Волны 0 и 1 делаются последовательно и первыми; 2–5 хорошо распараллеливаются.
-- **Ворота после волны 0:** дальше — только через PR с зелёным CI.
+- Tick `[x]` as you go. One item is usually one PR.
+- Every task in waves 0-1 requires a regression test that reproduces the failure.
+- Waves 0 and 1 are done sequentially and first; 2-5 parallelize well.
+- **Gate after wave 0:** from here on, only through a PR with green CI.
 
-## Обозначения
+## Notation
 
-- Серьёзность: 🔴 критично · 🟠 высоко · 🟡 средне · ⚪ низко
-- Цена: **S** — до полудня · **M** — 1–2 дня · **L** — больше
+- Severity: 🔴 critical · 🟠 high · 🟡 medium · ⚪ low
+- Cost: **S** — up to half a day · **M** — 1-2 days · **L** — more
 
 ---
 
-## Волна 0 — Страховочная сетка · _до всего остального_
+## Wave 0 — The safety net · _before everything else_
 
-Ни одной правки, меняющей поведение, пока нет барьера, который поймает
-регрессию. Самый дешёвый и самый важный этап.
+Not a single behaviour-changing edit until there is a barrier that catches a
+regression. The cheapest and the most important stage.
 
-- [x] **0.1** 🔴 **S** — CI: GitHub Actions с сервисным Postgres → `pytest`,
-  `vitest run`, `tsc -b`, `oxlint`, `docker compose build`. Прогон на push и PR.
-  _`.github/workflows/ci.yml`: три job — backend (pytest+Postgres), frontend
-  (lint, tsc, тесты, актуальность контракта API), docker (compose build)._
-- [x] **0.2** 🔴 **S** — Тест миграций: `alembic upgrade head` на чистой базе +
-  сверка с `create_all` (`compare_metadata`); проверка `downgrade`.
-  _`tests/test_migrations.py`; сразу поймал и починил невыполнимый downgrade
-  `9c584d8968ac` (drop безымянного FK)._
-- [x] **0.3** 🔴 **S** — Бэкапы БД: `pg_dump` по расписанию (sidecar/cron) +
-  документированная проверка восстановления. Убрать `docker compose down -v` из
-  README как штатный вариант, добавить раздел «Резервное копирование».
-  _Сервис `backup` в compose + `docker/backup.sh`; README дополнен._
-- [x] **0.4** 🟠 **M** — Контракт API: снимок `app.openapi()` в бэкенд-тестах +
-  генерация фронтовых типов из него (или тест паритета ключей ответа).
+- [x] **0.1** 🔴 **S** — CI: GitHub Actions with a service Postgres → `pytest`,
+  `vitest run`, `tsc -b`, `oxlint`, `docker compose build`. Runs on push and PR.
+  _`.github/workflows/ci.yml`: three jobs — backend (pytest+Postgres), frontend
+  (lint, tsc, tests, API contract freshness), docker (compose build)._
+- [x] **0.2** 🔴 **S** — Migration test: `alembic upgrade head` on a clean database +
+  a comparison against `create_all` (`compare_metadata`); a `downgrade` check.
+  _`tests/test_migrations.py`; it immediately caught and fixed the unrunnable
+  `9c584d8968ac` downgrade (a drop of an unnamed FK)._
+- [x] **0.3** 🔴 **S** — Database backups: `pg_dump` on a schedule (sidecar/cron) +
+  a documented restore check. Remove `docker compose down -v` from the
+  README as a routine option, add a "Backups" section.
+  _A `backup` service in compose + `docker/backup.sh`; the README was extended._
+- [x] **0.4** 🟠 **M** — API contract: a snapshot of `app.openapi()` in the backend
+  tests + frontend type generation from it (or a response-key parity test).
   _`tests/test_openapi_contract.py` → `backend/openapi.json` →
-  `npm run gen:api` → `src/api/schema.d.ts`; дифф проверяется в CI._
-- [x] **0.5** 🟠 **S** — Покрытие в CI: `pytest-cov` + `@vitest/coverage-v8`.
-  Добавить правило `exhaustive-deps` в oxlint.
+  `npm run gen:api` → `src/api/schema.d.ts`; the diff is checked in CI._
+- [x] **0.5** 🟠 **S** — Coverage in CI: `pytest-cov` + `@vitest/coverage-v8`.
+  Add the `exhaustive-deps` rule to oxlint.
 
-**Ворота:** CI зелёный на текущем коде.
+**Gate:** CI green on the current code.
 
 ---
 
-## Волна 1 — Целостность данных
+## Wave 1 — Data integrity
 
-Пути, которые уже сейчас ведут в 500 или в необратимую потерю данных.
+Paths that already lead to a 500 or to irreversible data loss.
 
-- [x] **1.1** 🔴 **M** — Гонка двойной отмены: выбор отменяемой ревизии
-  перенести внутрь `apply_op`, под `SELECT … FOR UPDATE` проекта.
+- [x] **1.1** 🔴 **M** — Double-undo race: move the choice of the revision to undo
+  inside `apply_op`, under the project's `SELECT … FOR UPDATE`.
   `backend/app/api/project_routes.py:309` → `mutations.py:904`
-  _`mutations.undo_last`: замок → выбор → применение; маршрут больше не
-  выбирает ревизию сам. Гоночный тест на двух сессиях с настоящим замком._
-- [x] **1.2** 🔴 **S** — Верхняя граница `start_date` (`Field(le=…)`) + перехват
-  `OverflowError` в календаре → `CalendarError`.
+  _`mutations.undo_last`: lock → choose → apply; the route no longer picks the
+  revision itself. A race test on two sessions with a real lock._
+- [x] **1.2** 🔴 **S** — An upper bound on `start_date` (`Field(le=…)`) + catching
+  `OverflowError` in the calendar → `CalendarError`.
   `backend/app/calendar.py:67`, `mutations.py:290-294`
-  _`MAX_WIRE_DATE` (2200-12-31) на `start_date`/`baseline_start`;
-  `calendar_date_out_of_range` вместо OverflowError; `count_working_days`
-  дожил до `date.max`._
-- [x] **1.3** 🔴 **S** — Обрезка слага до длины колонки в `slugify`/вставке +
-  перехват `DataError` наравне с `IntegrityError`.
+  _`MAX_WIRE_DATE` (2200-12-31) on `start_date`/`baseline_start`;
+  `calendar_date_out_of_range` instead of OverflowError; `count_working_days`
+  now survives up to `date.max`._
+- [x] **1.3** 🔴 **S** — Trim the slug to the column length in `slugify`/on insert +
+  catch `DataError` alongside `IntegrityError`.
   `backend/app/text.py:44` → `models.py:150` → `slugs.py:98`
-  _`SLUG_MAX_LEN=100` в `slugify`; суффиксы уникальности урезают базу, а не
-  себя; `DataError` откатывается до SAVEPOINT._
-- [x] **1.4** 🔴 **M** — Отмена удаления задачи восстанавливает связи,
-  назначения и комментарии: снимок связанных строк в `inverse` (либо запрет
-  жёсткого удаления, как у категорий).
+  _`SLUG_MAX_LEN=100` in `slugify`; uniqueness suffixes cut the base rather
+  than themselves; `DataError` rolls back to the SAVEPOINT._
+- [x] **1.4** 🔴 **M** — Undoing a task deletion restores dependencies,
+  assignments and comments: a snapshot of the related rows in `inverse` (or
+  forbid hard deletion, as with categories).
   `backend/app/mutations.py:822-841`, `models.py:385,395,247`
-  _Снимок в `inverse`, восстановление «по возможности»: исчезнувший второй
-  конец связи или автор пропускаются, как сделал бы каскад._
-- [x] **1.5** 🟠 **M** — Откат пачки: принимать `reason`; корректно
-  обрабатывать восстановление в удалённую категорию и рассинхрон карт
-  (`KeyError`/FK → `MutationError`, не 500).
+  _A snapshot in `inverse` and a "best effort" restore: a vanished far end of
+  a dependency or a vanished author is skipped, as a cascade would do._
+- [x] **1.5** 🟠 **M** — Batch rollback: accept a `reason`; handle restoring into
+  a deleted category and map desynchronization correctly
+  (`KeyError`/FK → `MutationError`, not a 500).
   `backend/app/mutations.py:1044-1048`
-  _`reason` на маршруте и в `undo_batch`; `category_not_found` /
-  `positions_categories_mismatch` вместо 500; замок против двойного отката._
-- [x] **1.6** 🟠 **M** — Реордер: хранить в журнале минимальный дифф вместо
-  снимка всех задач проекта.
+  _`reason` on the route and in `undo_batch`; `category_not_found` /
+  `positions_categories_mismatch` instead of a 500; a lock against a double rollback._
+- [x] **1.6** 🟠 **M** — Reorder: store the minimal diff in the journal instead of
+  a snapshot of every task in the project.
   `backend/app/mutations.py:741-775`
-  _В `op`/`inverse` попадают только строки, чьи позиция или категория
-  изменились._
-- [x] **1.7** 🟠 **S** — Порог отклонения: разделить `Δstart` и `Δduration` в
-  `_guard_shift_threshold`; исправить значение заголовка `X-Shift-Deviation-Days`.
+  _Only the rows whose position or category changed land in `op`/`inverse`._
+- [x] **1.7** 🟠 **S** — Deviation threshold: separate `Δstart` and `Δduration` in
+  `_guard_shift_threshold`; fix the value of the `X-Shift-Deviation-Days` header.
   `backend/app/plans.py:35-38`, `mutations.py:866`
-  _`deviation_days` меряет названное измерение; заголовок называет число
-  правимого измерения, а не max по чужим._
+  _`deviation_days` measures the dimension it is named after; the header names
+  the number for the dimension being edited, not the max over the others._
 
 ---
 
-## Волна 2 — Безопасность и мультитенантность
+## Wave 2 — Security and multi-tenancy
 
-Доступ, деньги и утечки — всё, что даёт постороннему прочитать или потратить
-чужое.
+Access, money and leaks — everything that lets an outsider read or spend what
+belongs to someone else.
 
-- [x] **2.1** 🟠 **M** — SSRF: allowlist схемы `https`, запрет
-  приватных/link-local диапазонов (резолв хоста перед запросом),
+- [x] **2.1** 🟠 **M** — SSRF: an allowlist for the `https` scheme, a ban on
+  private/link-local ranges (resolving the host before the request),
   `allow_redirects=False`.
   `backend/app/ai/provider.py:46,74`, `ai_routes.py:57`
-  _`ai/netguard.py`: проверка на сохранении и на каждом запросе; редиректы
-  запрещены; `AI_ALLOW_PRIVATE_URLS` — осознанная ручка для локальных моделей._
-- [x] **2.2** 🟠 **S** — AI выполняется в выбранной организации: заменить
-  «первое членство по id» на `active_membership`.
+  _`ai/netguard.py`: a check on save and on every request; redirects are
+  forbidden; `AI_ALLOW_PRIVATE_URLS` is a deliberate knob for local models._
+- [x] **2.2** 🟠 **S** — AI runs in the selected organization: replace "the first
+  membership by id" with `active_membership`.
   `backend/app/api/ai_routes.py:21-34`
-  _Все маршруты AI — через `current_membership`._
-- [x] **2.3** 🟠 **M** — Rate-limit на вход и регистрацию (по IP и по аккаунту);
-  хранилище лимитов — общее (см. 3.5), не память процесса.
+  _Every AI route goes through `current_membership`._
+- [x] **2.3** 🟠 **M** — A rate limit on sign-in and registration (by IP and by
+  account); the limit store is shared (see 3.5), not process memory.
   `backend/app/api/auth_routes.py:182`
-  _`app/throttle.py` поверх таблицы `throttle_events` в Postgres; по аккаунту
-  считаются только неудачи._
-- [x] **2.4** 🟠 **M** — Бюджет токенов AI + лимит частоты; провести
-  `propose_split` через учёт токенов.
+  _`app/throttle.py` on top of the `throttle_events` table in Postgres; per
+  account only failures are counted._
+- [x] **2.4** 🟠 **M** — An AI token budget + a rate limit; run `propose_split`
+  through token accounting.
   `backend/app/api/ai_routes.py`, `ai/intake.py:343`
-  _`ai/usage.py`: суточный бюджет на организацию (upsert), частота через тот
-  же throttle; `MeteredProvider` считает все пути к модели._
-- [x] **2.5** 🔴 **M** — Внутренние/публичные комментарии: ввести признак,
-  фильтровать публичную ленту гостя.
+  _`ai/usage.py`: a daily per-organization budget (upsert), the rate through
+  the same throttle; `MeteredProvider` counts every path to the model._
+- [x] **2.5** 🔴 **M** — Internal/public comments: introduce a flag, filter the
+  guest's public feed.
   `backend/app/api/public_routes.py:134-146`, `comments.py:92-103`
-  _`comments.internal`; гость признака не знает ни на чтение, ни на запись._
-- [x] **2.6** 🟠 **S** — Валидация `APP_SECRET` (мин. длина, запрет
-  плейсхолдера) с отказом старта; задокументировать невозможность ротации.
+  _`comments.internal`; a guest knows nothing of the flag, neither on read nor
+  on write._
+- [x] **2.6** 🟠 **S** — Validate `APP_SECRET` (minimum length, no placeholder)
+  and refuse to start; document that rotation is impossible.
   `backend/app/config.py:38`, `crypto.py:29-33`, `.env.example:23`
-- [x] **2.7** 🟠 **S** — Флаг `Secure` куки — из схемы запроса или явной
-  настройки `COOKIE_SECURE`, не только из `PUBLIC_BASE_URL`; `delete_cookie`
-  теми же атрибутами.
+- [x] **2.7** 🟠 **S** — The cookie's `Secure` flag comes from the request scheme
+  or from an explicit `COOKIE_SECURE` setting, not from `PUBLIC_BASE_URL` alone;
+  `delete_cookie` uses the same attributes.
   `backend/app/api/auth_routes.py:70-89`
-- [x] **2.8** 🔴 **S** — Секретные ссылки из логов: `LogTransport` скрывает
-  токен либо доступен только за явным dev-флагом.
+- [x] **2.8** 🔴 **S** — Secret links out of the logs: `LogTransport` hides the
+  token, or is available only behind an explicit dev flag.
   `backend/app/mail/transports.py:174-194`, `.env.example:67`
-  _`none` маскирует токены, полный текст — только за явным `log`._
-- [x] **2.9** 🟡 **M** — Заголовки безопасности в Caddy (CSP, HSTS, `nosniff`,
-  `frame-ancestors`, `Referrer-Policy`); `trusted_proxies` + чистка входящего
-  `X-Forwarded-For`; раздел про TLS/домен.
+  _`none` masks tokens; the full text is available only behind an explicit `log`._
+- [x] **2.9** 🟡 **M** — Security headers in Caddy (CSP, HSTS, `nosniff`,
+  `frame-ancestors`, `Referrer-Policy`); `trusted_proxies` + scrubbing the
+  incoming `X-Forwarded-For`; a section on TLS/domain.
   `Caddyfile`
-  _`X-Forwarded-For` переписывается настоящим адресом клиента; README —
-  раздел «Свой домен и TLS»._
-- [x] **2.10** 🟡 **M** — WebSocket: проверка `Origin` при рукопожатии;
-  переавторизация на сокете (перепроверять право периодически/на рассылке).
+  _`X-Forwarded-For` is rewritten with the client's real address; the README
+  gained a "Custom domain and TLS" section._
+- [x] **2.10** 🟡 **M** — WebSocket: check `Origin` at the handshake;
+  re-authorize on the socket (re-check the permission periodically / on broadcast).
   `backend/app/api/live_routes.py:132-149`
-  _Origin — до сессии; право перепроверяется не реже раза в минуту._
-- [x] **2.11** 🟡 **S** — CSRF в глубину: middleware проверки `Origin`/`Referer`
-  для пишущих запросов (поверх `SameSite=Lax`).
+  _Origin comes before the session; the permission is re-checked at least once
+  a minute._
+- [x] **2.11** 🟡 **S** — CSRF in depth: middleware checking `Origin`/`Referer`
+  for writing requests (on top of `SameSite=Lax`).
   `backend/app/main.py`
-- [x] **2.12** ⚪ **M** — Управление сессиями: idle-timeout, «выйти на всех
-  устройствах», уборка просроченных записей, смена пароля.
+- [x] **2.12** ⚪ **M** — Session management: an idle timeout, "sign out
+  everywhere", cleanup of expired rows, password change.
   `backend/app/auth.py:18,102-145`
-  _`last_used_at` + idle 7 дней; `POST /api/auth/password`,
-  `POST /api/auth/sessions/close-others`; уборка просроченных на входе._
+  _`last_used_at` + a 7-day idle timeout; `POST /api/auth/password`,
+  `POST /api/auth/sessions/close-others`; expired rows are cleaned on sign-in._
 
 ---
 
-## Волна 3 — Доступность сервиса и эксплуатация
+## Wave 3 — Service availability and operations
 
-Чтобы сервис переживал деплой, отказ базы и рост нагрузки, а инцидент можно
-было диагностировать.
+So that the service survives a deploy, a database failure and growing load, and
+so that an incident can be diagnosed.
 
-- [x] **3.1** 🔴 **S** — Graceful shutdown: отдельный entrypoint с
-  `exec uvicorn`, `init: true`, `stop_grace_period`, закрытие WebSocket по
-  сигналу.
+- [x] **3.1** 🔴 **S** — Graceful shutdown: a separate entrypoint with
+  `exec uvicorn`, `init: true`, `stop_grace_period`, closing WebSockets on a
+  signal.
   `docker-compose.yml:53`, `docker-compose.dev.yml:34`
-  _Команда api — сам uvicorn (PID 1 получает SIGTERM и закрывает сокеты),
-  `init: true`, `stop_grace_period: 30s`._
-- [x] **3.2** 🟠 **M** — Миграции вне команды старта: отдельный job/шаг с
-  advisory-lock в `env.py`; реплики не накатывают параллельно.
+  _The api command is uvicorn itself (PID 1 receives SIGTERM and closes the
+  sockets), `init: true`, `stop_grace_period: 30s`._
+- [x] **3.2** 🟠 **M** — Migrations out of the start command: a separate job/step
+  with an advisory lock in `env.py`; replicas do not apply them in parallel.
   `docker-compose.yml:53`, `backend/migrations/env.py:61-73`
-  _Сервис `migrate` (+ `service_completed_successfully` у api);
-  `pg_advisory_lock` в env.py._
-- [x] **3.3** 🟠 **S** — Контейнеры не от root: `USER`, `cap_drop: [ALL]`,
-  `no-new-privileges`, где можно `read_only`.
+  _A `migrate` service (+ `service_completed_successfully` on api);
+  `pg_advisory_lock` in env.py._
+- [x] **3.3** 🟠 **S** — Containers do not run as root: `USER`, `cap_drop: [ALL]`,
+  `no-new-privileges`, and `read_only` where possible.
   `backend/Dockerfile`, `frontend/Dockerfile`
-  _`USER app`/`USER web` в образах; `cap_drop`/`no-new-privileges` в compose
-  (кроме db — образу Postgres нужны capabilities на смену пользователя)._
-- [x] **3.4** 🟠 **L** — Live-хаб на все пишущие маршруты (отмена, откат,
-  настройки, план, комментарии). Для нескольких воркеров — pub/sub через
-  Postgres `LISTEN/NOTIFY` или Redis; либо явно ограничить одним воркером с
-  проверкой на старте.
+  _`USER app`/`USER web` in the images; `cap_drop`/`no-new-privileges` in
+  compose (except db — the Postgres image needs capabilities to change user)._
+- [x] **3.4** 🟠 **L** — The live hub on every writing route (undo, rollback,
+  settings, plan, comments). For several workers — pub/sub through Postgres
+  `LISTEN/NOTIFY` or Redis; or an explicit restriction to one worker with a
+  check at startup.
   `backend/app/live.py:50,93`, `api/project_routes.py:428`
-  _Выбран вариант «один воркер с проверкой на старте» (отказ при
-  WEB_CONCURRENCY>1); публикация из отмены, отката, настроек, плана и
-  комментариев (событие `comment` без текста — тело дочитывается по HTTP,
-  где действует фильтр внутренних реплик)._
-- [x] **3.5** 🟠 **L** — Внешние вызовы (LLM, SMTP, почтовый API) вынести из
-  синхронного пути: `async`+`httpx` или фоновая очередь; почта — не в теле
-  `register`.
+  _The "one worker with a check at startup" option was chosen (it refuses when
+  WEB_CONCURRENCY>1); publication from undo, rollback, settings, plan and
+  comments (the `comment` event carries no text — the body is read back over
+  HTTP, where the internal-reply filter applies)._
+- [x] **3.5** 🟠 **L** — Move external calls (LLM, SMTP, mail API) out of the
+  synchronous path: `async`+`httpx` or a background queue; mail must not be in
+  the body of `register`.
   `backend/app/ai/provider.py:74`, `mail/transports.py:93`
-  _Письмо регистрации — в BackgroundTasks после ответа. Вызовы LLM остаются
-  синхронными в threadpool осознанно: ответ модели — это и есть ответ
-  запроса, event loop они не держат, таймауты заданы; очередь без внешних
-  сервисов означала бы поллинг, которого продукт избегает._
-- [x] **3.6** 🟡 **M** — Наблюдаемость: настроить логирование (`dictConfig`,
-  уважать `LOG_LEVEL`), request-id middleware, структурные логи; health,
-  ходящий в базу (liveness/readiness раздельно).
+  _The registration email moved into BackgroundTasks after the response. LLM
+  calls deliberately stay synchronous in the threadpool: the model's answer is
+  the request's answer, they do not hold the event loop, and timeouts are set;
+  a queue without external services would mean polling, which the product
+  avoids._
+- [x] **3.6** 🟡 **M** — Observability: configure logging (`dictConfig`, respect
+  `LOG_LEVEL`), request-id middleware, structured logs; a health check that
+  goes to the database (liveness/readiness separately).
   `backend/app/main.py:15-30`, `config.py:62`
-  _`configure_logging()` + request-id в каждой строке и в `X-Request-ID`;
-  `/api/health` — liveness без базы, `/api/health/ready` — c `SELECT 1`._
-- [x] **3.7** 🟡 **S** — Compose: лимиты ресурсов, ротация логов, пиннинг
-  образов по digest.
+  _`configure_logging()` + a request id on every line and in `X-Request-ID`;
+  `/api/health` is liveness without the database, `/api/health/ready` runs
+  `SELECT 1`._
+- [x] **3.7** 🟡 **S** — Compose: resource limits, log rotation, pinning images
+  by digest.
   `docker-compose.yml`
-  _`mem_limit`, json-file 10m×3, digest-пины postgres/python/node/caddy._
-- [x] **3.8** 🟠 **M** — Развязать окружения Vercel (отдельная БД preview);
-  валидация/предупреждение `PUBLIC_BASE_URL`; сверка `requirements.txt`↔
-  `uv.lock` в CI; сообщать клиенту о недоступности WS через `/api/config`.
+  _`mem_limit`, json-file 10m×3, digest pins for postgres/python/node/caddy._
+- [x] **3.8** 🟠 **M** — Untangle the Vercel environments (a separate preview
+  database); validate/warn on `PUBLIC_BASE_URL`; check `requirements.txt` ↔
+  `uv.lock` in CI; tell the client that WS is unavailable through `/api/config`.
   `README.md:212-214`, `config.py:14,40`
-  _README прямо называет цену общей preview-базы; предупреждение о дефолтном
-  PUBLIC_BASE_URL на старте; тест паритета requirements↔uv.lock (гоняется в
-  CI); `live_enabled` в `/api/config` (на Vercel — false автоматически)._
+  _The README names the price of a shared preview database outright; a warning
+  about the default PUBLIC_BASE_URL at startup; a requirements ↔ uv.lock parity
+  test (runs in CI); `live_enabled` in `/api/config` (false automatically on
+  Vercel)._
 
 ---
 
-## Волна 4 — Модель данных и дизайн API
+## Wave 4 — Data model and API design
 
-Долг схемы и контракта: индексы, ограничения, идемпотентность, пагинация,
-версионирование.
+Schema and contract debt: indexes, constraints, idempotency, pagination,
+versioning.
 
-- [x] **4.1** 🟡 **S** — Индексы: `dependencies.project_id`/`to_task_id`,
+- [x] **4.1** 🟡 **S** — Indexes: `dependencies.project_id`/`to_task_id`,
   `task_assignees.user_id`, `comments.task_id`, `tasks.category_id`,
-  `sessions.user_id`; GIN по `revisions.op`. Новая миграция.
+  `sessions.user_id`; a GIN index on `revisions.op`. A new migration.
   `backend/app/models.py:334,394,396,386,247,107`
-  _Миграция: шесть индексов + GIN по `revisions.op`._
-- [x] **4.2** 🟡 **S** — FK на `users.id`: `ondelete=SET NULL` для
+  _The migration: six indexes + a GIN index on `revisions.op`._
+- [x] **4.2** 🟡 **S** — FKs to `users.id`: `ondelete=SET NULL` for
   `revisions.actor_user_id`, `plan_versions.approved_by`,
   `ai_sessions.created_by`.
   `backend/app/models.py:460,371,439`
-  _`ondelete=SET NULL`; журнал и летопись переживают удаление аккаунта._
-- [x] **4.3** 🟡 **M** — Единая модель позиций (внутри категории) + уникальное
-  ограничение `(category_id, position)`; стабильный порядок.
+  _`ondelete=SET NULL`; the journal and the chronicle survive an account
+  deletion._
+- [x] **4.3** 🟡 **M** — A single position model (within a category) + a unique
+  `(category_id, position)` constraint; a stable ordering.
   `backend/app/mutations.py:522-530,756-757`
-  _Нумерация внутри категории (перенумерация миграцией), уникальное
-  ограничение DEFERRABLE INITIALLY DEFERRED._
-- [x] **4.4** 🟡 **M** — Настройки проекта, двигающие сроки, — под блокировкой и
-  с записью (или через журнал/порог).
+  _Numbering within the category (renumbered by a migration), a unique
+  constraint that is DEFERRABLE INITIALLY DEFERRED._
+- [x] **4.4** 🟡 **M** — Project settings that move dates go under a lock and get
+  written down (or go through the journal/threshold).
   `backend/app/api/project_routes.py:252-287`
-  _FOR UPDATE строки проекта + запись изменений в журнал приложения
-  (журнал ревизий — история плана, не настроек)._
-- [x] **4.5** 🟡 **M** — Обратимость утверждения плана: откат к версии из
+  _FOR UPDATE on the project row + writing the changes into the application
+  journal (the revision journal is the plan's history, not the settings')._
+- [x] **4.5** 🟡 **M** — Plan approval is reversible: a rollback to a version from
   `PlanVersion.snapshot`.
   `backend/app/plans.py:74-79`
-  _`POST /plan/approvals/{version}/restore`: baseline из снимка, новая
-  версия в летописи; задачи вне снимка — «сверх плана»._
-- [x] **4.6** 🟡 **M** — Идемпотентность: ключ идемпотентности для мутаций и
-  комментариев; разделить `POST /share` на «создать» и «перевыпустить».
+  _`POST /plan/approvals/{version}/restore`: the baseline from the snapshot, a
+  new version in the chronicle; tasks outside the snapshot are "beyond the plan"._
+- [x] **4.6** 🟡 **M** — Idempotency: an idempotency key for mutations and
+  comments; split `POST /share` into "create" and "re-issue".
   `backend/app/api/project_routes.py:396`, `share_routes.py:73-84`
-  _Заголовок Idempotency-Key на мутациях и комментариях (ответ
-  сохраняется, повтор его переигрывает); POST /share — только создать (409
-  при повторе), перевыпуск — POST /share/rotate._
-- [x] **4.7** 🟡 **M** — Пагинация: комментарии (лимит + курсор) на обоих
-  маршрутах; курсор для журнала ревизий (`before_seq`).
+  _An Idempotency-Key header on mutations and comments (the response is saved
+  and a repeat replays it); POST /share only creates (409 on a repeat), the
+  re-issue is POST /share/rotate._
+- [x] **4.7** 🟡 **M** — Pagination: comments (limit + cursor) on both routes; a
+  cursor for the revision journal (`before_seq`).
   `backend/app/comments.py:92-103`, `project_routes.py:156`
-  _limit+before (пара created_at, id) на обеих лентах; before_seq в
-  журнале ревизий._
-- [x] **4.8** 🟡 **S** — Лимиты входа: middleware на размер тела; потолки на
-  шаги AI (тезисы/черновик/части) и на `description` в AI-пути наравне с HTTP.
+  _limit+before (the created_at, id pair) on both feeds; before_seq in the
+  revision journal._
+- [x] **4.8** 🟡 **S** — Input limits: middleware on the body size; ceilings on
+  the AI steps (theses/draft/parts) and on `description` in the AI path on a par
+  with HTTP.
   `backend/app/api/ai_routes.py:211-332`, `ai/schemas.py:101`
-  _Middleware на Content-Length (413); потолки тезисов/задач/категорий
-  черновика; description AI-пути — тот же MAX_TEXT_LEN, что и HTTP._
-- [x] **4.9** 🟡 **M** — Даты окончания считать арифметически/кэшировать вместо
-  цикла по дням на каждом `GET`; исправить AI-разбиение (рабочие дни, не
-  календарные).
+  _Middleware on Content-Length (413); ceilings on the draft's theses/tasks/
+  categories; description in the AI path uses the same MAX_TEXT_LEN as HTTP._
+- [x] **4.9** 🟡 **M** — Compute end dates arithmetically/cache them instead of a
+  loop over days on every `GET`; fix the AI split (working days, not calendar
+  days).
   `backend/app/api/serialization.py:78-87`, `ai/intake.py:378`
-  _Недельная арифметика + поштучные исключения (двоичный поиск конца);
-  разбиение AI раскладывает части по календарю проекта._
-- [x] **4.10** 🟡 **M** — Версионирование API (`/v1`) + `response_model` на
-  маршрутах + единая политика `extra="forbid"`; открыть OpenAPI в бою.
+  _Weekly arithmetic + one-off exceptions (a binary search for the end); the AI
+  split lays the parts out along the project calendar._
+- [x] **4.10** 🟡 **M** — API versioning (`/v1`) + `response_model` on the routes
+  + one `extra="forbid"` policy; open OpenAPI in production.
   `backend/app/main.py:15`, `vercel.json:12-15`
-  _/api/v1/* — алиас поверх /api/* (middleware); /api/docs и
-  /api/openapi.json доступны за фолбэком статики. Сплошной response_model
-  оставлен волне контрактов — снимок OpenAPI дрейф уже ловит._
-- [x] **4.11** ⚪ **S** — Внутренняя валидация `CreateTask`
-  (criticality/progress) + `CHECK`-ограничения; детектор циклов в связях;
-  читать `MAX_TEXT_LEN` в момент вызова.
+  _/api/v1/* is an alias over /api/* (middleware); /api/docs and
+  /api/openapi.json are reachable behind the static fallback. Blanket
+  response_model was left to the contracts wave — the OpenAPI snapshot already
+  catches drift._
+- [x] **4.11** ⚪ **S** — Internal validation of `CreateTask`
+  (criticality/progress) + `CHECK` constraints; a cycle detector in the
+  dependencies; read `MAX_TEXT_LEN` at call time.
   `backend/app/mutations.py:531-545,263`
 
 ---
 
-## Волна 5 — Инженерное качество фронтенда
+## Wave 5 — Frontend engineering quality
 
-Корректность состояния, типов и сборки. Часть завязана на `strict` — включать в
-начале волны.
+Correctness of state, types and the build. Part of it hinges on `strict` — turn
+that on at the start of the wave.
 
-  _criticality/progress в CreateTask, три CHECK на tasks, детектор
-  циклов связей, MAX_TEXT_LEN читается в момент вызова._
-- [ ] **5.1** 🔴 **M** — Включить TS `strict` в `tsconfig.app.json` и починить
-  всплывшее.
+  _criticality/progress in CreateTask, three CHECKs on tasks, a dependency
+  cycle detector, MAX_TEXT_LEN read at call time._
+- [ ] **5.1** 🔴 **M** — Turn on TS `strict` in `tsconfig.app.json` and fix
+  whatever surfaces.
   `frontend/tsconfig.app.json:2-24`
-- [ ] **5.2** 🟠 **S** — Откат мутации: `invalidateQueries` в `catch`; счётчик
-  активных мутаций против взаимного затирания оптимистики.
+- [ ] **5.2** 🟠 **S** — Mutation rollback: `invalidateQueries` in `catch`; a
+  counter of active mutations against optimistic updates overwriting each other.
   `frontend/src/project/useProjectMutation.ts:83,122`
-- [ ] **5.3** 🟠 **S** — Удалить `SharePanel`, оставив `ShareDialog` (или свести
-  к общему хуку): чинит неверное «не опубликован», игнор `allowed`, пустой
-  диалог.
+- [ ] **5.3** 🟠 **S** — Delete `SharePanel`, keeping `ShareDialog` (or reduce
+  both to a shared hook): that fixes the wrong "not published", the ignored
+  `allowed`, and the empty dialog.
   `frontend/src/project/SharePanel.tsx:33,37,49`
-- [ ] **5.4** 🟠 **S** — AuthProvider: отличать сетевую ошибку от 401 (не
-  разлогинивать, повторять); стабильные зависимости `useMemo` (`mutateAsync`).
+- [ ] **5.4** 🟠 **S** — AuthProvider: tell a network error from a 401 (do not
+  sign the user out, retry); stable `useMemo` dependencies (`mutateAsync`).
   `frontend/src/auth/AuthProvider.tsx:34-51,76-84`
-- [ ] **5.5** 🟠 **S** — `ErrorBoundary` вокруг маршрутов + кнопка «Повторить»
-  на ошибках запросов.
+- [ ] **5.5** 🟠 **S** — An `ErrorBoundary` around the routes + a "Retry" button
+  on query errors.
   `frontend/src/App.tsx`, `main.tsx`
-- [ ] **5.6** 🟡 **S** — `AbortController`: прокинуть `signal` через `request()`
-  во все `queryFn`.
+- [ ] **5.6** 🟡 **S** — `AbortController`: thread `signal` through `request()`
+  into every `queryFn`.
   `frontend/src/api/client.ts:72-99`
-- [ ] **5.7** 🟡 **M** — Сузить ключи инвалидации (журнал — под своим подключом;
-  `share`/`comments` — отдельные корни); дебаунс live-рефетча; пропускать эхо
-  своей ревизии.
+- [ ] **5.7** 🟡 **M** — Narrow the invalidation keys (the journal under its own
+  subkey; `share`/`comments` as separate roots); debounce the live refetch; skip
+  the echo of one's own revision.
   `frontend/src/project/useProjectMutation.ts:113`, `live/useProjectLive.ts:132`
-- [ ] **5.8** 🟡 **S** — `useDragDates`: страховочный `pointerup` на `window` +
-  сброс флага перетаскивания; оптимистичный `set_duration` двигает
-  `end_date`/ширину.
+- [ ] **5.8** 🟡 **S** — `useDragDates`: a fallback `pointerup` on `window` + a
+  reset of the dragging flag; an optimistic `set_duration` moves the
+  `end_date`/the width.
   `frontend/src/gantt/useDragDates.ts:71-113`, `project/optimistic.ts:12-17`
-- [ ] **5.9** 🟡 **M** — Сборка Vite: `sourcemap`, явный `target`,
-  `manualChunks`; `React.lazy` по маршрутам; динамический импорт словарей по
-  локали.
+- [ ] **5.9** 🟡 **M** — The Vite build: `sourcemap`, an explicit `target`,
+  `manualChunks`; `React.lazy` per route; a dynamic import of the dictionaries
+  by locale.
   `frontend/vite.config.ts`, `src/AppRoutes.tsx`, `i18n/index.ts`
-- [ ] **5.10** 🟡 **S** — Словарь кодов отказа: тест паритета с OpenAPI,
-  добавить недостающие (связи), убрать дубль; `console.warn` один раз на ключ и
-  только в DEV; `Headers` в `request()`; `ORG_QUERY_KEY → ["org","current"]`.
+- [ ] **5.10** 🟡 **S** — The refusal-code dictionary: a parity test against
+  OpenAPI, add the missing ones (dependencies), remove the duplicate;
+  `console.warn` once per key and only in DEV; `Headers` in `request()`;
+  `ORG_QUERY_KEY → ["org","current"]`.
   `frontend/src/api/errors.ts:8-106`, `i18n/index.ts:88`, `api/org.ts:3`
-- [ ] **5.11** ⚪ **S** — Расширить тип `Op` операциями удаления/связей/
-  переименования (в паре с 6.3 и панелью связей).
+- [ ] **5.11** ⚪ **S** — Extend the `Op` type with the delete/dependency/rename
+  operations (paired with 6.3 and the dependency panel).
   `frontend/src/api/projects.ts:119-145`
 
 ---
 
-## Волна 6 — UX: тупиковые сценарии
+## Wave 6 — UX: dead-end scenarios
 
-То, из-за чего пользователь застревает или уходит.
+The things that get a user stuck or make them leave.
 
-- [x] **6.1** 🔴 **M** — Восстановление пароля: маршруты + экраны + письмо;
-  смена пароля в профиле.
+- [x] **6.1** 🔴 **M** — Password recovery: routes + screens + the email;
+  password change in the profile.
   `frontend/src/api/auth.ts:33-80`, `screens/Login.tsx:73`
   <!-- Done: backend/app/password_reset.py, POST /password/forgot + /password/reset
        in backend/app/api/auth_routes.py, frontend/src/screens/ForgotPassword.tsx +
        ResetPassword.tsx wired into AppRoutes.tsx. -->
-- [ ] **6.2** 🔴 **S** — Переотправка письма подтверждения для «не пришло» (без
-  токена) + плашка о неподтверждённом адресе в шапке/профиле.
+- [ ] **6.2** 🔴 **S** — Resending the confirmation email for "it never arrived"
+  (without a token) + a banner about an unconfirmed address in the header/profile.
   `frontend/src/screens/VerifyEmail.tsx:39,51-77`
-- [x] **6.3** 🔴 **S** — Удаление задач и категорий в UI (сервер уже умеет) — в
-  паре с 5.11.
+- [x] **6.3** 🔴 **S** — Deleting tasks and categories in the UI (the server can
+  already do it) — paired with 5.11.
   `frontend/src/api/projects.ts:120-145`
   <!-- Done: delete-with-confirmation flows in frontend/src/gantt/Row.tsx and
        frontend/src/task/TaskPanel.tsx. -->
-- [ ] **6.4** 🔴 **S** — Поля даты/числа коммитят по `onBlur`/Enter; не
-  перезаписывать сфокусированное поле при рефетче.
+- [ ] **6.4** 🔴 **S** — Date/number fields commit on `onBlur`/Enter; do not
+  overwrite a focused field on a refetch.
   `frontend/src/task/fields.tsx:65,111,121-127`
-- [ ] **6.5** 🔴 **M** — Гант: подсказка с датой у курсора при перетаскивании +
-  автопрокрутка ленты у края.
+- [ ] **6.5** 🔴 **M** — Gantt: a date tooltip at the cursor while dragging + auto
+  scrolling of the timeline at the edge.
   `frontend/src/gantt/useDragDates.ts:80-89`, `Row.tsx:237-247`
-- [ ] **6.6** 🔴 **M** — Масштаб таймлайна: день/неделя/месяц/квартал.
+- [ ] **6.6** 🔴 **M** — Timeline scale: day/week/month/quarter.
   `frontend/src/gantt/scale.ts:10`
-- [ ] **6.7** 🔴 **M** — Тач: `releasePointerCapture` для перестановки;
-  показывать hover-действия на сенсорных устройствах.
+- [ ] **6.7** 🔴 **M** — Touch: `releasePointerCapture` for reordering; show the
+  hover actions on touch devices.
   `frontend/src/gantt/useReorder.ts:103-116`, `gantt.css:285-297`
-- [ ] **6.8** 🔴 **M** — Адаптивность ганта и карточки: медиа-запросы; карточка
-  вниз на узком экране; сжимаемая колонка названий.
+- [ ] **6.8** 🔴 **M** — Responsiveness of the chart and the card: media queries;
+  the card moves to the bottom on a narrow screen; a collapsible name column.
   `frontend/src/gantt/gantt.css:11`, `task/panel.css:22`, `styles.css:542-551`
-- [ ] **6.9** 🔴 **S** — Автор в `undoable`: откатывать только своё либо явно
-  называть автора чужого действия.
+- [ ] **6.9** 🔴 **S** — The author in `undoable`: undo only one's own, or name
+  the author of someone else's action explicitly.
   `frontend/src/gantt/useDragDates.ts:60`, `api/projects.ts:95`
-- [ ] **6.10** 🟠 **M** — Сохранение глубокой ссылки при входе (`state.from`);
-  адрес открытой задачи в URL (открывает путь к крошкам).
+- [ ] **6.10** 🟠 **M** — Keep the deep link across sign-in (`state.from`); the
+  open task's address in the URL (which opens the way to breadcrumbs).
   `frontend/src/auth/RequireAuth.tsx:25`, `screens/Project.tsx:49`
 
 ---
 
-## Волна 7 — UX: обратная связь, доступность, навигация
+## Wave 7 — UX: feedback, accessibility, navigation
 
-Средние UX-находки.
+The medium UX findings.
 
-### Обратная связь и подтверждения
+### Feedback and confirmations
 
-- [ ] **7.1** 🟡 — Признак «сохранено» при автосохранении настроек.
+- [ ] **7.1** 🟡 — A "saved" indication when settings autosave.
   `ProjectSettings.tsx:91`, `OrgSettings.tsx:83`, `Profile.tsx:52`
-- [ ] **7.2** 🟡 — Словесное сообщение при отказе перетаскивания.
+- [ ] **7.2** 🟡 — A message in words when a drag is refused.
   `gantt/useDragDates.ts:59-64`
-- [ ] **7.3** 🟡 — Скелетоны/индикаторы загрузки вместо голого «Загрузка…».
-- [ ] **7.4** 🟡 — Подтверждение деструктивных действий (перевыпуск/отзыв
-  ссылки, отзыв приглашения); предупреждение при смене слага.
+- [ ] **7.3** 🟡 — Skeletons/loading indicators instead of a bare "Loading…".
+- [ ] **7.4** 🟡 — Confirmation of destructive actions (re-issuing/revoking a
+  link, revoking an invitation); a warning when the slug changes.
   `ShareDialog.tsx:130-145`, `Members.tsx:258-268`, `ProjectSettings.tsx:98`
-- [ ] **7.5** 🟡 — Защита окна с выпущенными приглашениями от закрытия по
-  Esc/клику мимо.
+- [ ] **7.5** 🟡 — Protect the window with issued invitations from closing on
+  Esc/a click outside.
   `Members.tsx:110-121`, `components/Modal.tsx:46-55`
-- [x] **7.6** 🟡 — Атомарное создание задачи с исполнителями.
-  _Снято вместе с формой: задача заводится одной операцией прямо в ленте —
-  именем и Enter, — а исполнители назначаются в карточке, каждый своей
-  операцией. Цепочки «создать, потом дописать», которая могла упасть на
-  середине, больше нет (`gantt/NewTaskRow.tsx`, `gantt/useQuickTask.ts`)._
-- [ ] **7.7** 🟡 — AI-интервью: сохранение сессии + индикаторы длинных вызовов +
-  показ ошибки сохранения тезисов.
+- [x] **7.6** 🟡 — Atomic creation of a task with assignees.
+  _Dropped along with the form: a task is created by a single operation right
+  in the timeline — a name and Enter — and assignees are set in the card, each
+  by its own operation. The "create, then fill in" chain, which could fail
+  halfway, is gone (`gantt/NewTaskRow.tsx`, `gantt/useQuickTask.ts`)._
+- [ ] **7.7** 🟡 — The AI interview: saving the session + indicators for long
+  calls + showing the error when saving the theses fails.
   `screens/AiIntake.tsx:30,66,100-203`
 
-### Доступность и навигация
+### Accessibility and navigation
 
-- [ ] **7.8** 🟡 — Фокус-трап в `Modal` + `inert` на фоне; развести слои Esc.
+- [ ] **7.8** 🟡 — A focus trap in `Modal` + `inert` on the background; separate
+  the Esc layers.
   `components/Modal.tsx:30-44`, `task/TaskPanel.tsx:66-74`
-- [ ] **7.9** 🟡 — Клавиатурная альтернатива перестановке; прокрутка ленты с
-  клавиатуры; озвучивание Shift+←/→.
+- [ ] **7.9** 🟡 — A keyboard alternative to reordering; scrolling the timeline
+  from the keyboard; announcing Shift+←/→.
   `gantt/Row.tsx:144-166`, `Gantt.tsx:127`, `useDragDates.ts:115-125`
-  _Озвучивание сделано: `aria-keyshortcuts` на полоске и строка сочетаний в
-  карточке наведения; заодно глобальный Ctrl/⌘+Z и Esc, прерывающий начатое
-  перетаскивание (`components/hotkeys.ts`, `project/UndoHotkey.tsx`).
-  Остаются перестановка строк и прокрутка ленты с клавиатуры._
-- [ ] **7.10** 🟡 — Фикс липкой шапки шкалы при вертикальной прокрутке.
+  _The announcing is done: `aria-keyshortcuts` on the bar and a line of
+  shortcuts in the hover card; along with it a global Ctrl/⌘+Z and an Esc that
+  aborts a drag in progress (`components/hotkeys.ts`, `project/UndoHotkey.tsx`).
+  Row reordering and scrolling the timeline from the keyboard remain._
+- [ ] **7.10** 🟡 — Fix the sticky scale header on vertical scroll.
   `gantt/gantt.css:53-75`
-- [ ] **7.11** 🟡 — Хлебные крошки «Проекты / Проект / Задача» (после 6.10).
-- [ ] **7.12** 🟡 — Связи задачи списком в карточке + добавление/снятие из UI.
+- [ ] **7.11** 🟡 — "Projects / Project / Task" breadcrumbs (after 6.10).
+- [ ] **7.12** 🟡 — A task's dependencies as a list in the card + adding/removing
+  them from the UI.
   `task/TaskPanel.tsx:125-302`, `gantt/Arrows.tsx:64`
-- [ ] **7.13** 🟡 — Конфликт-детекция realtime (ожидаемая ревизия).
+- [ ] **7.13** 🟡 — Realtime conflict detection (an expected revision).
   `api/projects.ts:176-181`
-- [ ] **7.14** 🟡 — Тач: `touch-action: pan-y` вместо `none`; размеры
-  кликабельных зон до 24–44px; контраст мелкого текста; переключатель темы.
+- [ ] **7.14** 🟡 — Touch: `touch-action: pan-y` instead of `none`; hit areas up
+  to 24-44px; the contrast of small text; a theme switch.
   `gantt/gantt.css:96,276,336,426`, `styles.css:31,818`
-- [x] **7.15** 🟡 — Два экрана «Проекты»: вход приводил на `/projects`, а пункт
-  колонки вёл на `/` — другой экран с тем же заголовком. Канонический список
-  проектов один (`/projects`), туда же ведут пункт колонки и корень; портфель
-  получил своё имя, свой адрес `/portfolio` и свой пункт; раздел «Проекты»
-  остаётся подсвеченным и внутри проекта.
+- [x] **7.15** 🟡 — Two "Projects" screens: signing in led to `/projects`, while
+  the item in the column led to `/` — a different screen with the same heading.
+  There is one canonical project list (`/projects`), and both the column item
+  and the root lead there; the portfolio got its own name, its own `/portfolio`
+  address and its own item; the "Projects" section stays highlighted inside a
+  project too.
   `components/Header.tsx`, `AppRoutes.tsx`, `screens/Portfolio.tsx`
 
 ---
 
-## Волна 8 — Полировка
+## Wave 8 — Polish
 
-Мелочи, каждая — небольшой PR.
+Small things, each one a small PR.
 
-- [ ] **8.1** ⚪ — Экран «не найдено» вместо тихого редиректа в `/projects`.
+- [ ] **8.1** ⚪ — A "not found" screen instead of a silent redirect to `/projects`.
   `AppRoutes.tsx:60`
-- [ ] **8.2** ⚪ — Подсветка активного раздела для «Настройки»/«Профиль».
+- [ ] **8.2** ⚪ — Highlight the active section for "Settings"/"Profile".
   `components/Header.tsx:79,85`
-- [ ] **8.3** ⚪ — Состояния загрузки и пустоты для состава организации.
+- [ ] **8.3** ⚪ — Loading and empty states for the organization's membership.
   `screens/Members.tsx:314-328`
-- [ ] **8.4** ⚪ — Единое оформление равнозначных действий (кнопка vs ссылка).
+- [ ] **8.4** ⚪ — One style for equivalent actions (button vs link).
   `screens/Projects.tsx:43-48`
-- [ ] **8.5** ⚪ — История/комментарии: отличать ошибку от «пусто».
+- [ ] **8.5** ⚪ — History/comments: tell an error from "empty".
   `task/History.tsx:27`, `Comments.tsx:39`
-- [ ] **8.6** ⚪ — `index.html` без жёсткого `lang="az"`; `meta description`/
+- [ ] **8.6** ⚪ — `index.html` without a hard-coded `lang="az"`; `meta description`/
   `theme-color`.
   `frontend/index.html:2`
-- [ ] **8.7** ⚪ — Настройки проекта достижимы для читателя (режим чтения уже
-  написан).
+- [ ] **8.7** ⚪ — Project settings reachable for a reader (read-only mode is
+  already written).
   `screens/Project.tsx:168-170`, `ProjectSettings.tsx:67`
-- [ ] **8.8** ⚪ — Ссылка «к содержимому» перед навигацией.
+- [ ] **8.8** ⚪ — A "skip to content" link before the navigation.
   `auth/RequireAuth.tsx:33-38`
 
 ---
 
-## Сводка по объёму
+## Effort summary
 
-| Волна | Фокус | Задач | Ориентир |
+| Wave | Focus | Tasks | Estimate |
 |---|---|---|---|
-| 0 | Страховочная сетка | 5 | 2–3 дня |
-| 1 | Целостность данных | 7 | 4–6 дней |
-| 2 | Безопасность | 12 | 1.5–2 недели |
-| 3 | Доступность и эксплуатация | 8 | 1.5–2 недели |
-| 4 | Модель данных и API | 11 | 2 недели |
-| 5 | Фронтенд-инженерия | 11 | 1–1.5 недели |
-| 6 | UX — тупики | 10 | 2 недели |
-| 7 | UX средние | 14 | 1.5–2 недели |
-| 8 | Полировка | 8 | 3–5 дней |
+| 0 | The safety net | 5 | 2-3 days |
+| 1 | Data integrity | 7 | 4-6 days |
+| 2 | Security | 12 | 1.5-2 weeks |
+| 3 | Availability and operations | 8 | 1.5-2 weeks |
+| 4 | Data model and API | 11 | 2 weeks |
+| 5 | Frontend engineering | 11 | 1-1.5 weeks |
+| 6 | UX — dead ends | 10 | 2 weeks |
+| 7 | UX medium | 14 | 1.5-2 weeks |
+| 8 | Polish | 8 | 3-5 days |
 
-Оценки — для одного инженера, грубо. Волны 2–5 внутри хорошо параллелятся между
-людьми; волны 0–1 лучше делать последовательно и первыми.
+The estimates are for one engineer, roughly. Waves 2-5 parallelize well across
+people; waves 0-1 are better done sequentially and first.
 
 ---
 
-_Источник: шесть аудитов кода (безопасность, ядро бэкенда, API/realtime,
-фронтенд-инженерия, инфраструктура, тесты) и UX-аудит, ветка `main`, август
-2026. Серьёзность и path:line — из аудитов; порядок волн задан зависимостями._
+_Source: six code audits (security, backend core, API/realtime, frontend
+engineering, infrastructure, tests) and a UX audit, branch `main`, August
+2026. Severity and path:line come from the audits; the order of the waves is
+set by dependencies._
