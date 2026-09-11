@@ -7,19 +7,21 @@ import { useLocale } from "../i18n/LocaleProvider";
 import { browserTimeZone, timeZoneNames } from "../time/zone";
 
 /**
- * Поля, которые нужны обоим экранам настроек.
+ * The fields both settings screens need.
  *
- * Организация и проект настраивают одни и те же величины — рабочие дни,
- * календарь дат, слаг, — и написанные в двух экранах порознь они разъедутся
- * на первой правке: один экран научится понимать пустую строку, другой нет.
+ * The organization and the project configure the same quantities — working days,
+ * the date calendar, the slug — and written separately on the two screens they
+ * will diverge on the first edit: one screen will learn to understand an empty
+ * string, the other will not.
  */
 
 /**
- * Маска рабочих дней недели.
+ * The mask of the week's working days.
  *
- * Нумерация — как на сервере: бит 0 это понедельник. Переводить её в другую
- * нумерацию по дороге значило бы завести второе представление одного и того
- * же, и разъехались бы они на первом же проекте с рабочей субботой.
+ * The numbering is the server's: bit 0 is Monday. Converting it to another
+ * numbering along the way would mean keeping a second representation of one and
+ * the same thing, and they would diverge on the very first project with a working
+ * Saturday.
  */
 export function WorkingDaysField({
   value,
@@ -35,10 +37,11 @@ export function WorkingDaysField({
   const { t } = useLocale();
   const [emptied, setEmptied] = useState(false);
 
-  // Неделя без рабочих дней — не настройка, а невозможное состояние: сервер
-  // такую маску не примет, и снятая последняя галочка возвращалась бы обратно
-  // с ответом «проверьте форму», где ни одно поле не названо. Отказ объясняется
-  // здесь же — так же, как список дат объясняет непонятую дату, не отправляя её.
+  // A week with no working days is not a setting but an impossible state: the
+  // server will not accept such a mask, and the last unticked checkbox would come
+  // back with an answer of "check the form", where not a single field is named.
+  // The refusal is explained right here — the same way the date list explains a
+  // date it did not understand without sending it.
   const toggle = (day: number, on: boolean) => {
     const mask = on ? value & ~(1 << day) : value | (1 << day);
     if (mask === 0) {
@@ -51,14 +54,14 @@ export function WorkingDaysField({
 
   return (
     <fieldset className="settings__fieldset">
-      {/* Отметка стоит под днями, а не в подписи: подпись — имя всей группы,
-          и «Сохранено», попавшее в него, читалка прочтёт как часть названия. */}
+      {/* The mark stands under the days rather than in the caption: the caption
+          is the whole group's name, and a "Saved" landing in it would be read by a screen reader as part of the name. */}
       <legend>{t("settings.working_days")}</legend>
       <div className="settings__days">
         {[0, 1, 2, 3, 4, 5, 6].map((day) => {
-          // Подписи дней недели живут в словарях под номерами `getUTCDay`, где
-          // нулевое — воскресенье. Здесь нумерация серверная, поэтому перевод
-          // нужен ровно один и ровно здесь.
+          // The weekday captions live in the dictionaries under `getUTCDay`
+          // numbers, where zero is Sunday. Here the numbering is the server's, so
+          // exactly one conversion is needed and exactly here.
           const label = t(`calendar.weekday.${(day + 1) % 7}`);
           const on = (value & (1 << day)) !== 0;
           return (
@@ -85,17 +88,18 @@ export function WorkingDaysField({
 }
 
 /**
- * Часовой пояс — выбором из списка, а не строкой.
+ * The time zone — as a choice from a list rather than as a string.
  *
- * Имя из базы IANA («Europe/Moscow») набрать по памяти без опечатки трудно, а
- * ошибка в нём не видна: сервер откажет, и человек останется гадать, чем
- * «Europe/Moskva» хуже. Список даёт сам браузер — своя копия базы поясов
- * состарилась бы вместе с приложением.
+ * An IANA database name ("Europe/Moscow") is hard to type from memory without a
+ * typo, and a mistake in it is invisible: the server will refuse, and the person
+ * is left guessing what is wrong with "Europe/Moskva". The list is supplied by
+ * the browser itself — our own copy of the zone database would age along with the
+ * application.
  *
- * Пустое значение — не «пусто», а отдельный осмысленный выбор: считать сутки
- * по часам браузера. Он стоит первым и выбран по умолчанию, потому что почти
- * всегда прав; руками пояс задают те, у кого браузер врёт, — уехавшие и
- * сидящие через VPN.
+ * An empty value is not "empty" but a separate, meaningful choice: count the day
+ * by the browser's clock. It stands first and is selected by default because it
+ * is almost always right; the zone is set by hand by those whose browser lies —
+ * people who have moved away and people behind a VPN.
  */
 export function TimeZoneField({
   id,
@@ -110,18 +114,19 @@ export function TimeZoneField({
   id: string;
   label: string;
   hint?: string;
-  /** Подпись выбора «по браузеру» — с поясом, который браузер сообщает. */
+  /** The caption of the "by the browser" choice — with the zone the browser reports. */
   autoLabel: string;
-  /** `null` — пояс не выбран, сутки считаются по браузеру. */
+  /** `null` — no zone is chosen, the day is counted by the browser. */
   value: string | null;
   onChange: (zone: string | null) => void;
   disabled?: boolean;
-  /** Отметка отправки рядом с полем — как у остальных полей настроек. */
+  /** The submission mark next to the field — as with the other settings fields. */
   save?: FieldSave;
 }) {
-  // Сохранённый выбор и пояс машины добавляются к списку принудительно:
-  // браузер старее базы IANA не знает про недавно заведённый пояс, и без
-  // этого поле показало бы не то, что записано в профиле.
+  // The saved choice and the machine's zone are added to the list forcibly: a
+  // browser older than the IANA database does not know about a recently created
+  // zone, and without this the field would show something other than what is
+  // recorded in the profile.
   const zones = useMemo(() => timeZoneNames(value, browserTimeZone()), [value]);
 
   return (
@@ -147,7 +152,7 @@ export function TimeZoneField({
   );
 }
 
-/** Строки в списке дат: пустые отбрасываются, порядок и повторы — забота сервера. */
+/** The lines of the date list: empty ones are dropped, the order and duplicates are the server's concern. */
 export function parseDates(text: string): string[] {
   return text
     .split(/[\s,;]+/)
@@ -156,21 +161,22 @@ export function parseDates(text: string): string[] {
 }
 
 /**
- * Порог сдвига из поля ввода: `null` — «числа здесь нет, отправлять нечего».
+ * The shift threshold from an input field: `null` — "there is no number here,
+ * nothing to send".
  *
- * Пустое поле не значит «ноль»: нулевой порог велит объяснять каждый сдвиг, и
- * человек, стёрший число перед тем как набрать новое, такого не просил. А
- * `Number` сам по себе именно это и делает — пустую строку превращает в ноль, а
- * мусор в `NaN`, — поэтому обе проверки стоят здесь, общие для обоих экранов, а
- * не написаны на каждом порознь.
+ * An empty field does not mean "zero": a zero threshold demands an explanation
+ * for every shift, and a person who erased the number before typing a new one
+ * asked for no such thing. And `Number` on its own does exactly that — it turns
+ * an empty string into zero and junk into `NaN` — so both checks stand here,
+ * shared by both screens, rather than being written separately on each.
  */
 export function parseThresholdDays(text: string): number | null {
   const value = text.trim();
   if (value === "") return null;
   const days = Number(value);
-  // Отрицательный порог — то же самое, что `min={0}` у поля: дней «минус пять»
-  // не бывает, и сервер откажет; отказ, которого можно не показывать, лучше не
-  // показывать.
+  // A negative threshold is the same thing as the field's `min={0}`: there is no
+  // such thing as "minus five" days, and the server will refuse; a refusal that
+  // can be left unshown is better left unshown.
   if (!Number.isFinite(days) || days < 0) return null;
   return days;
 }
@@ -178,11 +184,11 @@ export function parseThresholdDays(text: string): number | null {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Список дат — праздники и рабочие субботы.
+ * The date list — holidays and working Saturdays.
  *
- * Многострочное поле, а не набор датапикеров: праздники вбивают списком раз в
- * год, и десять полей с календариками для этого хуже, чем одно, куда список
- * вставляется целиком.
+ * A multiline field rather than a set of date pickers: holidays are typed in as a
+ * list once a year, and ten fields with little calendars are worse for that than
+ * one the list is pasted into whole.
  */
 export function DateListField({
   id,
@@ -202,19 +208,19 @@ export function DateListField({
   save?: FieldSave;
 }) {
   const { t } = useLocale();
-  // Список сравнивается содержимым, а не ссылкой: состояние проекта и
-  // организации переписывается целиком ответом на любую правку, и массив дат
-  // приходит новым объектом с теми же датами после сохранения любого соседнего
-  // поля. Сверяй мы ссылку, дедлайн, сохранённый секунду назад, стирал бы
-  // набираемые тут праздники.
+  // The list is compared by content rather than by reference: the project's and
+  // the organization's state is rewritten whole by the answer to any edit, and
+  // the date array arrives as a new object with the same dates after any
+  // neighbouring field is saved. Were we to check the reference, a deadline saved
+  // a second ago would erase the holidays being typed here.
   const joined = value.join("\n");
   const [text, setText] = useState(joined);
   const [typing, setTyping] = useState(false);
 
-  // Сервер нормализует список — сортирует и убирает повторы, — и поле обязано
-  // показать то, что он вернул, а не то, что человек набрал. Отсортированный
-  // список нередко равен присланному, поэтому одного `value` для этого мало:
-  // возврат к правде запускает и завершённая отправка.
+  // The server normalizes the list — sorts it and removes duplicates — and the
+  // field must show what it returned rather than what the person typed. A sorted
+  // list is often equal to the one sent, so `value` alone is not enough for this:
+  // the return to the truth is also triggered by a finished submission.
   useEffect(() => {
     setText(joined);
     setTyping(false);
@@ -240,7 +246,7 @@ export function DateListField({
           setTyping(false);
           if (broken.length > 0) return;
           const dates = parseDates(text);
-          // Порядок в списке ничего не значит: это множество дат.
+          // The order in the list means nothing: this is a set of dates.
           if (dates.join(",") !== [...value].join(",")) onCommit(dates);
         }}
       />
@@ -256,12 +262,12 @@ export function DateListField({
 }
 
 /**
- * Поле слага с подсказкой свободного варианта.
+ * The slug field with a suggestion of a free variant.
  *
- * Занятость спрашивается у сервера по мере ввода, а не при отправке: раздел 12
- * обещает свободный вариант «прямо в поле ввода до отправки формы». Проверка
- * откладывается на полсекунды после последнего нажатия — иначе запрос уходит
- * на каждую букву и отвечает про недописанное слово.
+ * Availability is asked of the server as you type rather than on submit: section
+ * 12 promises a free variant "right in the input field before the form is
+ * submitted". The check is deferred by half a second after the last keystroke —
+ * otherwise a request leaves on every letter and answers about an unfinished word.
  */
 export function SlugField({
   id,
@@ -285,8 +291,8 @@ export function SlugField({
   const [status, setStatus] = useState<SlugCheck | null>(null);
   const [typing, setTyping] = useState(false);
 
-  // Сервер приводит слаг к своей форме — «Редизайн 2026» возвращается как
-  // `redizayn-2026`, — и поле обязано показать то, что он вернул.
+  // The server brings the slug into its own form — "Редизайн 2026" comes back as
+  // `redizayn-2026` — and the field must show what it returned.
   useEffect(() => {
     setDraft(value);
     setTyping(false);
@@ -302,8 +308,9 @@ export function SlugField({
     const timer = setTimeout(() => {
       check(candidate)
         .then((result) => {
-          // Ответ на устаревший запрос игнорируется: человек успел дописать
-          // ещё букву, и подсказка про предыдущее слово только запутает.
+          // The answer to a stale request is ignored: the person has managed to
+          // type another letter, and a suggestion about the previous word would
+          // only confuse.
           if (alive) setStatus(result);
         })
         .catch(() => {
@@ -342,15 +349,15 @@ export function SlugField({
       {status && !status.available && (
         <span className="settings__slug-hint">
           {t("settings.slug_taken")}{" "}
-          {/* Подсказка — кнопка, а не текст: прочитать свободный вариант и
-              перепечатать его руками человек может и без нас. */}
+          {/* The suggestion is a button, not text: a person can read a free
+              variant and retype it by hand without our help. */}
           <button type="button" className="button--quiet" onClick={() => commit(status.suggestion)}>
             {status.suggestion}
           </button>
         </span>
       )}
-      {/* Занятый слаг уже объяснён подсказкой рядом: вторая строка про то же
-          самое — шум. */}
+      {/* A taken slug is already explained by the suggestion next to it: a second
+          line about the same thing is noise. */}
       {!(status && !status.available) && <SaveMark save={typing ? undefined : save} />}
     </p>
   );
