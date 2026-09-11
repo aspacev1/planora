@@ -1,12 +1,12 @@
-"""Сквозной сценарий — пункт 11 раздела 13.
+"""The end-to-end scenario — item 11 of section 13.
 
-Создать проект через интервью, утвердить план, сдвинуть задачу с причиной,
-открыть публичную ссылку в другом браузере, убедиться, что видны диаграмма и
-комментарии, но не внутренние заметки.
+Create a project through an interview, approve the plan, shift a task with a reason,
+open the public link in another browser, and make sure the chart and the comments are
+visible while the internal notes are not.
 
-Тест намеренно один и длинный: он проверяет не отдельные правила, а то, что
-они складываются в работающий продукт. Разбитый на восемь маленьких, он
-перестал бы отвечать на единственный вопрос, ради которого написан.
+The test is deliberately single and long: it checks not individual rules but the fact
+that they add up into a working product. Broken into eight small ones it would stop
+answering the single question it was written for.
 """
 
 import pytest
@@ -51,7 +51,7 @@ def client(db):
 
 @pytest.fixture
 def guest(db):
-    """Другой браузер: своя сессия, свой клиент, тот же сервер."""
+    """Another browser: its own session, its own client, the same server."""
 
     def _override_get_db():
         yield db
@@ -64,18 +64,18 @@ def guest(db):
 
 
 def _public_path(url: str) -> str:
-    """Адрес публичной страницы для тестового клиента.
+    """The public page's address for the test client.
 
-    Ссылка приходит с доменом из PUBLIC_BASE_URL, а TestClient ходит по путям:
-    домен отрезается, а слаги и токен остаются такими же, какими их увидит
-    гость в браузере.
+    The link arrives with the domain from PUBLIC_BASE_URL while TestClient goes by
+    paths: the domain is cut off, and the slugs and the token stay exactly as a guest
+    will see them in a browser.
     """
     parts = urlsplit(url)
     return f"{parts.path.replace('/p/', '/api/public/', 1)}?{parts.query}"
 
 
 def _with_comments(path: str) -> str:
-    """Тот же адрес, но ленты комментариев: токен остаётся в параметрах."""
+    """The same address, but of the comment feed: the token stays in the parameters."""
     page, _, query = path.partition("?")
     return f"{page}/comments?{query}"
 
@@ -88,7 +88,7 @@ def test_the_whole_way_from_interview_to_the_public_link(client, guest, db, monk
     provider = RecordedProvider([QUESTION, SUMMARY, DRAFT])
     monkeypatch.setattr(ai_routes, "provider_for", lambda db, org: provider)
 
-    # 1. Человек регистрируется и оказывается внутри со своей организацией.
+    # 1. A person registers and ends up inside with an organization of their own.
     client.post(
         "/api/auth/register",
         json={
@@ -101,7 +101,7 @@ def test_the_whole_way_from_interview_to_the_public_link(client, guest, db, monk
     )
     assert client.get("/api/auth/me").json()["locale"] == "ru"
 
-    # 2. Проект собирается через интервью: вопрос, ответ, конспект, черновик.
+    # 2. The project is assembled through an interview: a question, an answer, a summary, a draft.
     session_id = client.post("/api/ai/sessions", json={"locale": "ru"}).json()["id"]
     client.post(f"/api/ai/sessions/{session_id}/answers", json={"text": "Сайт-визитка к июню"})
     client.post(f"/api/ai/sessions/{session_id}/summary")
@@ -115,8 +115,7 @@ def test_the_whole_way_from_interview_to_the_public_link(client, guest, db, monk
     task_id = state["tasks"][0]["id"]
     assert state["categories"][0]["name"] == "Дизайн"
 
-    # 3. Внутренняя заметка — та, которую гость не должен увидеть ни при каких
-    # обстоятельствах.
+    # 3. The internal note — the one a guest must not see under any circumstances.
     client.post(
         f"/api/projects/{project_id}/mutations",
         json={
@@ -130,12 +129,12 @@ def test_the_whole_way_from_interview_to_the_public_link(client, guest, db, monk
         },
     )
 
-    # 4. План утверждается: снимок дат ложится в базовый план.
+    # 4. The plan is approved: a snapshot of the dates lands in the baseline plan.
     assert client.post(f"/api/projects/{project_id}/plan/approvals").status_code == 201
     approved = client.get(f"/api/projects/{project_id}").json()
     assert approved["tasks"][0]["baseline_start"] == "2026-03-02"
 
-    # 5. Сдвиг за порог без причины отбивается…
+    # 5. A shift past the threshold with no reason is rejected...
     refused = client.post(
         f"/api/projects/{project_id}/mutations",
         json={"op": {"type": "move_task", "task_id": task_id, "start_date": "2026-03-16"}},
@@ -143,7 +142,7 @@ def test_the_whole_way_from_interview_to_the_public_link(client, guest, db, monk
     assert refused.status_code == 409
     assert refused.json()["detail"] == "reason_required"
 
-    # …и проходит с причиной, которая остаётся в истории задачи как есть.
+    # ...and passes with a reason, which stays in the task's history as it was.
     client.post(
         f"/api/projects/{project_id}/mutations",
         json={
@@ -154,28 +153,27 @@ def test_the_whole_way_from_interview_to_the_public_link(client, guest, db, monk
     history = client.get(f"/api/projects/{project_id}/revisions?task_id={task_id}").json()
     assert history[0]["reason"] == "заказчик не прислал брендбук"
 
-    # 6. Владелец выпускает публичную ссылку.
+    # 6. The owner issues a public link.
     share = client.post(f"/api/projects/{project_id}/share", json={}).json()
     path = _public_path(share["url"])
     assert "/p/" in share["url"]
 
-    # 7. Другой браузер, без всякой сессии: диаграмма видна.
+    # 7. Another browser, with no session at all: the chart is visible.
     public = guest.get(path)
     assert public.status_code == 200
     page = public.json()
     assert page["name"] == "Сайт"
     assert page["tasks"][0]["start_date"] == "2026-03-16"
-    # Базовый план виден и гостю: призрак под полоской и есть ответ на вопрос
-    # «а когда обещали».
+    # The baseline plan is visible to a guest too: the ghost under a bar is the answer to
+    # the question "and when was it promised".
     assert page["tasks"][0]["baseline_start"] == "2026-03-02"
-    # А внутренней заметки нет ни в одном поле ответа.
+    # And the internal note is in no field of the answer.
     assert "internal_note" not in page["tasks"][0]
     assert "подрядчик просит предоплату" not in public.text
-    # И отменять гостю нечего: последнее действие ему не предлагается.
+    # And a guest has nothing to undo: the last action is not offered to them.
     assert page["undoable"] is None
 
-    # 8. Гость комментирует, назвавшись именем; его реплика отличается от
-    # реплики участника.
+    # 8. The guest comments, giving a name; their remark differs from a member's.
     client.post(
         f"/api/projects/{project_id}/comments",
         json={"body": "Держим сроки", "task_id": task_id},
@@ -193,8 +191,8 @@ def test_the_whole_way_from_interview_to_the_public_link(client, guest, db, monk
         ("Мария", True),
     ]
 
-    # 9. Перевыпуск ссылки убивает прежнюю мгновенно. Отдельный маршрут rotate
-    # (волна 4.6): повтор POST /share разосланный адрес больше не трогает.
+    # 9. Reissuing the link kills the previous one instantly. A separate rotate route
+    # (wave 4.6): a repeated POST /share no longer touches the distributed address.
     fresh = client.post(f"/api/projects/{project_id}/share/rotate", json={}).json()
     assert guest.get(path).status_code == 404
     assert guest.get(_public_path(fresh["url"])).status_code == 200
@@ -212,8 +210,8 @@ def test_a_guest_cannot_comment_when_comments_are_off(client, guest, db):
     )
     project_id = client.post("/api/projects", json={"name": "Сайт"}).json()["id"]
     share = client.post(f"/api/projects/{project_id}/share", json={}).json()
-    # Комментарии выключаются отдельным запросом: выпуск ссылки и её настройка
-    # — разные действия, и второе доступно и после первого.
+    # Comments are turned off by a separate request: issuing a link and configuring it
+    # are different actions, and the second is available after the first too.
     client.patch(f"/api/projects/{project_id}/share", json={"comments_enabled": False})
     path = _public_path(share["url"])
 
@@ -221,7 +219,7 @@ def test_a_guest_cannot_comment_when_comments_are_off(client, guest, db):
 
     assert refused.status_code == 403
     assert refused.json()["detail"] == "comments_closed"
-    # Читать проект при этом можно: выключены комментарии, а не ссылка.
+    # Reading the project is still possible: what is off is the comments, not the link.
     assert guest.get(path).status_code == 200
 
 
@@ -240,8 +238,8 @@ def test_a_guest_must_name_themselves(client, guest, db):
 
     refused = guest.post(_with_comments(path), json={"body": "привет"})
 
-    # Имя гостя — обязательное поле схемы: неподписанная реплика на публичной
-    # странице неотличима от чужой.
+    # The guest's name is a mandatory field of the schema: an unsigned remark on a public
+    # page is indistinguishable from someone else's.
     assert refused.status_code == 422
 
 
@@ -262,7 +260,7 @@ def test_a_revoked_link_is_indistinguishable_from_a_missing_one(client, guest, d
 
     revoked = guest.get(path)
     missing = guest.get("/api/public/nobody/nothing?s=nonexistent-token")
-    # Разница между ними была бы подсказкой тому, кто перебирает токены.
+    # A difference between them would be a hint to whoever is enumerating tokens.
     assert revoked.status_code == missing.status_code == 404
     assert revoked.json() == missing.json()
 
@@ -291,9 +289,9 @@ def test_the_guest_comment_rate_limit_bites(client, guest, db, monkeypatch):
     from app.config import get_settings
 
     monkeypatch.setattr(get_settings(), "guest_comment_rate_limit", 2, raising=False)
-    # Счётчик живёт в памяти процесса и переживает тесты: соседний тест не
-    # должен решать судьбу этого. Обнуляется он вместе со всем счётчиком —
-    # тот собирается по первому требованию и подхватит потолок выше.
+    # The counter lives in the process's memory and outlives tests: a neighbouring test
+    # must not decide this one's fate. It is reset together with the whole counter — that
+    # is assembled on first demand and will pick up the ceiling above.
     monkeypatch.setattr(public_routes, "_guest_comments", None)
 
     client.post(

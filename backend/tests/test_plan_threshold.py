@@ -1,10 +1,10 @@
-"""Утверждённый план и обязательная причина сдвига — раздел 5 спецификации.
+"""An approved plan and the mandatory reason for a shift — section 5 of the specification.
 
-Пункт 2 раздела 13 требует отдельно проверить накопление: три сдвига по
-одному дню от базового плана требуют причину на третьем. Это и есть смысл
-правила «отклонение считается от базового плана, а не от предыдущего
-значения», и без такого теста подмена базы на предыдущее значение прошла бы
-незамеченной — каждый отдельный сдвиг на один день выглядит невинно.
+Item 2 of section 13 requires accumulation to be checked separately: three shifts of
+one day each from the baseline plan require a reason on the third. That is the whole
+meaning of the rule "the deviation is counted from the baseline plan rather than from
+the previous value", and without such a test, swapping the base for the previous value
+would pass unnoticed — each individual one-day shift looks innocent.
 """
 
 from datetime import date
@@ -58,7 +58,7 @@ def _task(db, project, category, *, start=date(2026, 3, 2), duration=5, name="Lo
     return db.get(Task, revision.op["task_id"])
 
 
-# --- утверждение -------------------------------------------------------------
+# --- approval ------------------------------------------------------------------
 
 
 def test_approval_snapshots_dates_into_the_baseline_of_every_task(db, project, category):
@@ -84,8 +84,8 @@ def test_a_task_created_after_approval_has_no_baseline(db, project, category):
 
     extra = _task(db, project, category, name="Сверх плана")
 
-    # Ровно это и означает пометка «сверх первоначального плана»: добавление
-    # работы нормально, объяснений оно не требует.
+    # That is exactly what the "beyond the original plan" mark means: adding work is
+    # normal and requires no explanations.
     assert extra.baseline_start is None
     assert extra.baseline_duration is None
     assert deviation_days(extra, start_date=date(2026, 12, 1)) is None
@@ -102,14 +102,14 @@ def test_reapproval_moves_the_baseline_and_keeps_the_old_version(db, project, ca
     assert second.version == 2
     assert task.baseline_start == date(2026, 3, 30)
 
-    # Старая версия остаётся: летопись «что обещали в январе» иначе исчезает
-    # ровно в тот момент, когда обещание перестало выполняться.
+    # The old version stays: otherwise the chronicle of "what was promised in January"
+    # vanishes at the very moment the promise stopped being kept.
     versions = plan_versions(db, project)
     assert [v.version for v in versions] == [2, 1]
     assert versions[-1].snapshot[str(task.id)]["start_date"] == "2026-03-02"
 
 
-# --- порог -------------------------------------------------------------------
+# --- the threshold -------------------------------------------------------------
 
 
 def test_a_shift_within_the_threshold_needs_no_reason(db, project, category, org):
@@ -131,8 +131,8 @@ def test_a_shift_beyond_the_threshold_without_a_reason_is_refused(db, project, c
     assert error.value.code == "reason_required"
     assert error.value.deviation_days == 7
     assert error.value.threshold_days == org.default_shift_threshold_days
-    # Промежуточного состояния «сдвинуто, но не объяснено» не существует:
-    # изменение не применилось вовсе.
+    # There is no intermediate "moved but not explained" state: the change was not
+    # applied at all.
     assert task.start_date == date(2026, 3, 2)
 
 
@@ -149,16 +149,16 @@ def test_the_same_shift_goes_through_once_the_reason_is_given(db, project, categ
     )
 
     assert task.start_date == date(2026, 3, 9)
-    # Причина хранится как введено и не переводится: это текст человека.
+    # The reason is stored as entered and is not translated: it is a person's text.
     assert revision.reason == "заказчик не прислал брендбук"
 
 
 def test_three_one_day_shifts_ask_for_a_reason_on_the_third(db, project, category):
-    """Накопление — пункт 2 раздела 13.
+    """Accumulation — item 2 of section 13.
 
-    Порог 2 дня. Каждый отдельный шаг — один день, то есть меньше порога при
-    счёте от предыдущего значения; от базового плана третий шаг даёт 3 дня и
-    обязан спросить причину.
+    The threshold is 2 days. Each individual step is one day, that is, below the
+    threshold when counted from the previous value; from the baseline plan the third
+    step gives 3 days and must ask for a reason.
     """
     task = _task(db, project, category)
     approve_plan(db, project, actor_id=None)
@@ -174,10 +174,11 @@ def test_three_one_day_shifts_ask_for_a_reason_on_the_third(db, project, categor
 
 
 def test_a_shift_back_towards_the_baseline_needs_no_reason(db, project, category):
-    """Отклонение считается по модулю, но от базового плана.
+    """The deviation is measured by absolute value, but from the baseline plan.
 
-    Задача, уехавшая на неделю с объяснением, возвращается на место свободно:
-    объяснять надо расхождение с обещанным, а не всякое движение.
+    A task that moved a week away with an explanation comes back into place freely:
+    what has to be explained is the divergence from what was promised, not every
+    movement.
     """
     task = _task(db, project, category)
     approve_plan(db, project, actor_id=None)
@@ -206,7 +207,7 @@ def test_stretching_the_duration_past_the_threshold_also_asks(db, project, categ
 
 
 def test_before_approval_nothing_is_asked(db, project, category):
-    """До нажатия «Утвердить план» правки свободны, ничего не спрашивается."""
+    """Before "Approve plan" is pressed, edits are free and nothing is asked."""
     task = _task(db, project, category)
 
     apply_op(db, project, MoveTask(task_id=task.id, start_date=date(2026, 6, 1)), actor_id=None)
@@ -227,11 +228,11 @@ def test_the_project_threshold_overrides_the_organization_one(db, project, categ
 
 
 def test_undo_of_a_shift_beyond_the_threshold_asks_as_well(db, project, category):
-    """Отмена — не привилегированное действие.
+    """An undo is not a privileged action.
 
-    Если возврат уводит задачу от базового плана дальше порога, объяснение
-    нужно ровно так же, как при любом другом способе туда попасть; иначе
-    правило обходится парой «сдвинуть с причиной — отменить отмену».
+    If a return takes the task further from the baseline plan than the threshold, an
+    explanation is needed exactly as it is by any other way of getting there; otherwise
+    the rule is bypassed by a "shift with a reason — undo the undo" pair.
     """
     task = _task(db, project, category)
     approve_plan(db, project, actor_id=None)
@@ -251,12 +252,12 @@ def test_undo_of_a_shift_beyond_the_threshold_asks_as_well(db, project, category
 
 
 def test_a_duration_edit_is_not_charged_for_the_start_shift(db, project, category):
-    """Волна 1.7: измерения не смешиваются.
+    """Wave 1.7: the dimensions are not mixed.
 
-    Задача с объяснённо уехавшим стартом (7 дней при пороге 2) правит
-    длительность на день — в пределах порога. До исправления отклонение
-    считалось как max по обоим измерениям, и правка длительности требовала
-    причину за чужой сдвиг старта.
+    A task whose start has moved with an explanation (7 days against a threshold of 2)
+    edits its duration by a day — within the threshold. Before the fix the deviation was
+    computed as the max over both dimensions, and an edit to the duration demanded a
+    reason for someone else's shift of the start.
     """
     task = _task(db, project, category)
     approve_plan(db, project, actor_id=None)
@@ -274,11 +275,11 @@ def test_a_duration_edit_is_not_charged_for_the_start_shift(db, project, categor
 
 
 def test_the_reported_deviation_belongs_to_the_edited_dimension(db, project, category):
-    """Заголовок X-Shift-Deviation-Days называет число из правимого измерения.
+    """The X-Shift-Deviation-Days header names the number from the dimension being edited.
 
-    Старт уехал на 7, правится длительность на 4: отказ обязан назвать 4 —
-    интерфейс показывает это число человеку как «на сколько уводит ваша
-    правка», и 7 в нём было бы ложью.
+    The start moved by 7, the duration is edited by 4: the refusal must name 4 — the
+    interface shows that number to the person as "how far your edit takes it", and 7 in
+    it would be a lie.
     """
     task = _task(db, project, category)
     approve_plan(db, project, actor_id=None)
@@ -307,5 +308,5 @@ def test_without_arguments_deviation_reports_the_larger_dimension(db, project, c
         reason="подрядчик сорвал срок",
     )
 
-    # Вопрос «насколько задача ушла от обещанного» — по-прежнему max.
+    # The question "how far has the task drifted from what was promised" is still a max.
     assert deviation_days(task) == 7
