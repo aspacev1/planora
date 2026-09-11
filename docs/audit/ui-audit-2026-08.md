@@ -1,50 +1,51 @@
-# Planora — глубокий UI-аудит
+# Planora — deep UI audit
 
-Аудит интерфейса, проведённый на живом приложении, а не по чтению кода:
-фронтенд поднят в браузере поверх заглушки API с правдоподобным проектом
-(12 задач, 4 категории, связи, согласованный план v3, просрочка, блокировки,
-гости в ленте обсуждения). Проверены 20 адресов в трёх ширинах — 1440, 390 и
-переходные 900/760, — состояния наведения, фокуса, открытых окон и меню, три
-языка и обе цветовые схемы системы.
+An interface audit carried out on the live application rather than by reading
+code: the frontend was brought up in a browser on top of an API stub with a
+plausible project (12 tasks, 4 categories, dependencies, an approved plan v3, a
+slip, blockers, guests in the discussion feed). Twenty addresses were checked at
+three widths — 1440, 390 and the transitional 900/760 — along with hover, focus,
+open dialogs and menus, three languages and both system colour schemes.
 
-Что измерялось программой, а не глазом: контраст каждой текстовой пары к
-фактической подложке, размеры целей нажатия, горизонтальное переполнение
-страницы, доступные имена органов управления, порядок обхода клавиатурой,
-удержание фокуса в модальном окне, поведение невидимых кнопок под пальцем.
+What was measured by a program rather than by eye: the contrast of every text
+pair against its actual backdrop, hit-target sizes, horizontal page overflow,
+the accessible names of controls, keyboard traversal order, focus retention in a
+modal window, and the behaviour of invisible buttons under a finger.
 
-Находки отсортированы по цене отказа для человека, а не по числу строк, которые
-придётся править. Каждая названа местом в коде и способом воспроизвести.
+The findings are sorted by what a failure costs a person, not by the number of
+lines that need editing. Each one names its place in the code and how to reproduce it.
 
-**Итог:** 2 критичных, 5 высоких, 8 средних, 7 низких. Ни одна не про вкус —
-все воспроизводятся и измеряются.
-
----
-
-## Сначала о том, что сделано хорошо
-
-Это не вежливость перед списком претензий: перечисленное ниже стоит не сломать,
-исправляя остальное.
-
-- **Словари полны.** 545 ключей в `ru`, 539 в `en` и `az`; расхождение — ровно
-  русские формы множественного числа (`few`/`many`), которых двум другим языкам
-  не нужно. Ни одного ключа, забытого в переводе, ни одной строки, скопированной
-  из русского как есть. Названия месяцев берутся из словарей, а не у `Intl`, —
-  и это правильно: ICU не знает азербайджанских месяцев.
-- **Полоска задачи — настоящая кнопка** с `aria-label`, включающим имя и даты, и
-  двигается стрелками с клавиатуры. На публичной странице она честно становится
-  `role="img"`, а не притворяется нажимаемой.
-- **Цвет полоски означает ровно одно** — статус; критичность и просрочка ложатся
-  накладками поверх. Правило выдержано, сочетания выписаны явно.
-- **`prefers-reduced-motion` уважается дважды** — медиазапросом и классом, и
-  выключает переходы целиком, а не «делает их короче».
-- **Ошибки сервера показываются кодом через словарь**, а не английской прозой
-  Pydantic.
+**Totals:** 2 critical, 5 high, 8 medium, 7 low. None of them is a matter of
+taste — every one reproduces and measures.
 
 ---
 
-## 🔴 Критично
+## First, about what is done well
 
-### 1. На телефоне нельзя выйти, открыть настройки, сменить язык и организацию
+This is not politeness before a list of complaints: what follows is worth not
+breaking while fixing the rest.
+
+- **The dictionaries are complete.** 545 keys in `ru`, 539 in `en` and `az`; the
+  difference is exactly the Russian plural forms (`few`/`many`), which the other
+  two languages do not need. Not one key forgotten in translation, not one string
+  copied over from Russian as is. Month names come from the dictionaries rather
+  than from `Intl` — and that is right: ICU does not know the Azerbaijani months.
+- **A task bar is a real button**, with an `aria-label` that includes the name
+  and the dates, and it moves with the arrow keys. On the public page it honestly
+  becomes a `role="img"` instead of pretending to be pressable.
+- **A bar's colour means exactly one thing** — status; criticality and slippage
+  are laid over it as overlays. The rule holds, and the combinations are spelled
+  out explicitly.
+- **`prefers-reduced-motion` is respected twice** — by a media query and by a
+  class — and it turns transitions off entirely rather than "making them shorter".
+- **Server errors are shown by code through the dictionary**, not as Pydantic's
+  English prose.
+
+---
+
+## 🔴 Critical
+
+### 1. On a phone you cannot sign out, open settings, change the language or the organization
 
 > **Status: fixed.** `frontend/src/northstar-theme.css` no longer hides
 > `.sidebar__foot`/`.org-switch` at narrow widths.
@@ -57,33 +58,34 @@
 }
 ```
 
-`.sidebar__foot` — это не декоративный подвал. В нём лежат переключатель языка,
-ссылка на «Настройки» и кнопка «Выйти». Вместе с `.org-switch` при ширине 760 и
-уже из интерфейса исчезают:
+`.sidebar__foot` is not a decorative footer. It holds the language switch, the
+"Settings" link and the "Sign out" button. Together with `.org-switch`, at a
+width of 760 and below the following disappear from the interface:
 
-| Что | 1440px | ≤760px |
+| What | 1440px | ≤760px |
 |---|---|---|
-| Выйти | есть | `display: none` |
-| Настройки (организация, участники, профиль) | есть | `display: none` |
-| Переключатель языка | есть | `display: none` |
-| Переключатель организации | есть | `display: none` |
+| Sign out | present | `display: none` |
+| Settings (organization, members, profile) | present | `display: none` |
+| Language switch | present | `display: none` |
+| Organization switch | present | `display: none` |
 
-Замены не появляется: ни «гамбургера», ни меню «ещё», ни этих пунктов в верхней
-строке. Проверено программно на четырёх ширинах — на 760 и 390 вычисленный
-`display` равен `none`, размер `0×0`.
+No replacement appears: no hamburger, no "more" menu, and none of these items in
+the top bar. Checked programmatically at four widths — at 760 and 390 the
+computed `display` is `none` and the size is `0×0`.
 
-Следствия, каждое из которых человек встретит в первый же день: с телефона
-нельзя завершить сессию (на чужом устройстве — это вопрос безопасности, а не
-удобства); нельзя позвать человека в организацию; нельзя сменить язык — то есть
-азербайджанский клиент, открывший приложение на русском, останется на русском;
-нельзя перейти в другую организацию. Адрес `/settings` при этом работает —
-экран отзывается и выглядит нормально, — но пути к нему из интерфейса нет.
+The consequences, each of which a person meets on their very first day: from a
+phone you cannot end your session (on someone else's device that is a security
+question, not a convenience one); you cannot invite a person into the
+organization; you cannot change the language — meaning an Azerbaijani client who
+opened the application in Russian stays in Russian; you cannot switch to another
+organization. The `/settings` address does work — the screen responds and looks
+normal — but there is no path to it from the interface.
 
-**Что сделать.** Свернуть эти четыре пункта в одно меню в верхней строке (по
-аватару организации или «⋯»), а не прятать. Верхняя строка на 390px занята
-тремя пунктами навигации и имеет запас справа — место есть.
+**What to do.** Fold these four items into a single menu in the top bar (behind
+the organization avatar or a "⋯") rather than hiding them. At 390px the top bar
+holds three navigation items and has room to spare on the right — the space is there.
 
-### 2. Тап по пустому месту строки отзывает приглашение
+### 2. A tap on an empty part of a row revokes an invitation
 
 > **Status: fixed.** `@media (hover: none)` rules now exist for the
 > affected touch targets (e.g. `frontend/src/components/rows.css`,
@@ -97,31 +99,31 @@
 .invite:focus-within .invite__actions button { opacity: 1; }
 ```
 
-`opacity: 0` убирает кнопку с глаз, но не из-под пальца: `pointer-events`
-остаётся `auto`, размер сохраняется. У сенсорного экрана состояния наведения
-нет, и три кнопки — «Новая ссылка», «Отправить ещё раз», **«Отозвать»** —
-остаются невидимыми всегда и нажимаемыми всегда.
+`opacity: 0` takes the button out of sight but not out from under the finger:
+`pointer-events` stays `auto` and the size is preserved. A touch screen has no
+hover state, and the three buttons — "New link", "Send again", **"Revoke"** —
+stay invisible always and pressable always.
 
-Воспроизведено программой на 390×844 с сенсорным вводом: кнопка «Отозвать»
-имеет `opacity = 0` и прямоугольник `84×36`; одиночный тап в её центр
-отправляет запрос отзыва. Человек видел пустое место строки — приглашение
-умерло.
+Reproduced programmatically at 390×844 with touch input: the "Revoke" button has
+`opacity = 0` and a rectangle of `84×36`; a single tap at its centre sends the
+revoke request. The person saw an empty part of the row — and the invitation died.
 
-Тот же приём и в ленте, `frontend/src/gantt/gantt.css`:
+The same trick is in the timeline, `frontend/src/gantt/gantt.css`:
 
-- `:605` `.gantt__handle` — ручка перестановки строк;
-- `:663` `.gantt__add` — «+», добавить задачу в категорию;
-- `:690` `.gantt__remove` — «×», **удалить категорию**.
+- `:605` `.gantt__handle` — the row reorder handle;
+- `:663` `.gantt__add` — "+", add a task to a category;
+- `:690` `.gantt__remove` — "×", **delete a category**.
 
-Два из пяти скрытых органов необратимы. Ни одного `@media (hover: none)` во всём
-проекте нет — поиск по всем файлам стилей не нашёл ни `hover: none`, ни
-`pointer: coarse`.
+Two of the five hidden controls are irreversible. There is not a single
+`@media (hover: none)` in the whole project — a search across every style file
+found neither `hover: none` nor `pointer: coarse`.
 
-Отдельно стоит заметить противоречие внутри самого кода: `.gantt__handle` несёт
-`touch-action: none` с комментарием «строку тащат пальцем» — то есть сенсорный
-ввод признан рабочим сценарием ровно там, где орган управления невидим.
+It is worth noting the contradiction inside the code itself: `.gantt__handle`
+carries `touch-action: none` with a comment saying the row is dragged with a
+finger — that is, touch input is acknowledged as a working scenario in exactly
+the place where the control is invisible.
 
-**Что сделать.** Одним правилом на всё приложение:
+**What to do.** With one rule for the whole application:
 
 ```css
 @media (hover: none) {
@@ -131,64 +133,64 @@
 }
 ```
 
-Этого достаточно, чтобы закрыть и потерю действий, и случайные нажатия. Отдельно
-стоит подумать, заслуживает ли «Отозвать» подтверждения даже на мыши: остальные
-разрушительные действия в приложении его имеют.
+That is enough to close both the lost actions and the accidental presses.
+Separately, it is worth thinking about whether "Revoke" deserves a confirmation
+even with a mouse: every other destructive action in the application has one.
 
 ---
 
-## 🟠 Высоко
+## 🟠 High
 
-### 3. Публичная ссылка показывает клиенту базовый план и все отклонения от него
+### 3. The public link shows the client the baseline plan and every deviation from it
 
 `frontend/src/screens/PublicProject.tsx:102`
 
-Правило продукта сформулировано в этом же файле и в `ProjectHead`: «клиенту по
-ссылке обещаны сроки и объём, а не версия согласования и внутренние расхождения
-с ней». Шапка его выполняет — `showPlan` не передаётся, и ни версии плана, ни
-пометки «изменён после согласования», ни ячейки «Вне плана» в полосе метрик у
-гостя нет.
+The product rule is stated in this same file and in `ProjectHead`: "a client
+following a link is promised dates and scope, not the approval version and the
+internal discrepancies against it". The header keeps it — `showPlan` is not
+passed, and a guest sees neither the plan version, nor the "changed after
+approval" marks, nor the "Beyond the plan" cell in the metrics bar.
 
-Лента правило нарушает. `<Gantt canWrite={false} />` не получает признака
-публичности, а `showBaseline` по умолчанию включён, и гость видит:
+The timeline breaks the rule. `<Gantt canWrite={false} />` gets no publicity
+flag, and `showBaseline` is on by default, so the guest sees:
 
-- призрак базового плана под каждой полоской — пунктирный прямоугольник с
-  плановыми датами;
-- красную засечку первоначального дедлайна задачи;
-- бейджи отклонения «+1 дн.», «+2 дн.», «+4 дн.» — то есть **точную величину
-  просрочки против того, что команда себе утвердила**;
-- знак «+» у имени задачи — «добавлена сверх первоначального плана».
+- the ghost of the baseline plan under every bar — a dashed rectangle with the
+  planned dates;
+- the red notch of the task's original deadline;
+- the deviation badges "+1 d.", "+2 d.", "+4 d." — that is, **the exact amount by
+  which the team is behind what it approved for itself**;
+- the "+" sign next to a task name — "added beyond the original plan".
 
-Всё перечисленное видно на снимке публичной страницы. Заказчик по ссылке узнаёт
-не только «когда будет готово», но и «на сколько вы уже отстали от собственного
-плана и что придумали по дороге», — при том, что версию плана от него
-намеренно скрыли. Половина занавески хуже, чем её отсутствие: команда думает,
-что план внутренний, а он не внутренний.
+All of the above is visible in the screenshot of the public page. A client
+following the link learns not only "when will it be ready", but also "how far
+behind your own plan you already are and what you improvised along the way" —
+even though the plan version was hidden from them on purpose. Half a curtain is
+worse than none: the team thinks the plan is internal, and it is not.
 
-**Что сделать.** Передавать `Gantt` признак публичности и гасить вместе с
-`showPlan` призрак, засечку, бейдж отклонения и знак «+». Пункт «Базовый план»
-в меню «Вид» на публичной странице тогда тоже не нужен.
+**What to do.** Pass `Gantt` a publicity flag and, together with `showPlan`,
+extinguish the ghost, the notch, the deviation badge and the "+" sign. The
+"Baseline" item in the "View" menu is then not needed on the public page either.
 
-### 4. Таблица отчётов ломает страницу по горизонтали на телефоне
+### 4. The reports table breaks the page horizontally on a phone
 
 `frontend/src/screens/Reports.tsx:69`
 
-На 390px таблица занимает 673px, и прокручивается вся страница целиком:
-`documentElement.scrollWidth = 673` при `clientWidth = 390`. Верхняя строка
-навигации, черта под заголовком и фон остаются шириной в экран — при сдвиге
-вправо содержимое уезжает за их край и висит на белом. Это единственный экран
-приложения с горизонтальным переполнением: остальные девятнадцать проверены и
-чисты.
+At 390px the table takes 673px, and the whole page scrolls:
+`documentElement.scrollWidth = 673` against `clientWidth = 390`. The top
+navigation bar, the rule under the heading and the background stay the width of
+the screen — so on a shift to the right the content travels past their edge and
+hangs over white. This is the only screen in the application with horizontal
+overflow: the other nineteen were checked and are clean.
 
-Показательно, что рядом лежит рабочий образец: полоса метрик проекта
-(`.project-head__metrics`) при 808px содержимого в 352px окна прокручивается
-сама, потому что у неё `overflow-x: auto`. Таблице отчётов такой обёртки не
-досталось.
+Tellingly, a working example sits right next to it: the project metrics bar
+(`.project-head__metrics`), with 808px of content in a 352px window, scrolls by
+itself because it has `overflow-x: auto`. The reports table did not get such a
+wrapper.
 
-**Что сделать.** Обернуть таблицу в `<div class="table-scroll">` с
-`overflow-x: auto` — тем же приёмом, что уже применён к полосе метрик.
+**What to do.** Wrap the table in a `<div class="table-scroll">` with
+`overflow-x: auto` — the same trick already applied to the metrics bar.
 
-### 5. «Наследовать от организации (31)» — битовая маска на глазах у человека
+### 5. "Inherit from organization (31)" — a bit mask in a person's face
 
 `frontend/src/screens/ProjectSettings.tsx:198`
 
@@ -196,246 +198,250 @@
 inherited={String(orgSettings?.working_days ?? "")}
 ```
 
-Строка подставляется в словарную фразу `«Наследовать от организации ({value})»`,
-и в настройках проекта человек читает **«Наследовать от организации (31)»**.
-Тридцать один — это `0b0011111`, понедельник–пятница. Число не значит ничего ни
-для кого, кроме автора модели.
+The string is substituted into the dictionary phrase
+`"Inherit from organization ({value})"`, and in the project settings a person
+reads **"Inherit from organization (31)"**. Thirty-one is `0b0011111`,
+Monday-Friday. The number means nothing to anyone but the model's author.
 
-Соседние два переопределения на том же экране показывают человеческие значения —
-`(Asia/Baku)` и `(2)`, — и на фоне их «31» читается не как код, а как ошибка
-данных. Тем временем экран организации умеет рисовать ту же маску правильно:
-`WorkingDaysField` разворачивает её в семь флажков «пн … вс».
+The two neighbouring overrides on the same screen show human values —
+`(Asia/Baku)` and `(2)` — and against them "31" reads not as a code but as a data
+error. Meanwhile the organization screen already knows how to draw the same mask
+properly: `WorkingDaysField` unfolds it into seven checkboxes, Mon … Sun.
 
-**Что сделать.** Разворачивать маску в перечисление коротких названий дней —
-«пн, вт, ср, чт, пт», — используя ту же нумерацию (`(day + 1) % 7`), что и
-`WorkingDaysField`.
+**What to do.** Unfold the mask into a list of short day names — "Mon, Tue, Wed,
+Thu, Fri" — using the same numbering (`(day + 1) % 7`) as `WorkingDaysField`.
 
-### 6. Модальное окно не удерживает фокус
+### 6. The modal window does not hold focus
 
 > **Status: still open.** `Modal.tsx` still only sets initial focus and
 > restores it on close — no Tab-cycling focus trap yet.
 
 `frontend/src/components/Modal.tsx`
 
-Окно объявлено как `role="dialog" aria-modal="true"`, закрывается по Esc,
-ставит фокус на первое поле и возвращает его открывшему — четыре правила из
-пяти. Пятого нет: фокус из окна выходит. Проверено нажатиями Tab при открытой
-форме «Новая задача» — на двадцатом фокус ушёл на `BODY`, дальше начинается
-страница под окном, которая ни `inert`, ни `aria-hidden`.
+The window is declared as `role="dialog" aria-modal="true"`, closes on Esc, puts
+focus on the first field and returns it to whoever opened it — four rules out of
+five. The fifth is missing: focus leaves the window. Checked by pressing Tab with
+the "New task" form open — on the twentieth press focus went to `BODY`, and past
+that the page under the window begins, which is neither `inert` nor `aria-hidden`.
 
-Для человека с клавиатуры это значит: обойдя форму, он попадает в диаграмму
-позади окна и продолжает ходить по её кнопкам, не видя, где находится фокус, —
-окно закрывает обзор. Обратно в окно он вернётся, только пройдя всю страницу.
+For a keyboard user this means: having gone round the form, they land in the
+chart behind the window and keep walking its buttons without seeing where the
+focus is — the window blocks the view. They will get back into the window only
+after going through the whole page.
 
-**Что сделать.** Замкнуть Tab и Shift+Tab на границах окна (перехват `keydown`
-на первом и последнем фокусируемом) либо перевести окно на нативный
-`<dialog showModal>`, который делает это сам вместе с `inert` для фона.
+**What to do.** Close Tab and Shift+Tab at the window's edges (intercept
+`keydown` on the first and last focusable element), or move the window to a
+native `<dialog showModal>`, which does that itself along with `inert` for the
+background.
 
-### 7. Контраст ниже AA в шести системных ролях
+### 7. Contrast below AA in six system roles
 
-Измерено программно: цвет текста против фактически вычисленной подложки, с учётом
-прозрачности, для каждого текстового узла на каждом из 20 экранов.
+Measured programmatically: the text colour against the actually computed
+backdrop, accounting for transparency, for every text node on each of the 20 screens.
 
-| Роль | Цвета | Контраст | Норма | Где видно |
+| Role | Colours | Contrast | Required | Where it shows |
 |---|---|---|---|---|
-| `--warn` на белом | `#e69a2d` / `#fff` | **2,33** | 4,5 | счёт заблокированных в «Отчётах» (`.report__warn`) |
-| `--danger` на белом | `#d94c71` / `#fff` | **4,02** | 4,5 | просроченные даты в «Моих задачах», знак «!» в ленте |
-| `--accent` на `--accent-soft` | `#5367e8` / `#eef0ff` | **4,15** | 4,5 | текущий раздел в колонке, значки в ленте истории, выбранные дни недели |
-| `--danger` на `--danger-soft` | `#d94c71` / `#fff0f4` | **3,64** | 4,5 | текст ошибки в приглашении |
-| `--accent` на `--bg` | `#5367e8` / `#f5f7fb` | **4,38** | 4,5 | выбранная вкладка «Диаграмма», подпись «сб» в шапке ленты |
-| `--text-muted` на `--tag-gray` | `#667085` / `#f1f3f6` | **4,48** | 4,5 | плашка «Запланировано», переключатель языка |
+| `--warn` on white | `#e69a2d` / `#fff` | **2.33** | 4.5 | the blocked count in "Reports" (`.report__warn`) |
+| `--danger` on white | `#d94c71` / `#fff` | **4.02** | 4.5 | overdue dates in "My tasks", the "!" sign in the timeline |
+| `--accent` on `--accent-soft` | `#5367e8` / `#eef0ff` | **4.15** | 4.5 | the current section in the column, the icons in the history feed, the selected weekdays |
+| `--danger` on `--danger-soft` | `#d94c71` / `#fff0f4` | **3.64** | 4.5 | the error text in an invitation |
+| `--accent` on `--bg` | `#5367e8` / `#f5f7fb` | **4.38** | 4.5 | the selected "Chart" tab, the "Sat" caption in the timeline header |
+| `--text-muted` on `--tag-gray` | `#667085` / `#f1f3f6` | **4.48** | 4.5 | the "Planned" chip, the language switch |
 
-Первые две — не пограничные случаи, а промах в два раза и в полтора. Особенно
-`--warn`: 2,33 при 14px это «видно, что там что-то оранжевое», а не «прочитано».
+The first two are not borderline cases but misses by a factor of two and of one
+and a half. `--warn` especially: 2.33 at 14px is "you can see there is something
+orange there", not "read".
 
-Отдельная неувязка: в «Отчётах» счёт заблокированных набран янтарным
-(`.report__warn`), тогда как во всём остальном приложении блокировка — красная
-(`.status-chip[data-status="blocked"]`, полоска ленты, ячейка полосы метрик), а
-янтарный означает просрочку. То есть один и тот же экран одновременно и хуже
-всех читается, и говорит другим цветом о том же.
+A separate inconsistency: in "Reports" the blocked count is set in amber
+(`.report__warn`), whereas everywhere else in the application blocked is red
+(`.status-chip[data-status="blocked"]`, the timeline bar, the metrics bar cell)
+and amber means a slip. So one and the same screen is at once the hardest to read
+and the one speaking about the same thing in a different colour.
 
-**Что сделать.** Для текста брать тёмные варианты — `--danger-strong` (`#bd4263`,
-5,3:1) уже есть в теме именно для этого; завести такой же `--warn-strong`
-(около `#9a6410`); в «Отчётах» перевести счёт заблокированных на красный, как
-везде. Пары «акцент на мягком акценте» — поднять акцент до `#4256d8` либо
-затемнить подложку.
+**What to do.** For text take the dark variants — `--danger-strong` (`#bd4263`,
+5.3:1) is already in the theme for exactly this; introduce a `--warn-strong` to
+match (around `#9a6410`); in "Reports" move the blocked count to red, as
+everywhere else. For the "accent on soft accent" pairs, raise the accent to
+`#4256d8` or darken the backdrop.
 
 ---
 
-## 🟡 Средне
+## 🟡 Medium
 
-### 8. Обрезанное имя задачи негде прочитать
+### 8. There is nowhere to read a truncated task name
 
 `frontend/src/gantt/Row.tsx:246`, `frontend/src/gantt/gantt.css:509`
 
-`.gantt__label-name` обрезается многоточием, и `title` у него нет. На 1440px
-это уже заметно — «Визуальный язык: цвет, типог…», «Перенос содержимого из
-ста…», — а на 390px левая колонка сжимается до 180px, и от имени остаётся
-«Интервью с отде…».
+`.gantt__label-name` is truncated with an ellipsis and has no `title`. At 1440px
+that is already noticeable — "Visual language: colour, typogr…", "Migrating the
+content from the o…" — and at 390px the left column shrinks to 180px, leaving
+"Interview with the sa…" of the name.
 
-Прочитать целиком можно двумя способами, и оба ненадёжны: навести на **полоску**
-(не на имя) — тогда всплывёт карточка с полным названием; либо открыть карточку
-задачи. У задач, чья полоска в текущей прокрутке не видна (см. находку 13),
-не работает и первый.
+There are two ways to read it in full, and both are unreliable: hover over the
+**bar** (not the name), which pops up a card with the full title; or open the task
+card. For tasks whose bar is not visible in the current scroll (see finding 13),
+the first does not work either.
 
-**Что сделать.** `title={task.name}` на имени — одна строка, и она же чинит
-случай прокрученной ленты.
+**What to do.** `title={task.name}` on the name — one line, and it also fixes the
+scrolled-timeline case.
 
-### 9. Цели нажатия меньше 24 пикселей
+### 9. Hit targets smaller than 24 pixels
 
-Измерено на живой странице:
+Measured on the live page:
 
-| Орган | Размер | Где |
+| Control | Size | Where |
 |---|---|---|
-| `.gantt__chevron` — свернуть категорию | **13×36** | каждая строка категории |
-| `.gantt__add` — «+» | **20×20** | каждая строка категории |
-| `.gantt__remove` — «×» | **20×20** | пустая категория |
-| флажки настроек | **16×16** | настройки организации и проекта, меню «Вид» |
+| `.gantt__chevron` — collapse a category | **13×36** | every category row |
+| `.gantt__add` — "+" | **20×20** | every category row |
+| `.gantt__remove` — "×" | **20×20** | an empty category |
+| settings checkboxes | **16×16** | organization and project settings, the "View" menu |
 
-WCAG 2.2 (2.5.8, уровень AA) требует 24×24 CSS-пикселя. Ширина 13 у шеврона —
-это половина нормы; на сенсорном экране в него не попадают, а рядом стоит имя
-категории, по которому промах ничего не делает.
+WCAG 2.2 (2.5.8, level AA) requires 24×24 CSS pixels. The chevron's width of 13
+is half the requirement; on a touch screen people miss it, and next to it stands
+the category name, where a miss does nothing.
 
-**Что сделать.** Довести до 24×24 — не обязательно рисунком: хватит увеличенной
-области нажатия (`padding` либо псевдоэлемент `::before` с `inset: -6px`),
-рисунок при этом остаётся прежним.
+**What to do.** Bring them up to 24×24 — not necessarily by redrawing: an
+enlarged hit area is enough (`padding` or a `::before` pseudo-element with
+`inset: -6px`), and the drawing stays as it is.
 
-### 10. Поле «Порог сдвига» без доступного имени
+### 10. The "Shift threshold" field has no accessible name
 
 `frontend/src/screens/ProjectSettings.tsx:183`
 
-`<input id="project-threshold" type="number">` не имеет ни `<label for>`, ни
-`aria-label`, ни `aria-labelledby`. Проверка доступных имён на всех экранах
-нашла ровно одно такое поле. Подпись рядом есть, но она принадлежит другому
-органу — флажку «Наследовать от организации».
+`<input id="project-threshold" type="number">` has neither a `<label for>`, nor
+an `aria-label`, nor an `aria-labelledby`. A check of accessible names across
+every screen found exactly one such field. There is a caption next to it, but it
+belongs to another control — the "Inherit from organization" checkbox.
 
-Показательно, что намерение было: `Override` рисует
-`<span className="settings__override-label" id={`${id}-label`}>`, то есть
-идентификатор подписи готовили, — но `aria-labelledby` на поле так и не
-поставили. Читателю с экрана поле называется «спин-баттон», и что в нём —
-неизвестно.
+Tellingly, the intent was there: `Override` renders
+`<span className="settings__override-label" id={`${id}-label`}>`, so the
+caption's identifier was prepared — but `aria-labelledby` was never put on the
+field. To a screen reader the field is called "spin button", and what is in it is
+anybody's guess.
 
-**Что сделать.** `aria-labelledby={`${id}-label`}` на поле внутри `render`.
+**What to do.** `aria-labelledby={`${id}-label`}` on the field inside `render`.
 
-### 11. Нет ссылки «к содержимому»
+### 11. There is no "skip to content" link
 
-Порядок обхода с клавиатуры на любом защищённом экране: логотип → переключатель
-организации → три пункта навигации → три кнопки языка → «Настройки» → «Выйти» →
-и только одиннадцатым нажатием — первое действие страницы. Колонка одна и та же
-на всех экранах, и человек с клавиатуры проходит её заново при каждом переходе.
-Это WCAG 2.4.1 (Bypass Blocks, уровень A).
+The keyboard traversal order on any protected screen: the logo → the organization
+switch → three navigation items → three language buttons → "Settings" → "Sign
+out" → and only on the eleventh press, the page's first action. The column is the
+same on every screen, and a keyboard user walks it again on every transition.
+This is WCAG 2.4.1 (Bypass Blocks, level A).
 
-**Что сделать.** Скрытая до фокуса ссылка «К содержимому» первым элементом
-`<body>`, ведущая на `#main`; `.app__main` получает `id` и `tabindex="-1"`.
+**What to do.** A "Skip to content" link, hidden until focused, as the first
+element of `<body>`, pointing at `#main`; `.app__main` gets an `id` and `tabindex="-1"`.
 
-### 12. Полоса метрик прокручивается, ничем об этом не сообщая
+### 12. The metrics bar scrolls without saying so
 
-`.project-head__metrics` на 390px содержит 808px при 352px окна. Прокрутка
-работает, содержимое достижимо — но признака нет ни одного: последняя видимая
-ячейка обрезается по букве («**1** По…»), и это читается как ошибка вёрстки, а
-не как «здесь есть продолжение». Тени у края, градиента, стрелок нет.
+`.project-head__metrics` at 390px holds 808px in a 352px window. Scrolling works
+and the content is reachable — but there is not a single sign of it: the last
+visible cell is cut off mid-letter ("**1** Bl…"), and that reads as a layout bug
+rather than "there is more here". There is no edge shadow, no gradient, no arrows.
 
-**Что сделать.** Градиент-затухание у правого края, пока `scrollLeft` не достиг
-конца, — приём дешёвый и однозначный.
+**What to do.** A fade gradient at the right edge while `scrollLeft` has not
+reached the end — a cheap and unambiguous device.
 
-### 13. Строки без единой полоски выглядят как задачи без дат
+### 13. Rows without a single bar look like tasks without dates
 
-`frontend/src/gantt/Gantt.tsx:145` — при открытии лента прокручивается на
-«сегодня минус три дня». Всё, что кончилось раньше, остаётся слева за краем.
+`frontend/src/gantt/Gantt.tsx:145` — on opening, the timeline scrolls to "today
+minus three days". Everything that ended earlier stays off the left edge.
 
-В демонстрационном проекте две задачи июля («Интервью с отделом продаж»,
-«Аналитика текущего сайта») дают пустые строки: имя есть, полоски нет. Ничто на
-экране не говорит, что полоска существует и находится левее, — ни стрелки у
-края, ни счётчика, ни подсветки полосы прокрутки. Задача без полоски и задача,
-прокрученная за край, выглядят одинаково.
+In the demo project two July tasks ("Interview with the sales department",
+"Analytics of the current site") produce empty rows: there is a name, there is no
+bar. Nothing on the screen says the bar exists and lies further left — no arrow
+at the edge, no counter, no scrollbar highlight. A task without a bar and a task
+scrolled off the edge look identical.
 
-**Что сделать.** Пометка у края ленты, когда полоска строки лежит за пределами
-видимого окна («◀ 27 июл»), либо кнопка «Показать весь проект» в тулбаре рядом с
-масштабом.
+**What to do.** A marker at the timeline's edge when a row's bar lies outside the
+visible window ("◀ 27 Jul"), or a "Show the whole project" button in the toolbar
+next to the scale.
 
-### 14. В длинной форме главное действие уходит под сгиб
+### 14. In a long form the main action goes below the fold
 
-Окно «Новая задача» содержит девять полей — от названия до списка зависимостей.
-При окне браузера 1440×900 кнопка «Создать» ниже видимой части: `.modal`
-прокручивается внутри себя (`max-height: 100%; overflow: auto`), и это лучше,
-чем обрезка, но человек видит форму, которая просто кончается на «Зависит от».
-На ноутбуке с высотой 768 под сгибом окажется и часть полей.
+The "New task" window holds nine fields, from the name to the list of
+dependencies. With a browser window of 1440×900 the "Create" button is below the
+visible area: `.modal` scrolls inside itself (`max-height: 100%; overflow: auto`),
+which is better than clipping, but the person sees a form that simply ends at
+"Depends on". On a laptop 768 tall, part of the fields ends up below the fold too.
 
-**Что сделать.** Закрепить `.modal__actions` у нижнего края окна
-(`position: sticky; bottom: 0` с подложкой) — тогда «Создать» и «Отмена» видны
-всегда, а прокручивается только форма.
+**What to do.** Pin `.modal__actions` to the window's bottom edge
+(`position: sticky; bottom: 0` with a backdrop) — then "Create" and "Cancel" are
+always visible and only the form scrolls.
 
-### 15. Даты в полях набраны в локали браузера, а не интерфейса
+### 15. Dates in fields are typeset in the browser's locale, not the interface's
 
-Четыре места с `<input type="date">`: `ProjectSettings.tsx:140`,
-`TaskForm.tsx:225`, `TaskPanel.tsx:320`, `AiIntake.tsx:274`. Родное поле даты
-рисует значение по языку браузера, а не по языку страницы. В проверке русский
-интерфейс показывал `09/30/2026` и `08/12/2026` — американский порядок
-month/day, в котором «08/12» читается как 8 декабря ровно с той же
-уверенностью, что и как 12 августа.
+Four places with `<input type="date">`: `ProjectSettings.tsx:140`,
+`TaskForm.tsx:225`, `TaskPanel.tsx:320`, `AiIntake.tsx:274`. The native date
+field draws the value in the browser's language, not the page's. In testing, the
+Russian interface showed `09/30/2026` and `08/12/2026` — the American month/day
+order, in which "08/12" reads as 8 December with exactly the same confidence as
+12 August.
 
-Это тем заметнее, что всё остальное приложение датами занимается всерьёз:
-названия месяцев взяты из словарей именно потому, что `Intl` подводит на `az`.
+That is the more noticeable because the rest of the application takes dates
+seriously: month names are taken from the dictionaries precisely because `Intl`
+lets you down on `az`.
 
-**Что сделать.** Либо подписать формат рядом с полем («ДД.ММ.ГГГГ»), либо
-собрать поле даты своими средствами поверх того же словаря, что и остальные
-даты. Первое дешевле и закрывает основную путаницу.
-
----
-
-## ⚪ Низко
-
-16. **Мёртвая тёмная тема.** `styles.css:97-137` описывает полный набор тёмных
-    токенов, но `northstar-theme.css` подключается позже и переопределяет `:root`
-    целиком, включая `color-scheme: light`. Проверено в браузере с тёмной
-    системной темой: `--bg` остаётся `#f5f7fb`. Решение сознательное (о нём
-    сказано в `App.tsx`), но сорок строк, которые ничего не красят, однажды
-    примут за рабочие.
-
-17. **«Согласовать план» у пустого проекта.** Проект без задач предлагает
-    согласовать план и показывает полосу метрик из двух нулей. Согласовывать
-    нечего: снимок будет пустым.
-
-18. **Три уровня критичности из четырёх невидимы на ленте.** Полоску красит
-    только `critical` (`gantt.css:857`); `low`, `normal` и `high` неразличимы.
-    В карточке задачи поле предлагает четыре значения — три из них меняют данные
-    и не меняют ничего на глаз.
-
-19. **На входе нет «забыли пароль».** Экран `/login` предлагает только вход и
-    регистрацию.
-
-20. **Роль участника нельзя изменить, участника — исключить.** Строка списка
-    показывает имя, почту и роль без единого действия. Это не упущение вёрстки:
-    маршрутов у сервера тоже нет (`org_routes.py` знает только `GET /members`).
-    Отмечено как продуктовый пробел — владелец организации не может отозвать
-    доступ, кроме как через базу.
-
-21. **Часовой пояс — свободная строка.** `Asia/Baku` набирается руками; опечатка
-    попадёт в календарь проекта.
-
-22. **`/settings` и `/settings/organization` — один и тот же экран.** Индексный
-    маршрут рисует то же, что вкладка «Организация», и та же вкладка помечена
-    текущей. Два адреса на одну страницу.
+**What to do.** Either write the format next to the field ("DD.MM.YYYY"), or
+build the date field yourself on top of the same dictionary as the rest of the
+dates. The first is cheaper and closes the main confusion.
 
 ---
 
-## Приложение: как это проверялось
+## ⚪ Low
 
-Заглушка API отвечает по контракту `src/api/*.ts`, включая рукопожатие
-WebSocket, — иначе экран проекта показывал бы полоску «нет связи» и запирал
-редактирование, и аудит смотрел бы на аварийное состояние вместо рабочего.
+16. **A dead dark theme.** `styles.css:97-137` describes a full set of dark
+    tokens, but `northstar-theme.css` is linked later and overrides `:root`
+    wholesale, `color-scheme: light` included. Checked in a browser with a dark
+    system theme: `--bg` stays `#f5f7fb`. The decision is deliberate (it is
+    stated in `App.tsx`), but forty lines that colour nothing will one day be
+    taken for working ones.
 
-Данные подобраны так, чтобы задеть края: имя проекта в 60 знаков, категория с
-именем длиннее колонки, задачи во всех четырёх статусах и всех четырёх уровнях
-критичности, задачи вне базового плана, просрочка против дедлайна проекта,
-пустой проект, проект без дедлайна, гость в ленте обсуждения, азербайджанское
-название организации в русском интерфейсе.
+17. **"Approve the plan" on an empty project.** A project with no tasks offers to
+    approve the plan and shows a metrics bar of two zeros. There is nothing to
+    approve: the snapshot will be empty.
 
-Расхождение, найденное по дороге и **не** являющееся дефектом: журнал ревизий
-хранит операции в форме `{from, to}` (`backend/app/mutations.py:747`), и лента
-истории читает именно её. Первая версия заглушки отдавала `{start_date}`, и лента
-честно ругалась в консоль на отсутствующие ключи словаря — то есть повела себя
-правильно на неправильных данных.
+18. **Three of the four criticality levels are invisible in the timeline.** Only
+    `critical` colours the bar (`gantt.css:857`); `low`, `normal` and `high` are
+    indistinguishable. In the task card the field offers four values — three of
+    them change the data and change nothing to the eye.
 
-Снимки экранов (20 адресов × 3 ширины плюс состояния окон, меню, карточки
-задачи и наведения) сделаны в Chromium 1194 и приложены к работе отдельно.
+19. **There is no "forgot password" at sign-in.** The `/login` screen offers only
+    signing in and registering.
+
+20. **A member's role cannot be changed and a member cannot be removed.** The
+    list row shows the name, the email and the role without a single action. This
+    is not a layout oversight: the server has no routes for it either
+    (`org_routes.py` knows only `GET /members`). Noted as a product gap — an
+    organization's owner cannot revoke access except through the database.
+
+21. **The time zone is a free-form string.** `Asia/Baku` is typed by hand; a typo
+    lands in the project calendar.
+
+22. **`/settings` and `/settings/organization` are the same screen.** The index
+    route draws the same thing as the "Organization" tab, and that tab is marked
+    as current. Two addresses for one page.
+
+---
+
+## Appendix: how this was checked
+
+The API stub answers according to the `src/api/*.ts` contract, the WebSocket
+handshake included — otherwise the project screen would show the "no connection"
+strip and lock editing, and the audit would be looking at an emergency state
+instead of a working one.
+
+The data was chosen to hit the edges: a 60-character project name, a category
+whose name is longer than the column, tasks in all four statuses and all four
+criticality levels, tasks outside the baseline plan, a slip against the project
+deadline, an empty project, a project without a deadline, a guest in the
+discussion feed, an Azerbaijani organization name in the Russian interface.
+
+A discrepancy found along the way that is **not** a defect: the revision journal
+stores operations in the form `{from, to}` (`backend/app/mutations.py:747`), and
+the history feed reads exactly that. The stub's first version served
+`{start_date}`, and the feed honestly complained to the console about the missing
+dictionary keys — that is, it behaved correctly on incorrect data.
+
+Screenshots (20 addresses × 3 widths plus the states of windows, menus, the task
+card and hover) were taken in Chromium 1194 and are attached to the work separately.
