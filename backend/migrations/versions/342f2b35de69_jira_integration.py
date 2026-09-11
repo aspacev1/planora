@@ -1,15 +1,14 @@
 """jira integration
 
-Подключение Jira и три таблицы привязки для повторной синхронизации.
+The Jira connection and three link tables for repeated syncs.
 
-jira_connections — одно подключение на организацию (адрес сайта, email,
-шифрованный API-токен), тем же способом хранения, что и ключ LLM.
-jira_project_links — проект Planora, заведённый импортом из проекта Jira:
-ключ проекта, запрос (JQL) исходного импорта и время последней
-синхронизации. jira_category_links / jira_task_links — привязка этапов и
-задач плана к эпикам и строкам Jira: по ним повторная синхронизация узнаёт
-«эта строка уже заведена» вместо того, чтобы дублировать её при каждом
-запуске.
+jira_connections — one connection per organization (the site address, the email,
+the encrypted API token), stored the same way as the LLM key.
+jira_project_links — a Planora project created by an import from a Jira project:
+the project key, the query (JQL) of the original import and the time of the last
+sync. jira_category_links / jira_task_links — the links from plan stages and
+tasks to Jira epics and issues: by them a repeated sync learns "this row is
+already created" instead of duplicating it on every run.
 
 Revision ID: 342f2b35de69
 Revises: b4e7a2c9d3f1
@@ -76,8 +75,8 @@ def upgrade() -> None:
         'jira_task_links',
         sa.Column('id', sa.UUID(), nullable=False),
         sa.Column('project_id', sa.UUID(), nullable=False),
-        # SET NULL: удаление задачи в Planora не должно отменяться следующей
-        # синхронизацией — см. докстринг JiraTaskLink в app/models.py.
+        # SET NULL: deleting a task in Planora must not be undone by the next sync
+        # — see the JiraTaskLink docstring in app/models.py.
         sa.Column('task_id', sa.UUID(), nullable=True),
         sa.Column('issue_key', sa.String(length=64), nullable=False),
         sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete='CASCADE'),

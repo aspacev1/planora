@@ -1,21 +1,22 @@
 """task milestone
 
-tasks.milestone — признак вехи: точки на шкале вместо отрезка. Сдача этапа,
-согласование, дедлайн подрядчика — то, что происходит в день, а не длится.
+tasks.milestone — the milestone flag: a point on the scale instead of a segment. A
+stage handover, a sign-off, a contractor's deadline — something that happens on a
+day rather than lasting.
 
-Отдельной таблицы не заводится: у вехи те же имя, категория, статус,
-исполнители, комментарии и связи, что у задачи, и вторая сущность означала бы
-второй набор операций, второй журнал и вторую отмену ради одного различия в
-отрисовке.
+No separate table is created: a milestone has the same name, category, status,
+assignees, comments and dependencies as a task, and a second entity would mean a
+second set of operations, a second journal and a second undo for the sake of one
+difference in rendering.
 
-Длительность у вехи остаётся хранимой и равной одному дню — это держит CHECK.
-Расчёт даты окончания, снимки плана и порог сдвига спрашивают длительность у
-всех задач одинаково, и nullable-колонка добавила бы в каждый из них ветку
-«а если веха».
+A milestone's duration stays stored and equal to one day — that is held by a CHECK.
+The finish-date computation, the plan snapshots and the shift threshold all ask
+every task for its duration alike, and a nullable column would add an "and what if
+it is a milestone" branch to each of them.
 
-Живых вех до этой колонки не существовало, поэтому заполнять по таблице
-нечего: server_default false отдаёт значение существующим строкам в момент
-ADD COLUMN, и ограничение на них выполняется тривиально.
+No live milestones existed before this column, so there is nothing to backfill over
+the table: server_default false gives the value to the existing rows at the moment
+of ADD COLUMN, and the constraint holds on them trivially.
 
 Revision ID: f2a71c9d4b3e
 Revises: e8b3d6a1c4f7
@@ -37,9 +38,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # server_default остаётся в схеме, а не снимается после заполнения: NOT NULL
-    # без значения по умолчанию ломал бы всякий INSERT мимо ORM — тем же
-    # рассуждением, что и у tasks.status.
+    # The server_default stays in the schema rather than being dropped after the
+    # backfill: a NOT NULL with no default would break every INSERT around the ORM —
+    # by the same reasoning as with tasks.status.
     op.add_column(
         'tasks',
         sa.Column('milestone', sa.Boolean(), nullable=False, server_default=sa.text('false')),

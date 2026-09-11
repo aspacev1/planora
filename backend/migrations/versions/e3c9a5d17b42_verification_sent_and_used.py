@@ -1,20 +1,21 @@
 """verification sent and used
 
-Две отметки на строке подтверждения адреса: когда письмо ушло и когда ссылкой
-воспользовались.
+Two marks on an address confirmation row: when the message went out and when the
+link was used.
 
-`sent_at` отделяет отправку от выдачи токена: пауза между письмами считается
-от письма, а токен выдаётся и тогда, когда почтовый сервер недоступен, — без
-этой колонки неотправленное письмо запирало кнопку «отправить ещё раз».
+`sent_at` separates sending from issuing the token: the pause between messages is
+counted from the message, while a token is issued even when the mail server is
+unreachable — without this column an undelivered message locked the "send again"
+button.
 
-`used_at` заменяет удаление строки при погашении: по ссылке из письма ходят
-дважды (почтовый сканер, потом человек), и удалённая строка отвечала второму
-заходу «ссылка не подходит» вместо «адрес уже подтверждён».
+`used_at` replaces deleting the row on redemption: a link from an email is followed
+twice (a mail scanner, then a person), and a deleted row answered the second visit
+"this link does not fit" instead of "the address is already confirmed".
 
-Обе пустые у существующих строк, и это верно: про уже выданные ссылки
-неизвестно ни когда ушло письмо, ни гасили ли их. Пустой `sent_at` означает
-«паузы нет» — худшее, что случится, это одно лишнее письмо тем, кто
-регистрировался в минуту накатывания миграции.
+Both are empty on existing rows, and that is correct: about links already issued it
+is known neither when a message went out nor whether they were redeemed. An empty
+`sent_at` means "there is no pause" — the worst that can happen is one extra
+message to whoever registered in the minute the migration was applied.
 
 Revision ID: e3c9a5d17b42
 Revises: b8d1e5f30a72

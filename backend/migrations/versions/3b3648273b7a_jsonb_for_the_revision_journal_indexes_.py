@@ -1,17 +1,18 @@
 """jsonb for the revision journal, indexes on hot foreign keys, role check
 
-revisions.op/inverse были json — сырым текстом без операторов вхождения и без
-возможности построить GIN-индекс, хотя все три фичи на этом журнале ищут по
-содержимому. Продукт только под Postgres; после появления боевых записей
-такая правка стоит переписывания таблицы.
+revisions.op/inverse used to be json — raw text with no containment operators and
+no way to build a GIN index, even though all three features built on this journal
+search by content. The product is Postgres-only; after production entries appear,
+such an edit costs a rewrite of the table.
 
-Индексы — по внешним ключам, которые читаются постоянно: memberships.user_id
-(на каждом запросе с сессией; составной (org_id, user_id) ведёт не с той
-колонки), tasks.project_id и categories.project_id (чтение проекта целиком),
-revisions.batch_id (отмена групповой операции).
+The indexes cover the foreign keys that are read constantly: memberships.user_id
+(on every request with a session; the composite (org_id, user_id) does not lead
+with the right column), tasks.project_id and categories.project_id (reading a
+whole project), revisions.batch_id (undoing a group operation).
 
-CHECK на memberships.role: колонка была свободным String(16), и значение вне
-Role превращалось в ValueError, то есть в пятисотку, ещё до проверки прав.
+A CHECK on memberships.role: the column was a free String(16), and a value
+outside Role turned into a ValueError — that is, a 500 — before permissions were
+even checked.
 
 Revision ID: 3b3648273b7a
 Revises: da03b89192b8

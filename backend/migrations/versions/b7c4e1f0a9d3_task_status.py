@@ -1,13 +1,14 @@
 """task status
 
-tasks.status — хранимый статус задачи (planned | in_progress | done | blocked).
-Список значений держит CHECK — тем же приёмом, что ck_tasks_criticality:
-второй путь записи (восстановление из журнала, ручной SQL) не должен уметь
-положить значение, которое слой мутаций не принял бы.
+tasks.status — a task's stored status (planned | in_progress | done | blocked).
+The list of values is held by a CHECK — by the same technique as
+ck_tasks_criticality: a second write path (a restore from the journal,
+hand-written SQL) must not be able to store a value the mutation layer would not
+have accepted.
 
-Заполнение по живой таблице выводится из прогресса: до этой колонки статус
-существовал только как производная от progress_pct, и стартовое значение
-обязано совпасть с тем, что человек уже видел на диаграмме.
+The backfill over the live table is derived from the progress: before this column
+the status existed only as something derived from progress_pct, and the starting
+value must match what a person already saw on the chart.
 
 Revision ID: b7c4e1f0a9d3
 Revises: 07266c100dff
@@ -29,15 +30,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # server_default отдаёт 'planned' существующим строкам в момент ADD COLUMN
-    # и остаётся в схеме: NOT NULL без значения по умолчанию ломал бы всякий
-    # INSERT мимо ORM.
+    # The server_default gives 'planned' to the existing rows at the moment of ADD
+    # COLUMN and stays in the schema: a NOT NULL with no default would break every
+    # INSERT around the ORM.
     op.add_column(
         'tasks',
         sa.Column('status', sa.Text(), nullable=False, server_default=sa.text("'planned'")),
     )
-    # Заполнение до CHECK: сперва каждой строке — статус, выведенный из её
-    # прогресса, и только потом ограничение на значения.
+    # The backfill comes before the CHECK: first every row gets a status derived
+    # from its progress, and only then the constraint on the values.
     op.execute(
         "UPDATE tasks SET status = CASE"
         " WHEN progress_pct >= 100 THEN 'done'"

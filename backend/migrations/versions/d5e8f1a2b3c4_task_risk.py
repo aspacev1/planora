@@ -1,11 +1,11 @@
 """task risk
 
-tasks.risk — самооценка исполнителя «успеваю ли к сроку» (green | yellow |
-red) и tasks.risk_note — причина одной строкой. Список значений держит CHECK
-тем же приёмом, что ck_tasks_status: второй путь записи не должен уметь
-положить флаг, которого слой мутаций не принял бы.
+tasks.risk — the assignee's own assessment of "am I going to make the deadline"
+(green | yellow | red), and tasks.risk_note — a one-line reason. The list of values
+is held by a CHECK by the same technique as ck_tasks_status: a second write path
+must not be able to store a flag the mutation layer would not have accepted.
 
-Заполнения нет: все существующие задачи — «по плану», это и есть
+There is no backfill: every existing task is "on plan", and that is exactly the
 server_default.
 
 Revision ID: d5e8f1a2b3c4
@@ -28,9 +28,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # server_default отдаёт значение существующим строкам в момент ADD COLUMN
-    # и остаётся в схеме: NOT NULL без значения по умолчанию ломал бы всякий
-    # INSERT мимо ORM.
+    # The server_default gives the value to the existing rows at the moment of ADD
+    # COLUMN and stays in the schema: a NOT NULL with no default would break every
+    # INSERT around the ORM.
     op.add_column(
         'tasks',
         sa.Column('risk', sa.String(length=8), nullable=False, server_default=sa.text("'green'")),

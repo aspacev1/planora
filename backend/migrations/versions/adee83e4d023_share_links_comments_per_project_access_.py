@@ -1,19 +1,20 @@
 """share links, comments, per-project access for the client role
 
-Три таблицы публичного доступа (раздел 7 спецификации).
+Three tables of public access (section 7 of the specification).
 
-share_links хранит токен открытым текстом, в отличие от приглашений: публичную
-ссылку владелец копирует из настроек проекта снова и снова, и сервер, забывший
-её, оставил бы единственным способом «показать ещё раз» выпуск новой ссылки.
-Частичный уникальный индекс держит инвариант «действующая ссылка у проекта
-одна»; отозванных сколько угодно — это журнал того, какой адрес когда умер.
+share_links stores the token in plain text, unlike invitations: the owner copies a
+public link from the project's settings again and again, and a server that had
+forgotten it would leave issuing a new link as the only way to "show it again". A
+partial unique index holds the invariant "a project has one link in force"; there
+may be any number of revoked ones — that is the record of which address died when.
 
-comments: автор — либо участник, либо гость по имени, и ровно один из двух.
-Держит это CHECK, а не маршрут: маршрутов, создающих комментарий, уже два.
+comments: the author is either a member or a guest by name, and exactly one of the
+two. That is held by a CHECK rather than by a route: there are already two routes
+that create a comment.
 
-project_access здесь нет: ту же таблицу — теми же колонками и индексами —
-уже завела миграция приглашений (822f5eb3ea88), и эта ревизия ложится следом
-за ней.
+project_access is not here: the same table — with the same columns and indexes —
+was already created by the invitations migration (822f5eb3ea88), and this revision
+lands after it.
 
 Revision ID: adee83e4d023
 Revises: 4d44f75a2766
@@ -56,8 +57,8 @@ def upgrade() -> None:
     sa.Column('author_user_id', sa.UUID(), nullable=True),
     sa.Column('guest_name', sa.String(length=80), nullable=True),
     sa.Column('body', sa.Text(), nullable=False),
-    # clock_timestamp(), а не now(): порядок реплик держится на этой метке, а
-    # now() отдаёт одно и то же время всем вставкам одной транзакции.
+    # clock_timestamp(), not now(): the order of remarks rests on this timestamp,
+    # while now() returns the same time for every insert in one transaction.
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('clock_timestamp()'), nullable=False),
     sa.CheckConstraint('num_nonnulls(author_user_id, guest_name) = 1', name='ck_comments_single_author'),
     sa.ForeignKeyConstraint(['author_user_id'], ['users.id'], ondelete='CASCADE'),

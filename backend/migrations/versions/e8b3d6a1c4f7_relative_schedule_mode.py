@@ -1,13 +1,13 @@
 """relative schedule mode
 
-Разделение плана проекта и календарных дат: у проекта появляется режим
-расписания (`relative` — предварительный план без дат, `calendar` — старт
-назначен) и назначенная дата старта.
+Separating a project's plan from calendar dates: a project gains a schedule mode
+(`relative` — a preliminary plan with no dates, `calendar` — the start is assigned)
+and an assigned start date.
 
-Существующие проекты помечаются `calendar`: их задачи уже живут настоящими
-датами, и объявить их «планом без дат» значило бы переименовать прошлое.
-server_default при этом остаётся `relative` — это режим по умолчанию для
-новых проектов, у которых дата начала не спрашивается при создании.
+Existing projects are marked `calendar`: their tasks already live by real dates, and
+declaring them "a plan with no dates" would mean renaming the past. The
+server_default meanwhile stays `relative` — that is the default mode for new
+projects, which are not asked for a start date at creation.
 
 Revision ID: e8b3d6a1c4f7
 Revises: c9d2f6b8a154
@@ -34,8 +34,8 @@ def upgrade() -> None:
         sa.Column('schedule_mode', sa.Text(), server_default=sa.text("'relative'"), nullable=False),
     )
     op.add_column('projects', sa.Column('start_date', sa.Date(), nullable=True))
-    # Бэкфилл раньше CHECK: ограничение обязано проверять уже правильные
-    # строки, а не гоняться за ними.
+    # The backfill comes before the CHECK: a constraint must check rows that are
+    # already correct rather than chase after them.
     op.execute("UPDATE projects SET schedule_mode = 'calendar'")
     op.create_check_constraint(
         'ck_projects_schedule_mode',

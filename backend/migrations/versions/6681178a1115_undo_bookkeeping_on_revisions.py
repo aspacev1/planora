@@ -1,8 +1,8 @@
 """undo bookkeeping on revisions
 
-revisions.undoes_seq — номер ревизии, которую эта отменила. Без него
-«отменить последнее» отменяло бы собственную отмену: журнал линеен, и после
-отмены самая новая запись сверху — это она сама.
+revisions.undoes_seq — the number of the revision this one undid. Without it,
+"undo the last thing" would undo its own undo: the journal is linear, and after
+an undo the newest entry at the top is that undo itself.
 
 Revision ID: 6681178a1115
 Revises: 036f4c8b7f36

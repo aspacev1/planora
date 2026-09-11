@@ -1,14 +1,14 @@
 """password reset tokens
 
-Таблица одноразовых ссылок восстановления пароля — тем же приёмом, что
-email_verifications: наружу уходит открытый токен, здесь лежит его хеш.
-Таблица отдельная, а не общая с подтверждением адреса: ссылка восстановления
-открывает аккаунт, срок жизни у неё заметно короче, и путать эти два вида
-ключей нельзя даже на уровне схемы.
+The table of single-use password recovery links — by the same technique as
+email_verifications: the plain token goes outward while its hash lies here. A
+separate table rather than one shared with address confirmation: a recovery link
+opens an account, its lifetime is noticeably shorter, and these two kinds of key
+must not be confused even at the level of the schema.
 
-ondelete=CASCADE — удаление пользователя уносит его неиспользованные ссылки;
-индекс по user_id нужен погашению и защите от повторной отправки, обе ищут
-по владельцу.
+ondelete=CASCADE — deleting a user carries away their unused links; the index on
+user_id is needed by redemption and by the protection against resending, both of
+which look up by owner.
 
 Revision ID: c9d2f6b8a154
 Revises: c1a7d2f4e8b9

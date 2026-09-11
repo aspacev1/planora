@@ -1,26 +1,29 @@
 """scorecard signal cleanup
 
-Скоркард переезжает с 8 метрик на 7. Убираются три: avg_overdue_days (второй
-ракурс просрочки — вкатан в overdue_tasks), daily_health (модуля дейли не
-существует, метрика всегда была no_data) и unassigned_tasks (те же задачи уже
-роняли data_quality — двойной сигнал об одной беде; «нет исполнителя» остаётся
-причиной в чек-листе качества). На их место встают finish_drift и scope_growth.
+The scorecard moves from 8 metrics to 7. Three are removed: avg_overdue_days (a
+second view of overdue — rolled into overdue_tasks), daily_health (there is no
+daily module, and the metric was always no_data) and unassigned_tasks (those same
+tasks were already dragging data_quality down — a double signal about one trouble;
+"no assignee" stays as a reason in the quality checklist). finish_drift and
+scope_growth take their place.
 
-Схема не меняется — metric_key это обычный String(40). Миграция чисто по
-данным:
+The schema does not change — metric_key is an ordinary String(40). The migration
+is purely about data:
 
-- Конфиги снятых метрик удаляются: иначе ensure_metrics прятал бы их вечно как
-  мёртвый груз, а их position коллизила бы с новыми метриками.
-- Открытые события снятых метрик закрываются (resolved_at = now()): их бы не
-  закрыл никто — _update_alerts ходит только по текущим конфигам. Не удаляются:
-  события — тоже летопись.
-- Позиции оставшихся конфигов перенумеровываются под новый порядок METRICS,
-  чтобы finish_drift/scope_growth встали между overdue и date_shifts, а не в
-  хвост.
+- The configs of the removed metrics are deleted: otherwise ensure_metrics would
+  keep them forever as dead weight, and their position would collide with the new
+  metrics.
+- Open events of the removed metrics are closed (resolved_at = now()): nobody
+  would close them — _update_alerts walks only the current configs. They are not
+  deleted: events are a chronicle too.
+- The positions of the remaining configs are renumbered for the new METRICS order,
+  so that finish_drift/scope_growth stand between overdue and date_shifts rather
+  than at the tail.
 
-Снимки (scorecard_snapshots) снятых метрик намеренно не трогаются: это
-неизменяемая летопись, и ничто их больше не читает (сборка состояния ходит
-только по текущим конфигам). Пусть лежат как история, а не переписываются.
+The snapshots (scorecard_snapshots) of the removed metrics are deliberately left
+alone: they are an immutable chronicle, and nothing reads them anymore (assembling
+the state walks only the current configs). Let them lie as history rather than be
+rewritten.
 
 Revision ID: a1b2c3d4e5f6
 Revises: 12c30f757a97
@@ -41,7 +44,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 _REMOVED = ("avg_overdue_days", "daily_health", "unassigned_tasks")
 
-#: Новый порядок метрик — зеркало METRICS в app/scorecard.py.
+#: The new order of metrics — a mirror of METRICS in app/scorecard.py.
 _POSITIONS = {
     "overdue_tasks": 0,
     "finish_drift": 1,
@@ -69,8 +72,8 @@ def upgrade() -> None:
         WHERE metric_key IN ('avg_overdue_days', 'daily_health', 'unassigned_tasks')
         """
     )
-    # Позиции — под новый порядок. ensure_metrics досеет finish_drift и
-    # scope_growth уже на их места при первом же открытии скоркарда.
+    # Positions for the new order. ensure_metrics will seed finish_drift and
+    # scope_growth straight into their places the first time the scorecard is opened.
     case = " ".join(
         f"WHEN '{key}' THEN {position}" for key, position in _POSITIONS.items()
     )
@@ -86,9 +89,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema.
 
-    Ничего не восстанавливается: старый код через ensure_metrics лениво пересеет
-    снятые конфиги дефолтами при первом открытии, а закрытые события остаются
-    закрытыми — летопись не переписывается назад. Позиции старый код тоже
-    выровняет сам под свой порядок METRICS.
+    Nothing is restored: through ensure_metrics the old code will lazily re-seed
+    the removed configs with defaults the first time the scorecard is opened, while
+    the closed events stay closed — a chronicle is not rewritten backwards. The old
+    code will also realign the positions itself to its own METRICS order.
     """
     pass

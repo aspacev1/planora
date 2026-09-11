@@ -1,16 +1,17 @@
 """project auto schedule
 
-projects.auto_schedule — автоперенос по связям: последователь не начинается
-раньше, чем кончился его предшественник (см. app/cascade.py).
+projects.auto_schedule — automatic shifting along dependencies: a successor does
+not start before its predecessor has finished (see app/cascade.py).
 
-Выключен по умолчанию, и это не осторожность ради осторожности: до этой колонки
-связь не двигала ничего вовсе — она была картинкой, а единственным поведением,
-выведенным из связей, оставалось предложение подвинуть задачу вручную.
-Включённый автоперенос меняет смысл каждой связи в проекте разом, и случиться
-это должно по решению человека, а не при накатывании миграции.
+Off by default, and that is not caution for caution's sake: before this column a
+dependency moved nothing at all — it was a picture, and the only behaviour derived
+from dependencies was a suggestion to move a task by hand. Enabling automatic
+shifting changes the meaning of every dependency in the project at once, and that
+must happen by a person's decision rather than when a migration is applied.
 
-Свойство проекта, а не организации: в одном проекте план ведут по цепочке, в
-соседнем — руками, и общая настройка заставила бы выбирать одно на всех.
+A property of the project rather than of the organization: in one project the plan
+is driven by the chain and in the next one by hand, and a shared setting would
+force one choice on everyone.
 
 Revision ID: a3f9c25e71b0
 Revises: f2a71c9d4b3e
@@ -32,9 +33,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # server_default остаётся в схеме, а не снимается после заполнения: NOT NULL
-    # без значения по умолчанию ломал бы всякий INSERT мимо ORM — тем же
-    # рассуждением, что и у tasks.status.
+    # The server_default stays in the schema rather than being dropped after the
+    # backfill: a NOT NULL with no default would break every INSERT around the ORM —
+    # by the same reasoning as with tasks.status.
     op.add_column(
         'projects',
         sa.Column('auto_schedule', sa.Boolean(), nullable=False, server_default=sa.text('false')),
