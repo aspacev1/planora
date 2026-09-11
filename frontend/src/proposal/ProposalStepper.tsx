@@ -10,22 +10,22 @@ import { PushPlanButton } from "./PushPlanButton";
 type StepKey = ProposalStage | "in_plan";
 
 /**
- * Полоса этапов сделки: черновик → отправлено → согласовано → в плане.
+ * The deal's stage bar: draft → sent → agreed → in the plan.
  *
- * Отвечает на «где я» и «что дальше» одним взглядом: пройденные этапы с
- * датами, текущий выделен, а справа — кнопка следующего шага и кнопка
- * переноса в план. Три первых этапа отмечает человек, четвёртый выводится из
- * ссылок строк на задачи — его не отмечают, он случается переносом.
+ * It answers "where am I" and "what next" at a glance: the passed stages with their dates, the
+ * current one highlighted, and on the right the next-step button and the transfer-into-the-plan
+ * button. The first three stages are marked by a person, the fourth is derived from the lines'
+ * references to tasks — it is not marked, it happens through a transfer.
  *
- * Перенос стоит рядом с шагом, а не вместо него, с самого черновика: не все
- * отправляют документ клиенту, и смете, написанной для себя, незачем
- * проходить «отправлено» и «согласовано», чтобы стать планом. Пока сделка не
- * согласована, он тихий — следующий шаг всё же отметка; после согласования
- * шага больше нет, и перенос остаётся один, главным (см. PushPlanButton).
+ * The transfer stands next to the step rather than instead of it, right from the draft: not
+ * everyone sends the document to the client, and a quote written for oneself has no reason to pass
+ * through "sent" and "agreed" to become a plan. While the deal is not agreed it is quiet — the next
+ * step is still a mark; after the agreement there is no step left, and the transfer stands alone as
+ * the primary one (see PushPlanButton).
  *
- * Пройденный этап — кнопка возврата к нему: снять отметку можно тем же
- * движением, каким её поставили. Это заметки для себя, а не юридический
- * статус, и вопросов «вы уверены» здесь нет.
+ * A passed stage is a button to go back to it: a mark can be removed by the same motion that set
+ * it. These are notes for oneself rather than a legal status, and there are no "are you sure"
+ * questions here.
  */
 export function ProposalStepper({
   status,
@@ -46,14 +46,14 @@ export function ProposalStepper({
   pushableCount: number;
   totalRows: number;
   canWrite: boolean;
-  /** Отметка уже уходит на сервер: кнопку следующего шага на это время гасим. */
+  /** The mark is already going to the server: the next-step button is disabled meanwhile. */
   marking: boolean;
   onMark: (stage: ProposalStage) => void;
   onPush: () => void;
 }) {
   const { t } = useLocale();
-  // Отметки — моменты времени, а подписи — дни; день считается по часам
-  // читателя, а не обрезкой ISO-строки по UTC.
+  // The marks are moments in time while the captions are days; the day is counted by the reader's
+  // clock rather than by truncating an ISO string in UTC.
   const zone = useTimeZone();
   const dayOf = (at: string) => formatShortDate(t, dayIn(zone, new Date(at)));
 
@@ -78,13 +78,12 @@ export function ProposalStepper({
           : undefined,
     },
   ];
-  // Текущий — последний достигнутый. Перенос из черновика делает текущим
-  // «в плане», а «отправлено» оставляет пустым: полоса не выдумывает
-  // отправку, которой не было.
+  // The current one is the last reached. A transfer from a draft makes "in the plan" current while
+  // leaving "sent" empty: the bar does not invent a sending that never happened.
   const current = steps.reduce((last, step, index) => (step.reached ? index : last), 0);
 
-  // Следующий шаг сделки — отметка, и только она: перенос шагом не считается,
-  // у него своя кнопка рядом, на любом этапе.
+  // The deal's next step is a mark and only a mark: a transfer does not count as a step, it has its
+  // own button next to it, at any stage.
   const next = !canWrite
     ? null
     : status === "draft"
@@ -92,8 +91,8 @@ export function ProposalStepper({
       : status === "sent"
         ? { label: t("proposal.stage.mark_agreed"), run: () => onMark("agreed") }
         : null;
-  // Переносить нечего — кнопки нет: полоса сообщает, что всё уже в плане,
-  // подписью у последнего этапа, и выключенная кнопка рядом повторяла бы её.
+  // There is nothing to transfer — no button: the bar reports that everything is already in the plan
+  // with a caption by the last stage, and a disabled button next to it would repeat that.
   const pushable = canWrite && pushableCount > 0;
 
   return (
@@ -116,9 +115,8 @@ export function ProposalStepper({
             </span>
           </>
         );
-        // Вернуться можно на пройденный этап, который отмечают рукой, и
-        // только если это что-то изменит: щелчок по этапу, на котором сделка
-        // и так стоит, не должен ничего обещать.
+        // You can go back to a passed stage that is marked by hand, and only if it will change
+        // something: a click on a stage the deal is already at must promise nothing.
         const backable = canWrite && done && step.key !== "in_plan" && step.key !== status;
         return (
           <Fragment key={step.key}>

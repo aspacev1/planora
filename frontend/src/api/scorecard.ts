@@ -1,12 +1,12 @@
 import { request } from "./client";
 
 /**
- * Скоркард проекта: недельная панель здоровья плана.
+ * A project's scorecard: the weekly plan-health dashboard.
  *
- * GET — с побочным эффектом: планировщика на сервере нет, и первый читатель
- * после границы недели дозаписывает недельные снимки (ленивая фиксация).
- * Значения приходят посчитанными: клиент их не пересказывает, он только
- * рисует — формулы метрик живут в одном месте, на сервере (app/scorecard.py).
+ * GET has a side effect: there is no scheduler on the server, and the first reader after a week's
+ * boundary writes the weekly snapshots in (lazy fixation). The values arrive computed: the client
+ * does not retell them, it only draws — the metrics' formulas live in one place, on the server
+ * (app/scorecard.py).
  */
 
 export type ScorecardStatus = "ok" | "warn" | "risk" | "no_data";
@@ -35,13 +35,13 @@ export type ScorecardMetric = {
   owner: { id: string; name: string } | null;
   value: number | null;
   status: ScorecardStatus;
-  /** Недель подряд (включая текущую) в текущем статусе. */
+  /** Consecutive weeks (including the current one) in the current status. */
   streak: number;
-  /** Снимки окна истории, от старых к новым; текущая неделя — последней. */
+  /** The history window's snapshots, oldest to newest; the current week comes last. */
   history: ScorecardHistoryPoint[];
-  /** Средняя глубина просрочки, р.д. — только у overdue_tasks. */
+  /** The average depth of overdueness, working days — only for overdue_tasks. */
   avg_days?: number | null;
-  /** Создано / закрыто за неделю — только у scope_growth. */
+  /** Created / closed for the week — only for scope_growth. */
   added_count?: number | null;
   closed_count?: number | null;
 };
@@ -54,18 +54,18 @@ export type ScorecardAlert = {
   created_at: string;
   payload: {
     value?: number | null;
-    /** Изменение к прошлой неделе; null, если сравнивать не с чем. */
+    /** The change from last week; null if there is nothing to compare with. */
     delta?: number | null;
     total?: number;
     tasks?: { id: string; name: string; assignee: string | null; days_overdue?: number }[];
-    /** Кто тянет метрику вниз сильнее всех. */
+    /** Who drags the metric down the most. */
     top_assignee?: { name: string; count: number } | null;
     task_id?: string;
     task_name?: string;
   };
 };
 
-/** Прогноз финиша и ближайшая веха — шапка скоркарда. */
+/** The finish forecast and the nearest milestone — the scorecard's header. */
 export type ScorecardOutlook = {
   projected_finish: string | null;
   milestone: {
@@ -76,7 +76,7 @@ export type ScorecardOutlook = {
   } | null;
 };
 
-/** Три числа шапки и счётчик недели: считаются сервером из снимков. */
+/** The header's three figures and the week counter: computed by the server from the snapshots. */
 export type ScorecardSummary = {
   planned: number;
   done: number;
@@ -95,7 +95,7 @@ export type ScorecardSummary = {
 
 export type TeamSignal = "green" | "yellow" | "red";
 
-/** Причина сигнала — кодом с параметрами; фразу собирает клиент по словарю. */
+/** A signal's reason — as a code with parameters; the phrase is assembled by the client from the dictionary. */
 export type TeamReason =
   | { kind: "in_pace" }
   | { kind: "overdue_silent"; count: number }
@@ -106,7 +106,7 @@ export type TeamReason =
 
 export type TeamTaskState = "done" | "late" | "blocked" | "risk" | "progress" | "planned";
 
-/** Задача недели в строке человека. */
+/** The week's task in a person's row. */
 export type TeamTask = {
   id: string;
   name: string;
@@ -127,10 +127,10 @@ export type TeamMember = {
   done: number;
   extra: number;
   on_time: number;
-  /** Восемь недель, старые слева; `closed` пуст у недели без снимка. */
+  /** Eight weeks, oldest on the left; `closed` is empty for a week with no snapshot. */
   trend: { week_start: string; closed: number | null }[];
   tasks: TeamTask[];
-  /** Только при праве на оценку (`assessment`). */
+  /** Only with the right to assessment (`assessment`). */
   signal?: TeamSignal;
   reason?: TeamReason;
 };
@@ -148,21 +148,21 @@ export type ScorecardState = {
   alerts: ScorecardAlert[];
   outlook: ScorecardOutlook;
   summary: ScorecardSummary;
-  /** Пусто у того, кому разрез по людям не положен (клиент, гость). */
+  /** Empty for anyone not entitled to the per-person breakdown (a client, a guest). */
   team: ScorecardTeam | null;
   data_quality: {
     value: number;
     total: number;
-    /** Задач с хотя бы одной бедой (объединение множеств). */
+    /** Tasks with at least one trouble (the union of the sets). */
     affected: number;
-    /** Задач с обеими бедами сразу (пересечение). */
+    /** Tasks with both troubles at once (the intersection). */
     both: number;
     unassigned: number;
     unreal_deadline: number;
   } | null;
 };
 
-/** Запись drill-down: задача с атрибутами своей метрики. */
+/** A drill-down record: a task with its metric's attributes. */
 export type ScorecardTaskEntry = {
   id: string;
   name: string | null;
@@ -198,14 +198,14 @@ export type ScorecardMetricPatch = Partial<{
 }>;
 
 /**
- * Ключ — внутри ключа проекта: ревизия из сокета сбрасывает проект целиком,
- * и скоркард, чьё правило само рождает ревизии, обновляется тем же вызовом.
+ * The key is inside the project's key: a revision from the socket invalidates the whole project,
+ * and the scorecard, whose own rule produces revisions, is refreshed by the same call.
  */
 export function scorecardQueryKey(projectId: string) {
   return ["project", projectId, "scorecard"] as const;
 }
 
-/** Drill-down недели — внутри ключа скоркарда: сброс задевает и его. */
+/** A week's drill-down is inside the scorecard's key: an invalidation touches it too. */
 export function scorecardTasksQueryKey(projectId: string, metricKey: string, week: string) {
   return ["project", projectId, "scorecard", "tasks", metricKey, week] as const;
 }
@@ -214,7 +214,7 @@ export function getScorecard(projectId: string): Promise<ScorecardState> {
   return request<ScorecardState>(`/api/projects/${projectId}/scorecard?weeks=13`);
 }
 
-/** Пересчёт текущей недели мимо кэша; сервер держит предел — раз в минуту. */
+/** A recomputation of the current week past the cache; the server holds a limit — once a minute. */
 export function recalculateScorecard(projectId: string): Promise<ScorecardState> {
   return request<ScorecardState>(`/api/projects/${projectId}/scorecard/recalculate?weeks=13`, {
     method: "POST",

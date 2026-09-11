@@ -3,25 +3,24 @@ import type { Locale, Params } from "./index";
 type Translate = (key: string, params?: Params) => string;
 
 /**
- * Названия месяцев и дней недели берутся из словарей, а не у `Intl`.
+ * The month and weekday names are taken from the dictionaries rather than from `Intl`.
  *
- * Причина не в принципе, а в проверке живьём: ICU в браузере знает локаль
- * `az`, но названий месяцев для неё не содержит и молча падает на корневую
- * локаль — `Intl.DateTimeFormat("az", { month: "long" })` отдаёт «M09» вместо
- * «sentyabr», а узкий день недели — латинскую букву английского названия. Для
- * языка, который в этом продукте стоит по умолчанию, это не мелкий дефект
- * оформления: половина шкалы перестаёт читаться.
+ * The reason is not principle but a live check: ICU in the browser knows the `az` locale but
+ * contains no month names for it and silently falls back to the root locale —
+ * `Intl.DateTimeFormat("az", { month: "long" })` gives "M09" instead of "sentyabr", and a narrow
+ * weekday gives the Latin letter of the English name. For the language this product has by default
+ * that is not a small cosmetic defect: half the scale stops being readable.
  *
- * Заодно исчезает зависимость от того, с какой сборкой ICU собран конкретный
- * браузер: одни и те же подписи у всех.
+ * As a bonus, the dependency on which ICU build a particular browser was compiled with disappears:
+ * the same captions for everyone.
  */
 
-/** Номер месяца из ISO-строки, от 1 до 12. */
+/** The month number from an ISO string, from 1 to 12. */
 function monthNumber(iso: string): number {
   return Number(iso.slice(5, 7));
 }
 
-/** «15 сентября» — день с месяцем в форме, которой требует язык. */
+/** "15 September" — the day with the month in the form the language requires. */
 export function formatDate(t: Translate, iso: string): string {
   return t("calendar.date", {
     day: Number(iso.slice(8, 10)),
@@ -30,12 +29,12 @@ export function formatDate(t: Translate, iso: string): string {
 }
 
 /**
- * «15 сен» — та же дата в тесноте.
+ * "15 Sep" — the same date in tight quarters.
  *
- * Отдельная форма, а не обрезка полной: в карточке и в ленте истории дата
- * стоит рядом с другими словами и в узкой колонке, и «15 сентября» там
- * переносится на вторую строку. Сокращения тоже из словарей — по той же
- * причине, что и полные названия.
+ * A separate form rather than a truncation of the full one: in the card and in the history feed a
+ * date stands next to other words and in a narrow column, and "15 September" wraps onto a second
+ * line there. The abbreviations are also from the dictionaries — for the same reason as the full
+ * names.
  */
 export function formatShortDate(t: Translate, iso: string): string {
   return t("calendar.date_short", {
@@ -44,7 +43,7 @@ export function formatShortDate(t: Translate, iso: string): string {
   });
 }
 
-/** «сентябрь 2026» — подпись месяца в шапке ленты. */
+/** "September 2026" — a month's caption in the strip's header. */
 export function formatMonth(t: Translate, iso: string): string {
   return t("calendar.month_year", {
     month: t(`calendar.month.${monthNumber(iso)}`),
@@ -53,22 +52,21 @@ export function formatMonth(t: Translate, iso: string): string {
 }
 
 /**
- * «14:32» — час и минута по часам того, кто смотрит.
+ * "14:32" — the hour and the minute by the clock of whoever is looking.
  *
- * Единственное место в этом файле, где спрашивают `Intl`, и это не
- * противоречие сказанному выше: пробел в данных ICU для `az` касается
- * названий — месяцев и дней недели, — а здесь одни цифры и разделитель.
- * Формат при этом всё равно решает язык: английский читатель ждёт «2:32 PM»
- * там, где русский и азербайджанский ждут «14:32».
+ * The only place in this file where `Intl` is asked, and that is not a contradiction of the above:
+ * the gap in ICU's data for `az` concerns names — of months and weekdays — while here there are
+ * only digits and a separator. The format is still decided by the language: an English reader
+ * expects "2:32 PM" where a Russian and an Azerbaijani one expect "14:32".
  *
- * Часовой пояс — местный, а не проектный: «данные на 14:32» человек сверяет с
- * часами на своей стене, а не с настройкой проекта.
+ * The time zone is the local one rather than the project's: "data as of 14:32" is checked by a
+ * person against the clock on their own wall rather than against a project setting.
  */
 export function formatTime(locale: Locale, at: number | Date): string {
   return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(at);
 }
 
-/** Узкая подпись дня недели: 0 — воскресенье, как у `getUTCDay`. */
+/** A narrow weekday caption: 0 is Sunday, as with `getUTCDay`. */
 export function weekdayNarrow(t: Translate, weekday: number): string {
   return t(`calendar.weekday.${weekday}`);
 }

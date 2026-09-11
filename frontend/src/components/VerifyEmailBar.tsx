@@ -15,21 +15,19 @@ import { useLocale } from "../i18n/LocaleProvider";
 import "./verify-bar.css";
 
 /**
- * Полоска «адрес не подтверждён» в раме приложения.
+ * The "address not confirmed" strip in the application's frame.
  *
- * До неё подтверждение было призраком: письмо уходило, ссылка работала, но
- * человек, до письма не добравшийся, не видел ни слова об этом нигде в
- * приложении — состояние существовало только в базе. Полоска живёт в раме, а
- * не на одном экране, потому что не относится ни к одному из них: это
- * состояние учётной записи, и попадаться на глаза оно должно там, где человек
- * работает.
+ * Before it, confirmation was a ghost: the email went out, the link worked, but a person who never
+ * got to the email saw not a word about it anywhere in the application — the state existed only in
+ * the database. The strip lives in the frame rather than on one screen, because it belongs to none
+ * of them: this is an account's state, and it must catch the eye where the person works.
  *
- * Ничего при этом не запирает: подтверждение отвечает на вопрос «доходят ли
- * письма», а не выдаёт права (backend/app/email_verification.py). Поэтому
- * полоска — сообщение с кнопкой, а не стена поперёк работы.
+ * It locks nothing at that: confirmation answers the question "do emails get through" rather than
+ * granting permissions (backend/app/email_verification.py). So the strip is a message with a button
+ * rather than a wall across the work.
  *
- * В установке без почты её нет вовсе: там письма не уходят никуда, адрес не
- * подтверждается ни у кого, и полоска висела бы вечно, ничего не предлагая.
+ * In an install without mail it is absent entirely: there emails go nowhere, nobody's address is
+ * confirmed, and the strip would hang forever offering nothing.
  */
 export function VerifyEmailBar() {
   const { t } = useLocale();
@@ -37,9 +35,8 @@ export function VerifyEmailBar() {
   const email = user?.email ?? "";
   const unverified = user !== null && !user.email_verified;
 
-  // Спрашивается только у неподтверждённых: у остальных полоски нет, и лишний
-  // поход к серверу на каждом входе не нужен ради ответа, который никто не
-  // прочитает.
+  // Asked for only for the unconfirmed: the others have no strip, and there is no need for an extra
+  // trip to the server on every sign-in for an answer nobody will read.
   const config = useQuery({
     queryKey: CONFIG_QUERY_KEY,
     queryFn: installConfig,
@@ -54,9 +51,9 @@ export function VerifyEmailBar() {
   const resend = useMutation({
     mutationFn: resendVerification,
     onSuccess: (result) => {
-      // Только ушедшее письмо заводит паузу — и здесь, и на сервере. Обещать
-      // «письмо отправлено» после отказа доставки значило бы отправить
-      // человека ждать то, чего нет.
+      // Only an email that went out starts a pause — both here and on the server. Promising "the
+      // email was sent" after a delivery refusal would mean sending a person to wait for something
+      // that does not exist.
       if (!result.sent) return;
       noteVerificationSent(email);
       setSentAt(Date.now());
@@ -69,17 +66,16 @@ export function VerifyEmailBar() {
 
   return (
     <div className="verify-bar">
-      {/* role="status", а не alert: адрес не подтверждается сам собой в
-          середине работы, и перебивать этим чтение экрана не за что. */}
+      {/* role="status" rather than alert: an address does not confirm itself in the middle of work,
+          and there is no reason to interrupt the screen's reading with it. */}
       <p className="verify-bar__text" role="status">
         {waiting
           ? t("auth.verify.sent_to", { email })
           : t("auth.verify.unverified", { email })}
       </p>
 
-      {/* Пока идёт пауза, кнопка выключена и сама говорит, сколько ждать:
-          включённая, она ответила бы «слишком часто» — отказом на действие,
-          которое сама же и предложила. */}
+      {/* While the pause runs the button is disabled and says itself how long to wait: enabled, it
+          would answer "too often" — a refusal to an action it offered itself. */}
       <button
         type="button"
         className="button--quiet verify-bar__button"
@@ -106,11 +102,11 @@ export function VerifyEmailBar() {
 }
 
 /**
- * Секунды до конца паузы. 0 — пауза кончилась или её не было.
+ * The seconds until the pause ends. 0 — the pause has ended or there was none.
  *
- * Отсчёт держится на `setTimeout`, который перезаводится с каждой секундой и
- * не заводится вовсе на нуле: постоянный интервал в раме приложения будил бы
- * React каждую секунду всю сессию — ради строки, которой на экране нет.
+ * The countdown rests on a `setTimeout` that is re-created with every second and is not created at
+ * all at zero: a permanent interval in the application's frame would wake React every second for
+ * the whole session — for the sake of a line that is not on screen.
  */
 function useCooldown(sentAt: number | null): number {
   const [now, setNow] = useState(() => Date.now());
