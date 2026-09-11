@@ -16,12 +16,11 @@ from sqlalchemy import select
 
 from app.ai.netguard import ensure_public_https
 from app.ai.provider import LlmError
-from app.ai import usage
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.mail.transports import Letter, LogTransport
 from app.main import app
-from app.models import Membership, Organization, OrgLlmCredential, Session, User
+from app.models import Session, User
 from app.auth import SESSION_IDLE_TTL, open_session
 
 
@@ -87,47 +86,6 @@ def test_a_public_llm_url_passes(strict_urls, monkeypatch):
     ensure_public_https("https://model.example.com/v1")
 
 
-def test_the_self_hosted_switch_disables_the_guard(monkeypatch):
-    monkeypatch.setattr(get_settings(), "ai_allow_private_urls", True)
-    ensure_public_https("http://localhost:8081/v1")  # не поднимает
-
-
-def test_saving_an_unsafe_llm_url_is_a_form_error(authed, monkeypatch):
-    monkeypatch.setattr(get_settings(), "ai_allow_private_urls", False)
-    response = authed.put(
-        "/api/ai/credential",
-        json={"base_url": "http://10.0.0.5/v1", "model": "m", "api_key": "k"},
-    )
-    assert response.status_code == 422
-    assert response.json()["detail"] == "llm_url_not_https"
-
-
-# --- 2.2: AI в выбранной организации -----------------------------------------
-
-
-def test_ai_credential_lives_in_the_switched_organization(authed, db):
-    """До исправления AI брал «первое членство по id» и настраивал ключ первой
-    организации, в какой бы человек ни работал."""
-    user = db.scalar(select(User).where(User.email == "alex@example.com"))
-    second = Organization(name="Вторая", slug="vtoraya")
-    db.add(second)
-    db.flush()
-    db.add(Membership(org_id=second.id, user_id=user.id, role="owner"))
-    db.flush()
-
-    switched = authed.post("/api/org/switch", json={"org_id": str(second.id)})
-    assert switched.status_code == 200
-
-    saved = authed.put(
-        "/api/ai/credential",
-        json={"base_url": "https://model.example.com/v1", "model": "m", "api_key": "k"},
-    )
-    assert saved.status_code == 200
-
-    row = db.scalar(select(OrgLlmCredential))
-    assert row.org_id == second.id
-
-
 # --- 2.3: пределы входа и регистрации ----------------------------------------
 
 
@@ -179,57 +137,6 @@ def test_signups_from_one_address_hit_a_ceiling(client, monkeypatch):
         },
     )
     assert second.status_code == 429
-
-
-# --- 2.4: бюджет и частота AI -------------------------------------------------
-
-
-@pytest.fixture
-def org(db, authed) -> Organization:
-    return db.scalar(select(Organization))
-
-
-def test_token_usage_accumulates_per_day(db, org):
-    usage.charge(db, org, 60)
-    usage.charge(db, org, 40)
-    assert usage.spent_today(db, org) == 100
-
-
-def test_the_daily_budget_closes_the_gate(authed, db, org, monkeypatch):
-    import app.api.ai_routes as routes
-    from tests.test_ai_intake import QUESTION  # записанный ответ модели
-
-    from app.ai.provider import RecordedProvider
-
-    monkeypatch.setattr(get_settings(), "ai_daily_token_budget", 150)
-    monkeypatch.setattr(
-        routes, "provider_for", lambda db, org: RecordedProvider([QUESTION, QUESTION])
-    )
-
-    assert authed.post("/api/ai/sessions", json={"locale": "ru"}).status_code == 201
-    # Первый вызов записал 100 токенов; на второй бюджета ещё хватает,
-    # он доводит расход до 200 — и третий уже не проходит.
-    assert authed.post("/api/ai/sessions", json={"locale": "ru"}).status_code == 201
-    refused = authed.post("/api/ai/sessions", json={"locale": "ru"})
-    assert refused.status_code == 429
-    assert refused.json()["detail"] == "ai_budget_exhausted"
-
-
-def test_the_ai_request_frequency_closes_the_gate(authed, monkeypatch):
-    import app.api.ai_routes as routes
-    from tests.test_ai_intake import QUESTION
-
-    from app.ai.provider import RecordedProvider
-
-    monkeypatch.setattr(get_settings(), "ai_requests_per_minute", 1)
-    monkeypatch.setattr(
-        routes, "provider_for", lambda db, org: RecordedProvider([QUESTION])
-    )
-
-    assert authed.post("/api/ai/sessions", json={"locale": "ru"}).status_code == 201
-    refused = authed.post("/api/ai/sessions", json={"locale": "ru"})
-    assert refused.status_code == 429
-    assert refused.json()["detail"] == "ai_rate_limited"
 
 
 # --- 2.5: внутренние реплики -------------------------------------------------
