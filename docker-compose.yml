@@ -1,5 +1,6 @@
-# Ротация журналов — одна на все сервисы: без предела journald/json-файлы
-# растут до заполнения диска, и первым об этом узнаёт база по соседству.
+# Log rotation — one policy for every service: without a limit the
+# journald/json files grow until the disk fills up, and the first to notice is
+# the database next door.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -11,40 +12,44 @@ services:
     image: postgres:16@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b
     restart: unless-stopped
     logging: *default-logging
-    # Потолок памяти прикрывает соседей: без него один тяжёлый запрос или
-    # утечка съедает всю машину, и OOM-killer выбирает жертву сам — обычно
-    # не ту. Числа — с запасом от рабочего профиля маленькой установки.
+    # A memory ceiling shields the neighbours: without it one heavy query or a
+    # leak eats the whole machine, and the OOM killer picks its victim itself —
+    # usually the wrong one. The numbers allow headroom over the working
+    # profile of a small installation.
     mem_limit: 512m
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-planora}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-planora}
       POSTGRES_DB: ${POSTGRES_DB:-planora}
-    # Наружу база намеренно не публикуется. Приложению это не нужно — api
-    # ходит в неё по внутренней сети compose, — а на хосте порт 5432 занят
-    # чаще, чем свободен: локальный Postgres есть почти у всех, и свежий клон
-    # падал бы на «address already in use» до первого запуска. Порт на хост
-    # выводит docker-compose.dev.yml, где он и нужен: для тестов и psql.
+    # The database is deliberately not published outward. The application does
+    # not need it — api reaches it over the internal compose network — and on
+    # the host port 5432 is taken more often than free: almost everyone has a
+    # local Postgres, and a fresh clone would fail with "address already in use"
+    # before its first run. The port is exposed to the host by
+    # docker-compose.dev.yml, where it is actually needed: for tests and psql.
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Скрипты отсюда Postgres выполняет один раз — при инициализации пустого
-      # тома. Здесь создаётся база для тестов: без неё первый же прогон падает
-      # на «database planora_test does not exist», а починка требует помнить
-      # отдельную команду createdb, которую негде подсмотреть в момент падения.
+      # Postgres runs the scripts from here exactly once — when initializing an
+      # empty volume. This is where the test database is created: without it the
+      # very first run fails with "database planora_test does not exist", and
+      # fixing it requires remembering a separate createdb command with nowhere
+      # to look it up at the moment of failure.
       - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-planora}"]
       interval: 5s
       retries: 10
 
-  # Миграции — отдельный одноразовый шаг, а не префикс команды api. Причины
-  # две. Первая — graceful shutdown: `sh -c "alembic && uvicorn"` оставляет
-  # PID 1 оболочке, которая не пересылает SIGTERM, и остановка контейнера
-  # превращалась в SIGKILL по таймауту — с оборванными на полуслове
-  # соединениями. Вторая — реплики: каждый экземпляр api накатывал бы схему
-  # параллельно; теперь накатывает один migrate (плюс advisory-lock в
-  # migrations/env.py как страховка от гонки).
-  # Если миграция не прошла, api не стартует (condition ниже) — свежая
-  # установка не поднимет uvicorn поверх пустой базы.
+  # Migrations are a separate one-shot step rather than a prefix to the api
+  # command. There are two reasons. The first is graceful shutdown:
+  # `sh -c "alembic && uvicorn"` leaves PID 1 to the shell, which does not
+  # forward SIGTERM, and stopping the container turned into a SIGKILL on
+  # timeout — with connections cut off mid-sentence. The second is replicas:
+  # every api instance would apply the schema in parallel; now a single migrate
+  # applies it (plus an advisory lock in migrations/env.py as insurance against
+  # a race).
+  # If a migration fails, api does not start (see the condition below) — a fresh
+  # installation will not bring uvicorn up over an empty database.
   migrate:
     build: ./backend
     env_file: .env
@@ -63,40 +68,41 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      # Переопределяет DATABASE_URL из .env: тот адрес — для запуска с хоста
-      # (тесты, локальный uvicorn), где база слушает на localhost:${DB_PORT}.
-      # Внутри сети compose своего localhost у контейнера нет — «localhost»
-      # там означает сам контейнер api, а не db, поэтому адрес пересобирается
-      # явно на сервис db и его внутренний порт 5432 (DB_PORT управляет
-      # только публикацией наружу и к внутреннему адресу отношения не имеет).
-      # environment имеет приоритет над env_file, так что .env продолжает
-      # обслуживать хост без изменений.
+      # Overrides DATABASE_URL from .env: that address is for running from the
+      # host (tests, a local uvicorn), where the database listens on
+      # localhost:${DB_PORT}. Inside the compose network a container has no
+      # localhost of its own — "localhost" there means the api container itself,
+      # not db, so the address is rebuilt explicitly against the db service and
+      # its internal port 5432 (DB_PORT governs only outward publishing and has
+      # nothing to do with the internal address). environment takes precedence
+      # over env_file, so .env keeps serving the host unchanged.
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-planora}:${POSTGRES_PASSWORD:-planora}@db:5432/${POSTGRES_DB:-planora}
     depends_on:
       db: {condition: service_healthy}
       migrate: {condition: service_completed_successfully}
-    # Наружу api, как и база, не публикуется: снаружи он и так доступен —
-    # через 8080, где Caddy отдаёт /api/* в него же. 8000 — порт занятой
-    # судьбы (второй uvicorn, чужой проект), и ради дубля того, что уже есть
-    # на 8080, свежий клон падал бы с «port is already allocated». Прямой
-    # доступ к api нужен при разработке — там его и открывает
-    # docker-compose.dev.yml.
-    # Команда — сам uvicorn, без оболочки: PID 1 получает SIGTERM и гасится
-    # мягко — дорабатывает начатые запросы и закрывает сокеты с кодом, по
-    # которому клиент переподключается. init: true добавляет крошечный init
-    # для уборки зомби и пересылки сигналов тому, что порождает сам uvicorn.
+    # api, like the database, is not published outward: from the outside it is
+    # reachable anyway — through 8080, where Caddy hands /api/* to it. 8000 is a
+    # port with a busy fate (a second uvicorn, someone else's project), and for
+    # the sake of duplicating what already exists on 8080 a fresh clone would
+    # fail with "port is already allocated". Direct access to api is needed
+    # during development — that is where docker-compose.dev.yml opens it.
+    # The command is uvicorn itself, with no shell: PID 1 receives SIGTERM and
+    # shuts down gracefully — it finishes the requests already in flight and
+    # closes sockets with a code that makes the client reconnect. init: true
+    # adds a tiny init to reap zombies and forward signals to whatever uvicorn
+    # spawns itself.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     init: true
-    # Секунд на дорабатывание запросов при остановке: дольше умолчания в 10 —
-    # под ними живут вызовы LLM и почты, которым разрешено до 10–60 секунд.
+    # Seconds granted to finish requests on shutdown: longer than the default 10
+    # — LLM and mail calls live under them, and they are allowed 10-60 seconds.
     stop_grace_period: 30s
     logging: *default-logging
     mem_limit: 512m
     security_opt: ["no-new-privileges:true"]
     cap_drop: [ALL]
-    # Проверка живости идёт через python, а не curl или wget: в python-slim нет
-    # ни того, ни другого, и healthcheck на них молча висел бы в unhealthy.
-    # start_period покрывает первый старт после миграций.
+    # The liveness probe goes through python rather than curl or wget: python-
+    # slim has neither, and a healthcheck built on them would silently hang in
+    # unhealthy. start_period covers the first start after migrations.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 5s
@@ -105,23 +111,24 @@ services:
       start_period: 30s
 
   backup:
-    # Ежесуточный pg_dump в ./backups на хосте — см. docker/backup.sh.
-    # Отдельный контейнер, а не cron внутри db: официальный образ Postgres
-    # не запускает ничего, кроме сервера, и любая самодеятельность внутри него
-    # теряется при обновлении образа. Тот же образ postgres:16 — чтобы версия
-    # pg_dump всегда совпадала с версией сервера.
+    # A nightly pg_dump into ./backups on the host — see docker/backup.sh.
+    # A separate container rather than cron inside db: the official Postgres
+    # image runs nothing but the server, and any improvisation inside it is lost
+    # when the image is updated. The same postgres:16 image — so that the
+    # pg_dump version always matches the server version.
     image: postgres:16@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b
     restart: unless-stopped
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD:-planora}
       POSTGRES_USER: ${POSTGRES_USER:-planora}
       POSTGRES_DB: ${POSTGRES_DB:-planora}
-      # Как часто снимать дамп и сколько суток держать старые.
+      # How often to take a dump and how many days to keep the old ones.
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
     volumes:
-      # Дампы лежат на хосте, не в томе Docker: смысл бэкапа — пережить
-      # `docker compose down -v`, который сносит тома вместе с данными.
+      # The dumps live on the host, not in a Docker volume: the point of a
+      # backup is to survive `docker compose down -v`, which wipes volumes
+      # along with the data.
       - ./backups:/backups
       - ./docker/backup.sh:/backup.sh:ro
     entrypoint: ["sh", "/backup.sh"]
@@ -133,20 +140,22 @@ services:
     cap_drop: [ALL]
 
   web:
-    # Контекст сборки — корень, а не ./frontend: в образ нужен и Caddyfile,
-    # который лежит рядом с compose, а контекст из frontend/ его не видит.
+    # The build context is the root, not ./frontend: the image also needs the
+    # Caddyfile, which sits next to compose, and a context rooted at frontend/
+    # cannot see it.
     build:
       context: .
       dockerfile: frontend/Dockerfile
     restart: unless-stopped
-    # Ожидание готовности, а не просто старта: Caddy проксирует /api в api, и
-    # запросы, пришедшие до конца миграций, получили бы 502 на пустом месте.
+    # Waiting for readiness, not merely for a start: Caddy proxies /api to api,
+    # and requests arriving before migrations finish would get a 502 for no
+    # reason.
     depends_on:
       api: {condition: service_healthy}
-    # 80/443, не WEB_PORT: установка открыта в интернет под настоящим доменом
-    # (pm.datanova.az, см. Caddyfile), и Caddy на этих портах сам выпускает
-    # TLS Let's Encrypt. WEB_PORT остаётся умолчанием для клона без домена —
-    # здесь оно больше не используется.
+    # 80/443, not WEB_PORT: the installation is exposed to the internet under a
+    # real domain (pm.datanova.az, see the Caddyfile), and Caddy on these ports
+    # issues Let's Encrypt TLS itself. WEB_PORT stays as the default for a clone
+    # without a domain — it is no longer used here.
     ports: ["80:8080", "443:8443"]
     init: true
     logging: *default-logging

@@ -1,12 +1,13 @@
-# Обязательные темы интервью.
+# Mandatory interview topics.
 #
-# Файлом конфигурации рядом с приложением, а не в базе: править его будет тот,
-# кто разворачивает, а не пользователь. Перенос в настройки организации — когда
-# появится спрос на отраслевые шаблоны интейка.
+# A config file next to the application rather than a table in the database:
+# whoever deploys will edit it, not the end user. Moving it into organization
+# settings is for when there is demand for industry-specific intake templates.
 #
-# key    — машинный ключ темы, по нему модель отмечает закрытые темы;
-# prompt — подсказка модели, о чём спросить, на языке разработки. Вопрос
-#          человеку модель формулирует сама и на языке сессии.
+# key    — machine key of the topic; the model marks covered topics by it;
+# prompt — a hint to the model about what to ask, in the development language.
+#          The model phrases the question for a human itself, in the session's
+#          language.
 topics:
   - key: goal
     prompt: Цель проекта — какой результат считается успехом

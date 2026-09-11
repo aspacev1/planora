@@ -1,13 +1,13 @@
-# рабочие файлы визуального компаньона брейншторма и исполнения планов
+# working files of the visual companion for brainstorming and plan execution
 .superpowers/
 
-# изолированные рабочие копии
+# isolated working copies
 .worktrees/
 
-# дампы базы, которые снимает сервис backup (docker compose)
+# database dumps taken by the backup service (docker compose)
 backups/
 
-# окружение и артефакты
+# environment and artifacts
 .env
 .env.*
 !.env.example

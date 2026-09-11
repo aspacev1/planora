@@ -1,9 +1,10 @@
-# Снаружи сайт виден на 80/443 — их публикует Docker на хосте (см.
-# docker-compose.yml, сервис web), пробрасывая на высокие порты ниже.
-# Caddy сам на 80/443 сесть не может и не должен: внутри контейнера он
-# работает не от root и без единой capability (USER web, cap_drop: ALL).
-# Явное указание нужно, иначе Caddy решит, что снаружи он и есть 8080/8443,
-# и получит ACME-проверку домена и редирект с http на https не по тем портам.
+# From the outside the site is reachable on 80/443 — Docker publishes those on
+# the host (see docker-compose.yml, the web service), forwarding to the high
+# ports below. Caddy cannot and must not bind 80/443 itself: inside the
+# container it runs as a non-root user with no capabilities at all (USER web,
+# cap_drop: ALL). Spelling the ports out is required, otherwise Caddy assumes
+# that it is 8080/8443 from the outside too, and serves the ACME domain
+# challenge and the http-to-https redirect on the wrong ports.
 {
 	http_port 8080
 	https_port 8443
@@ -12,38 +13,38 @@
 pm.datanova.az {
 	encode gzip
 
-	# Заголовки безопасности — на каждый ответ, и статику, и API.
+	# Security headers — on every response, both static files and the API.
 	header {
-		# Браузеру запрещается угадывать тип файла: угаданный «HTML» в
-		# загруженном пользователем содержимом — это XSS на ровном месте.
+		# The browser is forbidden to sniff a file's type: a guessed "HTML"
+		# inside user-uploaded content is XSS out of thin air.
 		X-Content-Type-Options nosniff
-		# Страницу нельзя показывать во фрейме чужого сайта: защита от
-		# clickjacking. Двумя заголовками: CSP — для современных браузеров,
-		# X-Frame-Options — для тех, кто CSP не читает.
+		# The page must not be shown in another site's frame: clickjacking
+		# protection. Two headers: CSP for modern browsers, X-Frame-Options
+		# for those that do not read CSP.
 		X-Frame-Options DENY
-		# Адреса проектов не должны уезжать в Referer на чужие сайты по
-		# ссылкам из комментариев: слаг — часть секретной публичной ссылки.
+		# Project addresses must not leak into the Referer of foreign sites via
+		# links in comments: the slug is part of the secret public link.
 		Referrer-Policy strict-origin-when-cross-origin
-		# Скрипты и запросы — только со своего домена. style-src с
-		# 'unsafe-inline' сознательно: интерфейс раскладывает диаграмму
-		# инлайновыми стилями (ширины полосок), и без него Гант слеп.
+		# Scripts and requests — same origin only. style-src carries
+		# 'unsafe-inline' deliberately: the interface lays the chart out with
+		# inline styles (bar widths), and without it the Gantt is blind.
 		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-		# HSTS действует только по HTTPS; на голом HTTP браузер его
-		# игнорирует, так что отдавать его безусловно безопасно.
+		# HSTS only takes effect over HTTPS; over plain HTTP the browser
+		# ignores it, so sending it unconditionally is safe.
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		# Версию сервера наружу не объявляем.
+		# The server version is not advertised outward.
 		-Server
 	}
 
-	# API разбирается раньше файлов. Порядок здесь не косметический: ниже
-	# стоит фолбэк на index.html, и он поймал бы /api/несуществующее первым,
-	# отдав клиенту HTML вместо ответа сервера.
+	# The API is matched before files. The order is not cosmetic: the fallback
+	# to index.html sits below, and it would catch /api/nonexistent first,
+	# handing the client HTML instead of the server's answer.
 	handle /api/* {
-		# X-Forwarded-For переписывается настоящим адресом клиента, а не
-		# дополняется: пришедшее снаружи значение — это строка от кого
-		# угодно, а по этому заголовку приложение считает пределы частоты
-		# входа и гостевых комментариев. Оставить чужое значение — значит
-		# позволить обходить предел сменой заголовка.
+		# X-Forwarded-For is overwritten with the client's real address rather
+		# than appended to: a value arriving from outside is a string from
+		# anyone at all, and the application counts login and guest-comment
+		# rate limits by this header. Keeping a foreign value would mean
+		# letting the limit be bypassed by changing a header.
 		reverse_proxy api:8000 {
 			header_up X-Forwarded-For {client_ip}
 		}
@@ -51,9 +52,9 @@ pm.datanova.az {
 
 	handle {
 		root * /srv
-		# Маршруты живут на клиенте, а файлов под них нет: без фолбэка
-		# перезагрузка страницы на /projects даёт 404 от Caddy, хотя внутри
-		# приложения такой адрес существует.
+		# Routes live on the client and there are no files behind them: without
+		# the fallback, reloading the page at /projects yields a 404 from Caddy
+		# even though that address exists inside the application.
 		try_files {path} /index.html
 		file_server
 	}

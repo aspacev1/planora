@@ -1,54 +1,59 @@
-# Наложение для работы с кодом на своей машине. Запускается вместе с базовым
-# файлом, а не вместо него:
+# Overlay for working on the code on your own machine. Started together with
+# the base file, not instead of it:
 #
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 #
-# Отличие от обычного запуска одно: исходники не запекаются в образ, а
-# монтируются с хоста, и оба сервера перечитывают их сами. Правка файла в
-# редакторе видна в браузере без пересборки и без перезапуска compose.
+# There is exactly one difference from a normal run: the sources are not baked
+# into the image but mounted from the host, and both servers reload them
+# themselves. An edit in the editor shows up in the browser without a rebuild
+# and without restarting compose.
 services:
   db:
-    # База выводится на хост только здесь: с ней работают тесты, запущенные
-    # снаружи контейнера (`cd backend && uv run pytest`), и psql под рукой.
-    # Если 5432 занят локальным Postgres, задай в .env другой DB_PORT — и тем
-    # же значением поправь порт в DATABASE_URL: тесты берут адрес оттуда, и
-    # разъехавшись, эти два места дают отказ в подключении на пустом месте.
+    # The database is exposed to the host only here: tests run outside the
+    # container work with it (`cd backend && uv run pytest`), and psql is at
+    # hand. If 5432 is taken by a local Postgres, set a different DB_PORT in
+    # .env — and fix the port in DATABASE_URL to the same value: the tests take
+    # the address from there, and once those two drift apart they produce a
+    # connection failure out of nowhere.
     ports: ["${DB_PORT:-5432}:5432"]
 
   api:
-    # Прямой доступ к бэкенду, минуя Caddy: /docs, /redoc и curl по адресам
-    # API, а ещё `npm run dev` на хосте — его прокси по умолчанию смотрит
-    # именно на localhost:8000. Занят другим — задай API_PORT в .env.
+    # Direct access to the backend, bypassing Caddy: /docs, /redoc and curl
+    # against API addresses, plus `npm run dev` on the host — its proxy looks at
+    # localhost:8000 by default. Taken by something else — set API_PORT in .env.
     ports: ["${API_PORT:-8000}:8000"]
     build:
       context: ./backend
       args:
         INSTALL_DEV: "true"
     volumes:
-      # Рабочая копия поверх /app. Виртуальное окружение лежит в /opt/venv
-      # (см. backend/Dockerfile) и этим монтированием не задевается.
+      # The working copy over /app. The virtual environment lives in /opt/venv
+      # (see backend/Dockerfile) and is untouched by this mount.
       - ./backend:/app
-    # --reload вместо простого запуска: uvicorn сам следит за файлами в /app.
-    # Миграции накатывает сервис migrate из базового файла — но по коду,
-    # запечённому в образ. Правишь миграции — пересобери его:
+    # --reload instead of a plain start: uvicorn watches the files in /app
+    # itself. Migrations are applied by the migrate service from the base file —
+    # but against the code baked into the image. Editing migrations means
+    # rebuilding it:
     #   docker compose ... up --build migrate
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   web:
-    # target: dev — стадия с Vite вместо стадии с Caddy. Порт снаружи тот же
-    # (${WEB_PORT:-8080}), поэтому адрес приложения в разработке и в обычном
-    # запуске совпадает и не приходится помнить, какой из них сейчас верный.
+    # target: dev — the Vite stage instead of the Caddy stage. The port on the
+    # outside is the same (${WEB_PORT:-8080}), so the application address in
+    # development and in a normal run match and there is no need to remember
+    # which one is currently right.
     build:
       target: dev
     environment:
-      # Прокси Vite (frontend/vite.config.ts) по умолчанию смотрит на
-      # localhost:8000 — внутри контейнера это он сам, а не бэкенд.
+      # The Vite proxy (frontend/vite.config.ts) looks at localhost:8000 by
+      # default — inside the container that is itself, not the backend.
       API_TARGET: http://api:8000
     volumes:
       - ./frontend:/app
-      # Анонимный том поверх node_modules: без него монтирование ./frontend
-      # закрыло бы зависимости, установленные при сборке образа, каталогом с
-      # хоста — пустым на свежем клоне или собранным под другую ОС.
-      # После правки package.json образ нужно пересобрать вместе с этим томом:
+      # An anonymous volume over node_modules: without it, mounting ./frontend
+      # would cover the dependencies installed during the image build with a
+      # directory from the host — empty on a fresh clone or built for a
+      # different OS. After editing package.json the image must be rebuilt
+      # together with this volume:
       #   docker compose ... up --build --renew-anon-volumes web
       - /app/node_modules

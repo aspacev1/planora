@@ -1,13 +1,15 @@
-# Зависимости serverless-функции на Vercel: сборщик Python читает именно
-# requirements.txt и про pyproject.toml с uv.lock ничего не знает. Версии
-# закреплены по backend/uv.lock — чтобы бой и локальная разработка собирались
-# из одного набора, а не из «что оказалось свежим в день деплоя».
+# Dependencies of the serverless function on Vercel: the Python builder reads
+# requirements.txt specifically and knows nothing about pyproject.toml with
+# uv.lock. Versions are pinned from backend/uv.lock so that production and
+# local development build from one set, not from "whatever was fresh on the
+# day of the deploy".
 #
-# При изменении зависимостей в backend/pyproject.toml обнови и этот файл.
+# When dependencies change in backend/pyproject.toml, update this file too.
 #
-# Здесь только то, что нужно на запрос. uvicorn не нужен — ASGI-приложение
-# запускает сама платформа; alembic не нужен — миграции накатываются отдельной
-# командой с машины разработчика (см. раздел про Vercel в README).
+# Only what is needed to serve a request belongs here. uvicorn is not needed —
+# the platform runs the ASGI app itself; alembic is not needed — migrations are
+# applied by a separate command from a developer machine (see the Vercel
+# section in the README).
 fastapi==0.141.1
 sqlalchemy==2.0.51
 psycopg[binary]==3.3.4
@@ -17,10 +19,10 @@ argon2-cffi==25.1.0
 email-validator==2.3.0
 cryptography==50.0.0
 pyyaml==6.0.3
-# Выгрузка проекта в Excel и PDF. Транзитивные зависимости выписаны поимённо:
-# сборщик Python на Vercel ставит ровно то, что перечислено здесь, и сам их не
-# доберёт (et-xmlfile — для openpyxl; pillow и charset-normalizer — для
-# reportlab).
+# Project export to Excel and PDF. Transitive dependencies are spelled out by
+# name: the Python builder on Vercel installs exactly what is listed here and
+# will not pull them in by itself (et-xmlfile — for openpyxl; pillow and
+# charset-normalizer — for reportlab).
 openpyxl==3.1.5
 et-xmlfile==2.0.0
 reportlab==5.0.1

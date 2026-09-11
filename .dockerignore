@@ -1,9 +1,9 @@
-# Этот файл действует на сборки, чей контекст — корень репозитория, то есть
-# на образ web (frontend/Dockerfile). У образа api контекст свой — ./backend,
-# и его отсекает backend/.dockerignore.
+# This file applies to builds whose context is the repository root — that is,
+# to the web image (frontend/Dockerfile). The api image has its own context,
+# ./backend, and is filtered by backend/.dockerignore.
 
-# Зависимости и артефакты ставятся внутри образа, а не приезжают с хоста:
-# node_modules, собранный под macOS, в linux-образе просто не работает.
+# Dependencies and artifacts are installed inside the image rather than
+# shipped from the host: node_modules built on macOS simply won't run on linux.
 node_modules/
 dist/
 .venv/
@@ -12,17 +12,18 @@ __pycache__/
 .worktrees/
 .env
 
-# Бэкенд и документация в образ фронтенда не входят: из корня им нужен ровно
-# один файл — Caddyfile. Лишний контекст — это лишние секунды на каждой
-# сборке и лишний повод пересобрать слой из-за правки, которой он не касается.
+# The backend and the docs are not part of the frontend image: all it needs
+# from the root is exactly one file, the Caddyfile. Extra context means extra
+# seconds on every build and another reason to rebuild a layer over an
+# unrelated edit.
 backend/
 docs/
 docker/
 *.md
 docker-compose*.yml
 
-# Раскладка для Vercel — второй способ размещения, к образам отношения не
-# имеющий: свой мост к бэкенду и свой список зависимостей Python.
+# The Vercel layout is the second deployment option and has nothing to do with
+# the images: its own bridge to the backend and its own Python requirements.
 api/
 vercel.json
 requirements.txt
