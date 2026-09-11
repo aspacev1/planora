@@ -17,11 +17,11 @@ import { lastSocket } from "../test/socket";
 beforeEach(projectFixtures);
 
 /**
- * Правило раздела 5 глазами человека.
+ * Section 5's rule through a person's eyes.
  *
- * Проверяется не то, что компонент вызвал функцию, а то, что видно на экране:
- * окно появилось, кнопка неактивна, операция не ушла. Именно это и обещано
- * пользователю — «изменение не применяется, пока причина не введена».
+ * What is checked is not that a component called a function but what is visible on screen: the
+ * dialog appeared, the button is disabled, the operation did not leave. That is exactly what is
+ * promised to the user — "a change is not applied until the reason has been entered".
  */
 
 const bar = () => screen.findByRole("button", { name: /Логотип/ });
@@ -31,7 +31,7 @@ describe("порог сдвига", () => {
     const sent = captureMutations();
     renderProject(APPROVED);
 
-    // Семь дней вправо при пороге в два дня.
+    // Seven days to the right with a threshold of two days.
     dragDays(await bar(), 7);
 
     expect(await screen.findByRole("dialog")).toHaveTextContent(/Сдвиг на 7 дней/);
@@ -46,7 +46,7 @@ describe("порог сдвига", () => {
     const save = screen.getByRole("button", { name: "Сохранить" });
     expect(save).toBeDisabled();
 
-    // Пробелы причиной не считаются — ровно как на сервере.
+    // Whitespace does not count as a reason — exactly as on the server.
     await userEvent.type(screen.getByLabelText("Причина"), "   ");
     expect(save).toBeDisabled();
 
@@ -72,15 +72,15 @@ describe("порог сдвига", () => {
 
   it("правка длительности не спрашивает причину за уже объяснённый сдвиг старта", async () => {
     const sent = captureMutations();
-    // Старт уехал на пять дней при пороге в два — с причиной, как положено.
+    // The start travelled five days with a threshold of two — with a reason, as it should be.
     renderProject({
       ...APPROVED,
       tasks: [{ ...APPROVED.tasks[0], start_date: "2026-03-09", end_date: "2026-03-13" }],
     });
     await userEvent.click(await bar());
 
-    // Длительность меняется на день: её измерение от базы не ушло, и окно
-    // с чужим числом «сдвиг на 5 дней» здесь было бы ошибкой (см. сервер).
+    // The duration changes by a day: its dimension has not moved from the baseline, and a dialog
+    // with the other dimension's number "a 5-day shift" would be a mistake here (see the server).
     fireEvent.change(screen.getByLabelText(/Длительность, рабочих/), { target: { value: "6" } });
     fireEvent.blur(screen.getByLabelText(/Длительность, рабочих/));
 
@@ -94,9 +94,8 @@ describe("порог сдвига", () => {
     renderProject(APPROVED);
     await userEvent.click(await bar());
 
-    // Длительность 5 при пороге 2: «1» на пути к «15» — уже отклонение на
-    // четыре дня, и окно причины открывалось бы за число, которого человек
-    // не называл.
+    // A duration of 5 with a threshold of 2: a "1" on the way to "15" is already a deviation of
+    // four days, and the reason dialog would open over a number the person never named.
     const duration = screen.getByLabelText(/Длительность, рабочих/);
     await userEvent.clear(duration);
     await userEvent.type(duration, "15");
@@ -105,7 +104,7 @@ describe("порог сдвига", () => {
 
     await userEvent.tab();
 
-    // Ушло одно число — и окно спрашивает ровно про него.
+    // One number left — and the dialog asks about exactly that.
     expect(await screen.findByRole("dialog")).toHaveTextContent(/Сдвиг на 10 дней/);
     expect(sent).toHaveLength(0);
   });
@@ -122,8 +121,8 @@ describe("порог сдвига", () => {
     dragDays(await bar(), 7);
     await screen.findByRole("dialog");
 
-    // Пока окно открыто, сосед переименовал категорию — и состояние
-    // перезапросилось по живой связи.
+    // While the dialog was open a colleague renamed the category — and the state was refetched
+    // over the live connection.
     const renamed = {
       ...APPROVED,
       categories: [{ ...APPROVED.categories[0], name: "Дизайн v2" }],
@@ -146,8 +145,8 @@ describe("порог сдвига", () => {
     await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     await waitFor(() => expect(attempts).toBe(1));
 
-    // Откат вернул полоску, но не стёр чужое переименование: снимок для
-    // отката взят перед самой отправкой, а не до того, как открылось окно.
+    // The rollback returned the bar but did not erase somebody else's rename: the snapshot for the
+    // rollback is taken right before sending rather than before the dialog opened.
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByText("Дизайн v2")).toBeInTheDocument();
   });
@@ -177,7 +176,7 @@ describe("порог сдвига", () => {
 
   it("до согласования плана ничего не спрашивается", async () => {
     const sent = captureMutations();
-    renderProject(); // черновик: plan_approved_at = null
+    renderProject(); // a draft: plan_approved_at = null
 
     dragDays(await bar(), 30);
 
@@ -200,9 +199,9 @@ describe("порог сдвига", () => {
   });
 
   it("отказ сервера «нужна причина» открывает то же окно и повторяет с ней", async () => {
-    // Вкладка о базовом плане не знает: состояние пришло без него, как если бы
-    // план утвердили в соседней вкладке минуту назад. Правило всё равно
-    // срабатывает — последнее слово за сервером.
+    // The tab knows nothing about the baseline plan: the state arrived without it, as if the plan
+    // had been approved in another tab a minute ago. The rule fires all the same — the last word is
+    // the server's.
     const sent = captureMutations();
     let refused = false;
     server.use(
@@ -240,7 +239,7 @@ describe("порог сдвига", () => {
 
 describe("базовый план на диаграмме", () => {
   it("рисует призрак под полоской и бейдж отклонения", async () => {
-    // Задача уехала: план обещал окончание 10 марта, а по факту 17-е.
+    // The task travelled: the plan promised an end on 10 March, and in fact it is the 17th.
     renderProject({
       ...APPROVED,
       tasks: [{ ...APPROVED.tasks[0], start_date: "2026-03-11", end_date: "2026-03-17" }],
@@ -254,8 +253,8 @@ describe("базовый план на диаграмме", () => {
     renderProject(APPROVED);
     await bar();
 
-    // Призрак при этом на месте: он показывает, где полоске полагается стоять,
-    // и совпадение с ней — тоже ответ.
+    // The ghost is in place at that: it shows where the bar is supposed to stand, and coinciding
+    // with it is an answer too.
     expect(screen.getByTestId("ghost-t1")).toBeInTheDocument();
     expect(screen.queryByTestId("deviation-t1")).not.toBeInTheDocument();
   });
@@ -263,19 +262,19 @@ describe("базовый план на диаграмме", () => {
   it("помечает задачу, добавленную после согласования", async () => {
     renderProject(APPROVED_WITH_EXTRA);
 
-    // Метка стоит у полоски и объясняет себя подсказкой: почему у этой задачи
-    // нет призрака базового плана.
+    // The marker stands by the bar and explains itself with a tooltip: why this task has no ghost
+    // of the baseline plan.
     const badge = await screen.findByTestId("beyond-t2");
     expect(badge).toHaveTextContent("Сверх плана");
     expect(badge).toHaveAttribute(
       "title",
       "Задача добавлена после согласования плана: сравнивать не с чем",
     );
-    // Помечена ровно одна: у первой задачи базовый план есть.
+    // Exactly one is marked: the first task does have a baseline plan.
     expect(screen.queryByTestId("beyond-t1")).not.toBeInTheDocument();
-    // Метка не делит имя класса с полосой «вне плана» за краем шкалы: та
-    // стоит ровно дважды — в шапке и в теле — и однажды своей рамкой со
-    // штриховкой перекрасила и метку, носившую то же имя.
+    // The marker does not share a class name with the "beyond the plan" band past the scale's edge:
+    // that one stands exactly twice — in the header and in the body — and once repainted, with its
+    // hatched frame, a marker that carried the same name.
     expect(document.querySelectorAll(".gantt__beyond")).toHaveLength(2);
   });
 

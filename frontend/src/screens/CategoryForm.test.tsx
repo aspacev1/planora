@@ -37,11 +37,11 @@ const STATE = {
 };
 
 /**
- * «Плюс» в углу таблицы, а не «+ Новая категория» с низа ленты: у ленты два
- * пути завести категорию — эта форма (с выбором цвета) и короткий путь снизу
- * списка (см. `gantt/BottomActions.tsx`), и у обеих одно и то же имя для
- * читалки, потому что они и делают одно и то же. Различает их только место —
- * угол таблицы рождается вместе с данными проекта, поэтому ищем сначала его.
+ * The "plus" in the table's corner rather than "+ New category" at the bottom of the strip: the
+ * strip has two ways to create a category — this form (with a colour choice) and the short path
+ * at the bottom of the list (see `gantt/BottomActions.tsx`) — and both carry the same name for a
+ * screen reader, because they do the same thing. What tells them apart is only the place — the
+ * table's corner is born together with the project's data, so we look for it first.
  */
 async function cornerAddCategoryButton() {
   return waitFor(() => {
@@ -72,7 +72,7 @@ describe("создание категории", () => {
                 ...STATE,
                 categories: [
                   ...STATE.categories,
-                  // Сервер вернул то, что ему прислали.
+                  // The server returned what was sent to it.
                   { id: "c2", name: "Аналитика", color: "#a855f7", position: 1 },
                 ],
               },
@@ -99,16 +99,16 @@ describe("создание категории", () => {
       ]),
     );
 
-    // Состояние перезапрашивается, а не дописывается в кэш руками: позицию и
-    // идентификатор назначил сервер, и придуманные клиентом разошлись бы с
-    // ними в самом неудобном месте.
+    // The state is refetched rather than written into the cache by hand: the position and the id
+    // were assigned by the server, and ones invented by the client would diverge from them in the
+    // most inconvenient place.
     expect(await screen.findByText("Аналитика")).toBeInTheDocument();
   });
 
   it("отправляет название как набрано, только без краевых пробелов", async () => {
-    // Регистр не трогается: единообразие заголовку группы даёт начертание
-    // строки в ленте, а не прописные, которые раздували строку и обрезали
-    // длинные имена раньше времени.
+    // The case is not touched: uniformity is given to a group's heading by the row's typeface in
+    // the strip rather than by capitals, which inflated the row and truncated long names
+    // prematurely.
     const sent: { op: { name?: string } }[] = [];
     server.use(
       ...sessionHandlers(),
@@ -127,8 +127,8 @@ describe("создание категории", () => {
   });
 
   it("не поднимает регистр ни в поле, ни при отправке", async () => {
-    // Азербайджанское «işlər» уходит как есть — раньше форма делала из него
-    // «İŞLƏR», и это проверялось отдельно; теперь важно обратное.
+    // The Azerbaijani "işlər" travels as is — the form used to turn it into "İŞLƏR", and that was
+    // checked separately; now the opposite matters.
     const sent: { op: { name?: string } }[] = [];
     server.use(
       http.post("/api/projects/p1/mutations", async ({ request }) => {
@@ -150,7 +150,7 @@ describe("создание категории", () => {
   });
 
   it("не шлёт в операции полей, которых нет в публичном контракте", async () => {
-    // position и category_id назначает сервер; клиент их не знает и знать не должен
+    // position and category_id are assigned by the server; the client does not know them and should not
     const sent: { op: Record<string, unknown> }[] = [];
     server.use(
       ...sessionHandlers(),
@@ -178,8 +178,8 @@ describe("создание категории", () => {
     renderApp({ route: "/projects/p1", locale: "ru" });
     await userEvent.click(await cornerAddCategoryButton());
 
-    // Выбор — это набор готовых цветов, а не пипетка: произвольный цвет умеет
-    // быть неотличимым от соседнего и нечитаемым на доске.
+    // The choice is a set of ready colours rather than an eyedropper: an arbitrary colour can be
+    // indistinguishable from its neighbour and unreadable on the board.
     const swatches = screen.getAllByRole<HTMLInputElement>("radio");
     expect(swatches).toHaveLength(CATEGORY_COLORS.length);
     expect(swatches.map((swatch) => swatch.value)).toEqual(
@@ -187,8 +187,8 @@ describe("создание категории", () => {
     );
 
     const chosen = swatches.find((swatch) => swatch.checked);
-    // Цвет предлагается по числу уже существующих категорий, а не берётся
-    // первым из палитры: иначе две подряд созданные категории неразличимы.
+    // The colour is suggested by the number of already existing categories rather than taken as the
+    // first from the palette: otherwise two categories created in a row are indistinguishable.
     expect(chosen?.value).toBe(suggestColor(STATE.categories.length));
     expect(chosen?.value).not.toBe(STATE.categories[0].color);
   });
@@ -207,8 +207,8 @@ describe("создание категории", () => {
     renderApp({ route: "/projects/p1", locale: "ru" });
     await userEvent.click(await cornerAddCategoryButton());
     await userEvent.type(screen.getByLabelText(/название/i), "Аналитика");
-    // Кружок назван словом, а не кодом цвета: читалка обязана произнести
-    // выбор, а `#ec4899` произнести нечем.
+    // The circle is named by a word rather than by a colour code: a screen reader must speak the
+    // choice, and there is nothing to speak `#ec4899` with.
     await userEvent.click(screen.getByRole("radio", { name: "Розовый" }));
     await userEvent.click(screen.getByRole("button", { name: /^создать$/i }));
 
@@ -217,10 +217,10 @@ describe("создание категории", () => {
   });
 
   it("на пустой ленте первую категорию заводит кнопка в самой ленте", async () => {
-    // Пустой проект — единственный экран, где в ленте нечего нажать, кроме
-    // этого. Раньше на этом месте был нарисованный плюс: он выглядел органом
-    // управления, не будучи им, и первую категорию заводили, уйдя за ней в
-    // тулбар — мимо того самого пятна, на которое человек смотрел.
+    // An empty project is the only screen where there is nothing to press in the strip except this.
+    // There used to be a drawn plus in this place: it looked like a control without being one, and
+    // the first category was created by going for it into the toolbar — past the very spot the
+    // person was looking at.
     server.use(
       ...sessionHandlers(),
       http.get("/api/projects/p1", () =>
@@ -238,12 +238,11 @@ describe("создание категории", () => {
   });
 
   it("гостю пустая лента кнопки не обещает", async () => {
-    // Право писать проверяет экран: рисунок, зовущий завести категорию,
-    // читателю пришлось бы упереться в отказ — обещание без исполнения.
+    // The right to write is checked by the screen: a drawing inviting you to create a category would
+    // leave a reader running into a refusal — a promise without fulfilment.
     server.use(
-      // Своя роль идёт первой: msw берёт первый подходящий обработчик, и общий
-      // `/api/org` из оснастки перекрыл бы наблюдателя, ради которого тест и
-      // написан.
+      // Its own role comes first: msw takes the first matching handler, and the shared `/api/org`
+      // from the harness would override the observer the test is written for.
       http.get("/api/org", () => HttpResponse.json({ ...ORG, role: "viewer" })),
       http.get("/api/projects/p1", () =>
         HttpResponse.json({ ...STATE, categories: [], tasks: [] }),

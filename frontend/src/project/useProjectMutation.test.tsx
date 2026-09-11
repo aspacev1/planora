@@ -22,9 +22,8 @@ const STATE: ProjectState = {
   plan_approved_at: null,
   plan_version: 0,
   undoable: null,
-  // Календарный режим: заглушки существующих тестов живут настоящими датами.
-  // Относительные проекты собирают своё состояние поверх этого (см. тесты
-  // относительной шкалы).
+  // Calendar mode: the existing tests' fixtures live on real dates. Relative projects build their
+  // own state on top of this (see the relative-scale tests).
   schedule_mode: "calendar" as const,
   start_date: null,
 
@@ -63,16 +62,16 @@ const MOVE_OP: Op = { type: "move_task", task_id: "t1", start_date: "2026-03-11"
 const MOVE_OP_2: Op = { type: "move_task", task_id: "t1", start_date: "2026-03-18" };
 
 /**
- * Оптимистичное преобразование трогает только старт.
+ * The optimistic transformation touches only the start.
  *
- * Дату окончания оно не считает намеренно: её считает сервер по календарю
- * проекта, и подставить сюда «плюс столько же дней» значило бы завести второй,
- * неверный календарь на клиенте.
+ * It deliberately does not compute the end date: that is computed by the server from the
+ * project's calendar, and substituting "plus the same number of days" here would mean keeping a
+ * second, wrong calendar on the client.
  */
 const moveTaskLocally = (state: ProjectState) => withTask(state, { start_date: "2026-03-11" });
 const moveTaskLocally2 = (state: ProjectState) => withTask(state, { start_date: "2026-03-18" });
 
-/** Состояние, каким его вернёт сервер, приняв MOVE_OP: конец пересчитан им. */
+/** The state as the server will return it, having accepted MOVE_OP: the end is recomputed by it. */
 const MOVED = withTask(STATE, { start_date: "2026-03-11", end_date: "2026-03-17" });
 
 const OK = { seq: 1, op: { type: "move_task", task_id: "t1" }, inverse: {} };
@@ -80,15 +79,14 @@ const OK = { seq: 1, op: { type: "move_task", task_id: "t1" }, inverse: {} };
 let queryClient: QueryClient;
 
 /**
- * Живой подписчик состояния проекта.
+ * A live subscriber to the project's state.
  *
- * Без него `invalidateQueries` пометит запись устаревшей и на этом
- * остановится: перезапрашиваются только те запросы, у которых есть
- * наблюдатель. То есть без этого компонента третий тест проверял бы не то, что
- * написано в его названии.
+ * Without it `invalidateQueries` will mark the entry stale and stop there: only queries with an
+ * observer are refetched. That is, without this component the third test would be checking
+ * something other than what its name says.
  *
- * `staleTime: Infinity` убирает фоновый поход при монтировании — он бы
- * затирал оптимистичное изменение ответом, которого тест не просил.
+ * `staleTime: Infinity` removes the background trip on mount — it would overwrite the optimistic
+ * change with an answer the test never asked for.
  */
 function Probe() {
   useQuery({
@@ -108,7 +106,7 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 
-/** То же окружение, но связь оборвана. */
+/** The same environment, but with the connection down. */
 function offlineWrapper({ children }: { children: ReactNode }) {
   return <LiveProvider live={{ status: "offline" }}>{wrapper({ children })}</LiveProvider>;
 }
@@ -120,16 +118,15 @@ function cachedState(): ProjectState {
 beforeEach(() => {
   queryClient = newQueryClient();
   queryClient.setQueryData(projectQueryKey("p1"), STATE);
-  // Состояние после принятого переноса: сервер, применивший move_task, отдаёт
-  // и новый старт, и пересчитанный им конец.
+  // The state after an accepted move: the server, having applied move_task, gives both the new
+  // start and the end it recomputed.
   server.use(http.get("/api/projects/p1", () => HttpResponse.json(MOVED)));
 });
 
 describe("оптимистичные изменения", () => {
   it("показывает изменение до ответа сервера", async () => {
-    // Ответ готовится заранее, а не внутри обработчика: обработчик вызовется
-    // только после того, как запрос уйдёт, а тест обязан успеть посмотреть на
-    // состояние до этого.
+    // The response is prepared in advance rather than inside the handler: the handler is only
+    // called after the request leaves, while the test must manage to look at the state before that.
     let release!: () => void;
     const answered = new Promise<Response>((resolve) => {
       release = () => resolve(HttpResponse.json(OK, { status: 201 }));
@@ -144,8 +141,8 @@ describe("оптимистичные изменения", () => {
 
     expect(cachedState().tasks[0].start_date).toBe("2026-03-11");
 
-    // Ответ отпускается и дожидается здесь же: незавершённое изменение уехало
-    // бы запросом состояния в соседний тест, где его никто не объявлял.
+    // The response is released and awaited right here: an unfinished change would travel as a state
+    // request into a neighbouring test, where nobody declared it.
     await act(async () => {
       release!();
       await pending;
@@ -168,7 +165,7 @@ describe("оптимистичные изменения", () => {
   });
 
   it("берёт итоговые данные с сервера, а не оставляет оптимистичные", async () => {
-    // сервер посчитал дату окончания по календарю — клиент обязан взять его версию
+    // the server computed the end date by the calendar — the client must take its version
     server.use(
       http.post("/api/projects/p1/mutations", () => HttpResponse.json(OK, { status: 201 })),
       http.get("/api/projects/p1", () =>
@@ -188,9 +185,9 @@ describe("оптимистичные изменения", () => {
   });
 
   it("при обрыве связи не отправляет ничего и не трогает состояние", async () => {
-    // Ни одного обработчика POST: запрос обязан не уйти вовсе, а не уйти и
-    // получить отказ. Ушедший запрос уронит тест — сеть в наборе перехвачена
-    // и необъявленные запросы предъявляются (см. test/setup.ts).
+    // Not a single POST handler: the request must not leave at all rather than leave and get a
+    // refusal. A request that leaves will fail the test — the network is intercepted in the suite
+    // and undeclared requests are reported (see test/setup.ts).
     const { result } = renderHook(() => useProjectMutation("p1"), {
       wrapper: offlineWrapper,
     });
@@ -202,13 +199,13 @@ describe("оптимистичные изменения", () => {
 
     expect((refusal as ApiError).code).toBe("offline");
     expect(errorKey(refusal)).toBe("error.offline");
-    // Мигания «показали и убрали» тоже быть не должно: показывать нечего.
+    // There must be no flash of "shown and removed" either: there is nothing to show.
     expect(cachedState().tasks[0].start_date).toBe("2026-03-04");
   });
 
   it("не запирает изменения, пока связь просто не открылась", async () => {
-    // Раскладка без WebSocket — не обрыв: живых обновлений там нет, а HTTP
-    // работает, и запирать редактирование не за что.
+    // A deployment without WebSocket is not a drop: there are no live updates there, while HTTP
+    // works, and there is nothing to lock editing for.
     server.use(http.post("/api/projects/p1/mutations", () => HttpResponse.json(OK, { status: 201 })));
 
     const { result } = renderHook(() => useProjectMutation("p1"), {
@@ -241,7 +238,7 @@ describe("оптимистичные изменения", () => {
       await result.current.apply(MOVE_OP_2, moveTaskLocally2).catch(() => {});
     });
 
-    // откат второго не должен отменить первое
+    // rolling back the second must not cancel the first
     expect(cachedState().tasks[0].start_date).toBe("2026-03-11");
   });
 });
