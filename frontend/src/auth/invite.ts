@@ -1,55 +1,52 @@
 /**
- * Приглашение, пока человек ходит по экранам входа.
+ * The invitation, while a person moves around the sign-in screens.
  *
- * Токен живёт в строке запроса, и каждый переход, который его не переносит,
- * теряет приглашение насовсем: человек возвращается в свою прежнюю
- * организацию, а пригласивший продолжает видеть «Ждёт» и думать, что письмо
- * не открыли. Поэтому адрес соседнего экрана строится одной функцией на все
- * четыре экрана, а не ветвится в каждом из них порознь — так правило нельзя
- * соблюсти в одну сторону и забыть в другую.
+ * The token lives in the query string, and every navigation that does not carry it over loses the
+ * invitation for good: the person returns to their former organization while the inviter goes on
+ * seeing "Pending" and thinking the email was not opened. So the neighbouring screen's address is
+ * built by one function for all four screens rather than branching separately in each of them —
+ * that way the rule cannot be kept in one direction and forgotten in the other.
  *
- * Одной строки запроса, однако, мало. Между «Забыли пароль?» и «Войти» стоит
- * письмо, а ссылку в нём строит сервер, и приглашения в ней нет и быть не
- * может. На этом переходе токен и терялся бы при любой аккуратности со
- * ссылками — поэтому он ещё и запоминается на час.
+ * The query string alone, however, is not enough. Between "Forgot your password?" and "Sign in"
+ * stands an email, and the link in it is built by the server, which has no invitation in it and
+ * cannot have. On that transition the token would be lost however careful one is with the links —
+ * so it is also remembered for an hour.
  */
 
 const KEY = "planora.pending_invite";
 
 /**
- * Час — это дорога до почтового ящика и обратно.
+ * An hour is the trip to the mailbox and back.
  *
- * Дольше держать нечего: приглашение, о котором человек забыл вчера, не
- * должно всплывать посреди сегодняшнего входа. Меньше — мало: письма читают
- * не в ту же минуту.
+ * There is nothing to hold it longer for: an invitation a person forgot about yesterday must not
+ * surface in the middle of today's sign-in. Less is too little: emails are not read the same minute.
  */
 const TTL_MS = 60 * 60 * 1000;
 
 type Stored = { token: string; at: number };
 
-/** Адрес экрана входа или регистрации с сохранённым приглашением. */
+/** The address of the sign-in or registration screen with the saved invitation. */
 export function withInvite(path: string, token: string | null): string {
   return token === null ? path : `${path}?invite=${encodeURIComponent(token)}`;
 }
 
 /**
- * Запоминает приглашение, открытое по ссылке.
+ * Remembers an invitation opened by a link.
  *
- * Хранилище — `localStorage`, а не `sessionStorage`: ссылку из письма
- * почтовый клиент открывает новой вкладкой, а `sessionStorage` вкладке не
- * наследуется, то есть ровно в том переходе, ради которого всё и заводится,
- * он был бы пуст.
+ * The storage is `localStorage` rather than `sessionStorage`: a mail client opens a link from an
+ * email in a new tab, and `sessionStorage` is not inherited by a tab — that is, in exactly the
+ * transition all of this exists for, it would be empty.
  */
 export function rememberInvite(token: string): void {
   try {
     localStorage.setItem(KEY, JSON.stringify({ token, at: Date.now() } satisfies Stored));
   } catch {
-    // Приватный режим браузера умеет запрещать хранилище. Тогда работает то,
-    // что было и раньше, — токен в строке запроса. Это не повод падать.
+    // A browser's private mode can forbid storage. Then what worked before works — the token in the
+    // query string. That is no reason to crash.
   }
 }
 
-/** Приглашение, по которому человек сюда шёл. `null` — нет или протухло. */
+/** The invitation the person came here by. `null` — there is none or it has gone stale. */
 export function pendingInvite(): string | null {
   try {
     const raw = localStorage.getItem(KEY);
@@ -62,17 +59,17 @@ export function pendingInvite(): string | null {
     }
     return stored.token;
   } catch {
-    // Чужая или испорченная запись под нашим ключом — то же самое, что её
-    // отсутствие: разбирать её нечем, а падать на входе нельзя.
+    // Somebody else's or a corrupted record under our key is the same thing as its absence: there is
+    // nothing to parse it with, and crashing at sign-in will not do.
     return null;
   }
 }
 
-/** Забывает приглашение: оно принято, отклонено или больше не нужно. */
+/** Forgets the invitation: it was accepted, declined or is no longer needed. */
 export function forgetInvite(): void {
   try {
     localStorage.removeItem(KEY);
   } catch {
-    // см. rememberInvite()
+    // see rememberInvite()
   }
 }

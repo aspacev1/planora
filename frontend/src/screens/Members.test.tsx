@@ -29,9 +29,9 @@ function membersHandlers(
     mailEnabled?: boolean;
     invitations?: unknown[];
     role?: string;
-    /** Состав организации. Второй владелец снимает защиту последнего. */
+    /** The organization's roster. A second owner lifts the last-owner protection. */
     roster?: unknown[];
-    /** Список проектов: форма приглашения запрашивает его для любой роли. */
+    /** The list of projects: the invitation form requests it for any role. */
     projects?: unknown[];
   } = {},
 ) {
@@ -42,8 +42,8 @@ function membersHandlers(
     roster = ROSTER,
     projects = [],
   } = options;
-  // Свои ответы идут первыми: msw берёт первый подходящий обработчик, и
-  // общий `/api/org` из sessionHandlers перекрыл бы роль, заданную тестом.
+  // Our own responses come first: msw takes the first matching handler, and the shared `/api/org`
+  // from sessionHandlers would override the role the test sets.
   return [
     http.get("/api/org", () => HttpResponse.json({ ...ORG, role })),
     http.get("/api/org/members", () => HttpResponse.json(roster)),
@@ -57,8 +57,8 @@ function membersHandlers(
 
 describe("экран участников", () => {
   it("показывает состав организации с ролями", async () => {
-    // Не владельцу роли показываются словами: править их он всё равно не
-    // может, и выпадающий список обещал бы действие, которого нет.
+    // To a non-owner the roles are shown as words: they cannot edit them anyway, and a dropdown
+    // would promise an action that does not exist.
     server.use(...membersHandlers({ role: "viewer" }));
 
     renderApp({ route: "/members", locale: "ru" });
@@ -105,8 +105,8 @@ describe("экран участников", () => {
     renderApp({ route: "/members", locale: "ru" });
 
     expect(await screen.findByRole("button", { name: /новая ссылка/i })).toBeInTheDocument();
-    // Установка без почтового сервера остаётся полноценной: остаётся
-    // копирование ссылки, а кнопки, которая всегда ответит отказом, нет.
+    // An install without a mail server stays fully usable: copying the link remains, while a button
+    // that would always answer with a refusal is absent.
     expect(screen.queryByRole("button", { name: /отправить ещё раз/i })).not.toBeInTheDocument();
   });
 
@@ -139,8 +139,8 @@ describe("экран участников", () => {
     renderApp({ route: "/members", locale: "ru" });
     await userEvent.click(await screen.findByRole("button", { name: /^новая ссылка$/i }));
 
-    // Прежняя ссылка живёт до ответа на вопрос: перевыпуск убивает её, а
-    // «новая ссылка» об этом не говорит ни словом.
+    // The previous link lives until the question is answered: a reissue kills it, and "new link"
+    // says not a word about that.
     expect(reissued).toBe(false);
     expect(screen.getByText(/прежняя ссылка умрёт сразу/i)).toBeInTheDocument();
 
@@ -211,7 +211,7 @@ describe("экран участников", () => {
     await userEvent.click(screen.getByRole("button", { name: /создать приглашение/i }));
 
     expect(await screen.findByText(/письмо не ушло/i)).toBeInTheDocument();
-    // Действие не откатывается: ссылка на месте и её можно отправить руками.
+    // The action is not rolled back: the link is in place and can be sent by hand.
     expect(screen.getByLabelText(/ссылка приглашения/i)).toBeInTheDocument();
   });
 
@@ -280,16 +280,15 @@ describe("экран участников", () => {
     renderApp({ route: "/members", locale: "ru" });
     await userEvent.click(await screen.findByRole("button", { name: /пригласить/i }));
 
-    // Роль по умолчанию — «Наблюдатель», и список проектов уже виден: отметка
-    // сужает любую роль, а не только клиента.
+    // The default role is "Observer", and the list of projects is already visible: a tick narrows
+    // any role, not only a client.
     const checkbox = await screen.findByLabelText("Şəhər Layihəsi");
     expect(checkbox).toBeInTheDocument();
     expect(checkbox).not.toBeChecked();
 
     await userEvent.selectOptions(screen.getByLabelText("Роль"), "client");
 
-    // Тот же список остаётся на месте и для клиента — форма не пересобирает
-    // его заново при смене роли.
+    // The same list stays in place for a client too — the form does not rebuild it on a role change.
     expect(screen.getByLabelText("Şəhər Layihəsi")).toBeInTheDocument();
   });
 
@@ -366,8 +365,8 @@ describe("переключатель организаций", () => {
 
     await userEvent.selectOptions(switcher, "o2");
 
-    // Состав организации — из новой, а не из прежней: экран следует за
-    // выбором, а не остаётся на данных, которых в этой организации нет.
+    // The organization's roster comes from the new one rather than the former: the screen follows
+    // the choice rather than staying on data that is not in this organization.
     expect(await screen.findByText("Кто-то ещё")).toBeInTheDocument();
     expect(switcher).toHaveValue("o2");
   });
@@ -392,16 +391,16 @@ describe("роль в форме приглашения", () => {
   it("под выбором роли написано, что она даёт", async () => {
     server.use(
       ...membersHandlers(),
-      // Выбор «Клиента» спрашивает проекты: отмечать нечего, но запрос уходит.
+      // Choosing "Client" asks for the projects: there is nothing to tick, but the request goes out.
       http.get("/api/projects", () => HttpResponse.json([])),
     );
 
     renderApp({ route: "/members", locale: "ru" });
     await userEvent.click(await screen.findByRole("button", { name: /пригласить/i }));
 
-    // «Наблюдатель» и «Клиент» отличаются не словом, а тем, что видит первый:
-    // все проекты организации против отмеченных поимённо. Узнать это после
-    // отправки приглашения поздно.
+    // "Observer" and "Client" differ not by a word but by what the first sees: all the
+    // organization's projects against the ones ticked by name. Learning that after the invitation is
+    // sent is too late.
     expect(screen.getByText(/читает проекты организации/i)).toBeInTheDocument();
 
     await userEvent.selectOptions(screen.getByLabelText("Роль"), "client");
@@ -443,8 +442,8 @@ describe("управление составом", () => {
     await userEvent.selectOptions(await screen.findByLabelText("Роль: Мария"), "viewer");
 
     await waitFor(() => expect(sent).toEqual({ role: "viewer" }));
-    // Тост, а не молчание: строка меняется на одно слово, и без подтверждения
-    // непонятно, дошло ли действие до сервера.
+    // A toast rather than silence: the row changes by one word, and without a confirmation it is
+    // unclear whether the action reached the server.
     expect(await screen.findByText(/Мария теперь Наблюдатель/i)).toBeInTheDocument();
   });
 
@@ -506,8 +505,8 @@ describe("управление составом", () => {
 
     renderApp({ route: "/members", locale: "ru" });
 
-    // Вошедший — u1: кнопки «убрать» в его собственной строке нет, а уход
-    // стоит отдельным разделом и назван своими словами.
+    // The signed-in person is u1: there is no "remove" button in their own row, while leaving stands
+    // as a separate section and is named in its own words.
     const mine = (await screen.findByText("a@b.c")).closest("li") as HTMLElement;
     expect(within(mine).queryByRole("button", { name: /убрать/i })).not.toBeInTheDocument();
     expect(
@@ -525,7 +524,7 @@ describe("покинуть организацию", () => {
         left = true;
         return new HttpResponse(null, { status: 204 });
       }),
-      // Уход уводит на список проектов — тот сразу же за ними и идёт.
+    // Leaving takes you to the list of projects — that comes right after them.
       http.get("/api/projects", () => HttpResponse.json([])),
     );
 
@@ -553,8 +552,8 @@ describe("покинуть организацию", () => {
   });
 
   it("роль «Клиент» состава не видит, но уйти может", async () => {
-    // Сервер отвечает ей отказом на состав: без раздела ухода позванный
-    // однажды остался бы внутри навсегда.
+    // The server answers them with a refusal on the roster: without the leaving section someone
+    // invited once would stay inside forever.
     server.use(
       ...membersHandlers({ role: "client" }),
       http.get("/api/org/members", () => HttpResponse.json({ detail: "forbidden" }, { status: 403 })),
