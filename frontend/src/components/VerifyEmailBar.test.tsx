@@ -9,11 +9,11 @@ import { USER, renderApp, sessionHandlers } from "../test/utils";
 
 const UNVERIFIED = { ...USER, email_verified: false };
 
-/** Список проектов — самый обычный экран под рамой; полоска живёт над ним. */
+/** The list of projects — the most ordinary screen under the frame; the strip lives above it. */
 function openProjects(user: typeof USER = UNVERIFIED) {
   server.use(
-    // Профиль — первым: внутри одного вызова побеждает объявленный раньше, а
-    // в наборе окружения профиль уже есть, и там адрес подтверждён.
+    // The profile first: within one call the one declared earlier wins, and the environment set already
+    // has a profile where the address is confirmed.
     http.get("/api/auth/me", () => HttpResponse.json(user)),
     ...sessionHandlers(),
     http.get("/api/projects", () => HttpResponse.json([])),
@@ -34,7 +34,8 @@ describe("полоска «адрес не подтверждён»", () => {
   it("не показывается тому, кто адрес уже подтвердил", async () => {
     openProjects(USER);
 
-    // Экран дорисовался — значит, ответ профиля уже пришёл и полоска решила.
+    // The screen has finished rendering — which means the profile's answer has arrived and the strip has
+    // decided.
     await screen.findByRole("heading", { name: /проекты/i });
     expect(screen.queryByText(/не подтверждён/i)).not.toBeInTheDocument();
   });
@@ -75,8 +76,8 @@ describe("полоска «адрес не подтверждён»", () => {
 
     expect(await screen.findByText(/письмо отправлено на a@b\.c/i)).toBeInTheDocument();
     expect(asked).toBe(1);
-    // Пауза началась: кнопка сама говорит, сколько ждать, вместо того чтобы
-    // ответить «слишком часто» на второе нажатие.
+    // The pause has begun: the button says itself how long to wait instead of answering "too often" to a
+    // second press.
     expect(screen.getByRole("button", { name: /ещё раз через/i })).toBeDisabled();
   });
 
@@ -92,15 +93,14 @@ describe("полоска «адрес не подтверждён»", () => {
 
     expect(await screen.findByText(/не удалось отправить/i)).toBeInTheDocument();
     expect(screen.queryByText(/письмо отправлено на/i)).not.toBeInTheDocument();
-    // Паузы нет: ждать нечего, письма не было.
+    // There is no pause: there is nothing to wait for, there was no email.
     expect(
       screen.getByRole("button", { name: /отправить письмо ещё раз/i }),
     ).toBeEnabled();
   });
 
   it("после регистрации не предлагает нажать то, что ответит «слишком часто»", async () => {
-    // Ровно то, что оставляет о себе экран регистрации: письмо ушло только
-    // что и на этот адрес.
+    // Exactly what the registration screen leaves behind: an email has just gone out and to this address.
     noteVerificationSent(UNVERIFIED.email);
 
     openProjects();
@@ -110,9 +110,9 @@ describe("полоска «адрес не подтверждён»", () => {
   });
 
   it("встречает зарегистрировавшегося строкой «письмо отправлено на …»", async () => {
-    // Настоящий путь целиком: форма регистрации, ответ сервера, переход
-    // внутрь. Письмо сервер отправляет сам, следом за ответом, и полоска —
-    // единственное место, где человек об этом узнаёт.
+    // The real path in full: the registration form, the server's answer, the navigation inside. The email
+    // is sent by the server itself right after the answer, and the strip is the only place a person
+    // learns about it.
     server.use(
       http.get("/api/auth/me", () => HttpResponse.json(UNVERIFIED)),
       ...sessionHandlers(),

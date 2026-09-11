@@ -8,11 +8,11 @@ import { server } from "../test/server";
 import { renderApp, sessionHandlers } from "../test/utils";
 
 /**
- * Ворота глазами человека.
+ * The gates through a person's eyes.
  *
- * Главное обещание продукта — AI ничего не пишет в проект без явного
- * подтверждения. Проверяется именно это: пока не нажата «Применить», ни один
- * запрос на применение не уходит.
+ * The product's main promise is that the AI writes nothing into a project without an explicit
+ * confirmation. That is exactly what is checked: until "Apply" is pressed, not a single apply request
+ * goes out.
  */
 
 const SESSION = {
@@ -81,8 +81,8 @@ function aiFixtures(configured = true) {
       calls.push("edit-draft");
       return HttpResponse.json(DRAFT_STATE);
     }),
-    // После применения экран уходит на проект: его состояние тоже надо
-    // ответить, иначе переход выглядит поломкой.
+    // After applying, the screen leaves for the project: its state has to be answered too, otherwise the
+    // navigation looks like a breakage.
     http.get("/api/projects/p1", () => HttpResponse.json({ detail: "project_not_found" }, { status: 404 })),
     http.post("/api/ai/sessions/s1/apply", () => {
       calls.push("apply");
@@ -105,8 +105,8 @@ describe("интервью", () => {
     renderApp({ route: "/projects/new/ai" });
 
     expect(await screen.findByText(/LLM не подключён/)).toBeInTheDocument();
-    // Ссылка в настройки — на самом экране, а не только в шапке: человек
-    // читает объяснение здесь, и отсылать его глазами наверх незачем.
+    // The link to the settings is on the screen itself rather than only in the header: the person reads
+    // the explanation here, and there is no point sending their eyes upwards.
     const main = screen.getByRole("main");
     expect(within(main).getByRole("link", { name: "Организация" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Начать интервью" })).toBeNull();
@@ -157,11 +157,11 @@ describe("интервью", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Хватит, генерируй" }));
     await userEvent.click(await screen.findByRole("button", { name: "Сгенерировать план" }));
 
-    // Черновик на экране — и ни одного применения.
+    // The draft is on screen — and not a single apply.
     expect(await screen.findByText("Черновик плана")).toBeInTheDocument();
     expect(calls).not.toContain("apply");
 
-    // Кнопка неактивна, пока у проекта нет названия: применять некуда.
+    // The button is disabled while the project has no name: there is nowhere to apply to.
     const apply = screen.getByRole("button", { name: "Применить в проект" });
     expect(apply).toBeDisabled();
 
@@ -196,7 +196,7 @@ describe("интервью", () => {
       http.put("/api/ai/sessions/s1/draft", async ({ request }) => {
         const { draft } = (await request.json()) as { draft: Draft };
         bodies.push(draft);
-        // Ответ задерживается: вторая правка уходит, пока первая ещё летит.
+        // The answer is delayed: the second edit leaves while the first is still in flight.
         await delay(60);
         return HttpResponse.json({ ...DRAFT_STATE, draft });
       }),
@@ -213,8 +213,8 @@ describe("интервью", () => {
     await userEvent.tab();
 
     await waitFor(() => expect(bodies).toHaveLength(2));
-    // Вторая правка построена поверх первой, а не поверх черновика с сервера,
-    // в котором первой ещё нет.
+    // The second edit is built on top of the first rather than on top of the draft from the server,
+    // which does not have the first in it yet.
     expect(bodies[1].categories[0].tasks[0]).toMatchObject({
       name: "Логотип v2",
       start_date: "2026-03-09",

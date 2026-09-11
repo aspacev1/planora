@@ -4,19 +4,18 @@ import { addComment, commentsQueryKey, listComments } from "../api/comments";
 import { CommentThread } from "../comments/CommentThread";
 
 /**
- * Обсуждение задачи.
+ * A task's discussion.
  *
- * От старых к новым — так их отдаёт сервер, и переворачивать нить в браузере
- * значило бы держать порядок разговора в двух местах.
+ * Oldest to newest — that is how the server gives them, and turning the thread around in the browser
+ * would mean keeping the conversation's order in two places.
  *
- * Оптимистичной вставки здесь нет, в отличие от правки полей рядом. Разница не
- * в лени: у изменения задачи есть обратная операция, и отказ сервера
- * возвращает состояние назад бесследно. У реплики отката нет — показать её до
- * подтверждения значит однажды показать реплику, которой не существует, и
- * забрать её со экрана уже нечем.
+ * There is no optimistic insertion here, unlike the field editing next to it. The difference is not
+ * laziness: a change to a task has an inverse operation, and a server refusal returns the state
+ * without a trace. A reply has no rollback — showing it before the confirmation means one day showing
+ * a reply that does not exist, with nothing left to take it off the screen with.
  *
- * Отказ ленты ничего не ломает: блока просто нет, а карточка выше работает как
- * работала. Тот же довод, что и у истории задачи.
+ * A refusal of the feed breaks nothing: the block is simply absent, and the card above works as it
+ * worked. The same argument as with a task's history.
  */
 export function Comments({ projectId, taskId }: { projectId: string; taskId: string }) {
   const client = useQueryClient();
@@ -30,8 +29,8 @@ export function Comments({ projectId, taskId }: { projectId: string; taskId: str
   const send = useMutation({
     mutationFn: (body: string) => addComment(projectId, body, taskId),
     onSuccess: () => {
-      // И лента задачи, и лента проекта: реплика попала в обе, и обновить
-      // только ту, что на глазах, значит оставить вторую врать до перехода.
+      // Both the task's feed and the project's: the reply landed in both, and refreshing only the one
+      // in sight means leaving the second to lie until a navigation.
       client.invalidateQueries({ queryKey: commentsQueryKey(projectId) });
     },
   });

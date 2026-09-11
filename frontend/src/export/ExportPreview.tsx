@@ -3,15 +3,15 @@ import type { ExportFormat, ExportSection } from "../api/export";
 import type { ExportFacts } from "./ExportDialog";
 
 /**
- * Превью первой страницы будущего файла.
+ * A preview of the future file's first page.
  *
- * Рукописный SVG, а не библиотека рисования: в проекте нет ни одной, и лента
- * с искрой скоркарда нарисованы тем же способом (см. `gantt/`, `scorecard/`).
- * Заводить зависимость ради картинки в четверть окна тем более не за чем.
+ * Hand-written SVG rather than a drawing library: there is not a single one in the project, and the
+ * strip with the scorecard's sparkline are drawn the same way (see `gantt/`, `scorecard/`). There is all
+ * the less reason to add a dependency for a picture a quarter of a window wide.
  *
- * Это не уменьшенная копия документа, а его макет: человеку надо понять, что
- * окажется в файле, до того как файл собран. Поэтому блоки повторяют состав
- * выбранного, а не содержимое проекта.
+ * This is not a scaled-down copy of the document but its layout: a person needs to understand what will
+ * end up in the file before the file is assembled. So the blocks repeat the composition of what was
+ * selected rather than the project's content.
  */
 export function ExportPreview({
   format,
@@ -25,9 +25,9 @@ export function ExportPreview({
   const { t } = useLocale();
   const has = (section: ExportSection) => sections.includes(section);
 
-  // Книга и документ выглядят по-разному с первого взгляда: у книги ярлычки
-  // листов внизу, у документа — колонтитул. Показать одно и то же для обоих
-  // значило бы не ответить на первый же вопрос — «а что я скачаю».
+  // A workbook and a document look different at first glance: a workbook has sheet tabs at the bottom,
+  // a document has a footer. Showing the same thing for both would mean not answering the very first
+  // question — "what am I going to download".
   const isBook = format === "xlsx";
 
   return (
@@ -93,7 +93,7 @@ export function ExportPreview({
 
       {isBook ? (
         <g>
-          {/* Ярлычки листов: у книги их столько, сколько выбрано разделов. */}
+          {/* The sheet tabs: a workbook has as many as there are selected sections. */}
           <line x1="0" y1="188" x2="290" y2="188" stroke="var(--border)" strokeWidth=".6" />
           {sections.slice(0, 6).map((section, i) => (
             <g key={section}>
@@ -130,7 +130,7 @@ export function ExportPreview({
   );
 }
 
-/** Блок строк таблицы: заголовок, шапка и полосы вместо текста. */
+/** A block of table rows: a heading, a header row and bands instead of text. */
 function Block({ y, rows, label }: { y: number; rows: number; label: string }) {
   return (
     <g>
@@ -177,7 +177,7 @@ function Block({ y, rows, label }: { y: number; rows: number; label: string }) {
   );
 }
 
-/** Лента: колонка названий, шапка шкалы и полоски четырёх статусов. */
+/** The strip: the names column, the scale's header and bars in four statuses. */
 function Gantt({ y }: { y: number }) {
   const bars = [
     { row: 0, x: 96, w: 40, fill: "var(--ok)" },

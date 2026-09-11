@@ -8,20 +8,20 @@ import type { Locale } from "../i18n";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Подписи кодами языков, а не названиями: «Azərbaycan / English / Русский»
- * пришлось бы читать на языке, которого человек, возможно, и не знает —
- * ровно в тот момент, когда он ищет свой.
+ * The captions are language codes rather than names: "Azərbaycan / English / Русский" would have to be
+ * read in a language the person may not even know — at exactly the moment they are looking for their
+ * own.
  *
- * Стоит в боковой колонке (над «Настройками») и на публичной странице, где
- * колонки нет вовсе. Один и тот же переключатель на оба места: копия писала бы
- * то же поле профиля вторым куском кода и разъехалась бы с этим на первой же
- * правке — одна научилась бы применять язык сразу, другая нет.
+ * It stands in the sidebar (above "Settings") and on the public page, where there is no column at all.
+ * One and the same switcher for both places: a copy would write the same profile field with a second
+ * piece of code and would diverge from this one on the very first edit — one would learn to apply the
+ * language at once, the other would not.
  *
- * Выбор вошедшего уходит в профиль, а не только в память браузера: язык живёт
- * в профиле, и человек, выбравший русский на работе, обязан увидеть русский и
- * дома. Отказ сервера при этом ничего не откатывает — язык уже переключился, и
- * возвращать его обратно из-за неудачной записи значило бы наказать человека
- * за чужую сетевую ошибку; следующий выбор запишется.
+ * A signed-in person's choice goes into the profile rather than only into the browser's memory: the
+ * language lives in the profile, and a person who chose Russian at work must see Russian at home too.
+ * A server refusal rolls nothing back at that — the language has already switched, and bringing it back
+ * because of a failed write would mean punishing a person for somebody else's network error; the next
+ * choice will be written.
  */
 export function LocaleSwitch() {
   const { locale, setLocale, t } = useLocale();
@@ -45,8 +45,8 @@ export function LocaleSwitch() {
           key={code}
           type="button"
           className="button--quiet"
-          // aria-pressed, а не подсветка цветом: включённый язык должен быть
-          // слышен, а не только виден.
+          // aria-pressed rather than a colour highlight: the selected language must be audible rather
+          // than only visible.
           aria-pressed={code === locale}
           onClick={() => choose(code)}
         >

@@ -13,12 +13,12 @@ import {
 } from "./pageBudget";
 
 /**
- * Та же таблица ожиданий, что у сервера
- * (`backend/tests/test_export_api.py`, блок «правило масштаба»).
+ * The same table of expectations as the server's (`backend/tests/test_export_api.py`, the "the scale
+ * rule" block).
  *
- * Если эти два набора разойдутся, окно начнёт писать на кнопке одно число
- * страниц, а в файл придёт другое — и заметит это первым не разработчик, а
- * человек, скачавший файл на двенадцать страниц вместо обещанных двух.
+ * If these two sets diverge, the dialog will start writing one number of pages on the button while a
+ * different one arrives in the file — and the first to notice will not be a developer but a person who
+ * downloaded a twelve-page file instead of the promised two.
  */
 
 describe("ёмкость страницы", () => {
@@ -56,9 +56,9 @@ describe("умолчание масштаба", () => {
   });
 
   it("умолчание никогда не оказывается запрещённым самому себе", () => {
-    // На десятилетнем портфеле даже месяц выходит за потолок — и он всё равно
-    // разрешён: у него нет менее подробного соседа, и отказ там означал бы,
-    // что проект не выгружается вовсе.
+    // On a ten-year portfolio even a month goes past the ceiling — and it is allowed all the same: it
+    // has no less detailed neighbour, and a refusal there would mean the project cannot be exported at
+    // all.
     for (const days of [30, 365, 1095, 5000, 20000]) {
       const zoom = defaultZoom(days, "landscape");
       expect(zoomAllowed(zoom, days, "landscape")).toBe(true);
@@ -74,8 +74,8 @@ describe("цена подробности", () => {
     const day = options.find((option) => option.zoom === "day");
 
     expect(day?.allowed).toBe(false);
-    // Не «кнопка исчезла», а «вот сколько это стоит»: человек должен понять,
-    // чего стоит подробность, а не гадать, куда делась кнопка.
+    // Not "the button disappeared" but "here is what it costs": a person must understand what the detail
+    // costs rather than guess where the button went.
     expect(day?.pages).toBeGreaterThan(MAX_PAGES);
   });
 
@@ -102,8 +102,8 @@ describe("окно периода", () => {
   });
 
   it("окно не выходит за пределы проекта", () => {
-    // Проект кончается через неделю: «ближайшие три месяца» — это неделя, а
-    // не три месяца пустой шкалы.
+    // The project ends in a week: "the coming three months" is a week rather than three months of empty
+    // scale.
     expect(windowDays("next_3m", start, "2026-06-08", today)).toBe(8);
   });
 

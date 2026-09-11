@@ -8,17 +8,16 @@ import { Modal } from "../components/Modal";
 import { useLocale } from "../i18n/LocaleProvider";
 
 /**
- * Окно переноса сметы в план.
+ * The dialog for transferring the quote into the plan.
  *
- * Прежде кнопка переносила всё сразу и молча, и второе нажатие удваивало
- * план. Окно говорит, что именно случится — раздел станет категорией или
- * ляжет в существующую, строка станет задачей на столько-то дней, — и даёт
- * снять галочку с того, что переносить рано. Что переносить нельзя, оно
- * показывает выключенным, а не прячет: строка «уже в плане» объясняет, почему
- * её нет в счёте, а спрятанная заставила бы искать.
+ * The button used to transfer everything at once and silently, and a second press doubled the plan.
+ * The dialog says what exactly will happen — a section will become a category or land in an existing
+ * one, a line will become a task of so many days — and lets you untick what it is too early to
+ * transfer. What cannot be transferred it shows disabled rather than hiding: a line marked "already in
+ * the plan" explains why it is not in the count, while a hidden one would have to be hunted for.
  *
- * Считает всё сервер (см. proposals.push_preview): длительности и
- * сопоставление категорий — его правила, и окно их не переспрашивает.
+ * Everything is computed by the server (see proposals.push_preview): the durations and the category
+ * matching are its rules, and the dialog does not re-ask them.
  */
 export function PushToPlanDialog({
   projectId,
@@ -37,8 +36,8 @@ export function PushToPlanDialog({
     retry: false,
   });
 
-  // Снятые галочки, а не поставленные: по умолчанию выбрано всё переносимое,
-  // и помнить надо только исключения — так выбор не ждёт ответа сервера.
+  // The unticked boxes rather than the ticked ones: by default everything transferable is selected, and
+  // only the exceptions have to be remembered — that way the choice does not wait for the server's answer.
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
 
   const push = useMutation({
@@ -100,9 +99,8 @@ export function PushToPlanDialog({
                     checked={rows.length > 0 && on.length === rows.length}
                     disabled={rows.length === 0}
                     ref={(box) => {
-                      // Частичный выбор — минусом, как в любом списке с
-                      // разделами: галочка врала бы «всё», пустой квадрат —
-                      // «ничего».
+                      // A partial selection is shown with a dash, as in any list with sections: a tick
+                      // would lie "everything", an empty box "nothing".
                       if (box) box.indeterminate = on.length > 0 && on.length < rows.length;
                     }}
                     onChange={() => toggleSection(category)}

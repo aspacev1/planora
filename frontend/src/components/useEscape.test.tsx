@@ -7,11 +7,10 @@ import { APPROVED, captureMutations, projectFixtures, renderProject } from "../t
 beforeEach(projectFixtures);
 
 /**
- * Esc глазами человека, у которого на экране больше одного слоя.
+ * Esc through the eyes of a person with more than one layer on screen.
  *
- * Проверяется не устройство стопки, а обещание: одно нажатие снимает один
- * слой — тот, который человек открыл последним. Всё остальное остаётся, где
- * было, вместе с недописанным.
+ * What is checked is not the stack's construction but the promise: one press removes one layer — the
+ * one the person opened last. Everything else stays where it was, together with what was left unfinished.
  */
 
 const bar = () => screen.findByRole("button", { name: /Логотип/ });
@@ -23,7 +22,7 @@ describe("Esc при нескольких слоях", () => {
     renderProject(APPROVED);
     await userEvent.click(await bar());
 
-    // Правка даты в карточке дальше порога — окно «объясните сдвиг» поверх неё.
+    // Editing a date in the card past the threshold — the "explain the shift" dialog on top of it.
     const start = await screen.findByLabelText(/старт/i);
     await userEvent.clear(start);
     await userEvent.type(start, "2026-03-25");
@@ -33,11 +32,11 @@ describe("Esc при нескольких слоях", () => {
     await userEvent.keyboard("{Escape}");
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    // Главное: карточка на месте. Esc отменил сдвиг, а не работу над задачей.
+    // The main thing: the card is in place. Esc cancelled the shift rather than the work on the task.
     expect(panel()).toBeInTheDocument();
     expect(sent).toHaveLength(0);
 
-    // Второе нажатие достаётся тому, что осталось внизу.
+    // The second press goes to what is left below.
     await userEvent.keyboard("{Escape}");
     expect(panel()).not.toBeInTheDocument();
   });
@@ -73,9 +72,9 @@ describe("Esc при нескольких слоях", () => {
     renderProject();
     await userEvent.click(await bar());
 
-    // Ячейка начала правится прямо в таблице; свой Esc она гасит сама —
-    // возвращает прежнее значение и закрывается.
-    // Имя и дата стоят и в карточке: строка ленты ищется по своей полоске.
+    // The start cell is edited right in the table; it suppresses its own Esc — it returns the previous
+    // value and closes.
+    // The name and the date stand in the card too: a strip row is looked up by its own bar.
     const row = (await bar()).closest(".gantt__row") as HTMLElement;
     await userEvent.click(within(row).getByText("4 марта"));
     const cell = within(row).getByLabelText(/Начало/);
@@ -91,8 +90,8 @@ describe("Esc при нескольких слоях", () => {
     renderProject();
     await userEvent.click(await bar());
 
-    // Меню поверх карточки, но карточку закрывают мышью — стопка обязана
-    // забыть именно её, а не верхний слой.
+    // The menu is on top of the card, but the card is closed with the mouse — the stack must forget
+    // precisely it rather than the top layer.
     await userEvent.click(screen.getByRole("button", { name: /Масштаб/ }));
     await userEvent.click(screen.getByRole("button", { name: "Закрыть карточку" }));
     expect(panel()).not.toBeInTheDocument();
