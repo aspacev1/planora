@@ -6,47 +6,51 @@ import { reorderCategory, reorderTask } from "../project/optimistic";
 import { useProjectMutation } from "../project/useProjectMutation";
 
 /**
- * Перестановка строк перетаскиванием за левую колонку.
+ * Reordering rows by dragging them by the left column.
  *
- * Жестов два, и они разделены нарочно: полоску тащат по горизонтали и меняют
- * даты, строку тащат за ручку и меняют порядок. Одно движение — одно
- * последствие. Смешать их значило бы сбивать сроки каждому, кто попытался
- * переставить строку и промахнулся вниз на пиксель.
+ * There are two gestures, and they are kept apart on purpose: a bar is dragged
+ * horizontally and changes dates, a row is dragged by its handle and changes
+ * order. One motion — one consequence. Mixing them would mean knocking
+ * everybody's dates about whenever they tried to reorder a row and missed by a
+ * pixel downwards.
  *
- * Строк две породы, и тащат обе одинаково: задача меняет место внутри своего
- * этапа или переезжает в соседний, категория меняет место в списке этапов.
- * Один жест на обе, а не два похожих: ручка, ведущая себя по-разному на
- * заголовке и на строке под ним, — это две вещи, выглядящие как одна.
+ * There are two breeds of row, and both are dragged the same way: a task
+ * changes its place inside its own stage or moves to a neighbouring one, a
+ * category changes its place in the list of stages. One gesture for both rather
+ * than two similar ones: a handle that behaves differently on a heading and on
+ * the row below it is two things that look like one.
  *
- * Клиент шлёт только целевую позицию (и категорию — для задачи): раздвинуть
- * соседей и записать их сдвиги в журнал — дело сервера, и вторая реализация
- * того же расчёта здесь разошлась бы с ней на первом же переносе между
- * категориями.
+ * The client sends only the target position (and the category, for a task):
+ * pushing the neighbours apart and writing their shifts into the journal is the
+ * server's job, and a second implementation of the same computation here would
+ * diverge from it on the very first move between categories.
  */
 
 export type RowKind = "task" | "category";
 export type DropTarget = { kind: RowKind; id: string; half: "top" | "bottom" };
-/** Что сейчас в руке. */
+/** What is in hand right now. */
 export type DraggedRow = { kind: RowKind; id: string };
 
-/** Верхняя половина строки или нижняя — от настоящих границ, а не от индекса. */
+/** The upper half of a row or the lower one — from real bounds, not from an index. */
 export function halfOf(row: Element, clientY: number): "top" | "bottom" {
   const box = row.getBoundingClientRect();
   return clientY < box.top + box.height / 2 ? "top" : "bottom";
 }
 
 /**
- * Строка под указателем — по координатам точки, а не по адресату события.
+ * The row under the pointer — by the point's coordinates, not by the event's
+ * target.
  *
- * Пальцем указатель после нажатия неявно захватывается ручкой, за которую
- * начали жест: до конца жеста все события достаются ей одной, и строка, над
- * которой ведут палец, о движении не узнаёт. Полагаться на то, кому пришло
- * событие, значит поддерживать перестановку только мышью — а `touch-action`
- * на ручке обещает обратное.
+ * With a finger, after the press the pointer is implicitly captured by the
+ * handle the gesture started on: until the gesture ends all events go to it
+ * alone, and the row the finger is being led over never learns about the
+ * movement. Relying on who received the event means supporting reordering with
+ * a mouse only — and `touch-action` on the handle promises the opposite.
  */
 function targetAt(clientX: number, clientY: number): DropTarget | null {
-  // Метода нет у jsdom, а браузер вернёт `null` за краем окна: попадания может
-  // не быть, и это не ошибка, а «палец не над строкой».
+  // jsdom does not have the method, and a browser returns `null` beyond the
+  // window's edge: there may be no hit, and that is not an error but "the
+  // finger is not over a row".
   const under = document.elementFromPoint?.(clientX, clientY) ?? null;
   const row = under?.closest<HTMLElement>("[data-drop-id]") ?? null;
   const id = row?.dataset.dropId;
@@ -58,7 +62,7 @@ function targetAt(clientX: number, clientY: number): DropTarget | null {
   };
 }
 
-/** Место призрака — свойствами прямо в узел, мимо состояния React. */
+/** The ghost's position — as properties written straight into the node, past React state. */
 function moveGhost(node: HTMLElement, at: { x: number; y: number }): void {
   node.style.setProperty("--drag-x", `${at.x}px`);
   node.style.setProperty("--drag-y", `${at.y}px`);
@@ -68,15 +72,15 @@ function byOrder<T extends { position: number; id: string }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => a.position - b.position || (a.id < b.id ? -1 : 1));
 }
 
-/** Куда встанет задача, если её отпустить здесь. */
+/** Where the task will land if it is released here. */
 function placeForTask(
   state: ProjectState,
   taskId: string,
   target: DropTarget,
 ): { categoryId: string; position: number } | null {
   if (target.kind === "category") {
-    // Бросок на заголовок — это «положи в эту категорию», а не выбор места
-    // внутри неё: место выбирают, целясь между строками.
+    // A drop on a heading means "put it in this category", not a choice of
+    // place inside it: the place is chosen by aiming between rows.
     return {
       categoryId: target.id,
       position: state.tasks.filter((row) => row.category_id === target.id && row.id !== taskId)
@@ -97,11 +101,11 @@ function placeForTask(
 }
 
 /**
- * Куда встанет категория, если её отпустить здесь.
+ * Where the category will land if it is released here.
  *
- * Номер считается среди остальных этапов, без самой переносимой: так же, как
- * у задачи, и по той же причине — строка, вынутая из списка, своих же соседей
- * не нумерует.
+ * The number is counted among the remaining stages, without the one being
+ * moved: the same as for a task, and for the same reason — a row taken out of
+ * the list does not number its own neighbours.
  */
 function placeForCategory(
   state: ProjectState,
@@ -128,38 +132,41 @@ export function useReorder({
   const [dragged, setDragged] = useState<DraggedRow | null>(null);
   const [target, setTarget] = useState<DropTarget | null>(null);
 
-  // Призрак — копия переносимой строки под курсором. Место пишется прямо в
-  // узел свойствами, мимо состояния React: точка меняется на каждом движении
-  // руки, и перерисовывать ленту ради неё значило бы пересобирать сотню строк
-  // по десять раз в секунду (тем же способом ведут полосу категории, см.
-  // useDragCategory).
+  // The ghost is a copy of the row being moved, under the cursor. Its position
+  // is written straight into the node as properties, past React state: the
+  // point changes on every movement of the hand, and repainting the strip for
+  // it would mean rebuilding a hundred rows ten times a second (the category
+  // band is led the same way, see useDragCategory).
   const ghost = useRef<HTMLElement | null>(null);
   const point = useRef({ x: 0, y: 0 });
 
   /**
-   * Узел призрака. Место пишется сразу при появлении: узла в момент нажатия
-   * ещё нет, и без этого первый кадр жеста призрак стоял бы в углу окна и
-   * прыгал бы оттуда под курсор на первом же движении.
+   * The ghost's node. The position is written as soon as it appears: there is
+   * no node at press time, and without this the ghost would stand in the corner
+   * of the window for the gesture's first frame and jump from there under the
+   * cursor on the very first movement.
    */
   const ghostRef = useCallback((element: HTMLElement | null) => {
     ghost.current = element;
     if (element !== null) moveGhost(element, point.current);
   }, []);
 
-  // Точку жеста слушает окно, а не ручка и не строки: мышью события достаются
-  // строке под курсором, пальцем — захватившей указатель ручке, и призрак,
-  // подписанный на одно из двух, отставал бы ровно в другом случае.
+  // The gesture's point is listened for on the window rather than on the handle
+  // or the rows: with a mouse the events go to the row under the cursor, with a
+  // finger to the handle that captured the pointer, and a ghost subscribed to
+  // one of the two would lag in exactly the other case.
   useEffect(() => {
     if (dragged === null) return;
     const follow = (event: globalThis.PointerEvent) => {
       point.current = { x: event.clientX, y: event.clientY };
       const node = ghost.current;
       if (node !== null) moveGhost(node, point.current);
-      // Мышью цель сообщают сами строки (см. handleProps): над шапкой или
-      // тулбаром сообщить некому, и линия вставки оставалась бы на строке,
-      // с которой курсор давно ушёл, хотя бросок там уже ничего не делает.
-      // Пальцем указатель захвачен ручкой, и событие всегда приходит из её
-      // строки — этот случай ведёт `targetAt`, а не строки.
+      // With a mouse the rows report the target themselves (see handleProps):
+      // over the header or the toolbar there is nobody to report it, and the
+      // insertion line would stay on a row the cursor left long ago, even
+      // though a drop there no longer does anything. With a finger the pointer
+      // is captured by the handle and the event always comes from its own row —
+      // that case is driven by `targetAt` rather than by the rows.
       const target = event.target instanceof Element ? event.target : null;
       if (target !== null && target.closest("[data-drop-id]") === null) setTarget(null);
     };
@@ -167,9 +174,10 @@ export function useReorder({
     return () => window.removeEventListener("pointermove", follow);
   }, [dragged]);
 
-  // Отпустить кнопку можно и мимо строк — за краем ленты, над шапкой, вообще
-  // вне окна. Без этого слушателя строка осталась бы «в руке» навсегда, и
-  // следующее движение мыши переставляло бы её без всякого нажатия.
+  // The button can be released away from the rows too — beyond the strip's
+  // edge, over the header, outside the window entirely. Without this listener
+  // the row would stay "in hand" forever, and the next mouse movement would
+  // reorder it with no press at all.
   useEffect(() => {
     if (dragged === null) return;
     const finish = () => {
@@ -192,20 +200,20 @@ export function useReorder({
   };
 
   /**
-   * Строка под указателем → цель, которую можно принять.
+   * The row under the pointer → a target that can be accepted.
    *
-   * Задача целится между строками и в заголовки: и то, и другое — её место.
-   * Категория целится только в заголовки, поэтому строка задачи означает свой
-   * этап: попасть в узкую полоску заголовка, стоящего десятью строками выше,
-   * иначе пришлось бы точно. Внутрь себя этап не встаёт — «где-то здесь» для
-   * него значит «после этого этапа».
+   * A task aims between rows and at headings: both are places for it. A
+   * category aims only at headings, so a task's row means its stage: otherwise
+   * you would have to land precisely on the narrow strip of a heading standing
+   * ten rows above. A stage does not go inside itself — "somewhere around here"
+   * means "after this stage" for it.
    */
   const aimAt = (raw: DropTarget | null): DropTarget | null => {
     if (raw === null || dragged === null) return null;
 
     if (dragged.kind === "task") {
-      // Над самой собой линия вставки не рисуется: она обещала бы перемещение
-      // туда, где строка и так стоит.
+      // No insertion line is drawn over the row itself: it would promise a move
+      // to where the row already stands.
       return raw.kind === "task" && raw.id === dragged.id ? null : raw;
     }
 
@@ -219,7 +227,7 @@ export function useReorder({
     return raw.id === dragged.id ? null : raw;
   };
 
-  /** `null` — палец увели мимо строк: линия вставки гаснет, бросок ничего не делает. */
+  /** `null` — the finger was led away from the rows: the insertion line goes out, the drop does nothing. */
   const over = (next: DropTarget | null) => {
     if (dragged === null) return;
     setTarget(aimAt(next));
@@ -229,10 +237,10 @@ export function useReorder({
     const place = placeForTask(state, taskId, spot);
     if (place === null) return;
 
-    // Строка, вернувшаяся на своё место, — не изменение: сравниваем не
-    // индексы, а весь порядок после перестановки. Индексы сравнивать нельзя,
-    // потому что одна и та же позиция считается по-разному в зависимости от
-    // того, откуда пришла строка.
+    // A row returned to its own place is not a change: we compare not the
+    // indices but the whole order after the reorder. The indices cannot be
+    // compared, because one and the same position is counted differently
+    // depending on where the row came from.
     const next = reorderTask(state, taskId, place.categoryId, place.position);
     const unchanged = next.tasks.every((row) => {
       const before = state.tasks.find((old) => old.id === row.id);
@@ -253,8 +261,8 @@ export function useReorder({
       },
       (current) => reorderTask(current, taskId, place.categoryId, place.position),
     ).catch(() => {
-      // Откат уже сделан внутри `apply`: строка вернулась туда, откуда её
-      // взяли, и это и есть ответ на отказ.
+      // The rollback has already been done inside `apply`: the row returned
+      // where it was taken from, and that is the answer to the refusal.
     });
   };
 
@@ -262,9 +270,9 @@ export function useReorder({
     const position = placeForCategory(state, categoryId, spot);
     if (position === null) return;
 
-    // Тот же счёт «изменилось ли что-нибудь», что и у задачи, и по той же
-    // причине: этап, брошенный под своего верхнего соседа, приезжает на свой
-    // же номер, и записывать это в историю не за что.
+    // The same "did anything change" reckoning as for a task, and for the same
+    // reason: a stage dropped below its own upper neighbour arrives at its own
+    // number, and there is nothing to write into history for that.
     const next = reorderCategory(state, categoryId, position);
     const unchanged = next.categories.every((row) => {
       const before = state.categories.find((old) => old.id === row.id);
@@ -275,7 +283,7 @@ export function useReorder({
     void apply({ type: "reorder_category", category_id: categoryId, position }, (current) =>
       reorderCategory(current, categoryId, position),
     ).catch(() => {
-      // Откат уже сделан внутри `apply`.
+      // The rollback has already been done inside `apply`.
     });
   };
 
@@ -291,11 +299,13 @@ export function useReorder({
   };
 
   /**
-   * Что показывать в призраке: имя переносимой строки и цвет её этапа.
+   * What to show in the ghost: the name of the row being moved and its stage's
+   * colour.
    *
-   * Имя, а не вся строка целиком: под курсором нужно узнать, что именно в
-   * руке, — даты и проценты в этот момент не спрашивают, а копия строки в
-   * половину экрана закрывала бы собой то место, куда целятся.
+   * The name, not the whole row: under the cursor you need to recognize what
+   * exactly is in hand — dates and percentages are not being asked about at
+   * that moment, and a half-screen copy of the row would cover the very place
+   * being aimed at.
    */
   const ghostRow = (() => {
     if (dragged === null) return null;
@@ -312,13 +322,13 @@ export function useReorder({
   })();
 
   return {
-    /** Показывать ли ручки перетаскивания. У гостя их нет вовсе. */
+    /** Whether to show the drag handles. A guest has none at all. */
     enabled: canWrite,
-    /** Идёт ли перестановка прямо сейчас. */
+    /** Whether a reorder is running right now. */
     active: dragged !== null,
-    /** Что именно в руке: строка гаснет, а её имя едет за курсором. */
+    /** What exactly is in hand: the row goes dim and its name travels with the cursor. */
     dragging: dragged,
-    /** Содержимое призрака под курсором. `null` — не тащат ничего. */
+    /** The contents of the ghost under the cursor. `null` — nothing is being dragged. */
     ghost: ghostRow,
     ghostRef,
 
@@ -327,24 +337,27 @@ export function useReorder({
     drop,
 
     /**
-     * Ручка строки. Ею жест не только начинают — ею его и ведут.
+     * A row's handle. It is not only what the gesture is started with — it is
+     * also what leads it.
      *
-     * Пальцем указатель захвачен ручкой (см. `targetAt`), и события до чужих
-     * строк не доходят: цель броска ручка ищет сама, попаданием в точку. Мышью
-     * события достаются строкам, и ведут жест их обработчики; здесь ручка
-     * повторяет тот же расчёт для строки под курсором и потому останавливает
-     * событие — иначе своя же строка, до которой оно всплывёт, стёрла бы
-     * найденную цель как «бросок на самого себя».
+     * With a finger the pointer is captured by the handle (see `targetAt`), and
+     * events never reach other rows: the handle finds the drop target itself,
+     * by hit-testing the point. With a mouse the events go to the rows, and
+     * their handlers lead the gesture; here the handle repeats the same
+     * computation for the row under the cursor and therefore stops the event —
+     * otherwise its own row, which the event would bubble up to, would erase
+     * the found target as a "drop onto itself".
      */
     handleProps(kind: RowKind, id: string) {
       return {
         onPointerDown(event: PointerEvent<HTMLElement>) {
-          // Только основная кнопка — как у всякого жеста на ленте: правая
-          // зовёт контекстное меню, и оно съедает отпускание, оставляя
-          // призрак строки ехать за курсором без нажатия.
+          // The primary button only — as with every gesture on the strip: the
+          // right one calls up the context menu, and that eats the release,
+          // leaving the row's ghost travelling with the cursor with nothing
+          // pressed.
           if (event.button !== 0) return;
-          // Без этого нажатие уводит фокус и начинает выделение текста вместо
-          // перетаскивания.
+          // Without this the press takes the focus away and starts a text
+          // selection instead of a drag.
           event.preventDefault();
           start({ kind, id }, { x: event.clientX, y: event.clientY });
         },
@@ -362,13 +375,14 @@ export function useReorder({
     },
 
     /**
-     * Класс строки на время жеста: та, что в руке, — погашена; та, над которой
-     * курсор, — с линией вставки.
+     * A row's class for the duration of the gesture: the one in hand is dimmed,
+     * the one under the cursor carries the insertion line.
      *
-     * Заголовок этапа отвечает на бросок двумя разными способами, и разница не
-     * косметическая: задача в него кладётся (заливка на всю строку), а
-     * категория встаёт до или после него (линия по краю). Один и тот же знак
-     * на два разных исхода обещал бы не то, что произойдёт.
+     * A stage heading answers a drop in two different ways, and the difference
+     * is not cosmetic: a task is put inside it (a fill across the whole row),
+     * while a category stands before or after it (a line along the edge). One
+     * and the same sign for two different outcomes would promise something
+     * other than what will happen.
      */
     markFor(kind: RowKind, id: string): string {
       if (dragged !== null && dragged.kind === kind && dragged.id === id) return "is-dragged";
