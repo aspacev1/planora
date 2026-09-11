@@ -1,12 +1,14 @@
-"""Провайдер LLM за тонким интерфейсом: `generate(messages, schema) -> dict`.
+"""An LLM provider behind a thin interface: `generate(messages, schema) -> dict`.
 
-Тонкий он не ради красоты: смена провайдера или переход на локальную модель не
-должны задевать остальной код. Всё, что знает приложение о модели, — что она
-принимает список сообщений и возвращает объект по схеме.
+It is thin not for beauty's sake: changing the provider or moving to a local
+model must not disturb the rest of the code. All the application knows about
+the model is that it takes a list of messages and returns an object matching a
+schema.
 
-Сети в тестах нет и быть не должно: интервью и разбор ответа проверяются на
-записанных ответах модели, и `RecordedProvider` — не заглушка «чтобы
-компилировалось», а полноправная реализация того же интерфейса.
+There is no network in the tests and there must not be: the interview and the
+parsing of an answer are checked against recorded model answers, and
+`RecordedProvider` is not a stub "so it compiles" but a full implementation of
+the same interface.
 """
 
 import json
@@ -16,12 +18,12 @@ from typing import Protocol
 
 
 class _NoRedirects(urllib.request.HTTPRedirectHandler):
-    """Отказ следовать за редиректами.
+    """Refusing to follow redirects.
 
-    Адрес LLM проверяется на публичность до запроса, но проверка ничего не
-    стоит, если публичный адрес может ответить 302 на внутренний: редирект
-    выполняется уже без всякой проверки. Ответ 3xx превращается в HTTPError
-    и ловится как обычный отказ модели.
+    The LLM address is checked for being public before the request, but the
+    check is worth nothing if a public address can answer 302 with an internal
+    one: the redirect is then followed with no check at all. A 3xx response
+    turns into an HTTPError and is caught as an ordinary model refusal.
     """
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ARG002
@@ -32,10 +34,11 @@ _opener = urllib.request.build_opener(_NoRedirects())
 
 
 class LlmError(Exception):
-    """Модель не ответила или ответила мусором.
+    """The model did not answer or answered with garbage.
 
-    Переписка и черновик при этом сохраняются, а сессия продолжается с того же
-    места: сбой модели не должен стоить человеку получаса разговора.
+    The conversation and the draft are preserved, and the session continues from
+    the same place: a model failure must not cost a person half an hour of
+    conversation.
     """
 
     def __init__(self, code: str, message: str):
@@ -45,17 +48,17 @@ class LlmError(Exception):
 
 class LlmProvider(Protocol):
     def generate(self, messages: list[dict], schema: dict) -> tuple[dict, int]:
-        """Ответ модели по схеме и число израсходованных токенов."""
+        """The model's answer per the schema, and the number of tokens spent."""
         ...
 
 
 class HttpProvider:
-    """Любой сервис с OpenAI-совместимым `/chat/completions`.
+    """Any service with an OpenAI-compatible `/chat/completions`.
 
-    Именно совместимость, а не «OpenAI»: адрес и модель приходят из настроек
-    организации, и тот же код работает с локальной моделью за llama.cpp или
-    vLLM. urllib вместо клиента провайдера — по той же причине: клиент привязал
-    бы к одному облаку то, что обещано открытым.
+    Compatibility specifically, not "OpenAI": the address and the model come
+    from the organization's settings, and the same code works with a local model
+    behind llama.cpp or vLLM. urllib instead of a provider's client for the same
+    reason: a client would tie to one cloud what was promised to be open.
     """
 
     def __init__(self, *, base_url: str, model: str, api_key: str, timeout: int):
@@ -69,9 +72,10 @@ class HttpProvider:
             {
                 "model": self._model,
                 "messages": messages,
-                # Схема передаётся модели, а не только проверяется после: это
-                # дешевле одного лишнего повтора, а проверка на нашей стороне
-                # всё равно остаётся — обещаниям модели верить нельзя.
+                # The schema is passed to the model rather than merely checked
+                # afterwards: that is cheaper than one extra retry, and the check
+                # on our side stays regardless — the model's promises cannot be
+                # trusted.
                 "response_format": {
                     "type": "json_schema",
                     "json_schema": {"name": "planora", "schema": schema, "strict": True},
@@ -86,10 +90,10 @@ class HttpProvider:
                 "Authorization": f"Bearer {self._key}",
             },
         )
-        # Проверка адреса — на каждом запросе, а не только при сохранении
-        # настроек: DNS-запись хоста могла смениться после сохранения
-        # (перепривязка — обычный приём SSRF). Импорт локальный, чтобы не
-        # завести цикл: netguard поднимает LlmError отсюда же.
+        # The address is checked on every request, not only when settings are
+        # saved: the host's DNS record could have changed since (rebinding is a
+        # standard SSRF technique). The import is local so as not to create a
+        # cycle: netguard raises LlmError from this very module.
         from app.ai.netguard import ensure_public_https
 
         ensure_public_https(self._url)
@@ -116,11 +120,11 @@ class HttpProvider:
 
 
 class RecordedProvider:
-    """Заранее записанные ответы, по одному на вызов.
+    """Pre-recorded answers, one per call.
 
-    Ими проверяется всё, что не про сеть: и валидная схема, и битая. Кончились
-    записи — это ошибка теста, а не поведение модели, и она должна выглядеть
-    именно так.
+    Everything that is not about the network is checked with them: both a valid
+    schema and a broken one. Running out of records is a test error rather than
+    model behaviour, and it must look exactly like one.
     """
 
     def __init__(self, responses: list[dict | Exception], tokens: int = 100):

@@ -8,15 +8,15 @@ _MAX_SEARCH_DAYS = 3650
 
 
 class CalendarError(ValueError):
-    """Календарь настроен так, что дату посчитать нельзя.
+    """The calendar is configured so that a date cannot be computed.
 
-    Отдельный класс, а не голый ValueError: маску рабочих дней задаёт
-    человек, поэтому вырожденная настройка — это отказ, о котором надо
-    сказать, а не авария сервера. Код машинный, по тем же правилам, что и у
-    отказов мутаций: прозу читателю собирает клиент на его языке.
+    A separate class rather than a bare ValueError: the working-day mask is set
+    by a person, so a degenerate configuration is a refusal that has to be
+    spoken about, not a server crash. The code is machine-readable, by the same
+    rules as mutation refusals: the client assembles the prose for the reader in
+    their own language.
 
-    Наследует ValueError, чтобы прежние ловушки на ValueError продолжали
-    работать.
+    It inherits ValueError so that existing handlers for ValueError keep working.
     """
 
     def __init__(self, code: str, message: str):
@@ -26,10 +26,10 @@ class CalendarError(ValueError):
 
 @dataclass(frozen=True)
 class Calendar:
-    """Рабочий календарь проекта.
+    """The project's working calendar.
 
-    Порядок применения: маска дней недели, затем праздники их убирают,
-    затем extra_workdays возвращают обратно конкретные даты.
+    The order of application: the weekday mask, then holidays remove days from
+    it, then extra_workdays put specific dates back.
     """
 
     working_days: int = WEEKDAYS_MON_FRI
@@ -45,12 +45,12 @@ class Calendar:
 
 
 def _next_day(d: date) -> date:
-    """Следующий день или CalendarError у края поддерживаемых дат.
+    """The next day, or a CalendarError at the edge of supported dates.
 
-    date.max + день — это OverflowError, то есть авария сервера на задаче,
-    поставленной на конец 9999 года. Край календаря — то же вырождение, что и
-    «рабочих дней нет»: даты дальше просто не существует, и об этом надо
-    сказать отказом, а не пятисоткой.
+    date.max + a day is an OverflowError — that is, a server crash over a task
+    placed at the end of the year 9999. The edge of the calendar is the same
+    degeneracy as "there are no working days": a date beyond it simply does not
+    exist, and that has to be said with a refusal rather than a 500.
     """
     try:
         return d + timedelta(days=1)
@@ -73,8 +73,8 @@ def _first_working_on_or_after(start: date, cal: Calendar) -> date:
 
 
 def first_working_on_or_after(start: date, cal: Calendar) -> date:
-    """Первый рабочий день, начиная с указанного. Публичное имя внутреннего
-    помощника: раскладка частей разбиения ищет старт следующей части."""
+    """The first working day starting from the given one. A public name for an
+    internal helper: laying out the parts of a split looks for the next part's start."""
     return _first_working_on_or_after(start, cal)
 
 
@@ -83,11 +83,11 @@ def _week_workday_count(mask: int) -> int:
 
 
 def _mask_days_between(start: date, end: date, mask: int) -> int:
-    """Рабочие дни по одной только недельной маске, включая обе границы.
+    """Working days by the weekly mask alone, both bounds included.
 
-    Полные недели считаются умножением, и лишь остаток — до семи дней —
-    перебором. Это то, что делает счёт арифметикой: до волны 4 каждый GET
-    проекта шагал циклом по каждому дню каждой задачи.
+    Whole weeks are counted by multiplication, and only the remainder — up to
+    seven days — by enumeration. That is what makes the count arithmetic: before
+    wave 4 every GET of a project stepped in a loop over every day of every task.
     """
     days = (end - start).days + 1
     weeks, remainder = divmod(days, 7)
@@ -100,11 +100,11 @@ def _mask_days_between(start: date, end: date, mask: int) -> int:
 
 
 def count_working_days(start: date, end: date, cal: Calendar) -> int:
-    """Сколько рабочих дней в отрезке, включая обе границы.
+    """How many working days are in a range, both bounds included.
 
-    Маска — арифметикой, исключения — поштучно: праздников и объявленных
-    рабочих дней конечное число, и поправка на них не зависит от длины
-    отрезка.
+    The mask by arithmetic, the exceptions one by one: holidays and declared
+    working days are finite in number, and the correction for them does not
+    depend on the length of the range.
     """
     if end < start:
         raise ValueError("конец отрезка раньше начала")
@@ -124,12 +124,13 @@ def count_working_days(start: date, end: date, cal: Calendar) -> int:
 
 
 def end_date(start: date, duration_days: int, cal: Calendar) -> date:
-    """Дата окончания задачи. Стартовый рабочий день входит в длительность.
+    """A task's finish date. The starting working day counts towards the duration.
 
-    Двоичный поиск по count_working_days вместо шага по дням: каждая проверка
-    — арифметика по маске плюс поштучные исключения, и стоимость не растёт с
-    длительностью. Прежний цикл делал до 3650 шагов на задачу — на каждый GET
-    проекта с сотней задач это сотни тысяч итераций.
+    A binary search over count_working_days instead of stepping by days: every
+    probe is mask arithmetic plus the individual exceptions, and the cost does
+    not grow with the duration. The previous loop made up to 3650 steps per task
+    — on every GET of a project with a hundred tasks that is hundreds of
+    thousands of iterations.
     """
     if duration_days < 1:
         raise ValueError("длительность должна быть не меньше одного дня")
@@ -137,7 +138,7 @@ def end_date(start: date, duration_days: int, cal: Calendar) -> date:
     first = _first_working_on_or_after(start, cal)
 
     if _week_workday_count(cal.working_days) == 0:
-        # Вырожденный календарь: рабочие дни — только объявленные явно.
+        # A degenerate calendar: the only working days are the explicitly declared ones.
         ahead = sorted(day for day in cal.extra_workdays if day >= first)
         if len(ahead) < duration_days:
             raise CalendarError(
@@ -146,9 +147,9 @@ def end_date(start: date, duration_days: int, cal: Calendar) -> date:
             )
         return ahead[duration_days - 1]
 
-    # Верхняя граница поиска: недель хватает с запасом на все праздники
-    # впереди; если не хватило — расширяем, пока не упёрлись в край дат или
-    # в потолок поиска (те же пределы, что были у пошагового цикла).
+    # The search's upper bound: the weeks allow ample room for every holiday
+    # ahead; if that was not enough, widen it until we hit the edge of dates or
+    # the search ceiling (the same limits the step-by-step loop had).
     weeks = duration_days // _week_workday_count(cal.working_days) + 2
     try:
         high = first + timedelta(weeks=weeks)

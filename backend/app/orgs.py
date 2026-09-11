@@ -1,9 +1,10 @@
-"""Организация, в которой человек находится прямо сейчас.
+"""The organization a person is in right now.
 
-До появления приглашений вопроса не было: членство было ровно одно, и любой
-маршрут брал первое попавшееся. Приглашение делает второе членство обычным
-делом — и «в какой организации выполняется этот запрос» становится настоящим
-вопросом, у которого должен быть один ответ на всё приложение.
+Before invitations appeared there was no question: there was exactly one
+membership, and any route took whichever came first. An invitation makes a
+second membership an everyday thing — and "which organization is this request
+running in" becomes a real question that must have one answer for the whole
+application.
 """
 
 import uuid
@@ -18,11 +19,11 @@ from app.models import Membership, Organization, Project, ProjectAccess, Role, S
 
 
 def memberships_of(db: DbSession, user_id: uuid.UUID) -> list[tuple[Membership, Organization]]:
-    """Все организации человека, в устойчивом порядке.
+    """All of a person's organizations, in a stable order.
 
-    Порядок — по названию, а не по времени вступления: список показывается
-    в переключателе, и человек ищет в нём знакомое слово, а не вспоминает,
-    когда его куда позвали.
+    Ordered by name rather than by the time they joined: the list is shown in
+    the switcher, and a person looks for a familiar word in it rather than
+    recalling when they were invited where.
     """
     return list(
         db.execute(
@@ -35,12 +36,12 @@ def memberships_of(db: DbSession, user_id: uuid.UUID) -> list[tuple[Membership, 
 
 
 def active_membership(db: DbSession, session: Session) -> Membership | None:
-    """Членство, от имени которого выполняется запрос этой сессии.
+    """The membership this session's request runs under.
 
-    Выбранная организация может оказаться недоступной — человека вывели из
-    неё, пока вкладка была открыта. Это не повод отвечать отказом: запрос
-    выполняется от первого доступного членства, и человек видит организацию,
-    в которой он всё ещё состоит, вместо экрана ошибки.
+    The chosen organization may turn out to be unavailable — the person was
+    removed from it while the tab was open. That is no reason to answer with a
+    refusal: the request runs under the first available membership, and the
+    person sees an organization they still belong to instead of an error screen.
     """
     if session.active_org_id is not None:
         chosen = db.scalar(
@@ -52,8 +53,8 @@ def active_membership(db: DbSession, session: Session) -> Membership | None:
         if chosen is not None:
             return chosen
 
-    # Порядок задан явно, чтобы «первая» была одной и той же от запроса к
-    # запросу, а не той, что первой вернул планировщик.
+    # The order is set explicitly so that "the first" is the same one from
+    # request to request rather than whichever the planner returned first.
     return db.scalar(
         select(Membership)
         .where(Membership.user_id == session.user_id)
@@ -62,10 +63,11 @@ def active_membership(db: DbSession, session: Session) -> Membership | None:
 
 
 def switch(db: DbSession, session: Session, org_id: uuid.UUID) -> Membership | None:
-    """Переключает сессию на другую организацию. None — человек в ней не состоит.
+    """Switches the session to another organization. None means they are not a member.
 
-    Выбор живёт до конца сессии, а не до конца страницы: человек, работающий
-    в чужой организации, не должен возвращаться в свою при каждой перезагрузке.
+    The choice lives until the end of the session rather than until the end of
+    the page: a person working in someone else's organization must not be
+    returned to their own on every reload.
     """
     membership = db.scalar(
         select(Membership).where(
@@ -82,11 +84,12 @@ def switch(db: DbSession, session: Session, org_id: uuid.UUID) -> Membership | N
 def current_membership(
     session: Session = Depends(current_session), db: DbSession = Depends(get_db)
 ) -> Membership:
-    """Зависимость маршрутов: членство вместо пользователя.
+    """A route dependency: the membership instead of the user.
 
-    Маршруты спрашивают именно членство, потому что ровно от него зависят и
-    видимость данных (организация), и права (роль); `user_id` в нём тоже есть.
-    Отдельный вопрос «кто это» остаётся только там, где нужны имя или адрес.
+    Routes ask for the membership specifically, because both data visibility
+    (the organization) and permissions (the role) depend on exactly that;
+    `user_id` is in it too. A separate "who is this" question remains only where
+    a name or an address is needed.
     """
     membership = active_membership(db, session)
     if membership is None:
@@ -94,17 +97,18 @@ def current_membership(
     return membership
 
 
-# ---- состав: роли и вывод из организации ----------------------------------
+# ---- composition: roles and removal from an organization -------------------
 
 
 class LastOwner(Exception):
-    """Организация осталась бы без владельца, а починить это было бы некому.
+    """The organization would be left without an owner, with nobody able to fix it.
 
-    Владелец — единственная роль, которая правит настройки, зовёт людей и
-    раздаёт роли. Организация, потерявшая последнего, не разжалована, а
-    заперта навсегда: назначить нового владельца в ней больше нечем. Отсюда
-    отказ, а не предупреждение, — и отсюда же то, что он одинаков для
-    разжалования, вывода чужими руками и ухода своими.
+    The owner is the only role that edits settings, invites people and hands out
+    roles. An organization that has lost its last owner is not demoted but
+    locked forever: there is no longer anything in it with which to appoint a
+    new owner. Hence a refusal rather than a warning — and hence the fact that it
+    is the same for a demotion, a removal by someone else's hand and a departure
+    by one's own.
     """
 
 
@@ -117,7 +121,7 @@ def owner_count(db: DbSession, org_id: uuid.UUID) -> int:
 
 
 def is_last_owner(db: DbSession, membership: Membership) -> bool:
-    """Держится ли организация на этом человеке одном."""
+    """Whether the organization rests on this one person."""
     return membership.role == Role.OWNER.value and owner_count(db, membership.org_id) == 1
 
 
@@ -128,13 +132,13 @@ def member_of(db: DbSession, *, org_id: uuid.UUID, user_id: uuid.UUID) -> Member
 
 
 def set_role(db: DbSession, membership: Membership, role: Role) -> None:
-    """Меняет роль участника. Последнего владельца разжаловать нельзя.
+    """Changes a member's role. The last owner cannot be demoted.
 
-    Назначение владельцем живёт именно здесь, а не в приглашении: приглашение
-    без адреса достаётся предъявителю, и владельцем становился бы любой, кто
-    открыл переславшуюся ссылку (см. NOT_INVITABLE в app.invitations). Здесь
-    же адресат назван поимённо — это действующий участник, которого зовущий
-    видит в списке.
+    Appointing an owner lives here specifically, not in an invitation: an
+    invitation without an address goes to whoever presents it, and the owner
+    would become anyone who opened a forwarded link (see NOT_INVITABLE in
+    app.invitations). Here the recipient is named individually — they are an
+    existing member whom the inviter sees in the list.
     """
     if role is not Role.OWNER and is_last_owner(db, membership):
         raise LastOwner()
@@ -143,19 +147,20 @@ def set_role(db: DbSession, membership: Membership, role: Role) -> None:
 
 
 def remove_membership(db: DbSession, membership: Membership) -> None:
-    """Выводит человека из организации. Последнего владельца — нельзя.
+    """Removes a person from an organization. The last owner cannot be removed.
 
-    Поимённые доступы к проектам этой организации уходят вместе с членством:
-    без них они означали бы «позвали обратно — и он снова видит всё, что
-    видел», причём молча. Назначения на задачи, наоборот, остаются: снять их
-    можно и с ушедшего (см. UnassignUser в app.mutations), а тихо стереть
-    исполнителя со всех его задач значит переписать план в ответ на кадровое
-    решение.
+    Individually granted access to this organization's projects goes away with
+    the membership: without that it would mean "invite them back and they see
+    everything they saw before", and silently at that. Task assignments, on the
+    contrary, remain: they can be cleared even for someone who has left (see
+    UnassignUser in app.mutations), and quietly wiping an assignee from all
+    their tasks means rewriting the plan in response to a staffing decision.
 
-    Выбранная организация в сессиях ушедшего сбрасывается: без этого его
-    сессия продолжала бы указывать на организацию, в которую он больше не
-    входит. Отказом это не оборачивается — active_membership всё равно берёт
-    первую доступную, — но указатель на чужое место лучше убрать сразу.
+    The chosen organization is reset in the departed person's sessions: without
+    that their session would keep pointing at an organization they no longer
+    belong to. This does not turn into a refusal — active_membership takes the
+    first available one anyway — but a pointer at someone else's place is better
+    removed right away.
     """
     if is_last_owner(db, membership):
         raise LastOwner()

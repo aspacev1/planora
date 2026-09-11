@@ -1,18 +1,18 @@
-"""Счётчик обращений в скользящем окне.
+"""A request counter over a sliding window.
 
-Заведён ради гостевых комментариев, у которых нет ни аккаунта, ни сессии,
-ни какого-либо другого способа отличить человека от скрипта, кроме адреса, с
-которого он пришёл (`GUEST_COMMENT_RATE_LIMIT`); тем же окном считаются
-выгрузки (`export_routes`) и ключ клиента для лимитов входа (`auth_routes`).
+Created for guest comments, which have no account, no session and no other way
+of telling a person from a script than the address they came from
+(`GUEST_COMMENT_RATE_LIMIT`); the same window counts exports
+(`export_routes`) and the client key for sign-in limits (`auth_routes`).
 
-Счётчик живёт в памяти процесса, и это осознанное ограничение, а не
-недосмотр: внешних сервисов у продукта нет вовсе — ни очередей, ни Redis
-(см. раздел «Архитектура»), — а заводить их ради одного счётчика значило бы
-менять обещание развёртывания одним `docker compose`. Отсюда два следствия,
-которые надо принять: перезапуск обнуляет окно, а установка, размазанная по
-нескольким процессам (serverless), считает каждым из них отдельно. Для
-защиты от заливки ленты этого достаточно — это предохранитель, а не рубеж
-обороны.
+The counter lives in the process's memory, and that is a deliberate limitation
+rather than an oversight: the product has no external services at all — no
+queues, no Redis (see the "Architecture" section) — and introducing them for
+the sake of one counter would change the promise of deploying with a single
+`docker compose`. Two consequences follow that have to be accepted: a restart
+resets the window, and an installation spread across several processes
+(serverless) counts separately in each of them. For protection against flooding
+the feed that is enough — this is a fuse, not a line of defence.
 """
 
 import threading
@@ -23,18 +23,19 @@ from fastapi import Request
 
 
 def client_key(request: Request) -> str:
-    """Кого считать одним клиентом при счёте по адресу.
+    """Who counts as one client when counting by address.
 
-    Прямой адрес соединения здесь бесполезен: и Caddy, и Vercel стоят перед
-    приложением, и все запросы приходят с одного и того же адреса — потолок
-    стал бы общим на всю установку. Поэтому предпочитается `X-Forwarded-For`.
+    The direct connection address is useless here: both Caddy and Vercel stand
+    in front of the application, and all requests arrive from one and the same
+    address — the ceiling would become shared across the whole installation. So
+    `X-Forwarded-For` is preferred.
 
-    Подделать заголовок может кто угодно, и это принято сознательно: цена
-    подделки — обойденный предохранитель, то есть ровно то состояние, в
-    котором мы оказались бы, не считая вовсе. Правами заголовок не
-    распоряжается ничем. Боевая установка за Caddy при этом защищена
-    по-настоящему: Caddy переписывает X-Forwarded-For настоящим адресом
-    клиента (см. Caddyfile), и подделка снаружи не доходит.
+    Anyone can forge the header, and that is accepted deliberately: the price of
+    a forgery is a bypassed fuse — that is, exactly the state we would be in if
+    we did not count at all. The header governs no permissions whatsoever. A
+    production installation behind Caddy is genuinely protected meanwhile: Caddy
+    overwrites X-Forwarded-For with the client's real address (see the
+    Caddyfile), and a forgery from outside does not get through.
     """
     forwarded = request.headers.get("x-forwarded-for", "")
     first = forwarded.split(",")[0].strip()
@@ -44,10 +45,11 @@ def client_key(request: Request) -> str:
 
 
 class SlidingWindow:
-    """Не больше `limit` событий на ключ за `window` секунд."""
+    """No more than `limit` events per key in `window` seconds."""
 
-    #: Через сколько обращений подметать словарь целиком. Просто так ключи из
-    #: него не исчезают: адрес, зашедший однажды, оставил бы запись навсегда.
+    #: After how many requests to sweep the whole dictionary. Keys do not vanish
+    #: from it by themselves: an address that showed up once would leave an
+    #: entry forever.
     SWEEP_EVERY = 256
 
     def __init__(self, *, limit: int, window: float) -> None:
@@ -55,17 +57,17 @@ class SlidingWindow:
         self._window = window
         self._hits: dict[str, deque[float]] = {}
         self._since_sweep = 0
-        # Один и тот же счётчик читают потоки пула uvicorn: без замка два
-        # одновременных комментария читают одну и ту же длину очереди и оба
-        # проходят потолок.
+        # The same counter is read by uvicorn's pool threads: without a lock two
+        # simultaneous comments read the same queue length and both pass the
+        # ceiling.
         self._lock = threading.Lock()
 
     def allow(self, key: str, *, now: float | None = None) -> bool:
-        """Отмечает попытку и говорит, укладывается ли она в потолок.
+        """Records an attempt and says whether it fits under the ceiling.
 
-        Отказ ничего не записывает: иначе тот, кто упёрся в потолок и жмёт
-        кнопку дальше, продлевал бы себе запрет каждым нажатием, и окно
-        никогда бы не истекало.
+        A refusal records nothing: otherwise someone who hit the ceiling and
+        keeps pressing the button would extend their own ban with every press,
+        and the window would never expire.
         """
         if self._limit <= 0:
             return False
@@ -95,7 +97,7 @@ class SlidingWindow:
                 del self._hits[key]
 
     def __len__(self) -> int:
-        """Сколько ключей помнит счётчик. Существует ради проверки того, что
-        словарь не растёт линейно по числу заходивших адресов."""
+        """How many keys the counter remembers. It exists to verify that the
+        dictionary does not grow linearly with the number of addresses seen."""
         with self._lock:
             return len(self._hits)
