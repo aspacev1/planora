@@ -1,4 +1,4 @@
-# План 1: регистрация и онбординг — план реализации
+# Plan 1: registration and onboarding — implementation plan
 
 > **Historical.** This is one of the original build plans this codebase
 > was built from — every step below has since shipped. It reflects the plan
@@ -9,27 +9,27 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Поднять фронтенд до состояния, в котором человек открывает адрес в браузере, регистрируется, попадает внутрь на своём языке и видит осмысленное пустое состояние — вместо `{"detail":"Not Found"}`.
+**Goal:** Bring the frontend up to a state where a person opens the address in a browser, registers, lands inside in their own language and sees a meaningful empty state — instead of `{"detail":"Not Found"}`.
 
-**Architecture:** Vite + React + TypeScript, собираемый в статику, которую в бою отдаёт Caddy, а в разработке — dev-сервер Vite с проксированием `/api` на бэкенд. Интерфейс тонкий: он рисует состояние, отправляет запросы и переводит машинные коды ошибок в текст на языке читателя. Никаких расчётов дат и никаких решений о доступе на клиенте — и то и другое живёт на сервере.
+**Architecture:** Vite + React + TypeScript, built into static files served by Caddy in production and by Vite's dev server, proxying `/api` to the backend, in development. The interface is thin: it draws the state, sends requests and translates machine error codes into text in the reader's language. No date computations and no access decisions on the client — both live on the server.
 
-**Tech Stack:** Vite, React, TypeScript, react-router, TanStack Query, Vitest, Testing Library, MSW. Свой CSS с переменными, без библиотеки компонентов.
+**Tech Stack:** Vite, React, TypeScript, react-router, TanStack Query, Vitest, Testing Library, MSW. Our own CSS with variables, without a component library.
 
 ## Global Constraints
 
-- Языки: `az` (по умолчанию), `en`, `ru`. Один JSON-словарь на язык, ключи смысловые (`auth.email_taken`), а не фразы на каком-либо языке.
-- Отсутствующий ключ падает на азербайджанский и пишет предупреждение в консоль, а не показывает пустоту.
-- Русские числительные требуют настоящих правил множественного числа. Используется `Intl.PluralRules`, а не «если 1 то день иначе дней».
-- Содержимое пользователя не переводится никогда. Переводится только интерфейс.
-- Приведение регистра — только инвариантное: `toLowerCase`, никогда `toLocaleLowerCase`. В азербайджанской локали `I` превращается в `ı`, и всё, что опирается на регистр, начинает вести себя по-разному у разных людей.
-- Сервер отвечает машинными кодами в `detail`. Клиент переводит код в текст; показывать пользователю сырой `detail` запрещено.
-- Сессия живёт в HTTP-only куке. Клиент не читает и не хранит токен — он вообще не знает, что тот существует.
-- Тесты бьют по перехваченной сети (MSW), а не по замоканным функциям приложения.
-- Свой CSS с переменными и поддержкой тёмной темы через `prefers-color-scheme`.
+- Languages: `az` (by default), `en`, `ru`. One JSON dictionary per language, with meaningful keys (`auth.email_taken`) rather than phrases in one of the languages.
+- A missing key falls back to Azerbaijani and writes a warning to the console rather than showing emptiness.
+- Russian numerals demand real plural rules. `Intl.PluralRules` is used rather than "if 1 then день else дней".
+- The user's content is never translated. Only the interface is.
+- Case conversion is invariant only: `toLowerCase`, never `toLocaleLowerCase`. In the Azerbaijani locale `I` turns into `ı`, and everything that relies on case starts behaving differently for different people.
+- The server answers with machine codes in `detail`. The client translates a code into text; showing a user a raw `detail` is forbidden.
+- The session lives in an HTTP-only cookie. The client neither reads nor stores the token — it does not even know that it exists.
+- The tests hit an intercepted network (MSW) rather than mocked application functions.
+- Our own CSS with variables and dark-theme support through `prefers-color-scheme`.
 
 ---
 
-### Task 1: Каркас фронтенда и тестовая оснастка
+### Task 1: The frontend's frame and the test harness
 
 **Files:**
 - Create: `frontend/package.json`, `frontend/vite.config.ts`, `frontend/tsconfig.json`
@@ -39,17 +39,17 @@
 - Test: `frontend/src/App.test.tsx`
 
 **Interfaces:**
-- Produces: собираемое приложение; `npm test` прогоняет Vitest; dev-сервер проксирует `/api` на `http://localhost:8000`.
+- Produces: a buildable application; `npm test` runs Vitest; the dev server proxies `/api` to `http://localhost:8000`.
 
-- [ ] **Step 1: Создать проект**
+- [ ] **Step 1: Create the project**
 
 ```bash
 cd /Users/me/Desktop/planora && npm create vite@latest frontend -- --template react-ts && cd frontend && npm install && npm install react-router-dom @tanstack/react-query && npm install -D vitest @testing-library/react @testing-library/user-event @testing-library/jest-dom jsdom msw
 ```
 
-- [ ] **Step 2: Написать падающий тест**
+- [ ] **Step 2: Write the failing test**
 
-Создать `frontend/src/App.test.tsx`:
+Create `frontend/src/App.test.tsx`:
 
 ```tsx
 import { render, screen } from "@testing-library/react";
@@ -65,15 +65,15 @@ describe("App", () => {
 });
 ```
 
-- [ ] **Step 3: Запустить и убедиться, что падает**
+- [ ] **Step 3: Run it and make sure it fails**
 
 ```bash
 cd frontend && npx vitest run src/App.test.tsx
 ```
 
-Ожидается: не найден модуль `./App` либо не настроен Vitest.
+Expected: the `./App` module is not found, or Vitest is not configured.
 
-- [ ] **Step 4: Настроить Vite и Vitest**
+- [ ] **Step 4: Configure Vite and Vitest**
 
 `frontend/vite.config.ts`:
 
@@ -107,7 +107,7 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
-`onUnhandledRequest: "error"` выбран сознательно: запрос, который тест не описал, обязан ронять тест, а не молча уходить в никуда.
+`onUnhandledRequest: "error"` was chosen deliberately: a request the test did not describe must fail the test rather than go silently nowhere.
 
 `frontend/src/test/server.ts`:
 
@@ -117,25 +117,25 @@ import { setupServer } from "msw/node";
 export const server = setupServer();
 ```
 
-- [ ] **Step 5: Написать каркас**
+- [ ] **Step 5: Write the frame**
 
-`frontend/src/App.tsx` — пока только разметка с `<main>`; маршрутизация появится в задаче 5.
+`frontend/src/App.tsx` — for now only markup with a `<main>`; the routing appears in task 5.
 
-- [ ] **Step 6: Прогнать тест**
+- [ ] **Step 6: Run the test**
 
 ```bash
 cd frontend && npx vitest run
 ```
 
-Ожидается: 1 passed.
+Expected: 1 passed.
 
-- [ ] **Step 7: Убедиться, что сборка проходит**
+- [ ] **Step 7: Make sure the build passes**
 
 ```bash
 cd frontend && npm run build
 ```
 
-- [ ] **Step 8: Закоммитить**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add frontend/
@@ -144,7 +144,7 @@ git commit -m "feat: каркас фронтенда, прокси на бэке
 
 ---
 
-### Task 2: Языки
+### Task 2: Languages
 
 **Files:**
 - Create: `frontend/src/i18n/az.json`, `en.json`, `ru.json`
@@ -154,7 +154,7 @@ git commit -m "feat: каркас фронтенда, прокси на бэке
 **Interfaces:**
 - Produces: `t(key, params?) -> string`, `useLocale()`, `LocaleProvider`, `SUPPORTED_LOCALES`.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -195,13 +195,13 @@ describe("полнота словарей", () => {
 });
 ```
 
-Последний тест — тот самый, который спек требует держать в тестах, а не в глазах: без него рассинхрон словарей копится незаметно.
+The last test is the very one the spec demands be kept in the tests rather than in people's eyes: without it the dictionaries' drift accumulates unnoticed.
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
-- [ ] **Step 3: Реализовать модуль**
+- [ ] **Step 3: Implement the module**
 
-Ключевое место — множественное число. Строка с числом хранится в словаре объектом с формами, а выбор формы делает `Intl.PluralRules`:
+The key place is the plural. A string with a number is stored in the dictionary as an object with forms, and the form is chosen by `Intl.PluralRules`:
 
 ```ts
 const PLURAL_RULES: Record<Locale, Intl.PluralRules> = {
@@ -221,23 +221,23 @@ function pick(value: unknown, locale: Locale, params?: Params): string | undefin
 }
 ```
 
-В `ru.json` строка выглядит так, и это единственный честный способ: русский различает три формы, и «если 1 то день иначе дней» ошибается на 2, 3, 4, 22 и далее.
+In `ru.json` the string looks like this, and it is the only honest way: Russian distinguishes three forms, and "if 1 then день else дней" is wrong for 2, 3, 4, 22 and onwards.
 
 ```json
 { "common": { "days": { "one": "{count} день", "few": "{count} дня", "many": "{count} дней" } } }
 ```
 
-Отсутствующий ключ пишет `console.warn` и падает на азербайджанский.
+A missing key writes a `console.warn` and falls back to Azerbaijani.
 
-- [ ] **Step 4: Наполнить словари строками, нужными этому плану**
+- [ ] **Step 4: Fill the dictionaries with the strings this plan needs**
 
-Регистрация, вход, ошибки аутентификации, шапка, пустое состояние. Ключи смысловые: `auth.register.title`, `auth.error.email_taken`, `nav.logout`.
+Registration, sign-in, the authentication errors, the header, the empty state. The keys are meaningful: `auth.register.title`, `auth.error.email_taken`, `nav.logout`.
 
-- [ ] **Step 5: Реализовать контекст языка**
+- [ ] **Step 5: Implement the language context**
 
-`LocaleProvider` определяет язык при первом входе: берёт из профиля, если человек вошёл, иначе из `navigator.language`, если тот просит один из трёх поддерживаемых, иначе — азербайджанский. Выбор человека сохраняется и побеждает.
+`LocaleProvider` determines the language on the first visit: it takes it from the profile if the person is signed in, otherwise from `navigator.language` if that asks for one of the three supported ones, otherwise Azerbaijani. The person's choice is saved and wins.
 
-- [ ] **Step 6: Прогнать тесты и закоммитить**
+- [ ] **Step 6: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run
@@ -247,7 +247,7 @@ git commit -m "feat: три языка со словарями и настоящ
 
 ---
 
-### Task 3: Клиент API и перевод ошибок
+### Task 3: The API client and translating errors
 
 **Files:**
 - Create: `frontend/src/api/client.ts`
@@ -255,9 +255,9 @@ git commit -m "feat: три языка со словарями и настоящ
 - Test: `frontend/src/api/client.test.ts`
 
 **Interfaces:**
-- Produces: `request<T>(path, init?) -> Promise<T>`; класс `ApiError` с полем `code`; `register()`, `login()`, `logout()`, `me()`.
+- Produces: `request<T>(path, init?) -> Promise<T>`; an `ApiError` class with a `code` field; `register()`, `login()`, `logout()`, `me()`.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```ts
 it("превращает detail сервера в код ошибки, а не в текст для показа", async () => {
@@ -287,15 +287,15 @@ it("не подставляет тело в сообщение пользова�
 });
 ```
 
-Третий тест закрепляет правило: `message` — для журнала разработчика, показывать человеку можно только перевод по коду.
+The third test pins down the rule: `message` is for the developer's log, and only a translation by code may be shown to a person.
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
-- [ ] **Step 3: Реализовать клиент**
+- [ ] **Step 3: Implement the client**
 
-Все запросы идут с `credentials: "include"`, потому что сессия живёт в куке. У FastAPI две формы ошибки: `detail` строкой — это наш машинный код; `detail` массивом — это отбраковка схемы, её сворачиваем в единый код `validation_error`, потому что показывать человеку английскую прозу Pydantic на азербайджанском интерфейсе нельзя.
+Every request goes with `credentials: "include"`, because the session lives in a cookie. FastAPI has two error shapes: `detail` as a string is our machine code; `detail` as an array is a schema rejection, which we fold into a single `validation_error` code, because showing a person Pydantic's English prose on an Azerbaijani interface will not do.
 
-- [ ] **Step 4: Прогнать тесты и закоммитить**
+- [ ] **Step 4: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/api
@@ -305,7 +305,7 @@ git commit -m "feat: клиент API с машинными кодами оши�
 
 ---
 
-### Task 4: Экран регистрации
+### Task 4: The registration screen
 
 **Files:**
 - Create: `frontend/src/screens/Register.tsx`
@@ -313,9 +313,9 @@ git commit -m "feat: клиент API с машинными кодами оши�
 - Test: `frontend/src/screens/Register.test.tsx`
 
 **Interfaces:**
-- Produces: экран с полями имени, почты и пароля; после успеха — переход в приложение.
+- Produces: a screen with name, email and password fields; on success, a navigation into the application.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```tsx
 it("регистрирует и уводит внутрь", async () => {
@@ -361,13 +361,13 @@ it("сообщает о недоступности сервера, а не мо�
 });
 ```
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
-- [ ] **Step 3: Реализовать экран**
+- [ ] **Step 3: Implement the screen**
 
-Требования, которые легко упустить: у каждого поля настоящий `<label for>`, а не плейсхолдер вместо подписи — иначе экран недоступен для чтения с экрана и тесты выше не найдут поля. Кнопка блокируется на время запроса, чтобы двойной клик не создал двух попыток. Пароль проверяется на длину до отправки — сервер тоже проверит, но человеку не за чем ждать ответа ради очевидного.
+Requirements that are easy to miss: every field has a real `<label for>` rather than a placeholder instead of a caption — otherwise the screen is inaccessible to a screen reader and the tests above will not find the fields. The button is disabled for the duration of the request, so that a double click does not create two attempts. The password is checked for length before submitting — the server will check too, but there is no reason for a person to wait for an answer for the sake of something obvious.
 
-- [ ] **Step 4: Прогнать тесты и закоммитить**
+- [ ] **Step 4: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run src/screens/Register.test.tsx
@@ -377,7 +377,7 @@ git commit -m "feat: экран регистрации"
 
 ---
 
-### Task 5: Вход, выход и защищённые маршруты
+### Task 5: Sign-in, sign-out and protected routes
 
 **Files:**
 - Create: `frontend/src/screens/Login.tsx`
@@ -387,9 +387,9 @@ git commit -m "feat: экран регистрации"
 - Test: `frontend/src/auth/RequireAuth.test.tsx`, `frontend/src/screens/Login.test.tsx`
 
 **Interfaces:**
-- Produces: `useAuth() -> {user, status, login, logout}`; `RequireAuth` — обёртка маршрута; маршруты `/login`, `/register`, `/projects`.
+- Produces: `useAuth() -> {user, status, login, logout}`; `RequireAuth` — a route wrapper; the `/login`, `/register`, `/projects` routes.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```tsx
 it("не пускает неаутентифицированного и уводит на вход", async () => {
@@ -424,17 +424,17 @@ it("выход возвращает на экран входа и забывае
 });
 ```
 
-Второй тест важнее, чем кажется: без состояния «проверяю» человек при каждой перезагрузке видит вспышку экрана входа, хотя он давно вошёл.
+The second test matters more than it seems: without a "checking" state a person sees a flash of the sign-in screen on every reload, even though they signed in long ago.
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
-- [ ] **Step 3: Реализовать провайдер аутентификации**
+- [ ] **Step 3: Implement the authentication provider**
 
-Три состояния, а не два: `checking`, `authenticated`, `anonymous`. Пока `checking` — маршрут показывает индикатор, а не решает.
+Three states rather than two: `checking`, `authenticated`, `anonymous`. While `checking`, the route shows an indicator rather than deciding.
 
-- [ ] **Step 4: Реализовать экран входа и маршрутизацию**
+- [ ] **Step 4: Implement the sign-in screen and the routing**
 
-- [ ] **Step 5: Прогнать тесты и закоммитить**
+- [ ] **Step 5: Run the tests and commit**
 
 ```bash
 cd frontend && npx vitest run
@@ -444,7 +444,7 @@ git commit -m "feat: вход, выход и защищённые маршрут
 
 ---
 
-### Task 6: Шапка, переключатель языка и пустое состояние
+### Task 6: The header, the language switcher and the empty state
 
 **Files:**
 - Create: `frontend/src/components/Header.tsx`
@@ -452,11 +452,11 @@ git commit -m "feat: вход, выход и защищённые маршрут
 - Test: `frontend/src/components/Header.test.tsx`, `frontend/src/screens/Projects.test.tsx`
 
 **Interfaces:**
-- Produces: шапка с именем организации, переключателем языка и выходом; экран списка проектов с пустым состоянием.
+- Produces: a header with the organization's name, a language switcher and a sign-out; a projects list screen with an empty state.
 
-Это конец онбординга: человек внутри, видит своё имя, может сменить язык и понимает, что делать дальше.
+This is the end of onboarding: the person is inside, sees their own name, can change the language and understands what to do next.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
 ```tsx
 it("переключение языка меняет интерфейс, но не данные", async () => {
@@ -489,33 +489,33 @@ it("пустой список объясняет, что делать дальш
 });
 ```
 
-Первый тест закрепляет главное правило языков разом: чрома переводится, содержимое — нет.
+The first test pins down the main language rule in one go: the chrome is translated, the content is not.
 
-- [ ] **Step 2: Запустить и убедиться, что падают**
+- [ ] **Step 2: Run them and make sure they fail**
 
-- [ ] **Step 3: Реализовать шапку и экран**
+- [ ] **Step 3: Implement the header and the screen**
 
-Кнопка «создать проект» на этом этапе ведёт в заглушку — сам мастер создания появится в плане 2. Но пустое состояние без кнопки было бы тупиком, поэтому кнопка есть.
+The "create a project" button leads to a stub at this stage — the creation wizard itself appears in plan 2. But an empty state without a button would be a dead end, so the button is there.
 
-- [ ] **Step 4: Оформление**
+- [ ] **Step 4: Styling**
 
-`frontend/src/styles.css`: переменные цветов и тёмная тема через `prefers-color-scheme`, как в прототипе. Переносить палитру прототипа целиком не нужно — берите только то, что использует этот план.
+`frontend/src/styles.css`: colour variables and a dark theme through `prefers-color-scheme`, as in the prototype. There is no need to carry the prototype's whole palette over — take only what this plan uses.
 
-- [ ] **Step 5: Прогнать весь набор и собрать**
+- [ ] **Step 5: Run the whole suite and build**
 
 ```bash
 cd frontend && npx vitest run && npm run build
 ```
 
-- [ ] **Step 6: Проверить вживую против настоящего бэкенда**
+- [ ] **Step 6: Check it live against the real backend**
 
 ```bash
 cd frontend && npm run dev
 ```
 
-Пройти сценарий руками: зарегистрироваться, увидеть своё имя в шапке, переключить язык, выйти, войти обратно. Убедиться, что после перезагрузки страницы вход не слетает и экран входа не мигает.
+Walk the scenario by hand: register, see your own name in the header, switch the language, sign out, sign back in. Make sure the sign-in does not fall off after a page reload and that the sign-in screen does not flash.
 
-- [ ] **Step 7: Закоммитить**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add frontend/
@@ -524,7 +524,7 @@ git commit -m "feat: шапка, переключатель языка, пуст
 
 ---
 
-### Task 7: Отдача фронтенда из Caddy
+### Task 7: Serving the frontend from Caddy
 
 **Files:**
 - Create: `Caddyfile`
@@ -533,35 +533,35 @@ git commit -m "feat: шапка, переключатель языка, пуст
 - Modify: `README.md`
 
 **Interfaces:**
-- Produces: `docker compose up` отдаёт собранный интерфейс на корне и проксирует `/api` в бэкенд.
+- Produces: `docker compose up` serves the built interface at the root and proxies `/api` to the backend.
 
-Пока фронт живёт только в dev-сервере, обещание «разворачивается одной командой» снова становится неполным — на корне по-прежнему 404.
+While the frontend lives only in the dev server, the "deploys with one command" promise is incomplete again — the root still gives a 404.
 
-- [ ] **Step 1: Написать Dockerfile сборки**
+- [ ] **Step 1: Write the build Dockerfile**
 
-Многоступенчатый: собрать статику в образе с Node, положить результат в образ Caddy. Итоговый образ не содержит ни Node, ни исходников.
+Multi-stage: build the static files in a Node image, put the result into a Caddy image. The final image contains neither Node nor the sources.
 
-- [ ] **Step 2: Написать Caddyfile**
+- [ ] **Step 2: Write the Caddyfile**
 
-Корень отдаёт статику, `/api/*` проксируется в сервис `api`. Обязателен фолбэк на `index.html` для маршрутов приложения — без него перезагрузка страницы на `/projects` даст 404 от Caddy.
+The root serves the static files, `/api/*` is proxied to the `api` service. A fallback to `index.html` for the application's routes is mandatory — without it reloading the page on `/projects` gives a 404 from Caddy.
 
-- [ ] **Step 3: Подключить сервис в compose и поднять**
+- [ ] **Step 3: Wire the service into compose and bring it up**
 
 ```bash
 docker compose up -d --build && curl -s -o /dev/null -w '%{http_code}\n' localhost:8080/
 ```
 
-Ожидается: 200, а не 404.
+Expected: a 200 rather than a 404.
 
-- [ ] **Step 4: Пройти живой сценарий через Caddy**
+- [ ] **Step 4: Walk a live scenario through Caddy**
 
-Открыть в браузере, зарегистрироваться, перезагрузить страницу на внутреннем маршруте и убедиться, что она открывается, а не отдаёт 404. Это проверка фолбэка, и её нельзя заменить curl'ом на корень.
+Open it in a browser, register, reload the page on an internal route and make sure it opens rather than giving a 404. This is a check of the fallback, and it cannot be replaced by a curl to the root.
 
-- [ ] **Step 5: Обновить README**
+- [ ] **Step 5: Update the README**
 
-Дописать раздел про адрес интерфейса и про то, что фронт и API живут за одним доменом.
+Add a section about the interface's address and about the frontend and the API living behind one domain.
 
-- [ ] **Step 6: Закоммитить**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add Caddyfile frontend/Dockerfile docker-compose.yml README.md
@@ -570,10 +570,10 @@ git commit -m "feat: интерфейс отдаётся из Caddy на кор�
 
 ---
 
-## Что этот план не делает
+## What this plan does not do
 
-- Создание проектов, категорий и задач — план 2. Кнопка в пустом состоянии ведёт в заглушку.
-- Диаграмму — план 2.
-- Перетаскивание, правку и карточку задачи — план 3.
-- Восстановление пароля и подтверждение адреса — плана нет, придут вместе с почтой в плане приглашений.
-- Экран настроек организации. Язык переключается в шапке; остальные настройки появятся, когда появится что настраивать.
+- Creating projects, categories and tasks — plan 2. The button in the empty state leads to a stub.
+- The chart — plan 2.
+- Dragging, editing and the task card — plan 3.
+- Password recovery and address confirmation — there is no plan; they will arrive together with mail in the invitations plan.
+- The organization settings screen. The language is switched in the header; the other settings will appear when there is something to configure.
