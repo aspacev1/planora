@@ -1,13 +1,13 @@
-"""Текст письма на языке адресата.
+"""The text of a message in the recipient's language.
 
-Устроено так же, как словари интерфейса (§9 спецификации): по файлу на
-язык, ключи смысловые, отсутствующий ключ падает на язык по умолчанию и
-пишет предупреждение в лог, а не уходит пустой строкой. Полнота словарей
-проверяется тестом, а не глазами.
+Arranged the same way as the interface dictionaries (specification §9): one
+file per language, meaning-based keys, a missing key falls back to the default
+language and writes a warning to the log rather than going out as an empty
+string. Dictionary completeness is checked by a test, not by eye.
 
-Подстановка идёт `format_map` по шаблону, а не по данным: имя пользователя
-и ссылка попадают в текст значениями и не могут принести с собой ещё одно
-поле для подстановки.
+Substitution goes through `format_map` over the template, not over the data:
+a user's name and a link land in the text as values and cannot bring another
+substitution field along with them.
 """
 
 import json
@@ -23,15 +23,15 @@ logger = logging.getLogger(__name__)
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
-# Последняя ступень отката. Совпадает с умолчанием DEFAULT_LOCALE, но задано
-# отдельно: словарь на этом языке обязан существовать в репозитории, чего
-# нельзя обещать про произвольное значение переменной окружения.
+# The last fallback step. It coincides with the DEFAULT_LOCALE default but is
+# declared separately: a dictionary in this language must exist in the
+# repository, which cannot be promised of an arbitrary environment variable.
 LAST_RESORT_LOCALE = "az"
 
 
 @lru_cache
 def dictionary(locale: str) -> dict[str, dict[str, str]]:
-    """Словарь писем одного языка. Отсутствующий файл — пустой словарь."""
+    """The mail dictionary of one language. A missing file means an empty dictionary."""
     path = _TEMPLATES_DIR / f"{locale}.json"
     if not path.is_file():
         return {}
@@ -43,8 +43,9 @@ def available_locales() -> list[str]:
 
 
 def _lookup(template: str, field: str, locale: str) -> str:
-    # dict.fromkeys, а не set: порядок отката — от языка адресата к языку
-    # установки и только затем к азербайджанскому, и он должен сохраниться.
+    # dict.fromkeys rather than a set: the fallback order is from the
+    # recipient's language to the installation's and only then to Azerbaijani,
+    # and it has to be preserved.
     candidates = dict.fromkeys([locale, get_settings().default_locale, LAST_RESORT_LOCALE])
     for candidate in candidates:
         text = dictionary(candidate).get(template, {}).get(field)
@@ -63,12 +64,13 @@ def _lookup(template: str, field: str, locale: str) -> str:
 
 
 def term(group: str, key: str, locale: str) -> str:
-    """Отдельное слово из словаря писем — с тем же откатом, что и текст письма.
+    """A single word from the mail dictionary — with the same fallback as the text.
 
-    Нужно там, где в подстановку идёт не пришедшее извне значение, а наше
-    собственное перечислимое: роль в приглашении хранится в базе строкой
-    `editor`, а в письме должна стоять «редактор». Переводить её на стороне
-    вызывающего значило бы завести второй словарь писем рядом с этим.
+    Needed where what goes into a substitution is not a value from outside but
+    one of our own enumerations: the role in an invitation is stored in the
+    database as the string `editor`, while the message must say "editor" in the
+    recipient's language. Translating it on the caller's side would mean a
+    second mail dictionary next to this one.
     """
     return _lookup(group, key, locale)
 

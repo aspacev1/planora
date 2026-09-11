@@ -1,10 +1,11 @@
 class ExportError(Exception):
-    """Отказ выгрузки — машинным кодом, по правилам отказов мутаций.
+    """An export refusal, as a machine code, following the mutation refusal rules.
 
-    Прозы здесь нет намеренно: маршрут отдаёт `code` в `detail`, а переводит
-    его словарь интерфейса (см. app/mutations.py MutationError). Подписи
-    внутри самого документа — другое дело, они живут в app/export/labels.py:
-    документ пишет сервер, как письмо.
+    There is deliberately no prose here: the route returns `code` in `detail`,
+    and the interface's dictionary translates it (see app/mutations.py
+    MutationError). Labels inside the document itself are another matter — they
+    live in app/export/labels.py: the server writes the document the way it
+    writes a letter.
     """
 
     def __init__(self, code: str, message: str):

@@ -1,4 +1,4 @@
-"""Ключ LLM организации: хранение и превращение в провайдера."""
+"""An organization's LLM key: storing it and turning it into a provider."""
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
@@ -18,14 +18,15 @@ def save_credential(
     model: str,
     api_key: str | None,
 ) -> OrgLlmCredential:
-    """Сохраняет подключение. Пустой ключ означает «оставить прежний».
+    """Saves the connection. An empty key means "keep the previous one".
 
-    Иначе правка адреса модели требовала бы вводить ключ заново — а взять его
-    неоткуда: наружу он не отдаётся никогда.
+    Otherwise editing the model's address would require entering the key again —
+    and there is nowhere to get it from: it is never handed outward.
     """
-    # Адрес проверяется при сохранении, чтобы администратор узнал об отказе
-    # сразу, в форме, а не на первом запросе к модели. Проверка на каждом
-    # запросе при этом остаётся (см. provider): DNS мог смениться после.
+    # The address is validated on save so that an administrator learns about a
+    # refusal right away, in the form, rather than on the first request to the
+    # model. The check on every request stays regardless (see provider): DNS
+    # could have changed since.
     from app.ai.netguard import ensure_public_https
 
     ensure_public_https(base_url)
@@ -51,10 +52,11 @@ def credential(db: DbSession, org: Organization) -> OrgLlmCredential | None:
 
 
 def provider_for(db: DbSession, org: Organization) -> LlmProvider:
-    """Провайдер организации.
+    """The organization's provider.
 
-    Нет ключа — кнопки AI неактивны со ссылкой в настройки, и отказ здесь
-    отдельным кодом: это не поломка, а ненастроенная установка.
+    No key means the AI buttons are inactive with a link into settings, and the
+    refusal here carries its own code: this is not a breakage but an
+    unconfigured installation.
     """
     row = credential(db, org)
     if row is None:
@@ -62,9 +64,9 @@ def provider_for(db: DbSession, org: Organization) -> LlmProvider:
     try:
         api_key = decrypt(row.encrypted_key)
     except DecryptionError as error:
-        # Сменили APP_SECRET, не перешифровав ключи. Отдельный код: чинится это
-        # не вводом ключа заново, а возвратом прежнего секрета — или
-        # осознанным вводом нового ключа.
+        # APP_SECRET was changed without re-encrypting the keys. A separate
+        # code: this is fixed not by entering the key again but by restoring the
+        # previous secret — or by deliberately entering a new key.
         raise LlmError("llm_key_unreadable", str(error)) from error
 
     return HttpProvider(

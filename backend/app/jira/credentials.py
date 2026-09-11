@@ -1,4 +1,4 @@
-"""Подключение Jira организации: хранение и превращение в клиента."""
+"""An organization's Jira connection: storing it and turning it into a client."""
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
@@ -19,9 +19,9 @@ def save_credential(
     email: str,
     api_token: str | None,
 ) -> JiraConnection:
-    """Сохраняет подключение. Пустой токен означает «оставить прежний» —
-    тем же правилом, что ключ LLM: наружу токен не отдаётся никогда, и
-    требовать его при правке адреса значило бы требовать невозможного.
+    """Saves the connection. An empty token means "keep the previous one" — by
+    the same rule as the LLM key: the token is never handed outward, and
+    demanding it in order to edit the address would be demanding the impossible.
     """
     ensure_public_https(base_url)
 
@@ -52,8 +52,9 @@ def drop_credential(db: DbSession, org: Organization) -> None:
 
 
 def client_for(db: DbSession, org: Organization) -> JiraClient:
-    """Клиент организации. Нет подключения — отказ кодом `jira_not_configured`,
-    а не пятисоткой: установка без Jira — законное состояние, не поломка."""
+    """The organization's client. No connection means a refusal with the code
+    `jira_not_configured`, not a 500: an installation without Jira is a lawful
+    state, not a breakage."""
     row = credential(db, org)
     if row is None:
         raise JiraError("jira_not_configured", "подключение Jira не настроено")

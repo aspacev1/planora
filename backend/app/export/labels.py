@@ -1,20 +1,21 @@
-"""Подписи внутри выгруженного документа — на языке того, кто его заказал.
+"""Labels inside an exported document — in the language of whoever ordered it.
 
-Устроено так же, как словари писем (`app/mail/templates.py`): по файлу на
-язык, ключи смысловые, отсутствующий ключ падает на язык по умолчанию и пишет
-предупреждение в лог, а не уходит пустой строкой. Полнота словарей проверяется
-тестом, а не глазами.
+Arranged the same way as the mail dictionaries (`app/mail/templates.py`): one
+file per language, meaning-based keys, a missing key falls back to the default
+language and writes a warning to the log rather than going out as an empty
+string. Dictionary completeness is checked by a test, not by eye.
 
-Почему словарь на сервере, хотя ошибки API переводит клиент. Правило «у
-бэкенда нет своего словаря прозы» относится к отказам: клиент получает код и
-сам решает, какими словами его назвать. Готовый документ словами наполняет
-тот, кто его пишет, — а пишет его сервер. Тот же довод уже записан в
-`app/scorecard.py` рядом с `_METRIC_LABELS` («имя задачи ложится в базу, и
-переводит его тот, кто пишет, — тот же принцип, что у писем»).
+Why a dictionary on the server, when the client translates API errors. The rule
+"the backend has no prose dictionary of its own" applies to refusals: the client
+gets a code and decides for itself what words to name it with. A finished
+document is filled with words by whoever writes it — and the server is what
+writes it. The same argument is already recorded in `app/scorecard.py` next to
+`_METRIC_LABELS` ("a task name lands in the database, and whoever writes it
+translates it — the same principle as with mail").
 
-Названия месяцев тоже здесь, а не у `Intl`/`babel`: ICU не знает
-азербайджанских месяцев, и фронтенд по этой же причине держит их словарём
-(`frontend/src/i18n/dates.ts`).
+Month names are here too rather than with `Intl`/`babel`: ICU does not know the
+Azerbaijani months, and the frontend keeps them in a dictionary for the same
+reason (`frontend/src/i18n/dates.ts`).
 """
 
 import json
@@ -29,15 +30,15 @@ logger = logging.getLogger(__name__)
 
 _LABELS_DIR = Path(__file__).parent / "labels"
 
-# Последняя ступень отката. Совпадает с умолчанием DEFAULT_LOCALE, но задано
-# отдельно: словарь на этом языке обязан существовать в репозитории, чего
-# нельзя обещать про произвольное значение переменной окружения.
+# The last fallback step. It coincides with the DEFAULT_LOCALE default but is
+# declared separately: a dictionary in this language must exist in the
+# repository, which cannot be promised of an arbitrary environment variable.
 LAST_RESORT_LOCALE = "az"
 
 
 @lru_cache
 def dictionary(locale: str) -> dict[str, dict[str, str]]:
-    """Словарь подписей одного языка. Отсутствующий файл — пустой словарь."""
+    """The label dictionary of one language. A missing file means an empty dictionary."""
     path = _LABELS_DIR / f"{locale}.json"
     if not path.is_file():
         return {}
@@ -49,11 +50,11 @@ def available_locales() -> list[str]:
 
 
 def term(group: str, key: str, locale: str) -> str:
-    """Одна подпись с откатом по языкам.
+    """A single label with a fallback across languages.
 
-    Порядок отката — от языка заказавшего к языку установки и только затем к
-    азербайджанскому; `dict.fromkeys`, а не `set`, чтобы этот порядок
-    сохранился.
+    The fallback order is from the orderer's language to the installation's and
+    only then to Azerbaijani; `dict.fromkeys` rather than `set`, so that this
+    order is preserved.
     """
     candidates = dict.fromkeys([locale, get_settings().default_locale, LAST_RESORT_LOCALE])
     for candidate in candidates:
@@ -71,11 +72,11 @@ def term(group: str, key: str, locale: str) -> str:
 
 
 def has_group_key(group: str, key: str, locale: str) -> bool:
-    """Есть ли такая подпись — без ловли исключения на каждой строке.
+    """Whether such a label exists — without catching an exception on every row.
 
-    Нужно там, где незнакомое значение приходит из базы и подписывается общим
-    словом: журнал правок несёт имя операции, а операции добавляются кодом, и
-    новая не должна ронять документ на середине.
+    Needed where an unknown value comes from the database and is labelled with a
+    generic word: the edit journal carries an operation's name, operations are
+    added by code, and a new one must not bring the document down halfway.
     """
     for candidate in (locale, get_settings().default_locale, LAST_RESORT_LOCALE):
         if key in dictionary(candidate).get(group, {}):
@@ -84,10 +85,11 @@ def has_group_key(group: str, key: str, locale: str) -> bool:
 
 
 class Labels:
-    """Словарь одного языка, привязанный к нему один раз.
+    """One language's dictionary, bound to it once.
 
-    Рисовальщики зовут подписи десятками, и таскать `locale` в каждый вызов
-    значило бы дать ему разойтись между шапкой и таблицей на одной странице.
+    The renderers ask for labels by the dozen, and dragging `locale` into every
+    call would mean letting it drift between the header and the table on one
+    page.
     """
 
     def __init__(self, locale: str) -> None:
@@ -95,9 +97,9 @@ class Labels:
 
     def __call__(self, group: str, key: str, **params: object) -> str:
         text = term(group, key, self.locale)
-        # Подстановка идёт по шаблону, а не по данным: имя проекта и номер
-        # версии попадают в текст значениями и не могут принести с собой ещё
-        # одно поле для подстановки.
+        # Substitution goes through the template rather than the data: the
+        # project's name and the version number land in the text as values and
+        # cannot bring another substitution field along with them.
         return text.format(**params) if params else text
 
     def month(self, number: int, *, short: bool = False) -> str:

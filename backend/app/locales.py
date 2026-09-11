@@ -1,18 +1,18 @@
-"""Выбор языка при первом появлении человека.
+"""Choosing a language when a person first shows up.
 
-Спецификация: язык хранится в профиле; при первом входе берётся из
-`Accept-Language`, если тот просит один из поддерживаемых, иначе —
-азербайджанский. Дальше — только то, что человек выбрал сам.
+The specification: the language is stored in the profile; on first sign-in it
+is taken from `Accept-Language` if that asks for one of the supported ones, and
+otherwise it is Azerbaijani. After that — only what the person chose themselves.
 """
 
 from app.config import get_settings
 
 
 def _weight(part: str) -> float:
-    """Вес языка из `;q=`. Без него порядок предпочтений теряется.
+    """A language's weight from `;q=`. Without it the order of preference is lost.
 
-    Испорченный вес — это не отказ разбирать заголовок целиком: заголовок
-    приходит из браузера, но пройти он мог через что угодно.
+    A malformed weight is not a reason to refuse parsing the whole header: the
+    header comes from a browser, but it could have passed through anything.
     """
     for parameter in part.split(";")[1:]:
         key, _, value = parameter.partition("=")
@@ -25,17 +25,17 @@ def _weight(part: str) -> float:
 
 
 def preferred_locale(header: str | None, supported: list[str], default: str) -> str:
-    """Первый поддерживаемый язык из `Accept-Language`.
+    """The first supported language from `Accept-Language`.
 
-    Регистр приводится инвариантно (`casefold`), а не в локали процесса:
-    в азербайджанской локали `"I"` превращается в `ı`, и один и тот же
-    заголовок начинал бы разбираться по-разному в зависимости от того, чья
-    локаль оказалась активной у сервера.
+    Case is folded invariantly (`casefold`) rather than in the process locale:
+    in the Azerbaijani locale `"I"` turns into `ı`, and the same header would
+    start being parsed differently depending on whose locale happened to be
+    active on the server.
 
-    Сравнивается только основной подтег: `ru-RU` — это русский, и требовать
-    от браузера ровно `ru` значило бы не понимать половину живых заголовков.
-    Регион при этом не сохраняется: продукт различает три языка, а не
-    диалекты.
+    Only the primary subtag is compared: `ru-RU` is Russian, and demanding
+    exactly `ru` from the browser would mean failing to understand half of the
+    headers in the wild. The region is not preserved: the product distinguishes
+    three languages, not dialects.
     """
     known = {code.casefold(): code for code in supported}
 
@@ -50,8 +50,8 @@ def preferred_locale(header: str | None, supported: list[str], default: str) -> 
 
     if not ranked:
         return default
-    # max по весу; при равных весах побеждает тот, кто раньше в заголовке —
-    # поэтому сортировка устойчивая, а не max() по одному ключу.
+    # max by weight; on equal weights the one earlier in the header wins — hence
+    # a stable sort rather than max() on a single key.
     return sorted(ranked, key=lambda item: item[0], reverse=True)[0][1]
 
 

@@ -1,15 +1,15 @@
-"""Счётчики частоты, живущие в базе.
+"""Rate counters that live in the database.
 
-В отличие от app.rate_limit (память процесса, предохранитель от заливки
-гостевой ленты), эти счётчики стерегут вход и регистрацию — то есть перебор
-паролей и массовое заведение аккаунтов. Такой предел обязан переживать
-перезапуск процесса и быть общим для всех реплик, а единственное общее
-хранилище этой архитектуры — Postgres: внешних сервисов (Redis, очередей)
-у продукта нет намеренно.
+Unlike app.rate_limit (process memory, a fuse against flooding the guest feed),
+these counters guard sign-in and registration — that is, password guessing and
+mass account creation. Such a limit has to survive a process restart and be
+shared across all replicas, and the only shared storage in this architecture is
+Postgres: the product deliberately has no external services (Redis, queues).
 
-Точность здесь не абсолютная: два конкурентных запроса могут оба пройти под
-самый потолок — и это принято. Смысл предела — сделать перебор дороже на
-порядки, а не отсчитать попытки до единой.
+The precision here is not absolute: two concurrent requests may both slip
+through right at the ceiling — and that is accepted. The point of the limit is
+to make guessing orders of magnitude more expensive, not to count attempts down
+to the last one.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -25,8 +25,8 @@ def _cutoff(window_seconds: int) -> datetime:
 
 
 def _sweep(db: DbSession, bucket: str, window_seconds: int) -> None:
-    # Подметается только свой ключ: чужие окна могут быть длиннее, и общая
-    # уборка по самому короткому окну съедала бы их события.
+    # Only this key's own rows are swept: other windows may be longer, and a
+    # shared cleanup by the shortest window would eat their events.
     db.execute(
         delete(ThrottleEvent).where(
             ThrottleEvent.bucket == bucket, ThrottleEvent.at < _cutoff(window_seconds)
@@ -35,10 +35,10 @@ def _sweep(db: DbSession, bucket: str, window_seconds: int) -> None:
 
 
 def check(db: DbSession, bucket: str, *, limit: int, window_seconds: int) -> bool:
-    """Укладывается ли ключ в потолок. Ничего не записывает.
+    """Whether the key fits under the ceiling. Writes nothing.
 
-    limit <= 0 означает «без предела»: рубильник, которым администратор
-    выключает счётчик, не должен превращаться в «запрещено всё».
+    limit <= 0 means "no limit": the switch an administrator uses to turn the
+    counter off must not turn into "everything is forbidden".
     """
     if limit <= 0:
         return True
@@ -52,18 +52,18 @@ def check(db: DbSession, bucket: str, *, limit: int, window_seconds: int) -> boo
 
 
 def note(db: DbSession, bucket: str) -> None:
-    """Записывает попытку безусловно.
+    """Records an attempt unconditionally.
 
-    Отдельно от check, потому что у входа считаются только неудачи: считать
-    успехи значило бы запирать человека за то, что он работает с двух
-    устройств; а неудача узнаётся уже после проверки пароля.
+    Separate from check, because sign-in counts only failures: counting
+    successes would mean locking a person out for working from two devices; and
+    a failure is only known after the password has been verified.
     """
     db.add(ThrottleEvent(bucket=bucket))
     db.flush()
 
 
 def hit(db: DbSession, bucket: str, *, limit: int, window_seconds: int) -> bool:
-    """Проверка и запись одним движением — для пределов, где считается всё."""
+    """Check and record in one motion — for limits where everything counts."""
     if limit <= 0:
         return True
     if not check(db, bucket, limit=limit, window_seconds=window_seconds):

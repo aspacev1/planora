@@ -1,8 +1,9 @@
 import re
 import unicodedata
 
-# Азербайджанский. Обе формы каждой буквы заданы явно: полагаться на
-# «убрать диакритику» нельзя, İ и I — разные буквы, а не украшения.
+# Azerbaijani. Both forms of every letter are spelled out explicitly: relying on
+# "strip the diacritics" is not an option — İ and I are different letters, not
+# decorations.
 _AZ = {
     "ə": "e", "Ə": "e",
     "ğ": "g", "Ğ": "g",
@@ -27,19 +28,20 @@ _TRANSLIT = {**_AZ, **_RU}
 
 
 def normalize_email(raw: str) -> str:
-    """Форма адреса для сравнения и уникальности.
+    """The form of an address used for comparison and uniqueness.
 
-    NFKC приводит совместимые формы к одной, casefold не зависит от локали
-    процесса — в отличие от приведения регистра в локали пользователя,
-    где I превращается в ı и ломает поиск.
+    NFKC folds compatible forms into one, and casefold does not depend on the
+    process locale — unlike case conversion in the user's locale, where I turns
+    into ı and breaks lookups.
     """
     return unicodedata.normalize("NFKC", raw.strip()).casefold()
 
 
-# Ширина колонок slug в organizations и projects (models.py). Слаг длиннее
-# уезжал бы в базу как есть и возвращался DataError на усечении — то есть
-# пятисоткой, а не адресом. Транслитерация умеет удлинять текст («щ» → «sch»),
-# поэтому граница на входе формы недостаточна: укорачивает сама slugify.
+# The width of the slug columns in organizations and projects (models.py). A
+# longer slug would go into the database as-is and come back as a DataError on
+# truncation — that is, as a 500 rather than an address. Transliteration can
+# lengthen text ("щ" -> "sch"), so a limit on the form's input is not enough:
+# slugify shortens it itself.
 SLUG_MAX_LEN = 100
 
 

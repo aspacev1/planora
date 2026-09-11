@@ -1,12 +1,13 @@
-"""Схемы того, что возвращает модель.
+"""Schemas of what the model returns.
 
-Схема — язык-независимая: на языке пользователя приходят значения, а не ключи.
-Иначе интервью на азербайджанском вернуло бы поля с азербайджанскими именами, и
-разбирать их пришлось бы по языку сессии.
+The schema is language-independent: what arrives in the user's language are the
+values, not the keys. Otherwise an interview in Azerbaijani would come back
+with Azerbaijani field names, and parsing them would depend on the session's
+language.
 
-Проверка идёт на нашей стороне, а не только в `response_format` запроса:
-обещаниям модели верить нельзя, и «строгий режим» одного облака ничего не
-говорит о локальной модели за тем же адресом.
+Validation happens on our side, not only in the request's `response_format`:
+the model's promises cannot be trusted, and one cloud's "strict mode" says
+nothing about a local model behind the same address.
 """
 
 from datetime import date
@@ -16,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from app.config import get_settings
 from app.models import Criticality
 
-# --- шаг 1: следующий вопрос -------------------------------------------------
+# --- step 1: the next question -----------------------------------------------
 
 QUESTION_SCHEMA = {
     "type": "object",
@@ -24,9 +25,10 @@ QUESTION_SCHEMA = {
     "required": ["question", "covered_topics"],
     "properties": {
         "question": {"type": "string"},
-        # Модель сама отмечает, какие темы уже закрыты: список обязательных тем
-        # держит бэк, а решение «этот ответ закрыл тему сроков» требует чтения
-        # ответа, а не сопоставления строк.
+        # The model marks which topics are already covered itself: the backend
+        # holds the list of mandatory topics, while deciding "this answer closed
+        # the topic of deadlines" requires reading the answer, not matching
+        # strings.
         "covered_topics": {"type": "array", "items": {"type": "string"}},
     },
 }
@@ -39,7 +41,7 @@ class NextQuestion(BaseModel):
     covered_topics: list[str] = Field(default_factory=list)
 
 
-# --- шаг 2: конспект ---------------------------------------------------------
+# --- step 2: the summary -----------------------------------------------------
 
 SUMMARY_SCHEMA = {
     "type": "object",
@@ -50,9 +52,9 @@ SUMMARY_SCHEMA = {
 
 
 class Summary(BaseModel):
-    """Потолки — против бесконечных тезисов: и модель, и человек правкой
-    могут прислать простыню, которая ляжет в jsonb и поедет в каждый
-    следующий промпт, раздувая счёт токенов."""
+    """The caps guard against endless summaries: both the model and a person
+    editing can send a wall of text that lands in jsonb and rides along in every
+    following prompt, inflating the token bill."""
     model_config = ConfigDict(extra="ignore")
 
     theses: list[str] = Field(min_length=1, max_length=40)
@@ -67,7 +69,7 @@ class Summary(BaseModel):
         return value
 
 
-# --- шаг 3: черновик ---------------------------------------------------------
+# --- step 3: the draft -------------------------------------------------------
 
 DRAFT_SCHEMA = {
     "type": "object",
@@ -119,9 +121,9 @@ class DraftTask(BaseModel):
     @field_validator("description", mode="after")
     @classmethod
     def _description_within_limit(cls, value: str) -> str:
-        # Тот же потолок, что у HTTP-пути (см. mutations._Wire): описание из
-        # черновика AI ляжет в ту же колонку, и путь через модель не должен
-        # быть шире пути через форму.
+        # The same cap as on the HTTP path (see mutations._Wire): a description
+        # from an AI draft lands in the same column, and the path through the
+        # model must not be wider than the path through the form.
         limit = get_settings().max_text_len
         if len(value) > limit:
             raise ValueError(f"длиннее потолка в {limit} символов")
@@ -141,7 +143,7 @@ class Draft(BaseModel):
     categories: list[DraftCategory] = Field(min_length=1, max_length=50)
 
 
-# --- шаг «разбить задачу» ----------------------------------------------------
+# --- the "split a task" step -------------------------------------------------
 
 SPLIT_SCHEMA = {
     "type": "object",
@@ -176,16 +178,16 @@ class SplitPart(BaseModel):
 class Split(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    # 3–5 частей: одна часть — это не разбиение, а десять превращают карточку
-    # в список дел.
+    # 3-5 parts: one part is not a split, and ten turn the card into a to-do
+    # list.
     parts: list[SplitPart] = Field(min_length=2, max_length=8)
 
 
 def parse(model: type[BaseModel], payload: dict):
-    """Разбор ответа модели с понятным отказом.
+    """Parsing the model's answer with an intelligible refusal.
 
-    ValidationError наружу не выходит: она проза на английском, а сообщения
-    собирает клиент по машинному коду.
+    ValidationError does not escape outward: it is English prose, while messages
+    are assembled by the client from a machine code.
     """
     from app.ai.provider import LlmError
 

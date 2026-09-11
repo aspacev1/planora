@@ -1,15 +1,16 @@
-"""Восстановление пароля: выдача ссылки по почте и её погашение.
+"""Password recovery: issuing a link by mail and redeeming it.
 
-Почта здесь — не удобство, а единственное доказательство: человек без пароля
-может подтвердить, что аккаунт его, только доступом к своему ящику. Поэтому
-в установке без почтового сервера (MAIL_TRANSPORT=none) восстановление не
-работает — и это честнее, чем делать вид, что письмо ушло.
+Mail here is not a convenience but the only proof: a person without a password
+can confirm the account is theirs only through access to their own mailbox.
+That is why recovery does not work in an installation without a mail server
+(MAIL_TRANSPORT=none) — and that is more honest than pretending a message went
+out.
 
-Токен хранится хешем и гасится при первом использовании — та же дисциплина,
-что у сессий и подтверждения адреса (app.email_verification). Отличие одно:
-эта ссылка открывает аккаунт целиком, поэтому живёт часы, а не сутки, и её
-погашение закрывает все сессии — восстановлением пользуются как раз тогда,
-когда есть подозрение, что пароль утёк.
+The token is stored as a hash and is redeemed on first use — the same
+discipline as sessions and address confirmation (app.email_verification). There
+is one difference: this link opens the whole account, so it lives for hours
+rather than a day, and redeeming it closes every session — recovery is used
+precisely when there is a suspicion that the password has leaked.
 """
 
 import logging
@@ -26,19 +27,19 @@ from app.security import hash_password, hash_token, new_token
 
 logger = logging.getLogger(__name__)
 
-# Часы, а не сутки, как у подтверждения адреса: та ссылка лишь ставит отметку,
-# эта — задаёт новый пароль. Ключ от аккаунта не должен неделю лежать в ящике,
-# который, возможно, уже читает кто-то чужой.
+# Hours, not a day as with address confirmation: that link merely sets a flag,
+# this one sets a new password. The key to an account must not sit for a week in
+# a mailbox that someone else may already be reading.
 RESET_TTL = timedelta(hours=2)
 
-# Пауза между повторными просьбами. Форма восстановления принимает любой
-# адрес, и без паузы она — бесплатный рассыльщик по чужому ящику (та же
-# арифметика, что у повторной отправки подтверждения).
+# A pause between repeated requests. The recovery form accepts any address, and
+# without a pause it is a free mailer aimed at someone else's mailbox (the same
+# arithmetic as for resending a confirmation).
 RESEND_COOLDOWN = timedelta(minutes=1)
 
 
 class ResetError(Exception):
-    """Ссылку не приняли. `code` уходит наружу как есть, без прозы."""
+    """The link was not accepted. `code` goes outward as is, with no prose."""
 
     def __init__(self, code: str) -> None:
         super().__init__(code)
@@ -46,7 +47,7 @@ class ResetError(Exception):
 
 
 def issue_token(db: DbSession, user: User) -> str:
-    """Новый токен восстановления. Прежние гасит: действует последняя ссылка."""
+    """A new recovery token. It redeems the previous ones: the last link wins."""
     db.execute(delete(PasswordReset).where(PasswordReset.user_id == user.id))
     raw, hashed = new_token()
     db.add(
@@ -66,11 +67,11 @@ def reset_link(raw_token: str) -> str:
 
 
 def send_reset(db: DbSession, user: User) -> bool:
-    """Выдаёт ссылку и отправляет письмо. False — письмо не ушло.
+    """Issues a link and sends a message. False means the message did not go out.
 
-    Токен выдаётся до отправки и остаётся выданным, даже если письмо не
-    ушло: повторная просьба выдаст новый и погасит этот, а откат ничего бы
-    не улучшил.
+    The token is issued before sending and stays issued even if the message did
+    not go out: a repeated request will issue a new one and redeem this one, and
+    a rollback would improve nothing.
     """
     link = reset_link(issue_token(db, user))
     return mail.send(
@@ -93,11 +94,12 @@ def sent_recently(db: DbSession, user: User) -> bool:
 
 
 def redeem_token(db: DbSession, raw_token: str, *, new_password: str) -> User:
-    """Гасит ссылку, ставит новый пароль и закрывает все сессии владельца.
+    """Redeems the link, sets a new password and closes all of the owner's sessions.
 
-    Все, а не «кроме текущей»: у человека, забывшего пароль, сессии нет, а
-    у того, кто восстановлением выгоняет угонщика, чужие сессии — ровно то,
-    что должно умереть. Свою он откроет следующим входом.
+    All of them, not "except the current one": a person who forgot their
+    password has no session, while for someone using recovery to evict an
+    intruder, the foreign sessions are exactly what must die. Their own will
+    open on the next sign-in.
     """
     record = db.scalar(
         select(PasswordReset).where(PasswordReset.token_hash == hash_token(raw_token))
@@ -106,7 +108,7 @@ def redeem_token(db: DbSession, raw_token: str, *, new_password: str) -> User:
         raise ResetError("invalid_token")
 
     if record.expires_at < datetime.now(timezone.utc):
-        # Просроченную строку убираем сразу: она уже ни на что не годна.
+        # An expired row is removed right away: it is good for nothing anymore.
         db.delete(record)
         db.flush()
         raise ResetError("token_expired")

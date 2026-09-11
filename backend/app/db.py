@@ -12,27 +12,27 @@ class Base(DeclarativeBase):
     pass
 
 
-# Пул соединений имеет смысл там, где процесс один и живёт долго: под
-# docker-compose и локальным uvicorn соединение открывается один раз и
-# переиспользуется, а pool_pre_ping отсеивает то, что база успела закрыть
-# сама.
+# A connection pool makes sense where there is one long-lived process: under
+# docker-compose and a local uvicorn a connection is opened once and reused,
+# while pool_pre_ping weeds out the ones the database has closed on its own.
 #
-# В serverless процессов не один, а столько, сколько платформа решила
-# поднять под нагрузку, и каждый держал бы собственный пул. Postgres
-# считает соединения глобально, поэтому такой расклад упирается в лимит
-# сервера при вполне скромном трафике. NullPool отдаёт соединение сразу
-# после запроса; переиспользование при этом никуда не девается — его берёт
-# на себя внешний пулер (у Neon и Supabase это адрес с `-pooler`, его и надо
-# класть в DATABASE_URL на Vercel).
+# In serverless there is not one process but as many as the platform decided to
+# spin up under load, and each would hold a pool of its own. Postgres counts
+# connections globally, so that arrangement hits the server's limit at quite
+# modest traffic. NullPool releases the connection right after the query; reuse
+# does not disappear in the process — it is taken over by an external pooler
+# (with Neon and Supabase that is the address with `-pooler`, and that is what
+# belongs in DATABASE_URL on Vercel).
 #
-# prepare_threshold=None выключает серверные prepared statements. psycopg
-# заводит их сам после пятого повтора запроса, но живут они в сессии
-# Postgres, а пулер в режиме транзакции раздаёт разным запросам разные
-# сессии — и запрос находит подготовленным то, чего в его сессии нет
-# («prepared statement _pg3_0 already exists» с другой стороны). Свежие
-# pgbouncer это умеют, но зависеть от версии чужого пулера не за что.
+# prepare_threshold=None turns server-side prepared statements off. psycopg
+# creates them by itself after the fifth repetition of a query, but they live
+# inside a Postgres session, and a pooler in transaction mode hands different
+# requests different sessions — so a query finds something prepared that does
+# not exist in its session ("prepared statement _pg3_0 already exists" from the
+# other side). Recent pgbouncer versions handle this, but there is no reason to
+# depend on the version of someone else's pooler.
 #
-# VERCEL платформа выставляет сама, вручную её задавать не нужно.
+# VERCEL is set by the platform itself; there is no need to set it by hand.
 _engine_options: dict[str, object] = (
     {"poolclass": NullPool, "connect_args": {"prepare_threshold": None}}
     if os.getenv("VERCEL")

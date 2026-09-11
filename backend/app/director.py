@@ -1,12 +1,13 @@
-"""Директор — единственная роль уровня всей установки, а не одной организации.
+"""The director is the only installation-wide role, not an organization one.
 
-`Role` (owner/editor/viewer/client в app.models) существует внутри одной
-организации, и владельцев организаций в установке может быть сколько угодно.
-Директор — другое: конкретный человек, распоряжающийся самой установкой, а не
-чьей-то организацией внутри неё. Адрес — не константа кода, а обязательная
-переменная окружения DIRECTOR_EMAIL (см. app.config.Settings): значение живёт
-в .env или в хранилище секретов платформы, а не в репозитории, и приложение
-отказывается стартовать, если её не задали.
+`Role` (owner/editor/viewer/client in app.models) exists inside a single
+organization, and an installation may have any number of organization owners.
+The director is something else: the specific person who runs the installation
+itself, not someone's organization inside it. The address is not a code
+constant but the mandatory DIRECTOR_EMAIL environment variable (see
+app.config.Settings): the value lives in .env or in the platform's secret store
+rather than in the repository, and the application refuses to start if it is
+unset.
 """
 
 from app.config import get_settings
@@ -14,11 +15,10 @@ from app.text import normalize_email
 
 
 def is_director(email: str) -> bool:
-    """Носит ли этот адрес роль директора.
+    """Whether this address carries the director role.
 
-    Сравнение — той же нормализацией, что и уникальность аккаунта при
-    регистрации (см. app.text.normalize_email): форма письма, под которой
-    человек вошёл, не обязана побуквенно совпадать со значением
-    DIRECTOR_EMAIL.
+    The comparison uses the same normalization as account uniqueness at
+    registration (see app.text.normalize_email): the form of the address a
+    person signed in with need not match DIRECTOR_EMAIL letter for letter.
     """
     return normalize_email(email) == normalize_email(get_settings().director_email)

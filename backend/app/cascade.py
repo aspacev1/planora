@@ -1,21 +1,22 @@
-"""Автоперенос по связям: последователь не начинается раньше, чем кончился его
-предшественник.
+"""Automatic shifting along dependencies: a successor does not start before its
+predecessor has finished.
 
-Правило выключено по умолчанию и включается на проекте (`auto_schedule`).
-Причина не в осторожности: связь в этой системе — прежде всего картинка, и до
-сих пор она не двигала ничего вовсе (см. DependencyNudge — предложение, а не
-действие). Включённый автоперенос меняет смысл каждой связи в проекте разом, и
-случиться это должно по решению человека, а не при обновлении.
+The rule is off by default and is enabled per project (`auto_schedule`). The
+reason is not caution: a dependency in this system is first of all a picture,
+and until now it moved nothing at all (see DependencyNudge — a suggestion, not
+an action). Enabling automatic shifting changes the meaning of every dependency
+in the project at once, and that must happen by a person's decision rather than
+on an upgrade.
 
-Двигает только вперёд. Задача, между которой и её предшественником остался
-запас, не подтягивается назад — даже если по связям могла бы начаться раньше.
-Запас в плане чаще всего поставлен нарочно: приёмка, отпуск, окно поставки.
-Автоперенос, вычищающий такие промежутки, переписывал бы план, которого никто
-не просил переписывать, и делал бы это молча.
+It only moves forward. A task with slack left between it and its predecessor is
+not pulled back — even if the dependencies would let it start earlier. Slack in
+a plan is most often put there on purpose: acceptance, a holiday, a delivery
+window. Automatic shifting that swept such gaps away would be rewriting a plan
+nobody asked to have rewritten, and doing it silently.
 
-Идёт от изменённых задач вперёд по связям, а не по всему проекту: проход по
-всему проекту «чинил» бы и те нарушения, которые человек оставил сознательно и
-которые к его нынешней правке отношения не имеют.
+It walks forward along dependencies from the changed tasks rather than over the
+whole project: a walk over the whole project would "fix" violations a person
+left deliberately and which have nothing to do with their current edit.
 """
 
 import uuid
@@ -35,15 +36,16 @@ def push_successors(
     cal: Calendar,
     seeds: set[uuid.UUID],
 ) -> dict[uuid.UUID, date]:
-    """Подвинуть последователей изменённых задач. Возвращает их прежние даты.
+    """Move the successors of the changed tasks. Returns their previous dates.
 
-    Прежние, а не новые: возвращённое идёт в обратную операцию, и именно оно
-    вернёт план на место при отмене. Новые даты вызывающий и так видит — они
-    уже в задачах.
+    The previous ones, not the new ones: what is returned goes into the inverse
+    operation, and it is what puts the plan back on undo. The caller can see the
+    new dates anyway — they are already on the tasks.
 
-    Кольцо невозможно (его отбивает add_dependency), но обход всё равно
-    ограничен числом задач: журнал ревизий и восстановление из снимка проходят
-    мимо той проверки, а зациклившийся здесь обход повесил бы запрос.
+    A cycle is impossible (add_dependency rejects it), but the walk is still
+    bounded by the number of tasks: the revision journal and restoring from a
+    snapshot go around that check, and a walk looping here would hang the
+    request.
     """
     if not seeds:
         return {}
@@ -63,8 +65,8 @@ def push_successors(
 
     was: dict[uuid.UUID, date] = {}
     queue = deque(seed for seed in seeds if seed in tasks)
-    # Потолок обхода: каждая задача может встать в очередь заново, когда её
-    # подвинул очередной предшественник, но не больше раза на связь.
+    # The walk's ceiling: every task may be queued again when yet another
+    # predecessor moves it, but no more than once per dependency.
     steps = len(tasks) * (sum(len(after) for after in links.values()) + 1) + 1
 
     while queue:
@@ -73,8 +75,8 @@ def push_successors(
             break
         current = tasks[queue.popleft()]
         finished = end_date(current.start_date, current.duration_days, cal)
-        # Следующий рабочий день после окончания — самое раннее, когда работа,
-        # ждущая эту задачу, может начаться.
+        # The next working day after the finish is the earliest the work waiting
+        # on this task can start.
         earliest = first_working_on_or_after(finished + timedelta(days=1), cal)
 
         for after_id in links[current.id]:
@@ -90,12 +92,13 @@ def push_successors(
 
 
 def apply_dates(db: DbSession, project: Project, dates: dict[uuid.UUID, date]) -> dict[uuid.UUID, date]:
-    """Расставить даты по готовой карте. Возвращает прежние — для отмены отмены.
+    """Set dates from a ready map. Returns the previous ones — for undoing an undo.
 
-    Путь восстановления: карту диктует журнал, и по связям здесь не считается
-    ничего — расчёт уже отработал в прямой операции. Пересчитать его заново
-    значило бы получить при отмене не то состояние, из которого вышли: перенос
-    вперёд обратим, а «подвинуть на самое раннее» — нет.
+    The restore path: the map is dictated by the journal, and nothing is
+    computed here from dependencies — the computation already ran in the forward
+    operation. Recomputing it would mean landing on undo in a different state
+    from the one we left: moving forward is reversible, "move to the earliest
+    possible" is not.
     """
     if not dates:
         return {}

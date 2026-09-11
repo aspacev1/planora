@@ -15,10 +15,10 @@ def _slug_taken(db: DbSession, org_id: uuid.UUID, slug: str) -> bool:
 
 
 def create_project(db: DbSession, *, org_id: uuid.UUID, name: str) -> Project:
-    """Создание проекта как действие домена, а не как сборка сущности в
-    HTTP-слое. Слаг уникален в пределах организации, и уникальность держит
-    ограничение в базе, а не проверка перед вставкой: два одновременных
-    создания с одинаковым названием раньше давали пятисотку."""
+    """Project creation as a domain action, not as entity assembly in the HTTP
+    layer. The slug is unique within an organization, and that uniqueness is
+    held by a database constraint rather than by a check before the insert: two
+    simultaneous creations with the same name used to produce a 500."""
     return insert_with_unique_slug(
         db,
         lambda slug: Project(org_id=org_id, name=name, slug=slug),

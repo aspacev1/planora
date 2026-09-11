@@ -1,9 +1,9 @@
-"""Управление публичной ссылкой проекта. Всё, что здесь есть, доступно тем,
-кто вправе администрировать проект, — владельцу и редактору.
+"""Managing a project's public link. Everything here is available to whoever
+may administer the project — the owner and an editor.
 
-Отдельный файл, а не ещё четыре маршрута в `project_routes`: публикация
-проекта наружу — самостоятельное решение с собственными рубильниками, и
-смешивать её с чтением плана значит прятать её среди прочего.
+A separate file rather than four more routes in `project_routes`: publishing a
+project outward is a decision in its own right with its own switches, and
+mixing it with reading the plan means hiding it among everything else.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -31,11 +31,12 @@ router = APIRouter(prefix="/api/projects", tags=["sharing"])
 
 
 class ShareOut(BaseModel):
-    """Состояние публикации проекта.
+    """The project's publication state.
 
-    `allowed` отдаётся всегда, даже когда ссылки нет: интерфейс обязан
-    отличать «ещё не опубликован» от «публикация запрещена установкой» —
-    иначе кнопка «опубликовать» обещает действие, которое кончится отказом.
+    `allowed` is always returned, even when there is no link: the interface must
+    distinguish "not published yet" from "publishing is forbidden by the
+    installation" — otherwise the "publish" button promises an action that will
+    end in a refusal.
     """
 
     allowed: bool
@@ -54,8 +55,9 @@ def _out(context: ProjectContext, link: ShareLink | None) -> ShareOut:
         return ShareOut(
             allowed=allowed,
             url=None,
-            # Пока ссылки нет, показывается то, что унаследует новая:
-            # переключатель в интерфейсе не должен прыгать в момент выпуска.
+            # While there is no link, what is shown is what a new one would
+            # inherit: the toggle in the interface must not jump at the moment
+            # the link is issued.
             comments_enabled=context.org.default_comments_enabled,
             created_at=None,
         )
@@ -77,9 +79,10 @@ def get_share(context: ProjectContext = Depends(project_context), db: DbSession 
 def issue_share(
     context: ProjectContext = Depends(project_context), db: DbSession = Depends(get_db)
 ):
-    """Первый выпуск ссылки. Если она уже есть — 409, а не тихий перевыпуск:
-    повтор запроса (двойной клик, ретрай сети) не должен убивать только что
-    разосланный адрес. Перевыпуск — отдельный маршрут ниже."""
+    """The first issue of a link. If one already exists — 409, not a silent
+    reissue: a repeated request (a double click, a network retry) must not kill
+    an address that has just been sent around. Reissuing is a separate route
+    below."""
     context.require(Action.PROJECT_ADMIN)
     try:
         link = create_link(db, context.project, context.org)
@@ -94,7 +97,7 @@ def issue_share(
 def rotate_share(
     context: ProjectContext = Depends(project_context), db: DbSession = Depends(get_db)
 ):
-    """Перевыпуск: прежний адрес умирает в тот же момент."""
+    """Reissue: the previous address dies at that same moment."""
     context.require(Action.PROJECT_ADMIN)
     try:
         link = rotate_link(db, context.project, context.org)

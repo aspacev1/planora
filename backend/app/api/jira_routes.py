@@ -1,4 +1,4 @@
-"""HTTP вокруг интеграции с Jira. Бизнес-логики здесь нет — она в app/jira/."""
+"""HTTP around the Jira integration. No business logic here — it is in app/jira/."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -26,9 +26,10 @@ def _admin(membership: Membership = Depends(current_membership)) -> Membership:
 
 
 def _project_creator(membership: Membership = Depends(current_membership)) -> Membership:
-    """Тот же рубеж, что у создания проекта руками (project_routes.create_project):
-    у сужённого членства нет и не может быть заранее выданного доступа к
-    проекту, которого ещё нет, а импорт заводит именно такой."""
+    """The same boundary as creating a project by hand
+    (project_routes.create_project): a narrowed membership has no pre-granted
+    access to a project that does not exist yet, and cannot have one, while an
+    import creates exactly such a project."""
     if not can(
         parse_role(membership.role), Action.PROJECT_WRITE, scoped=membership.project_scoped
     ):
@@ -37,7 +38,7 @@ def _project_creator(membership: Membership = Depends(current_membership)) -> Me
 
 
 def _refuse(error: JiraError) -> HTTPException:
-    """Сбой Jira — не пятисотка, тем же правилом, что у AI (см. ai_routes._refuse)."""
+    """A Jira failure is not a 500, by the same rule as AI (see ai_routes._refuse)."""
     if error.code in {"jira_not_configured", "jira_not_linked"}:
         return HTTPException(status_code=409, detail=error.code)
     if error.code in {"jira_url_not_https", "jira_url_invalid", "jira_url_private"}:
@@ -45,7 +46,7 @@ def _refuse(error: JiraError) -> HTTPException:
     return HTTPException(status_code=502, detail=error.code)
 
 
-# --- подключение ------------------------------------------------------------
+# --- connection -------------------------------------------------------------
 
 
 class JiraCredentialIn(BaseModel):
@@ -53,15 +54,16 @@ class JiraCredentialIn(BaseModel):
 
     base_url: str = Field(min_length=1, max_length=300)
     email: str = Field(min_length=1, max_length=320)
-    #: Пустой — оставить прежний токен. Наружу токен не отдаётся никогда, и
-    #: требовать его при правке адреса значило бы требовать невозможного.
+    #: Empty means keep the previous token. The token is never handed outward,
+    #: and demanding it in order to edit the address would be demanding the
+    #: impossible.
     api_token: str = ""
 
 
 class JiraCredentialOut(BaseModel):
     base_url: str
     email: str
-    #: Только признак. Самого токена здесь нет и быть не может.
+    #: A flag only. The token itself is not here and cannot be.
     configured: bool
 
 
@@ -96,7 +98,7 @@ def delete_credential(membership: Membership = Depends(_admin), db: DbSession = 
     drop_credential(db, db.get(Organization, membership.org_id))
 
 
-# --- проекты и импорт --------------------------------------------------------
+# --- projects and import -----------------------------------------------------
 
 
 class JiraProjectOut(BaseModel):
@@ -125,8 +127,8 @@ class JiraImportIn(BaseModel):
 
     jira_project_key: str = Field(min_length=1, max_length=64)
     name: str = Field(min_length=1, max_length=200)
-    #: Пусто — запрос по умолчанию (весь проект). Ручная правка — способ
-    #: сузить импорт, например только открытыми задачами.
+    #: Empty means the default query (the whole project). A hand edit is the way
+    #: to narrow the import, for example to open issues only.
     jql: str | None = Field(default=None, max_length=2000)
 
 
@@ -166,7 +168,7 @@ def import_from_jira(
     )
 
 
-# --- проект, заведённый из Jira ----------------------------------------------
+# --- a project created from Jira ---------------------------------------------
 
 
 class JiraLinkOut(BaseModel):
@@ -240,9 +242,10 @@ class JiraPushOut(BaseModel):
 def push_to_jira(
     context: ProjectContext = Depends(project_context), db: DbSession = Depends(get_db)
 ):
-    """Отправляет сроки задач в Jira. Отказ одной задачи (Jira отклонила срок,
-    у токена нет прав на неё) не проваливает запрос целиком — он приходит
-    списком `failed`, а не кодом ответа: остальные задачи всё равно отправились."""
+    """Pushes task dates to Jira. A refusal for one task (Jira rejected the
+    date, the token has no rights to it) does not fail the whole request — it
+    comes back in a `failed` list rather than in the response code: the other
+    tasks went through anyway."""
     context.require(Action.PROJECT_WRITE)
     try:
         result = push_project(

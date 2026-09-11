@@ -1,10 +1,10 @@
-"""Панель директора: кто зарегистрирован и когда пользовался продуктом в
-последний раз.
+"""The director's panel: who is registered and when they last used the product.
 
-Доступ решает не роль в организации — Role.OWNER имеет смысл только внутри
-одной организации, а владельцев организаций в установке может быть сколько
-угодно, — а роль директора (см. app.director). Это свойство самой установки:
-директор не обязан состоять ни в одной из организаций, за которыми наблюдает.
+Access is decided not by a role within an organization — Role.OWNER only makes
+sense inside one organization, and an installation may have any number of
+organization owners — but by the director role (see app.director). This is a
+property of the installation itself: the director need not belong to any of the
+organizations they watch over.
 """
 
 import uuid
@@ -23,12 +23,12 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 def current_director(user: User = Depends(current_user)) -> User:
-    """Тот же человек, что и current_user, но допущенный в панель директора.
+    """The same person as current_user, but admitted to the director's panel.
 
-    Отказ — 403, а не 404: адрес не называет никакой чужой сущности,
-    существование которой стоило бы скрывать. То, что панель вообще
-    существует, для остальных прячет уже интерфейс, не показывающий пункт
-    меню (см. UserOut.is_director в auth_routes.py).
+    A refusal is a 403, not a 404: the address names no one else's entity whose
+    existence would be worth hiding. That the panel exists at all is already
+    hidden from everyone else by the interface, which does not show the menu
+    item (see UserOut.is_director in auth_routes.py).
     """
     if not is_director(user.email):
         raise HTTPException(status_code=403, detail="forbidden")
@@ -39,26 +39,26 @@ class AdminUserOut(BaseModel):
     id: str
     name: str
     email: str
-    #: Дата регистрации — момент, когда завёлся аккаунт.
+    #: The registration date — the moment the account came into being.
     created_at: str
-    #: Последний раз, когда с сессией этого человека пришёл запрос. `null` —
-    #: активности ещё не видно: аккаунт заведён (или обновлён миграцией), но
-    #: обращения новее последнего шага обновления ещё не случилось
-    #: (см. _LAST_USED_WRITE_STEP в app.auth).
+    #: The last time a request arrived with this person's session. `null` means
+    #: no activity is visible yet: the account was created (or updated by a
+    #: migration), but no request newer than the last refresh step has happened
+    #: yet (see _LAST_USED_WRITE_STEP in app.auth).
     last_active_at: str | None
-    #: Организации, в которых состоит человек, по имени. Пусто — вышел из
-    #: всех, в том числе из собственной, заведённой при регистрации.
+    #: The organizations the person belongs to, by name. Empty means they left
+    #: them all, including their own, created at registration.
     organizations: list[str]
 
 
 @router.get("/users", response_model=list[AdminUserOut])
 def list_users(_: User = Depends(current_director), db: DbSession = Depends(get_db)):
-    """Все аккаунты установки — самые новые регистрации первыми.
+    """Every account of the installation — the newest registrations first.
 
-    Организации подтягиваются одним отдельным запросом и раскладываются по
-    владельцу в памяти, а не join'ом к списку пользователей: join размножил
-    бы строку человека на число его организаций и потребовал бы схлопывать
-    дубликаты здесь же.
+    Organizations are pulled in by one separate query and laid out by owner in
+    memory rather than joined to the user list: a join would multiply a person's
+    row by the number of their organizations and would require collapsing the
+    duplicates right here.
     """
     users = db.scalars(select(User).order_by(User.created_at.desc(), User.id)).all()
 
