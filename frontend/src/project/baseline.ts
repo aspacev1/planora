@@ -2,16 +2,16 @@ import type { Op, ProjectState, Task } from "../api/projects";
 import { addDays, daysBetween } from "../gantt/timescale";
 
 /**
- * Отклонение от базового плана — то же правило, что и на сервере.
+ * The deviation from the baseline plan — the same rule as on the server.
  *
- * Повторение здесь не заменяет серверную проверку и не спорит с ней: решает
- * всё равно сервер, а это нужно для того, чтобы окно с причиной появлялось
- * сразу при отпускании мыши, а не после отказа по сети. Разойтись эти два
- * счёта не могут: оба считают ровно одно — расстояние до базового плана, и
- * обе цифры берутся из одного и того же состояния.
+ * Repeating it here does not replace the server's check and does not argue with it: the
+ * server decides either way, and this exists so that the reason dialog appears right when
+ * the mouse is released rather than after a refusal over the network. These two
+ * reckonings cannot diverge: both compute exactly one thing — the distance to the
+ * baseline plan — and both figures are taken from one and the same state.
  */
 
-/** Порог по умолчанию, если сервер не прислал разрешённых настроек. */
+/** The default threshold if the server sent no permitted settings. */
 const FALLBACK_THRESHOLD_DAYS = 2;
 
 export function thresholdOf(state: ProjectState): number {
@@ -19,13 +19,13 @@ export function thresholdOf(state: ProjectState): number {
 }
 
 /**
- * Базовый план задачи, если он есть.
+ * A task's baseline plan, if it has one.
  *
- * Одно место, где решается «есть или нет», — и одно место, где отсутствующее
- * поле приравнивается к пустому. Второе важно: состояние приходит и от
- * сервера, и из оптимистичных правок, и роль без части полей однажды
- * получилась бы «с базовым планом из undefined». Нулевая длительность в
- * условие попадает заодно и безвредно: сервер меньше одного дня не принимает.
+ * One place where "has one or not" is decided — and one place where a missing field is
+ * equated to an empty one. The second matters: the state arrives both from the server and
+ * from optimistic edits, and a role without some of the fields would one day come out
+ * "with a baseline plan made of undefined". A zero duration falls into the condition as a
+ * bonus and harmlessly: the server does not accept less than one day.
  */
 export function baselineOf(
   task: Task,
@@ -36,21 +36,20 @@ export function baselineOf(
 }
 
 /**
- * Задача, добавленная после утверждения плана.
+ * A task added after the plan was approved.
  *
- * Базового плана у неё нет и не будет до переутверждения: добавление работы
- * нормально, объяснений оно не требует — объяснений требует скрытый перенос
- * сроков.
+ * It has no baseline plan and will not have one until re-approval: adding work is normal
+ * and requires no explanation — what requires explanation is a hidden shift of dates.
  */
 export function isBeyondPlan(state: ProjectState, task: Task): boolean {
   return Boolean(state.plan_approved_at) && baselineOf(task) === null;
 }
 
 /**
- * Насколько задача разошлась с базовым планом, в днях.
+ * How far a task has diverged from the baseline plan, in days.
  *
- * `null` — сравнивать не с чем. Значения `start_date` и `duration_days`
- * можно подменить: именно так проверяется правка, которую ещё не отправили.
+ * `null` — there is nothing to compare with. The `start_date` and `duration_days` values
+ * can be substituted: that is exactly how an edit not yet sent is checked.
  */
 export function deviationDays(
   task: Task,
@@ -62,22 +61,22 @@ export function deviationDays(
   const duration = next.duration_days ?? task.duration_days;
   const startShift = Math.abs(daysBetween(baseline.start, start));
   const durationShift = Math.abs(duration - baseline.duration);
-  // Измерения не смешиваются — ровно как в `deviation_days` на сервере:
-  // названное измерение и меряется. Иначе задача, чей старт уже объяснённо
-  // уехал за порог, требовала бы причину на каждую правку длительности в
-  // один день — и окно называло бы число из чужого измерения. Без подмены
-  // возвращается наибольшее из двух: ответ на «насколько задача ушла».
+  // The dimensions are not mixed — exactly as in `deviation_days` on the server: the named
+  // dimension is the one measured. Otherwise a task whose start has already travelled past
+  // the threshold with an explanation would demand a reason for every one-day edit of the
+  // duration — and the dialog would name a number from a different dimension. Without a
+  // substitution the greater of the two is returned: the answer to "how far has the task gone".
   if (next.start_date !== undefined && next.duration_days === undefined) return startShift;
   if (next.duration_days !== undefined && next.start_date === undefined) return durationShift;
   return Math.max(startShift, durationShift);
 }
 
 /**
- * Сдвиг окончания относительно базового плана — то, что показывает бейдж.
+ * The end's shift relative to the baseline plan — what the badge shows.
  *
- * Именно окончание, а не старт: оно одно отвечает на вопрос «когда это будет
- * готово» и вбирает в себя и перенос начала, и растяжение срока. `null` —
- * базового плана нет, бейджа тоже.
+ * The end specifically, not the start: it alone answers the question "when will this be
+ * ready" and absorbs both a move of the start and a stretch of the duration. `null` —
+ * there is no baseline plan, and no badge either.
  */
 export function endShiftDays(task: Task): number | null {
   const baseline = baselineOf(task);
@@ -86,10 +85,10 @@ export function endShiftDays(task: Task): number | null {
 }
 
 /**
- * Разошёлся ли план с тем, что согласовали, живёт в `planChanges.ts`: там же
- * считается и список самих расхождений, который показывает окно изменений.
- * Признак и список обязаны знать одно и то же — иначе пометка в шапке однажды
- * появится над пустым окном.
+ * Whether the plan has diverged from what was approved lives in `planChanges.ts`: the list
+ * of the divergences themselves, which the changes panel shows, is computed there too. The
+ * flag and the list must know one and the same thing — otherwise the marker in the header
+ * will one day appear above an empty panel.
  */
 
 export type ShiftRequest = {
@@ -99,10 +98,10 @@ export type ShiftRequest = {
 };
 
 /**
- * Требует ли эта операция причины — и какие числа показать в окне.
+ * Whether this operation requires a reason — and which numbers to show in the dialog.
  *
- * `null` означает «не требует»: либо операция вовсе не про сроки, либо плана
- * ещё нет, либо отклонение укладывается в порог.
+ * `null` means "does not require": either the operation is not about dates at all, or
+ * there is no plan yet, or the deviation fits within the threshold.
  */
 export function shiftNeedingReason(state: ProjectState, op: Op): ShiftRequest | null {
   const worst = worstDeviation(state, op);
@@ -114,12 +113,12 @@ export function shiftNeedingReason(state: ProjectState, op: Op): ShiftRequest | 
 }
 
 /**
- * Самая уехавшая задача операции и её отклонение — или `null`, если операция
- * не про сроки либо сравнивать не с чем.
+ * The operation's most travelled task and its deviation — or `null` if the operation is
+ * not about dates or there is nothing to compare with.
  *
- * «Самая» здесь не преувеличение: сдвиг категории двигает много задач одним
- * движением, а объяснение у движения одно. Спрашивать причину по каждой строке
- * значило бы задать один и тот же вопрос столько раз, сколько их в категории.
+ * "Most" here is not an exaggeration: a category shift moves many tasks in one motion,
+ * while the movement has one explanation. Asking for a reason per row would mean asking
+ * one and the same question as many times as there are rows in the category.
  */
 function worstDeviation(
   state: ProjectState,
@@ -144,9 +143,8 @@ function worstDeviation(
   const task = state.tasks.find((row) => row.id === op.task_id);
   if (!task) return null;
 
-  // Изменение подставляется тем измерением, которое операция называет.
-  // `resize_task` называет оба: левая грань двигает старт и меняет
-  // длительность одним движением.
+  // The change is substituted in the dimension the operation names. `resize_task` names
+  // both: the left edge moves the start and changes the duration in one motion.
   const deviation = deviationDays(
     task,
     op.type === "move_task"
