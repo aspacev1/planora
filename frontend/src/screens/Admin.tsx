@@ -72,21 +72,23 @@ export function Admin() {
           {filtered.length === 0 ? (
             <p className="muted">{t("admin.no_match")}</p>
           ) : (
-            <table className="report">
-              <thead>
-                <tr>
-                  <th scope="col">{t("admin.col.user")}</th>
-                  <th scope="col">{t("admin.col.organizations")}</th>
-                  <th scope="col">{t("admin.col.registered")}</th>
-                  <th scope="col">{t("admin.col.last_active")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((row) => (
-                  <AdminUserRow key={row.id} row={row} locale={locale} zone={zone} />
-                ))}
-              </tbody>
-            </table>
+            <div className="report__scroll">
+              <table className="report">
+                <thead>
+                  <tr>
+                    <th scope="col">{t("admin.col.user")}</th>
+                    <th scope="col">{t("admin.col.organizations")}</th>
+                    <th scope="col">{t("admin.col.registered")}</th>
+                    <th scope="col">{t("admin.col.last_active")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((row) => (
+                    <AdminUserRow key={row.id} row={row} locale={locale} zone={zone} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           <p className="muted">{t("admin.count", { count: filtered.length })}</p>

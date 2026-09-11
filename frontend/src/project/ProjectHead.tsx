@@ -90,9 +90,14 @@ export function PlanState({
         className="project-head__plan-label"
         data-state={state.plan_approved_at ? "approved" : "draft"}
       >
-        {state.plan_approved_at
-          ? t("plan.line", { version: state.plan_version })
-          : t("plan.line_draft")}
+        {/* Текст — отдельным узлом: на телефоне от плашки остаётся одна
+            точка, а слова уходят в невидимую для глаза, но читаемую вслух
+            подпись (см. `.project-head__plan-text` в теме). */}
+        <span className="project-head__plan-text">
+          {state.plan_approved_at
+            ? t("plan.line", { version: state.plan_version })
+            : t("plan.line_draft")}
+        </span>
       </span>
       {/* Расхождение с планом называет себя числом задач, а не одним лишь
           фактом: «изменены 3 задачи» отвечает на «насколько всё серьёзно» до

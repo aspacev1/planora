@@ -70,14 +70,17 @@ describe("шапка проекта", () => {
     // Черновик и согласованный план различаются цветом бейджа, и цвет тема
     // берёт из `data-state`: без него оба остались бы янтарными — то есть
     // согласованный план всё время требовал бы внимания.
+    // Текст лежит во вложенном узле (на телефоне он прячется, оставляя точку),
+    // а состояние носит сама плашка.
     renderProject();
-    expect(await screen.findByText("План проекта · черновик")).toHaveAttribute(
-      "data-state",
-      "draft",
-    );
+    expect(
+      (await screen.findByText("План проекта · черновик")).closest(".project-head__plan-label"),
+    ).toHaveAttribute("data-state", "draft");
 
     renderProject(APPROVED);
-    expect(await screen.findByText("План проекта · v1")).toHaveAttribute("data-state", "approved");
+    expect(
+      (await screen.findByText("План проекта · v1")).closest(".project-head__plan-label"),
+    ).toHaveAttribute("data-state", "approved");
   });
 
   it("состояние плана стоит в строке названия, а не хвостом за сводкой", async () => {
