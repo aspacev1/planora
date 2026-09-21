@@ -24,7 +24,7 @@
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
   <img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
   <img alt="Vercel" src="https://img.shields.io/badge/Vercel-ready-000000?logo=vercel&logoColor=white">
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-green"></a>
 </p>
 
 <p align="center">
@@ -527,6 +527,6 @@ are the entry point.
 
 ## License
 
-Planora is free and open-source software released under the [MIT License](LICENSE).
+Planora is free and open-source software released under the [Apache License 2.0](LICENSE).
 You may use, modify, self-host, and redistribute it, commercially or otherwise, provided
 the copyright and license notice is retained.
