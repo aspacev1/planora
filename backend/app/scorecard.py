@@ -61,6 +61,7 @@ from app.models import (
     User,
 )
 from app.mutations import AssignUser, CreateTask, InvalidOperation, MutationError, apply_op
+from app.projects import lock_project
 from app.settings_resolution import (
     project_calendar,
     resolve_shift_threshold,
@@ -187,6 +188,16 @@ def _in_week(stamp: datetime | None, week_start: date, tz: ZoneInfo) -> bool:
 # --- metric configs -----------------------------------------------------------
 
 
+def _metric_keys(db: DbSession, project: Project) -> set[str]:
+    return set(
+        db.scalars(
+            select(ScorecardMetric.metric_key).where(
+                ScorecardMetric.project_id == project.id
+            )
+        ).all()
+    )
+
+
 def ensure_metrics(db: DbSession, project: Project) -> list[ScorecardMetric]:
     """The project's metric configs; missing ones are seeded with defaults.
 
@@ -194,12 +205,14 @@ def ensure_metrics(db: DbSession, project: Project) -> list[ScorecardMetric]:
     a new version of the code is seeded the same way. Owners are empty in the
     seed: a default is a target and a direction, not an assignment of people.
     """
-    existing = {
-        m.metric_key: m
-        for m in db.scalars(
-            select(ScorecardMetric).where(ScorecardMetric.project_id == project.id)
-        ).all()
-    }
+    existing = _metric_keys(db, project)
+    if any(definition.key not in existing for definition in METRICS):
+        # Seeding writes, and two first readers would both insert the same keys —
+        # one of them a unique violation and a 500. The lock is taken only when
+        # something is missing, so an ordinary read stays lock-free; the keys are
+        # re-read under it, since the other reader may have seeded them meanwhile.
+        lock_project(db, project)
+        existing = _metric_keys(db, project)
     created = False
     for position, definition in enumerate(METRICS):
         if definition.key in existing:
@@ -1162,7 +1175,7 @@ def _lock_project(db: DbSession, project: Project) -> None:
     """Serializes the writing of snapshots: two concurrent GETs at a week boundary
     would otherwise collide on the unique constraint with a 500. The same technique
     and the same lock as in the mutation layer."""
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    lock_project(db, project)
 
 
 def _compute_week_values(

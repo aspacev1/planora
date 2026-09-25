@@ -215,7 +215,11 @@ def session_for_token(db: DbSession, raw_token: str | None) -> Session | None:
     # it is dead, whatever its formal expiry date.
     if record.last_used_at is not None and now - record.last_used_at > SESSION_IDLE_TTL:
         db.delete(record)
-        db.flush()
+        # Committed here rather than left to get_db: the caller answers with a 401,
+        # get_db rolls a raising request back, and the dead row would outlive every
+        # refusal. Nothing else is in the transaction yet — authentication is the
+        # request's first step (and the socket's short session never commits).
+        db.commit()
         return None
 
     # The "used" mark — by a step rather than on every request (see the constant).

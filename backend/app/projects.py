@@ -25,3 +25,19 @@ def create_project(db: DbSession, *, org_id: uuid.UUID, name: str) -> Project:
         name=name,
         is_taken=lambda slug: _slug_taken(db, org_id, slug),
     )
+
+
+def lock_project(db: DbSession, project: Project) -> None:
+    """Takes the project's row lock and reloads the row under it.
+
+    Every writer that serializes on a project takes this lock. The reload is the
+    half that is easy to miss: `project` was loaded by the route's dependency
+    before the lock, and a bare `SELECT id ... FOR UPDATE` does not touch the copy
+    already in the session. Whoever waited on the lock would then compute from the
+    state the previous holder has just changed — `plan_version + 1` from a stale
+    version is the same number twice, and a unique violation for the loser.
+
+    Pending changes are flushed first: a refresh overwrites unflushed attributes.
+    """
+    db.flush()
+    db.refresh(project, with_for_update=True)
