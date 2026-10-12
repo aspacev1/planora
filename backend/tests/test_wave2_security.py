@@ -27,8 +27,26 @@ from app.auth import SESSION_IDLE_TTL, open_session
 
 @pytest.fixture
 def client(db):
+    """A TestClient whose get_db behaves like the real one on a refusal.
+
+    The real get_db rolls back a request that raised (an HTTPException included);
+    a bare `yield db` does not, and under it a counter written just before a 401
+    survived in the tests while vanishing in production. A SAVEPOINT per request
+    reproduces the rollback without leaving the `db` fixture's outer transaction;
+    a route's own db.commit() releases the savepoint, as in production it would
+    commit the transaction.
+    """
+
     def _override_get_db():
-        yield db
+        savepoint = db.begin_nested()
+        try:
+            yield db
+        except Exception:
+            if savepoint.is_active:
+                savepoint.rollback()
+            raise
+        if savepoint.is_active:
+            savepoint.commit()
 
     app.dependency_overrides[get_db] = _override_get_db
     try:
@@ -179,6 +197,22 @@ def test_signups_from_one_address_hit_a_ceiling(client, monkeypatch):
         },
     )
     assert second.status_code == 429
+
+
+def test_refused_signups_count_against_the_ceiling(authed, monkeypatch):
+    """Probing addresses with sign-ups that end in 409 is still an attempt: the
+    refusal must not roll the counter back along with the request."""
+    monkeypatch.setattr(get_settings(), "signup_rate_limit_per_ip", 3)
+    taken = {
+        "name": "Alex",
+        "email": "alex@example.com",
+        "password": "s3cret-pass",
+        "company_name": "Acme",
+    }
+    # The `authed` sign-up itself was the first attempt.
+    assert authed.post("/api/auth/register", json=taken).status_code == 409
+    assert authed.post("/api/auth/register", json=taken).status_code == 409
+    assert authed.post("/api/auth/register", json=taken).status_code == 429
 
 
 # --- 2.4: the AI budget and rate ------------------------------------------------

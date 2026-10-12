@@ -39,6 +39,7 @@ from app.models import (
     User,
 )
 from app.mutations import CreateCategory, CreateTask, apply_op
+from app.projects import lock_project
 from app.schedule import RELATIVE_EPOCH
 
 
@@ -52,17 +53,6 @@ class ProposalError(Exception):
 
 def get_proposal(db: DbSession, project: Project) -> Proposal | None:
     return db.scalar(select(Proposal).where(Proposal.project_id == project.id))
-
-
-def lock_project(db: DbSession, project: Project) -> None:
-    """A lock on the project's row until the end of the transaction — the same one apply_op holds.
-
-    The proposal belongs to the project, and needs no second lock of its own; but
-    this one must be taken before any read a decision is made on: what is read
-    before the lock is a snapshot from under someone else's uncommitted
-    transaction.
-    """
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
 
 
 def ensure_proposal(db: DbSession, project: Project) -> Proposal:

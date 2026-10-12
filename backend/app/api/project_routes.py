@@ -44,7 +44,7 @@ from app.mutations import (
 from app.mutations import MAX_WIRE_DATE, undo_last as undo_last_revision
 from app.orgs import current_membership
 from app.plans import PlanVersionNotFound, approve_plan, plan_versions, restore_plan_version
-from app.projects import create_project as create_project_entity
+from app.projects import create_project as create_project_entity, lock_project
 from app.schedule import apply_schedule, planned_schedule
 from app.settings_input import (
     MAX_WORKING_DAYS,
@@ -501,7 +501,7 @@ def update_project(
     # check, and an edit to the settings interleaved with applying an operation
     # would give the mutation the threshold from before the edit and the layout from
     # after it.
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    lock_project(db, project)
 
     updates = changes(payload, nullable=NULLABLE_PROJECT_FIELDS)
     if "slug" in updates and _project_slug_taken(
@@ -613,7 +613,7 @@ def assign_schedule(
     # The lock on the project's row — the same one the settings and mutations take:
     # laying tasks out along the calendar must not be interleaved with someone
     # moving a task.
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    lock_project(db, project)
 
     try:
         plan = apply_schedule(
@@ -794,6 +794,11 @@ def approve_plan_route(
     A second route would differ from the first only in the permission check, and
     they would drift apart on the very first edit to the snapshot.
     """
+    # "First time or again" is decided under the lock, on the reloaded row: read
+    # before it, two simultaneous first approvals both see version 0 — and the one
+    # that waited would re-approve with PLAN_APPROVE alone, which an editor holds
+    # while re-approval is the owner's.
+    lock_project(db, context.project)
     first_time = context.project.plan_version == 0
     context.require(Action.PLAN_APPROVE if first_time else Action.PLAN_REAPPROVE)
 

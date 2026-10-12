@@ -238,6 +238,10 @@ def register_route(
         window_seconds=settings.auth_rate_window_seconds,
     ):
         raise HTTPException(status_code=429, detail="too_many_requests")
+    # Committed at once: every refusal below (a taken address, a bad invitation)
+    # raises, and get_db rolls a raising request back — the attempt would vanish
+    # with it, and only successful sign-ups would ever count against the limit.
+    db.commit()
 
     invitation = _invitation_for_signup(db, payload)
     if mode == "invite_only" and invitation is None:
@@ -326,6 +330,11 @@ def login_route(
     user = authenticate(db, email=payload.email, password=payload.password)
     if user is None:
         throttle.note(db, account_bucket)
+        # Committed before the refusal: get_db rolls back a request that raises,
+        # and without this both the failure and the IP hit above would be rolled
+        # back with the 401 — the counters would see successes only, that is,
+        # never the guessing they exist to stop.
+        db.commit()
         raise HTTPException(status_code=401, detail="bad_credentials")
     _set_cookie(response, request, open_session(db, user))
     return _to_out(user)

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from app.models import PlanVersion, Project, Task
+from app.projects import lock_project
 
 
 def deviation_days(
@@ -69,7 +70,7 @@ def approve_plan(db: DbSession, project: Project, *, actor_id: uuid.UUID | None)
     lock would get the same number — which a unique constraint holds, meaning
     the loser would get a bare 500.
     """
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    lock_project(db, project)
 
     tasks = db.scalars(
         select(Task).where(Task.project_id == project.id).order_by(Task.position, Task.id)
@@ -129,7 +130,7 @@ def restore_plan_version(
     Tasks created after version N are absent from the snapshot — their baseline
     is cleared: relative to the restored promise they are "beyond the plan".
     """
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    lock_project(db, project)
 
     source = db.scalar(
         select(PlanVersion).where(

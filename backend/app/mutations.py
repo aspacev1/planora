@@ -27,6 +27,7 @@ from app.models import (
 )
 from app.cascade import apply_dates, push_successors
 from app.plans import deviation_days
+from app.projects import lock_project
 from app.settings_resolution import project_calendar, resolve_shift_threshold
 
 
@@ -1866,7 +1867,7 @@ def apply_op(
     # is no constraint at all and the divergence goes unnoticed. Collaborative
     # editing of one project is this product's normal mode rather than a rare case;
     # when there is no contention, the lock costs nothing.
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    lock_project(db, project)
     # A reason made of nothing but spaces is the absence of a reason. It is
     # normalized here rather than in the route: the threshold rule lives in this
     # layer, and checking one thing here while storing another would mean two
@@ -2000,7 +2001,7 @@ def undo_last(
 
     Returns the pair (the undo entry, the revision undone): the route needs both.
     """
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    lock_project(db, project)
     revision = last_undoable(db, project)
     if revision is None:
         raise NotFoundInProject("nothing_to_undo", "отменять нечего")
@@ -2064,7 +2065,7 @@ def undo_batch(
     # The same lock and for the same reason as in undo_last: without it two
     # simultaneous rollbacks read the list of revisions from one snapshot and each
     # applies every undo — two per revision.
-    db.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    lock_project(db, project)
     undone = select(Revision.undoes_seq).where(
         Revision.project_id == project.id, Revision.undoes_seq.is_not(None)
     )
